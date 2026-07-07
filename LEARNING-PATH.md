@@ -511,6 +511,73 @@ character or controlling one" — the same three questions this project's
 own AI features already had to answer, now as your own reflex instead
 of something pointed out to you.
 
+## Stage 12 — containers: what Docker actually is, and what it isn't for
+
+**Why this stage exists:** you asked about "the high security problem"
+and whether Docker would fix it. Worth being precise about both halves
+of that, since they turned out to be two different questions with two
+different answers.
+
+**What the actual problem was, concretely:** `npm audit` flagged a real,
+published issue (GHSA-67mh-4wv8-2f99) in `esbuild`, the tool Vite uses
+under the hood — while `npm run dev` is running, a malicious website
+open in the *same browser* could send requests to your local dev server
+and read what comes back. Real, but narrow: it only matters while the
+dev server is actively running, and only if something malicious is
+open at the same time. It never touched the built site (`dist/`), which
+is what anyone visiting the deployed game would actually use. **Fixed
+directly** — `npm audit fix --force` upgraded Vite to a version without
+the flaw, verified with `npm test`, `npm run build`, and a live pass
+through the game afterward. Zero vulnerabilities now.
+
+**So does Docker matter here? Concept: containers solve a different
+problem than the one that just got fixed.** A container is a lightweight,
+isolated environment — its own filesystem view, its own process list —
+that runs on your same machine but can't casually reach outside itself.
+The actual value: if some *other*, unknown-to-you vulnerability existed
+in one of the hundreds of packages `npm install` pulls in, and it tried
+to do something bad (read files elsewhere on your machine, reach out to
+the network in a way you didn't expect), a container limits how far
+that can actually go. That's a real, worthwhile thing to want — it's
+just not what fixed today's specific issue, which needed a version
+bump, not a wall around it.
+
+**The honest tradeoff, before reaching for it:** running this project's
+dev server *inside* Docker adds real friction for a beginner-in-progress
+— an extra tool, an extra layer between you and the error messages you're
+already learning to read (Stage 1's whole point). Worth doing once you
+want the isolation habit for its own sake, not as an emergency patch for
+one already-fixed CVE.
+
+**A learning plan, if/when you want to actually do this:**
+1. Install Docker Desktop; run `docker run hello-world` — the smallest
+   possible "does this work at all" check, same instinct as Stage 5's
+   `git status` habit: confirm the tool responds before building on it.
+2. Learn the two-file vocabulary: a `Dockerfile` (instructions for
+   *building* an image — "install Node, copy the project in, run
+   `npm install`") and `docker-compose.yml` (instructions for *running*
+   one or more containers together — mainly useful once there's a
+   database container alongside the app one, i.e. genuinely relevant
+   once Phase 3's Supabase-equivalent exists locally).
+3. Try it on this actual project as a real exercise, not a tutorial repo:
+   write a `Dockerfile` that installs dependencies and runs `npm run
+   dev`, build it (`docker build -t sand-pavilion .`), run it mapping
+   the port out (`docker run -p 5173:5173 sand-pavilion`), and hit
+   `localhost:5173` from your normal browser like nothing changed. If
+   local AI (Ollama) stops being reachable at that point, that's not a
+   bug — it's the isolation actually working, and the real lesson: a
+   containerized game can no longer casually reach `localhost:11434` on
+   your host machine, since "localhost" now means *the container's own*
+   loopback, not yours. Solving that (Docker's `host.docker.internal`,
+   or running Ollama in a sibling container) is a good next exercise
+   once you're here, not before.
+
+**You're ready to say you understand containers when:** you can explain,
+in your own words, why "put it in Docker" wasn't the fix for the actual
+vulnerability that was found — and why that doesn't make containers a
+bad idea, just an answer to a different question than the one that was
+asked.
+
 ---
 
 *This document is meant to be revisited and rewritten as you progress —

@@ -1253,6 +1253,51 @@ should feel entirely free to ignore, steal, or wildly improve on any of
 it. Consider this the Pavilion's own attic — not load-bearing, just full
 of things too interesting to throw out.
 
+### Intentions — why this exists, stated plainly
+
+Everything else in this document is *how*. This is *why*, written down
+on purpose rather than left implicit, because a project this personal
+deserves to have its own reasons on record.
+
+**This is meant to be an abundance system, not a scarcity one.** Every
+real decision made so far already points this direction, even before
+the phrase existed: no gate on the Library, no ledger of debts on the
+Keep's charter, no login wall, no tracking, save data that's a file *you*
+own. "Abundance" here doesn't mean unlimited or careless — the Library's
+whole discipline (license first, source first, one steward's judgment
+per text) is exactly what makes giving something away safely *possible*.
+An abundance system that hands out things it doesn't actually have the
+right to give isn't generous, it's careless with other people's work.
+The careful curation and the generosity are the same instinct, not two
+competing ones.
+
+**This is meant to uplift, not extract.** The existing hopes-and-dream
+bullet about "proof this doesn't have to be extractive" already said
+this; worth saying it as an intention rather than a feature pitch. Every
+architectural choice that looks like it costs convenience — local AI
+instead of one central account, license checked by a human instead of
+scraped in bulk, a steward queue instead of instant publishing — is that
+principle actually being spent on, not a limitation waiting to be lifted
+later.
+
+**This is meant to be a real tool in the user's own life** — for
+learning (the whole `LEARNING-PATH.md` curriculum exists because of
+this), and for spiritual practice (the Library's actual shelves, the
+Writing Desk's daily rhythm blocks, the Course Board's "the walking is
+the credential" ethos). Not a demo of what a personal knowledge tool
+*could* look like — the actual one, used daily, by the person building
+it, which is also why every feature so far has come from a real
+question asked in a real conversation rather than a roadmap written in
+advance.
+
+**The tension worth naming, not resolving:** "digest the knowledge and
+history of humanity" and "review everything a person carefully before
+it's trusted" pull in opposite directions — one wants breadth and scale,
+the other wants slowness and care. This project bets on the second
+every time that choice actually comes up, on purpose, even knowing it
+means growing slower than the ambition sounds. That bet is itself part
+of the intention, not a compromise of it.
+
 - **A Pavilion, not *the* Pavilion.** Right now this is one world, one
   save file, one visitor. What if anyone could stand up their own
   instance — their own Grounds, their own Library shelves stocked with
