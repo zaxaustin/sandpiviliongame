@@ -224,7 +224,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); }
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','computerOv','requestsOv','inventoryOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','computerOv','requestsOv','inventoryOv','reviewOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Pause menu — reachable with Esc from the open world, or the ☰ HUD button ----- */
@@ -242,6 +242,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
       <button class="btn ghost" onclick="openBadges()" style="margin-bottom:9px">🏅 Badges</button>
       <button class="btn ghost" onclick="openInventory()" style="margin-bottom:9px">🎒 Inventory</button>
+      <button class="btn ghost" onclick="openReviewQueue()" style="margin-bottom:9px">🛡 Steward Review</button>
       <button class="btn ghost" onclick="exportSave()" style="margin-bottom:9px">⬇ Export save (.json)</button>
       <button class="btn ghost" onclick="triggerImportSave()" style="margin-bottom:9px">⬆ Import save…</button>
       <button class="btn ghost" onclick="returnToTitle()" style="margin-bottom:9px">← Return to title screen</button>
@@ -789,6 +790,7 @@ function renderArchive(){
       ${d.meta ? reportMetaHTML(d.meta) : ''}
       <div class="row" style="margin-top:18px">
         <button class="btn ghost" onclick="backToArchiveList()">← Back to the desk</button>
+        <button class="btn ghost" onclick="submitArchiveDocForReview('${d.slug}')">📤 Submit for Library review</button>
         <button class="btn ghost" onclick="deleteArchiveDoc('${d.slug}')">Tear out the page</button>
       </div>`;
     typewriteBody(d.body);
@@ -974,6 +976,118 @@ export function removeRequest(id){
   persist(); renderRequests();
 }
 
+/* ----- Steward Review Queue — the real "pull request" workflow, built
+   single-steward-first since only one user exists today. Anything
+   headed for the shared Library — a submitted Archive Desk piece, or a
+   batch pasted from the Caravan connector — lands here `pending`,
+   never straight on a shelf. Approving doesn't write to seed.js by
+   itself: it marks the item ready, and a separate "generate batch"
+   step produces every approved item as one combined snippet, so the
+   Library grows in occasional deliberate batches, not a commit per
+   text. Once Phase 3 and more stewards exist, this becomes a real
+   table and "approve" can write to it directly — same shape, only the
+   underneath changes. */
+export function openReviewQueue(){ state.ui='review'; hideAllOv(); state.reviewView=state.reviewView||{mode:'list'}; renderReviewQueue(); showOv('reviewOv'); }
+export function newReviewImportForm(){ state.reviewView={mode:'import'}; renderReviewQueue(); }
+export function backToReviewList(){ state.reviewView={mode:'list'}; renderReviewQueue(); }
+function renderReviewQueue(){
+  const v=state.reviewView, q=data.reviewQueue;
+  const panel=document.getElementById('reviewPanel');
+  if(v.mode==='import'){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Add Candidates to the Queue</h2>
+      <div class="meta">Paste a JSON array from the Caravan connector (or typed by hand), shaped
+        like <code>{"title":"…","license":"…","source":"…","body":"…"}</code>. These land as
+        pending — nothing here touches a shelf until reviewed.</div>
+      <textarea id="reviewImportJson" rows="8" placeholder='[{"title":"...","license":"...","source":"...","body":"..."}]'></textarea>
+      <div id="reviewImportMsg" class="meta"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="importReviewCandidates()">Add to queue</button>
+        <button class="btn ghost" onclick="backToReviewList()">← Back</button>
+      </div>`;
+    return;
+  }
+  const pending=q.filter(x=>x.status==='pending');
+  const approved=q.filter(x=>x.status==='approved');
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Steward Review Queue</h2>
+    <div class="meta">Before approving anything: is the license actually clear (public domain, or
+      something you have real permission to shelve)? No legal or copyright question left open?
+      That's the whole job of this queue — everything else about "does it fit the Library" is a
+      judgment call, but license/legality is the one that isn't optional.</div>
+    ${q.length ? q.map(item=>`
+      <div class="card" style="cursor:default">
+        <div class="t">${esc(item.title)} <span class="badge">${esc(item.origin)}</span> <span class="badge">${esc(item.status)}</span></div>
+        <div class="s">${esc(item.license||'(no license given)')} ${item.source?'· '+esc(item.source):''}</div>
+        ${item.status==='pending' ? `
+        <div class="row" style="margin-top:8px">
+          <button class="btn" onclick="approveReviewItem(${item.id})">Approve</button>
+          <button class="btn ghost" onclick="rejectReviewItem(${item.id})">Reject</button>
+        </div>` : ''}
+      </div>`).join('') : '<p>Nothing waiting for review.</p>'}
+    <div class="row" style="margin-top:14px">
+      <button class="btn ghost" onclick="newReviewImportForm()">+ Paste Caravan output</button>
+      ${approved.length ? `<button class="btn" onclick="generateApprovedBatch()">📋 Generate batch (${approved.length} approved)</button>` : ''}
+    </div>
+    <div id="reviewBatchOut"></div>`;
+}
+export function importReviewCandidates(){
+  const raw=document.getElementById('reviewImportJson').value.trim();
+  const msg=document.getElementById('reviewImportMsg');
+  let arr; try{ arr=JSON.parse(raw); }catch(e){ msg.textContent='Not valid JSON — nothing added.'; return; }
+  if(!Array.isArray(arr)){ msg.textContent='Expected a JSON array.'; return; }
+  let added=0;
+  for(const c of arr){
+    if(!c||!c.title||!c.body) continue;
+    data.reviewQueue.unshift({ id:Date.now()+added, title:c.title, license:c.license||'', source:c.source||'',
+      body:c.body, tradition:c.tradition||'', origin:'caravan', status:'pending', submittedAt:todayKey() });
+    added++;
+  }
+  persist();
+  if(added) logActivity('Added '+added+' candidate(s) to the Steward Review Queue.');
+  msg.textContent='Added '+added+' to the queue.';
+  setTimeout(()=>{ state.reviewView={mode:'list'}; renderReviewQueue(); },700);
+}
+export function submitArchiveDocForReview(slug){
+  const d=data.workshop.docs.find(x=>x.slug===slug); if(!d) return;
+  data.reviewQueue.unshift({ id:Date.now(), title:d.title, license:d.license, source:d.source,
+    body:d.body, tradition:'', origin:'archive', status:'pending', submittedAt:todayKey() });
+  persist(); logActivity('Submitted "'+d.title+'" to the Steward Review Queue.'); blip(700,.07);
+}
+export function approveReviewItem(id){
+  const item=data.reviewQueue.find(x=>x.id===id); if(!item) return;
+  item.status='approved';
+  persist(); logActivity('Approved "'+item.title+'" — queued for the next Library batch.');
+  renderReviewQueue();
+}
+export function rejectReviewItem(id){
+  data.reviewQueue=data.reviewQueue.filter(x=>x.id!==id);
+  persist(); renderReviewQueue();
+}
+export function generateApprovedBatch(){
+  const approved=data.reviewQueue.filter(x=>x.status==='approved');
+  if(!approved.length) return;
+  const snippet=approved.map(item=>{
+    const slug=slugify(item.title);
+    return ` { slug:'${slug}', tradition:'${item.tradition||'Practice'}', title:${JSON.stringify(item.title)},\n`
+      +`   license:${JSON.stringify(item.license||'')}, source_url:${JSON.stringify(item.source||'')}, attribution:'',\n`
+      +`   doc:{ summary:'TODO — write a real summary', sections:[{heading:'TODO', body:'TODO'}] }},`;
+  }).join('\n');
+  document.getElementById('reviewBatchOut').innerHTML = `
+    <h3>Ready to paste into seed.js (${approved.length} ${approved.length===1?'entry':'entries'})</h3>
+    <div class="meta">Summaries/sections are stubs — writing those is still the real editorial
+      work; this only saves the boilerplate. One commit for the whole batch, not one per text.</div>
+    <textarea rows="10" readonly>${esc(snippet)}</textarea>
+    <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="markBatchExported()">Mark this batch as done</button></div>`;
+}
+export function markBatchExported(){
+  data.reviewQueue=data.reviewQueue.filter(x=>x.status!=='approved');
+  persist(); logActivity('Marked a Library review batch as committed.');
+  renderReviewQueue();
+}
+
 /* ----- Inventory — carry a book with you, read it from anywhere without
    walking back to its shelf. Doesn't remove it from the Library (nothing
    is depleted); it's a personal "currently carrying" list. The AI
@@ -1086,4 +1200,6 @@ Object.assign(window, {
   openComputer, fillComputerPrompt, sendComputerMessage, saveComputerReplyToArchive,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
+  openReviewQueue, newReviewImportForm, backToReviewList, importReviewCandidates,
+  submitArchiveDocForReview, approveReviewItem, rejectReviewItem, generateApprovedBatch, markBatchExported,
 });

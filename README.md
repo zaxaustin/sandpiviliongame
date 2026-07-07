@@ -1090,6 +1090,57 @@ has to change at all, only how it's *called*.
    adapter is also new.
 5. `SupabaseAdapter` itself, once Phase 3 is actually underway.
 
+### The Steward Review Queue — the "pull request" for the shared Library — BUILT
+
+The user's own instinct, confirmed and built the same day: once other
+people exist, book-acquisition candidates and community-written
+commentary shouldn't touch the shared Library directly — they should
+queue for a steward (the user, today) to actually look at, the same
+`status:pending` → `approved` shape already decided for the café's
+links. **Built single-steward-first, since only one user exists right
+now** — the workflow is real, just not yet multi-user:
+
+- **Two ways something reaches the queue:** an Archive Desk entry ("📤
+  Submit for Library review" in the reader), or a batch pasted straight
+  from the Caravan connector's output — both land `pending`, in
+  `data.reviewQueue`, never on a shelf.
+- **The one non-negotiable review criterion, stated plainly in the
+  panel itself:** is the license actually clear — public domain, or
+  something with real permission — with no open legal question? Every
+  other judgment ("does this fit the Library") is a real editorial call;
+  that one isn't optional.
+- **Approving doesn't write to `seed.js` by itself.** It marks the item
+  `approved`; a separate "📋 Generate batch" step combines *every*
+  currently-approved item into one paste-ready snippet, so the Library
+  grows in occasional deliberate batches — one commit, one review pass
+  — rather than a commit per text. "Mark this batch as done" clears the
+  approved items once they're actually pasted in.
+- **What "book acquisition management" concretely means today:** the
+  Request Board (a personal wishlist) and this queue (a review
+  checkpoint) are two different, adjacent tools — a request becoming a
+  real candidate still means someone runs the Caravan and pastes the
+  result in here, by hand, for review. Nothing was added that makes
+  fetching more automatic; what was added makes *reviewing* real instead
+  of "trust me, I checked."
+- **The bigger vision behind this, stated by the user:** fill the
+  Library's classical-text corpus mostly by hand/Caravan first, then
+  let other people's main contribution be *their own* commentary and
+  research — "their own thoughts on the Dao" — flowing through this
+  same queue as `origin:'archive'` submissions, not more raw scraped
+  primary texts. The `research`/`personal` categories already in the
+  taxonomy exist for exactly this.
+- **What changes at Phase 3, and what doesn't:** `reviewQueue` becomes a
+  real table instead of a local array, `submittedBy` starts meaning
+  something across real users, and multiple stewards can share one
+  queue instead of one person seeing everything. The shape — pending,
+  reviewed, approved, batched — doesn't change; only what's underneath
+  it does. Worth deciding, once there's more than one steward, whether
+  approval needs to become semi-automatic (light checks pre-filtering
+  what a human sees) — deliberately not solved now, since one steward
+  reviewing sixteen texts and one user's own submissions doesn't need it
+  yet, and building it before it's needed risks solving the wrong
+  problem.
+
 ### External tile-map JSON
 
 Still just the one-line sketch it always was: load `/maps/grounds.json`

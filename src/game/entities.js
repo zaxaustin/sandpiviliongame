@@ -15,7 +15,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, workshop:{docs:[]}, waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[] }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, workshop:{docs:[]}, waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[] }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 let saveWarned=false; // only interrupt the visitor once per session, not on every failed micro-save
 export function persist(){
