@@ -420,8 +420,9 @@ generating it in code. That's the build plan below.
 
 ### Project history
 
-This repo is posted at **[TODO: fill in the GitHub URL after the first
-push]**. The detailed, session-by-session build log — what broke, what
+This repo is posted at
+**[github.com/zaxaustin/sandpiviliongame](https://github.com/zaxaustin/sandpiviliongame)**
+(private). The detailed, session-by-session build log — what broke, what
 got fixed, exactly how each feature was verified — lives in `archive/`
 rather than growing inside this file forever:
 
