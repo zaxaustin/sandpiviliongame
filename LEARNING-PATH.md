@@ -358,10 +358,158 @@ your choosing (find one at gutenberg.org, the number's in the URL) and
 open the JSON file it produces — you're looking at the exact same shape
 the Archive Desk's bulk-import box expects.
 
-**You're ready for Stage 10 (whenever it exists) when:** you can look at
-any "fetch data from the internet" idea and immediately ask two separate
-questions — "can this technically be done" and "has the source actually
-said this kind of use is okay" — instead of only asking the first one.
+**You're ready for Stage 10 when:** you can look at any "fetch data from
+the internet" idea and immediately ask two separate questions — "can
+this technically be done" and "has the source actually said this kind
+of use is okay" — instead of only asking the first one.
+
+## Stage 10 — AI integration: the whole spectrum, not just chat
+
+**Why this stage exists:** you asked what's actually possible when you
+"integrate AI into an app," beyond what Quill already does, and what
+pre-knowledge you need. Stage 8 covered the single most important idea
+(the model has no memory; the game re-sends everything, every time) —
+this stage builds outward from that into the rest of the landscape,
+so you can recognize what kind of AI feature something is the moment
+you hear it described.
+
+**Pre-knowledge check, honestly:** if Stage 4 and Stage 8 already make
+sense — you can point at the `fetch()` call in `provider.js`, and you
+can explain why `agentMemory` gets stuffed back into every prompt — you
+have what this stage needs. The one piece worth naming explicitly:
+**`async`/`await`**. Every AI call in this codebase (`AI.chat(...)`,
+`sendChatMessage()`, `generateQuillReport()`) is `async` because talking
+to a model takes real time (seconds, not milliseconds) — the game has
+to keep running (movement, rendering) while it waits, instead of
+freezing until the reply arrives. `await` is just "pause *this function*
+here until the promise resolves, but don't pause anything else." If
+that sentence didn't quite land, that's the one thing worth a side
+detour before continuing.
+
+**The spectrum, cheapest to most involved — and where this project
+sits on it today:**
+
+1. **One-shot request/response.** Send text, get text back, done. This
+   is all `AI.chat()` does at its core — `makeOllamaProvider()`'s
+   `.chat()` method in `provider.js`.
+2. **Grounding (Stage 8's territory).** Stuff relevant facts into the
+   prompt so the model answers *from* something instead of inventing —
+   Quill's shelf summaries, folded into `quillSystemPrompt()`. The
+   industry word for the grown-up version (searching a large corpus for
+   just the relevant chunks, instead of including everything) is **RAG**
+   — already named in Stage 8, worth re-anchoring here as point 2 of a
+   larger list rather than its own island.
+3. **Tool use / function calling.** Instead of the model only replying
+   with words, it can reply "call this function, with these arguments"
+   — the app actually runs the function and hands the result back. This
+   is the real technical name for the **"giving AI agents a real body"**
+   idea sketched in the README: `moveTo`, `interact`, `say` would be
+   *tools* the model is told about (a small JSON description of each
+   one's name and parameters), and the model's job shifts from "write a
+   reply" to "decide which tool to call next." Nothing in this codebase
+   does this yet — `AIProvider`'s contract today is chat-only.
+4. **Autonomous agents.** A loop: the model picks a tool call, the app
+   runs it, the result goes back into the next prompt, repeat — until
+   the model decides it's done. You've already watched this exact
+   pattern in action this project, just not framed as AI: every
+   Playwright verification pass this session (decide an action, run it,
+   look at what happened, decide the next one) *is* the agent loop,
+   with a human — me — playing the part a model would play in a real
+   agent. That's not a coincidence; it's the same shape.
+5. **Multi-agent systems.** More than one agent loop, talking to each
+   other or dividing up work — the eventual home of the agent-to-agent
+   notes commons / Lineage Journal sketched in the README.
+
+**Two more concepts worth having the words for:**
+- **Streaming.** Some AI UIs show words appearing one at a time; others
+  wait for the whole reply. This project currently waits (`stream:false`
+  in `makeOllamaProvider()`'s request) — a real, working design choice
+  for something as short as a dialogue line, and a genuine future
+  upgrade if replies get longer (the Quill report, say) and waiting in
+  silence starts to feel worse than watching it arrive.
+- **Temperature.** A setting controlling how "safe vs. exploratory" a
+  model's word choices are — low temperature gives more predictable,
+  repeatable answers; high temperature gives more varied (and more
+  occasionally weird) ones. Worth knowing the word exists even before
+  you ever need to tune it.
+
+**Try this:** open `src/game/ai/provider.js` and find every place a
+number is passed alongside the actual message text (`num_predict`, the
+timeout milliseconds). Each one is a small dial on the same tradeoff:
+capability vs. speed vs. cost. Bigger/slower models answer better
+questions but take longer per reply — exactly the "thinking model" trap
+this README already warns about, generalized into the actual engineering
+tradeoff it's an instance of.
+
+**You're ready for Stage 11 when:** given a description of some AI
+feature ("it reads your calendar and drafts replies," "it plays chess
+against you," "it summarizes your inbox every morning"), you can place
+it on the spectrum above — is this grounding, tool use, an agent loop —
+without needing to be told which.
+
+## Stage 11 — AI as a character, not just an API call
+
+**Why this stage exists:** you asked specifically about interacting with
+AI "in a game-like format" — that's a *design* question layered on top
+of Stage 10's technical one. An AI feature bolted onto a spreadsheet and
+an AI feature living inside an NPC face very different constraints, even
+when the underlying `fetch()` call is identical.
+
+**The game already embodies four real answers to this, worth naming
+explicitly rather than leaving as "just how it works":**
+
+- **Hybrid scripted + dynamic dialogue.** Every NPC has fixed lines
+  (`npc.lines` in `scenes.js`); Quill *additionally* gets a live chat
+  option when `npc.ai && isAIActive()` (`onAction()` in `main.js`). The
+  scripted lines are the floor that never breaks; the chat is the
+  ceiling that only appears when it can actually deliver. This is a real,
+  common pattern for AI-driven characters — never let the dynamic path
+  be the *only* path.
+- **A written charter instead of a hidden system prompt.** `data/charter.js`
+  is a real, readable document, not a secret instruction buried in code
+  — Quill's "personality rules" are inspectable the same way the Keep's
+  charter sign is walk-up-readable in the world. Worth noticing this is
+  a *design ethics* choice as much as a technical one.
+- **Turn-based interaction around a real-time game.** Notice movement
+  stops while `state.dialog` is open (`update()` in `main.js` returns
+  early). That's not laziness — an AI reply takes real seconds, and a
+  game that kept simulating combat or fishing *during* that wait would
+  need a much harder design (what happens if you get hit while Quill is
+  still "thinking"?). Freezing the world during the exchange is the
+  simple, honest answer for a first version; games that need AI dialogue
+  *during* real-time action (a companion who talks while you fight) are
+  solving a genuinely harder problem than this one currently attempts.
+- **Graceful failure, always.** `sendChatMessage()`'s `catch` block, the
+  "thinking" indicator, `NoProvider` as a permanent fallback — an AI
+  feature in a game must never be a hard dependency. If Ollama isn't
+  running, isn't reachable, or times out, the world still works. This is
+  the single most important rule for shipping AI features to real
+  players, not just a nicety for this project specifically.
+
+**The bigger distinction ahead, tying straight back to what you already
+decided:** everything above is **AI voicing a character** — Quill
+*talks*. The "giving AI agents a real body" plan in the README is a
+different thing: **AI *controlling* a character** — moving it, having
+it act, not just speak. You already made the key call on that (an
+agent-controlled resident needs a `sponsoredBy` owner, or explicit
+adoption by the Pavilion itself) before the *how* was even built — worth
+noticing that the design/ethics questions in this stage tend to arrive
+before the engineering does, not after, and that's the right order.
+
+**Try this:** with a live Ollama connection, open DevTools' Network tab,
+talk to Quill, and watch how long the reply actually takes. Then
+imagine redesigning fishing so a fish could "talk" mid-cast using the
+same call — what would have to change about the fishing state machine
+to not feel broken during that wait? You don't need to build it, just
+notice everything that would need rethinking. That exercise *is* the
+skill this stage is trying to teach.
+
+**You're ready to help design what this should feel like next when:**
+you can look at a proposed AI feature and immediately ask "what's the
+scripted fallback," "what happens on failure," and "is this voicing a
+character or controlling one" — the same three questions this project's
+own AI features already had to answer, now as your own reflex instead
+of something pointed out to you.
 
 ---
 
