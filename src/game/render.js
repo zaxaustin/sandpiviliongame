@@ -128,6 +128,16 @@ function drawTile(ch,x,y,sx,sy){
       ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(sx+S*.62,sy,S*.13,S);
       ctx.fillStyle='#e5d6bb'; ctx.fillRect(sx+S*.2,sy,S*.6,S*.12); ctx.fillRect(sx+S*.2,sy+S*.88,S*.6,S*.12);
       break;
+    case 's':{ // a quiet shrine, kept at the Grand Master's own request
+      ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle='rgba(224,164,74,.2)'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.4,S*.42,0,7); ctx.fill();
+      ctx.fillStyle='#8a6a3a'; ctx.fillRect(sx+S*.26,sy+S*.84,S*.48,S*.12);
+      ctx.fillStyle='#c8a04a';
+      for(let i=0;i<3;i++){ ctx.beginPath(); ctx.moveTo(sx+S*(.28+i*.2),sy+S*.84); ctx.lineTo(sx+S*(.38+i*.2),sy+S*.7); ctx.lineTo(sx+S*(.48+i*.2),sy+S*.84); ctx.fill(); }
+      ctx.fillStyle='#a87f3f'; ctx.beginPath(); ctx.moveTo(sx+S*.28,sy+S*.84); ctx.quadraticCurveTo(sx+S*.5,sy+S*.38,sx+S*.72,sy+S*.84); ctx.fill();
+      ctx.fillStyle='#c8a04a'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.34,S*.13,0,7); ctx.fill();
+      ctx.fillStyle='#c8a04a'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.22,S*.05,0,7); ctx.fill();
+      break; }
   }
 }
 function drawBuilding(b,ox,oy){
@@ -156,10 +166,22 @@ function drawBuilding(b,ox,oy){
     for(const wx of [x+w*.28,x+w*.66]) ctx.fillRect(wx,y+S*2.4,S*.5,S*.7);
   } else {
     const wood=b.type==='library'?'#a3744a':(b.type==='cafe'?'#b5754a':'#8f6a4e');
-    const roof=b.type==='library'?'#7c5033':(b.type==='cafe'?'#8a4a3a':'#5e5468');
-    ctx.fillStyle=roof; ctx.beginPath();
-    ctx.moveTo(x-S*.2,y+S*1.4); ctx.lineTo(x+w/2,y-S*.3); ctx.lineTo(x+w+S*.2,y+S*1.4); ctx.fill();
-    ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(x-S*.2,y+S*1.25,w+S*.4,S*.15);
+    const roof=b.type==='library'?'#7c3f33':(b.type==='cafe'?'#8a4a3a':'#5e5468');
+    if(b.type==='library'){
+      // a small pagoda-style tiered roof — the Library reads as a temple now, on purpose
+      ctx.fillStyle=roof; ctx.beginPath();
+      ctx.moveTo(x-S*.25,y+S*1.4); ctx.lineTo(x+w/2,y+S*.5); ctx.lineTo(x+w+S*.25,y+S*1.4); ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(x-S*.18,y+S*1.3,w+S*.36,S*.12);
+      ctx.fillStyle=roof; ctx.beginPath();
+      ctx.moveTo(x+w*.16,y+S*.78); ctx.lineTo(x+w/2,y-S*.35); ctx.lineTo(x+w*.84,y+S*.78); ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(x+w*.14,y+S*.68,w*.72,S*.1);
+      ctx.fillStyle='#c8a04a'; ctx.beginPath(); ctx.arc(x+w/2,y-S*.45,S*.09,0,7); ctx.fill();
+      ctx.fillStyle='#c8a04a'; ctx.fillRect(x+w/2-S*.03,y-S*.6,S*.06,S*.25);
+    } else {
+      ctx.fillStyle=roof; ctx.beginPath();
+      ctx.moveTo(x-S*.2,y+S*1.4); ctx.lineTo(x+w/2,y-S*.3); ctx.lineTo(x+w+S*.2,y+S*1.4); ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(x-S*.2,y+S*1.25,w+S*.4,S*.15);
+    }
     ctx.fillStyle=wood; ctx.fillRect(x,y+S*1.4,w,h-S*1.4);
     ctx.fillStyle='rgba(0,0,0,.08)';
     for(let r=0;r<3;r++) ctx.fillRect(x,y+S*1.7+r*S,w,2);
@@ -172,6 +194,12 @@ function drawBuilding(b,ox,oy){
       ctx.fillStyle='#cbb79a';
       ctx.fillRect(doorX-S*.5,y+h-S*1.6,S*.3,S*1.6);
       ctx.fillRect(doorX+S*2.2,y+h-S*1.6,S*.3,S*1.6);
+      // small paper lanterns, one each side of the door
+      for(const lx of [doorX-S*.35,doorX+S*2.35]){
+        ctx.fillStyle='#3a2c1e'; ctx.fillRect(lx+S*.14,y+h-S*2.05,S*.02,S*.15);
+        ctx.fillStyle='#c8574a'; ctx.beginPath(); ctx.arc(lx+S*.15,y+h-S*1.8,S*.13,0,7); ctx.fill();
+        ctx.fillStyle='#e0a43c'; ctx.beginPath(); ctx.arc(lx+S*.15,y+h-S*1.8,S*.05,0,7); ctx.fill();
+      }
     }
     if(b.type==='workshop'){
       ctx.fillStyle='#6d6d78'; ctx.fillRect(x+w-S*1.2,y-S*.1,S*.6,S*1.2);

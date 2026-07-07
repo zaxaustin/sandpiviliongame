@@ -4,7 +4,7 @@
    D dock · B building footprint · f floor · c carpet · w wall
    k bookshelf · p pillar · r rug
    ================================================================ */
-export const SOLID = new Set(['T','W','B','w','k','p']);
+export const SOLID = new Set(['T','W','B','w','k','p','s']);
 export const scenes = {};
 function grid(w,h,fill){ return Array.from({length:h},()=>Array(w).fill(fill)); }
 function makeRng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
@@ -69,9 +69,9 @@ function buildOverworld(){
       {x:25,y:27,color:'#b9976b',glow:'#e8d5a8',name:'SAGARA the Fisher',wander:false,lines:[
         "Cast, wait, and when the line jumps — move. Hesitate and the moment's gone. Same as sitting practice, really.",
         "Caught a pearl here once. It dissolved in my palm.\nStill counts, I figure. Everything turns to sand."]},
-      {x:6,y:6,color:'#8a9a9a',glow:'#d6e2e2',name:'THE MOUNTAIN MONK',wander:false,ai:true,aiAgent:'monk',lines:[
+      {x:6,y:6,color:'#c8a04a',glow:'#f2d78a',name:'THE MOUNTAIN MONK · Grand Master',wander:false,ai:true,aiAgent:'monk',lines:[
         "Sanskrit, sutras, or just how to actually sit still — ask, and I'll teach whichever one you need. Usually not the one you think you came for.",
-        "Shankara has a line I like: the rope was never a snake. Most of what troubles us works the same way, once you look closely enough."]},
+        "They call me Grand Master here, which mostly means: when something real is actually in question, I'm the one who has to answer it honestly. The rest of the time, I'm just an old man by the trees."]},
     ],
     spawn:{x:19,y:21}
   };
@@ -107,16 +107,18 @@ function buildLibrary(){
   const shelfRow=y=>{ for(let x=2;x<=6;x++) t[y][x]='k'; for(let x=9;x<=13;x++) t[y][x]='k'; };
   shelfRow(3); shelfRow(6); shelfRow(9);
   t[4][15]='r'; // east door → the Study
+  t[2][7]='s'; // a quiet shrine, near the entrance, easy to glimpse from the door
   scenes.library = {
     name:'The Library', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:7,y:14,to:'overworld',sx:7,sy:16},{x:8,y:14,to:'overworld',sx:8,sy:16},
            {x:15,y:4,to:'study',sx:1,sy:4}],
     signs:[{x:14,y:5,name:'BRASS ARROW',text:"→ THE STUDY\nA desk for the day. A board for the long paths."},
-           {x:5,y:8,name:'HAND-LETTERED SIGN',text:"THE THIRD SHELF\nScience, west — Nature, east. Newer, and further from the\ndoor than the rest — same rule as always: what is it,\nwhere's it from, what license does it travel under."}],
+           {x:5,y:8,name:'HAND-LETTERED SIGN',text:"THE THIRD SHELF\nScience, west — Nature, east. Newer, and further from the\ndoor than the rest — same rule as always: what is it,\nwhere's it from, what license does it travel under."},
+           {x:9,y:2,name:'A QUIET SHRINE',text:"Kept at the Grand Master's own request — not for worship,\njust for remembering there's something larger than any\none shelf. He tends it himself, some mornings."}],
     shelves:true,
     npcs:[{x:8,y:4,color:'#9a6fb5',glow:'#d9b9ea',name:'QUILL · Librarian Agent',wander:false,ai:true,lines:[
       "Six shelves now, three rows deep: Theravada and Mahayana up front, Daoism and Practice behind them, Science and Nature further back still. Face one and press E.",
-      "Yes, it's bigger in here than the building looks outside. I've stopped explaining it. Every text still answers three questions at the door, regardless of room: what is it, where is it from, and under what license does it travel."]}],
+      "Yes, it's bigger in here than the building looks outside. I've stopped explaining it. The shrine up front isn't mine — that's the Grand Master's corner. Every text still answers three questions at the door, though, regardless of room: what is it, where is it from, and under what license does it travel."]}],
     spawn:{x:7,y:13}
   };
 }
