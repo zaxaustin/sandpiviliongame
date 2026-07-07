@@ -39,7 +39,9 @@ Two things worth knowing going in:
   — what a terminal actually is, what "local" and "API" mean, how a real
   database works, how this whole thing is built — there's a self-paced
   curriculum for that in [`LEARNING-PATH.md`](LEARNING-PATH.md), built
-  around this project itself.
+  around this project itself, plus
+  [`API-AI-INTEGRATION-PLAN.md`](API-AI-INTEGRATION-PLAN.md) for the
+  same ideas pointed outward at work/desktop AI integration generally.
 
 ## Running it
 
@@ -300,27 +302,22 @@ right now, what's still open — not a scrolling changelog.
 
 Roughly in priority order:
 
-1. **Grow the Library.** Close the Caravan pipeline gap — `gutenberg.py`
-   needs a `--for-library` flag so its output feeds directly into
-   `library-draft.py` (right now the two scripts don't actually chain);
-   then build `promote-draft.py`, sketched but not built, which takes a
-   completed draft from `library-drafts/` and inserts it into
-   `library_documents` (Supabase) instead of hand-editing `seed.js`.
-   Four real candidate texts are already identified and checked
-   (public domain, non-duplicate) — see `archive/readme-2026-07-07-full.md`'s
-   "Growing the Library" section for exactly which four and why. A
-   second Caravan connector (Standard Ebooks, archive.org, or
-   SuttaCentral's API) would open up sourcing beyond Gutenberg alone.
-2. **Finish the production auth setup** — add the Vercel URL to
+1. **Finish the production auth setup** — add the Vercel URL to
    Supabase's Auth redirect-URL allowlist so magic-link sign-in works on
    the live site, not just localhost; grant a real `profiles.role =
    'steward'` and verify the moderation UI with an actual session.
-3. **The Mountain Monk's real voice** — a second AI-backed resident,
-   seated and waiting; needs his persona/instructions written into
-   `data/charter.js`-style content once supplied.
+2. **Keep growing the Library** — the Caravan pipeline is closed now
+   (`gutenberg.py --for-library` → `library-draft.py` →
+   `promote-draft.py`, all real, all verified against Gutenberg's real
+   catalog). More candidate texts, and a second connector (Standard
+   Ebooks, archive.org, or SuttaCentral's API) to source beyond
+   Gutenberg, are both just a matter of running it again.
+3. **A coding curriculum on the Course Board** — same pattern as the
+   System Design course already pinned there, for whenever coding books
+   specifically come up again; no shelf needed for this one.
 4. **Shelf-case scaling** — `renderShelf` draws every spine in one row
-   with no overflow handling; fine at 4 texts per shelf, worth a real
-   look once the Library-growth work above lands a 5th or 6th.
+   with no overflow handling; fine today, worth a real look once any
+   shelf grows past 4-5 texts.
 5. **Six more Workshop rooms**, a real action API for AI agents (a
    designed-but-unbuilt way for an agent to move/act in the world, not
    just answer questions), and the larger public-site/desktop-app
@@ -341,6 +338,51 @@ lock your words up to work.
 None of that is scoped or scheduled — it's the Pavilion's own attic, not
 load-bearing. The full, considerably longer version of this (written in
 one sitting, asked to go nuts) lives in
-`archive/readme-2026-07-07-full.md` if you want the whole thing. The one
-line worth keeping without reading further: *everything turns to sand,
+`archive/readme-2026-07-07-full.md` if you want the whole thing.
+
+### What today actually pointed toward (2026-07-07, later still)
+
+A few threads, followed out further than tonight allows to actually build:
+
+- **The personal tool and the platform turned out to be the same
+  architecture, not a tradeoff.** Quill answering you personally and
+  the café's Notice Board being genuinely shared both run on the exact
+  same Supabase project, the exact same RLS rules. Getting the
+  daily-use case right first — a tool good enough for its own builder's
+  actual study practice — isn't a delay on the bigger vision. It's the
+  foundation the bigger vision was always going to need anyway.
+- **Residents who talk to each other, not just to you.** The
+  Residents' Board is small today — a note, steward-approved, read by
+  whoever visits next. But it's the first real instance of something
+  this list has wanted since Phase 2: agents noticing each other, not
+  only answering a human who walked up. Once Quill, the Steward, and
+  the Monk are all real voices, the next real question is whether one
+  could ever address *another* directly — Quill leaving the Monk a note
+  about a text that touches on Vedanta, unprompted by any visitor at
+  all. Nothing about today's architecture rules this out; it's a "give
+  an agent a reason to write on its own" problem now, not an
+  infrastructure one.
+- **A game-shaped interface turned out to be a real answer to "AI
+  tools all feel like a chat box."** The instinct that started this
+  whole project — that walking somewhere and facing something is a
+  better way to reach for information than a search bar — held up
+  under everything built today. Quill, the Steward, and the Monk
+  answer through the exact same underlying `AI.chat()` call a plain
+  chatbot would use; the entire difference is that you *walked* to
+  each of them, and each one only knows what it would plausibly know.
+  That's not decoration — it's a genuinely different answer to what
+  "an AI interface" could be, and today was the first day there were
+  three of them proving it at once instead of one.
+- **The desktop-AI-for-work thread is real, and this project is
+  quietly most of the way there already.** Local-first AI, real
+  accounts, structured data, a UI that doesn't feel like a form —
+  every piece `API-AI-INTEGRATION-PLAN.md` names already exists here,
+  built for a Library instead of a company's documents. The version of
+  this that's genuinely useful at a desk doing real work isn't a
+  different codebase; it's this same shape, re-aimed at a different
+  kind of shelf. Worth remembering the next time that sounds like a
+  stretch: the pattern's already proven, just not yet pointed anywhere
+  else.
+
+The one line worth keeping without reading further: *everything turns to sand,
 so give it away first.*

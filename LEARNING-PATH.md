@@ -712,6 +712,15 @@ to someone else, why "I added the environment variable" and "the site
 still can't connect" aren't a contradiction — and what you'd check first
 to find out why.
 
+## Where this goes next
+
+This document stays scoped to the Sand Pavilion specifically. Once
+"understand this project" starts turning into "apply this at work" —
+which is exactly where you are now — see
+[`API-AI-INTEGRATION-PLAN.md`](API-AI-INTEGRATION-PLAN.md): the same
+teaching style, pointed outward at API/AI integration generally rather
+than this one game.
+
 ---
 
 *This document is meant to be revisited and rewritten as you progress —
