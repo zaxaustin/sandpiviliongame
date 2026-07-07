@@ -16,8 +16,11 @@ there's more than one person submitting things.
    stores a title, a license, a source link, and a real written summary,
    never the full text. See `_TEMPLATE.md` for exactly what shape a
    finished entry actually needs.
-2. **Copy `_TEMPLATE.md`** to a new file in this folder, named after the
-   book (e.g. `meditations.md`).
+2. **Start the draft file.** Either copy `_TEMPLATE.md` by hand, or run
+   `python tools/caravan/library-draft.py <path to a .txt file>` — it
+   detects a title/author automatically if the text has a Gutenberg-style
+   header, and writes a pre-filled draft here. It never guesses the
+   license or tradition — those stay TODO until you actually decide them.
 3. **Fill it in** — title, tradition, license, source URL, attribution,
    and (the real work) a summary and 2-3 sections in your own words,
    the same way every existing shelf entry in `src/game/data/seed.js` is
