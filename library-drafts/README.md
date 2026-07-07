@@ -8,19 +8,20 @@ there's more than one person submitting things.
 
 ## The workflow
 
-1. **Get a book's full text**, if you're starting from an outside
-   source: `python tools/caravan/gutenberg.py <book id>` (see
-   `LEARNING-PATH.md` Stage 9 for what that script does and why it only
-   ever talks to Project Gutenberg). That gives you the raw material —
+1. **Get a book's full text and save it in `library-sources/`** (see
+   that folder's own README) — either `python tools/caravan/gutenberg.py
+   <book id>`, or a plain-text download from one of the other sources
+   named in the main README's Library section. That's raw material —
    it does **not** go into the Library itself; the Library only ever
    stores a title, a license, a source link, and a real written summary,
    never the full text. See `_TEMPLATE.md` for exactly what shape a
    finished entry actually needs.
 2. **Start the draft file.** Either copy `_TEMPLATE.md` by hand, or run
-   `python tools/caravan/library-draft.py <path to a .txt file>` — it
-   detects a title/author automatically if the text has a Gutenberg-style
-   header, and writes a pre-filled draft here. It never guesses the
-   license or tradition — those stay TODO until you actually decide them.
+   `python tools/caravan/library-draft.py library-sources/<file>.txt` —
+   it detects a title/author automatically if the text has a
+   Gutenberg-style header, and writes a pre-filled draft here. It never
+   guesses the license or tradition — those stay TODO until you
+   actually decide them.
 3. **Fill it in** — title, tradition, license, source URL, attribution,
    and (the real work) a summary and 2-3 sections in your own words,
    the same way every existing shelf entry in `src/game/data/seed.js` is
