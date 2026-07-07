@@ -74,6 +74,60 @@ not yet done is the actual deploy (needs a Vercel/Netlify account) — see
 `LEARNING-PATH.md` Stage 5 and "Project history," below, for where this
 repo actually lives.
 
+## Features guide — everything, by location
+
+A scannable reference for what's actually in the Pavilion today and
+where to find it — separate from the architecture/history further down,
+so "how do I use X" never means reading the whole file.
+
+**Anywhere, via the pause menu (`Esc` / `☰`):**
+- **⚙ Manage AI connections** — see/add/enable/disable AI backends.
+- **🔗 Waypoints** — a personal, no-backend link list.
+- **📜 Activity Log** — a capped, human-readable record of what you've
+  actually done this and past visits.
+- **🏅 Badges** — nine first-time-action badges, doubling as a soft
+  tutorial; locked ones show what unlocks them.
+- **🎒 Inventory** — books you're carrying (added from the Reader); read
+  any of them from anywhere, plus an AI grouping suggestion.
+- **🛡 Steward Review** — the queue for anything headed toward the
+  shared Library; approve/reject, then generate one paste-ready batch
+  for `seed.js`.
+- **⬇/⬆ Export / Import Save** — your whole save as a real JSON file.
+- **⚠ Reset all progress** — behind a confirmation; no undo.
+
+**The Library** (four shelves — Theravada, Mahayana, Daoism, Practice):
+face a shelf, `E` to browse spines, `Enter`/`E` to open a book. In the
+Reader: **🔊 Read aloud**, **🔊/✨ Summary aloud** (a fresh spoken
+summary from Quill if AI's connected), **🎒 Take with you**. **📑 Full
+Index** (from any shelf) lists every text — Library and your own
+Archive — sorted by category instead of tradition. Quill himself: face
+him, `E` — a real chat if AI's connected, two scripted lines otherwise.
+
+**The Keep:** the charter sign, and the Keeper's scripted dialog. No
+stations yet.
+
+**The Study:**
+- **The Writing Desk** — today's intention, seven rhythm blocks, an
+  evening ember; **Past days** below it reads back every prior day kept.
+- **The Course Board** — pin a course (steps, optionally `title | practice | url`),
+  toggle progress.
+- **The Computer** — an AI planning assistant distinct from the Desk:
+  day planning, lesson-plan drafting from an idea, general
+  thinking-through. Needs a live AI connection to actually answer;
+  clearly says so if not.
+- **The Request Board** — a book wishlist feeding the Caravan connector's
+  queue (see "Pathways outward" below).
+
+**The Workshop:** the Archive Desk — your own writing, the same
+title/license/source/body shape the Library uses. **+ Write a new
+entry**, **+ Bulk import** (paste a JSON array, or run
+`tools/caravan/gutenberg.py` first and paste its output), **📜 Ask
+Quill for a memory report**, and **📤 Submit for Library review** on
+any entry you've written.
+
+**The pond:** face water, `E` to cast; ten fish varieties, purely
+flavor-text, no mechanic beyond the catch.
+
 ## Setting up local AI — a beginner's guide
 
 **This section assumes no prior experience with "local hosting" or APIs.**
@@ -507,6 +561,61 @@ live unmoderated. This reuses the `steward` role already sketched for the
 library table in Phase 3 — a submission gets a `status: pending`, is
 visible to its submitter, and only appears on the notice board once a
 steward flips it to `approved`. No open free-for-all posting.
+
+**The dataset, concretely.** The notice board is a link-out, not an
+in-app forum — a post *points at* wherever its real conversation
+already lives, the same shape as a Waypoint, just shared and moderated
+instead of personal:
+
+```sql
+create table exchange_questions (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  body text not null,           -- what's being asked/discussed, in the poster's own words
+  external_url text,            -- where the real conversation lives, if it's not self-contained
+  author text,                  -- a display name for now, not a real identity system yet
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  created_at timestamptz not null default now()
+);
+alter table exchange_questions enable row level security;
+create policy "approved posts are visible to everyone" on exchange_questions
+  for select using (status = 'approved');
+create policy "stewards see and moderate everything" on exchange_questions
+  for all using (auth.jwt() ->> 'role' = 'steward');
+```
+
+Reading the board (once Supabase exists) is exactly the query the
+archived dev-log sketch already had right: three most recent approved
+rows, clicking one opens the full post. Submitting a new one is the
+Review Queue's `pending`/`approved` pattern again, pointed at this table
+instead of `reviewQueue` — no new moderation UI to design, just wiring.
+
+**Seed content, so the board isn't empty on day one** — five examples,
+written in the voice of a first real community, each already shaped
+right for the table above:
+
+1. *"Six months into a daily sit, and it's gotten boring — is that normal?"* — a
+   practice question, the kind Moss or a fellow visitor would actually
+   answer honestly rather than reassure.
+2. *"Pinned 'Four Weeks with the Breath' on the Course Board — finished it
+   today. What's a good next path for someone who liked Anapanasati?"* — a
+   real Course-Board win, inviting a recommendation.
+3. *"Working through the Tao Te Ching a chapter at a time. Chapter 11 (the
+   usefulness of emptiness) stopped me cold — anyone else have a chapter
+   that did that?"* — tied directly to a real shelved text.
+4. *"Started keeping an Archive Desk entry every evening instead of just
+   the planner's ember line. Recommend it — it's a different kind of
+   honest."* — a Workshop feature, discussed the way a person actually
+   would.
+5. *"Is there a good, short introduction to the Eightfold Path anywhere,
+   for someone who's never read Buddhist ethics before?"* — a real gap
+   this Library doesn't fully close yet (see the café's charter section
+   below), posted exactly the way a newcomer would ask it.
+
+None of these need to be literally true — they're seed data shaped like
+the real thing, the same role `SEED_LIBRARY`'s first fifteen texts
+played for the Library: something worth walking up to on day one,
+instead of an empty room waiting for a first visitor to speak first.
 
 **The Steward NPC, for now:** plain scripted dialog, same as Ember/Moss/
 Cobalt/Quill today — no live AI required to make the café feel alive.
@@ -1220,14 +1329,98 @@ above, this is a plan with a recommendation and two real open calls
 todo list — worth a dedicated session once picked up, starting with
 step 1 (it's genuinely one `git init` and one deploy away).
 
+**Is a desktop app actually needed right now? Honestly, no.** This
+whole plan was written for the moment this gets handed to *other
+people* who don't want to touch a terminal at all — that's not today.
+`npm run dev` already works cleanly on this machine (the PowerShell
+execution-policy issue is fixed), so the only thing a desktop app would
+save right now is "open a terminal and type two commands" — real, but
+small, and not worth spending effort on ahead of the café/Supabase work,
+which is the thing actually blocked on nothing but time. Worth
+revisiting once there's an actual second person waiting to play this
+without installing Node.
+
+**The build plan, for whenever that day comes (Electron, the
+recommended path for a first attempt — reversing the earlier "start
+with Tauri" lean, now that the constraint is "least new friction," not
+"smallest package"):**
+1. `npm install --save-dev electron`.
+2. `electron/main.js` — a `BrowserWindow` loading `dist/index.html`
+   (the same build `npm run build` already produces; nothing about the
+   game's code changes).
+3. Add `"electron": "electron ."` to `package.json`'s scripts; `npm run
+   build && npm run electron` opens a real native window, no browser
+   chrome, no terminal visible once it's open.
+4. Confirm local AI still works from inside it — it should, since
+   Electron's renderer is still just a browser context talking to
+   `localhost:11434` the same way a normal browser tab does.
+5. Only once that's solid: `electron-builder` for a real installer/exe
+   — a separate, bigger step with its own real risk of Windows-specific
+   packaging issues, worth its own session rather than folding into
+   step 1-4's low-risk work.
+
 ### Phase 3 — Supabase (prerequisite for the café, useful for the rest)
 
-The café's notice board is the first feature that actually *needs* a
-network-backed Store, not just localStorage. The `library_documents`
-table and `SupabaseAdapter` sketch from the archived dev log
-(`archive/dev-log-2026-07-06.txt`, part 3) are the starting point — four
-functions to reimplement (`load`, `save`, `listDocs`, `getDoc`), same
-contract, network instead of disk.
+**What Supabase actually is, in plain terms:** a hosted Postgres
+database (a real, industry-standard SQL database, run on someone else's
+server instead of your own machine) with a few things bolted on for
+free — an auto-generated API so the browser can talk to tables directly
+without you writing a backend server, a login/accounts system, and
+row-level security (rules like "anyone can read this table, but only a
+signed-in steward can insert into that one" — enforced by the database
+itself, not by trusting the browser to behave). For this project, it's
+the thing that turns "one visitor, one `localStorage` blob" into "many
+visitors, one shared Library and café," without writing a traditional
+server at all.
+
+**Concrete setup, step by step, when you're ready:**
+1. Create a free account at supabase.com, then "New project" — this
+   gives you a URL (`https://xxxx.supabase.co`) and an "anon" public API
+   key. Both are safe to put in client-side code — row-level security,
+   not secrecy, is what protects the data.
+2. In the SQL editor, create the tables this needs. The `library_documents`
+   table and its policies are already sketched in
+   `archive/dev-log-2026-07-06.txt` (part 3) — "anyone can read, only a
+   steward can insert" is exactly the Review Queue's rule, just enforced
+   by the database instead of by a script. Two more tables complete the
+   picture: a `user_saves` table (one row per visitor, a `jsonb` column
+   holding the exact same blob `localStorage` holds today — everything
+   built this whole session, `badges`/`inventory`/`reviewQueue`/all of
+   it, rides along unchanged) and, once the café is underway,
+   `exchange_questions` for the notice board.
+3. `npm install @supabase/supabase-js`, then implement `SupabaseAdapter`
+   — the actual code sketch is already written out in the "AI Task
+   Manager" section above (`makeSupabaseAdapter`), including the fix to
+   the original dev-log sketch (awaiting and unwrapping `{data,error}`
+   properly) and the note about why `Store.load()`'s async boundary is
+   the real migration cost, not the four-function contract.
+4. Swap `Store` for `SupabaseAdapter` behind a single flag/config value,
+   so `LocalAdapter` keeps working for anyone who wants to run this
+   fully offline/private — same instinct as `AIProvider`'s local-first
+   default.
+
+**What the café specifically needs on top of that:** an `exchange_questions`
+table (id, title, body, `status:'pending'|'approved'`, author), a Notice
+Board station reading the three most recent approved rows, and a
+moderation flow that's *already built* — the Steward Review Queue's
+approve/reject pattern is the exact shape café submissions need, just
+pointed at a different table once one exists. The Hearth Corner and
+Grant Desk are simpler still: mostly static content plus maybe one more
+small table later.
+
+**Suggested café build order, concretely:**
+1. Stand up the Supabase project and `user_saves`/`library_documents`
+   tables; port `Store` to `SupabaseAdapter` and confirm existing
+   features (planner, courses, Archive Desk) still work identically
+   against the network instead of disk — prove the migration before
+   adding anything new.
+2. Add `exchange_questions`; build the Notice Board station reading
+   approved rows.
+3. Reuse the Review Queue's approve/reject UI pattern, pointed at
+   `exchange_questions` instead of `reviewQueue` — the workflow already
+   exists, this is mostly wiring, not new design.
+4. Hearth Corner, Grant Desk — lower-stakes, whenever there's an appetite
+   for them.
 
 ### Suggested order
 
