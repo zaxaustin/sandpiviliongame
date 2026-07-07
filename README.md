@@ -842,6 +842,254 @@ Phase 3 were before they had real scope — worth a dedicated planning
 session once picked up, since the character-identity question above
 changes the shape of everything under it.
 
+### An AI Task Manager — research, lesson plans, book acquisition, and an advisor, unified
+
+The user asked for four capabilities in one breath: research tasks,
+lesson-plan/paper generation, book-acquisition management, and an
+in-game advisor companion. The single most important design decision
+here is recognizing these are **one system wearing four hats**, not
+four systems — every one of them is "ask AI something, track that it
+happened, keep the result somewhere real," which is already exactly
+what the Computer's lesson-plan drafting and Quill's memory report do
+today, just never named as a shared pattern. Naming it now, before a
+fourth and fifth bespoke version gets built, is the actual point of
+this plan.
+
+**The concept: an `AITask`.** One shape, one lifecycle, for all four:
+
+```js
+// data.aiTasks = [{
+//   id, kind,              // 'research' | 'lesson-plan' | 'book-acquisition' | 'advisor'
+//   input,                 // what the visitor asked for
+//   status,                // 'running' | 'done' | 'failed'
+//   output,                // the reply, once done
+//   createdAt,
+// }, ...]
+```
+
+Research becomes a task whose output is long enough to save as an
+Archive Desk doc (`category:'research'` — a slot the category taxonomy
+already has and nothing uses yet). A lesson plan is the same task kind
+`'lesson-plan'` with a different system prompt, saved as `category:
+'ai-written'`. Book acquisition is a task whose *output* is a
+suggestion for the Request Board, never a fetch — more on why that
+boundary doesn't move, below. An advisor exchange is a task that
+doesn't need saving at all, most of the time. One data model, one UI
+skeleton, four prompts.
+
+**Solving the actual architecture problem — a task manager that owns
+zero circular imports.** Known rough edge #2 above already flags the
+`entities.js` / `ui/overlays.js` / `main.js` triangle as fragile, held
+together by hoisting rather than by design, and explicitly warns that
+adding a fourth circular edge for agent work is the wrong move. A Task
+Manager is exactly that fourth edge waiting to happen — unless it's
+built as a **leaf module that never imports from any of the three**,
+receiving what it needs as an explicit context object instead:
+
+```js
+// src/game/ai/taskManager.js — imports ONLY from ai/provider.js.
+// Never imports entities.js, ui/overlays.js, or main.js — everything
+// it needs arrives through `ctx`, passed in by whoever calls it.
+import { AI } from './provider.js';
+
+const TASK_KINDS = {
+  research: {
+    docCategory: 'research',
+    systemPrompt: (ctx) => `${ctx.charter}\n\nYou are a research assistant in the Sand `
+      +`Pavilion. Write a grounded, well-organized answer to the visitor's research `
+      +`question — cite specifics, don't pad length for its own sake.`,
+  },
+  'lesson-plan': {
+    docCategory: 'ai-written',
+    systemPrompt: (ctx) => `${ctx.charter}\n\nYou help draft lesson plans from a rough idea `
+      +`or theme. Return a short, usable structure: objective, activities, a way to check `
+      +`understanding.`,
+  },
+  'book-acquisition': {
+    docCategory: null, // never saved as a doc — it becomes a Request Board suggestion, not a shelf entry
+    systemPrompt: (ctx) => `${ctx.charter}\n\nSuggest 1-3 real, findable, public-domain books `
+      +`matching the visitor's request — note likely source (Project Gutenberg, Standard `
+      +`Ebooks, archive.org) and which existing shelf tradition it might fit. You are `
+      +`suggesting, not adding anything — nothing you say here reaches a shelf on its own.`,
+  },
+  advisor: {
+    docCategory: null,
+    systemPrompt: (ctx) => `${ctx.charter}\n\nYou are a general advisor and thinking partner `
+      +`in the Sand Pavilion, available wherever the visitor is — not tied to the Library's `
+      +`shelves the way Quill is.`,
+  },
+};
+
+export async function runTask(kind, input, ctx){
+  const spec = TASK_KINDS[kind];
+  const task = { id:ctx.now(), kind, input, status:'running', output:null, createdAt:ctx.today() };
+  ctx.tasks.unshift(task);
+  ctx.onUpdate(task);
+  try{
+    task.output = await AI.chat([
+      { role:'system', content:spec.systemPrompt(ctx) },
+      { role:'user', content:input },
+    ]);
+    task.status='done';
+  }catch(e){
+    task.status='failed';
+  }
+  ctx.onUpdate(task);
+  return task;
+}
+export function taskSpec(kind){ return TASK_KINDS[kind]; }
+```
+
+`ui/overlays.js` — which already owns `state`/`data`/the DOM — is the
+*only* place that builds the context object and calls in:
+
+```js
+// ui/overlays.js — the caller assembles ctx; taskManager.js never
+// reaches for entities.js or the DOM itself.
+import { runTask, taskSpec } from '../ai/taskManager.js';
+
+async function submitTask(kind, input){
+  const ctx = {
+    tasks: data.aiTasks, charter: CHARTER,
+    now: () => Date.now(), today: todayKey,
+    onUpdate: () => renderTaskPanel(),
+  };
+  const task = await submitTask_inner(kind, input, ctx); // = runTask(kind, input, ctx)
+  persist(); logActivity('Ran an AI task: '+kind);
+  const cat = taskSpec(kind).docCategory;
+  if(cat && task.status==='done'){
+    // same createArchiveDoc-shaped write every other feature already uses
+    data.workshop.docs.unshift({ slug:slugify(kind+'-'+task.id), title:input.slice(0,60),
+      license:'personal record', source:'AI Task Manager', body:task.output,
+      created:todayKey(), category:cat });
+    persist();
+  }
+}
+```
+
+This is a real, not cosmetic, improvement over the existing pattern —
+`taskManager.js` can be unit-tested with a fake `ctx` and no DOM, no
+`entities.js`, no circular anything. Worth treating as the template for
+future subsystems generally, not a one-off just for this feature.
+
+**Book acquisition specifically — the AI suggests, the Request Board
+still just queues, the human still runs the Caravan by hand.** This is
+the one place worth being extra explicit: nothing above changes the
+standing rule that the shared Library is never auto-filled. The
+`'book-acquisition'` task kind only ever produces a *suggestion* —
+concretely, "Ask the Computer" on the Request Board could pass whatever
+the visitor typed as `input`, get back real candidate titles, and
+pre-fill the "Request a book" form for a human to review and submit,
+exactly like typing it in by hand would have been, just with better
+starting suggestions. It never calls the Caravan script itself.
+
+**The advisor companion — two different features hiding under one
+name, worth telling apart before building either.** "An advisor you
+walk up to and ask" is what the Computer already is, and what the
+`advisor` task kind above formalizes — buildable now, cheaply. "An
+advisor that follows you around as a body" is the *bigger* idea already
+sketched in "Giving AI agents a real body" above, complete with its own
+unresolved character-identity and `sponsoredBy` questions. Don't let the
+word "companion" quietly smuggle the harder feature in under the easier
+one's cost estimate — build the desk-bound advisor now; treat the
+roaming one as the same open question it already was.
+
+**A Task Manager panel — one overlay, not four.** Reachable from the
+Computer (and maybe eventually the Request Board): a type selector
+(Research / Lesson Plan / Book idea / Ask the Advisor), an input box,
+and a history list reusing the exact card style every other panel here
+already uses. Not sketched in full since it's a straightforward
+extension of the Computer's existing render function once `taskManager.js`
+exists — the interesting design work was the model above, not the markup.
+
+**Backend adapters — what actually changes when Phase 3 arrives, and
+what doesn't.** This is the part worth getting right *before* writing
+Supabase code, because the existing `Store` contract has a property
+that will not survive a naive port:
+
+```js
+// TODAY — src/game/data/store.js — synchronous, and entities.js
+// depends on that synchronicity at module load:
+export const data = Object.assign(freshData(), Store.load() || {});
+```
+
+`Store.load()` returns a value immediately, right now, in the same tick
+`entities.js` finishes loading — every other module that imports `data`
+assumes it's already fully populated. A `SupabaseAdapter` is
+*necessarily* asynchronous (a network round-trip cannot return a value
+synchronously) — swapping it in without changing anything else breaks
+this exact assumption, silently, the first time `data` is read before
+the network reply arrives. This is the real migration cost, not the
+four-function contract itself, which barely changes:
+
+```js
+// PHASE 3 — src/game/data/supabaseAdapter.js
+// Same four-function contract as Store, network instead of disk.
+// Note listDocs/getDoc actually await and unwrap {data,error} — the
+// dev-log-2026-07-06 sketch this builds on returned the raw query
+// builder result, which isn't awaited data; worth fixing here, not
+// carrying the bug forward.
+export function makeSupabaseAdapter(client, userId){
+  return {
+    mode: 'network',
+    async load(){
+      const { data, error } = await client.from('user_saves').select('blob').eq('user_id', userId).single();
+      return error ? null : data?.blob ?? null;
+    },
+    async save(saveData){
+      const { error } = await client.from('user_saves').upsert({ user_id:userId, blob:saveData });
+      return !error;
+    },
+    async listDocs(tradition){
+      const { data, error } = await client.from('library_documents').select('*').eq('tradition', tradition);
+      return error ? [] : data;
+    },
+    async getDoc(slug){
+      const { data, error } = await client.from('library_documents').select('*').eq('slug', slug).single();
+      return error ? null : data;
+    },
+  };
+}
+```
+
+```js
+// entities.js — the actual shape of the fix. freshData() stays
+// synchronous; loading becomes an explicit async boot step instead of
+// a top-level assignment, and main.js waits for it before its first
+// render instead of assuming `data` is ready the instant the module runs.
+export const data = freshData();
+export async function boot(){
+  const loaded = await Store.load();
+  if(loaded) Object.assign(data, loaded);
+  restorePosition(); // the pos-restore logic already in entities.js today, just moved out of top-level
+}
+```
+
+`main.js` changes from "start the render loop" to "await `boot()`, *then*
+start the render loop" — a real, if small, restructuring, and it's the
+one piece of this whole plan that touches every module rather than just
+adding a new leaf one. `localStorage`'s `Store` can stay perfectly
+synchronous forever (it's local disk, no real reason to make it async
+just for symmetry) — the honest fix is giving `Store`'s *contract* a
+documented "may return a promise" allowance and having `boot()` `await`
+it unconditionally (`await Promise.resolve(Store.load())` works
+whether `load()` returns a value or a promise), so `LocalAdapter` never
+has to change at all, only how it's *called*.
+
+**Proposed build order:**
+1. `ai/taskManager.js` + `data.aiTasks`, wired to the Computer's existing
+   UI first (research + lesson-plan kinds only — no new panel yet).
+2. A dedicated Task Manager panel replacing the Computer's single-purpose
+   view, adding the book-acquisition and advisor kinds.
+3. Wire book-acquisition suggestions into the Request Board's "Add
+   request" form as pre-fill, not auto-submit.
+4. The `boot()` restructuring above — worth doing as its own change,
+   deliberately *before* Phase 3 actually needs it, so the async
+   boundary is proven with the existing `LocalAdapter` first rather
+   than debugged for the first time at the same moment a real network
+   adapter is also new.
+5. `SupabaseAdapter` itself, once Phase 3 is actually underway.
+
 ### External tile-map JSON
 
 Still just the one-line sketch it always was: load `/maps/grounds.json`
