@@ -45,7 +45,7 @@ function buildOverworld(){
     ],
     warps:[
       {x:19,y:8,to:'keep',sx:8,sy:11},{x:20,y:8,to:'keep',sx:9,sy:11},
-      {x:7,y:15,to:'library',sx:7,sy:9},{x:8,y:15,to:'library',sx:8,sy:9},
+      {x:7,y:15,to:'library',sx:7,sy:13},{x:8,y:15,to:'library',sx:8,sy:13},
       {x:31,y:15,to:'workshop',sx:6,sy:8},{x:32,y:15,to:'workshop',sx:7,sy:8},
       {x:24,y:15,to:'cafe',sx:6,sy:8},{x:25,y:15,to:'cafe',sx:7,sy:8},
     ],
@@ -69,9 +69,9 @@ function buildOverworld(){
       {x:25,y:27,color:'#b9976b',glow:'#e8d5a8',name:'SAGARA the Fisher',wander:false,lines:[
         "Cast, wait, and when the line jumps — move. Hesitate and the moment's gone. Same as sitting practice, really.",
         "Caught a pearl here once. It dissolved in my palm.\nStill counts, I figure. Everything turns to sand."]},
-      {x:6,y:6,color:'#8a9a9a',glow:'#d6e2e2',name:'THE MOUNTAIN MONK',wander:false,lines:[
-        "Sits quietly, some distance from the paths everyone else uses.",
-        "(A placeholder for now — an old friend of the Pavilion's keeper, built long ago, waiting for his voice to be given back to him.)"]},
+      {x:6,y:6,color:'#8a9a9a',glow:'#d6e2e2',name:'THE MOUNTAIN MONK',wander:false,ai:true,aiAgent:'monk',lines:[
+        "Sanskrit, sutras, or just how to actually sit still — ask, and I'll teach whichever one you need. Usually not the one you think you came for.",
+        "Shankara has a line I like: the rope was never a snake. Most of what troubles us works the same way, once you look closely enough."]},
     ],
     spawn:{x:19,y:21}
   };
@@ -98,23 +98,26 @@ function buildKeep(){
 }
 
 function buildLibrary(){
-  const W=16,H=11, t=grid(W,H,'r');
+  // Taller than its outside footprint suggests on purpose — the Library
+  // is bigger on the inside. Nobody's ever complained.
+  const W=16,H=15, t=grid(W,H,'r');
   for(let x=0;x<W;x++){ t[0][x]='w'; t[1][x]='w'; t[H-1][x]='w'; }
   for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
   t[H-1][7]='r'; t[H-1][8]='r';
   const shelfRow=y=>{ for(let x=2;x<=6;x++) t[y][x]='k'; for(let x=9;x<=13;x++) t[y][x]='k'; };
-  shelfRow(3); shelfRow(6);
+  shelfRow(3); shelfRow(6); shelfRow(9);
   t[4][15]='r'; // east door → the Study
   scenes.library = {
     name:'The Library', outdoor:false, tiles:t, w:W, h:H, buildings:[],
-    warps:[{x:7,y:10,to:'overworld',sx:7,sy:16},{x:8,y:10,to:'overworld',sx:8,sy:16},
+    warps:[{x:7,y:14,to:'overworld',sx:7,sy:16},{x:8,y:14,to:'overworld',sx:8,sy:16},
            {x:15,y:4,to:'study',sx:1,sy:4}],
-    signs:[{x:14,y:5,name:'BRASS ARROW',text:"→ THE STUDY\nA desk for the day. A board for the long paths."}],
+    signs:[{x:14,y:5,name:'BRASS ARROW',text:"→ THE STUDY\nA desk for the day. A board for the long paths."},
+           {x:5,y:8,name:'HAND-LETTERED SIGN',text:"THE THIRD SHELF\nScience, west — Nature, east. Newer, and further from the\ndoor than the rest — same rule as always: what is it,\nwhere's it from, what license does it travel under."}],
     shelves:true,
     npcs:[{x:8,y:4,color:'#9a6fb5',glow:'#d9b9ea',name:'QUILL · Librarian Agent',wander:false,ai:true,lines:[
-      "Four shelves, four lineages: Theravada north-west, Mahayana north-east, Daoism south-west, Practice south-east. Face one and press E.",
-      "Every text answered three questions at the door: what is it, where is it from, and under what license does it travel."]}],
-    spawn:{x:7,y:9}
+      "Six shelves now, three rows deep: Theravada and Mahayana up front, Daoism and Practice behind them, Science and Nature further back still. Face one and press E.",
+      "Yes, it's bigger in here than the building looks outside. I've stopped explaining it. Every text still answers three questions at the door, regardless of room: what is it, where is it from, and under what license does it travel."]}],
+    spawn:{x:7,y:13}
   };
 }
 

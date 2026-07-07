@@ -26,6 +26,7 @@ No third-party packages required — just Python 3's standard library.
 """
 import argparse
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -46,6 +47,12 @@ END_MARKERS = [
 ]
 TITLE_LINE = re.compile(r"^Title:\s*(.+)$", re.MULTILINE)
 AUTHOR_LINE = re.compile(r"^Author:\s*(.+)$", re.MULTILINE)
+
+
+def slugify(s):
+    s = s.lower().strip()
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+    return s.strip("-") or "untitled"
 
 
 def fetch_text(book_id):
@@ -91,6 +98,10 @@ def main():
     ap.add_argument("book_id", help="Project Gutenberg ebook ID, e.g. 2680")
     ap.add_argument("--out", default=None, help="Output JSON file (default: gutenberg_<id>.json)")
     ap.add_argument("--license", default="Public Domain (Project Gutenberg)", help="License string to record")
+    ap.add_argument("--for-library", action="store_true",
+                     help="Write library-sources/<slug>.txt (Title:/Author: header re-prepended) instead of "
+                          "the bulk-import JSON, so tools/caravan/library-draft.py can pick it up directly — "
+                          "the shared-Library path, not the personal Archive Desk one.")
     args = ap.parse_args()
 
     print(f"Fetching Gutenberg #{args.book_id}...")
@@ -99,6 +110,25 @@ def main():
     title = guess_title(raw, fallback=f"Gutenberg #{args.book_id}")
     author = guess_author(raw)
     source = GUTENBERG_EBOOK_URL.format(id=args.book_id)
+
+    if args.for_library:
+        # library-draft.py's TITLE_LINE/AUTHOR_LINE regexes look for these
+        # at the start of the file — strip_boilerplate() already removed
+        # Gutenberg's own header, so it's re-added here in the same shape.
+        header = f"Title: {title}\n" + (f"Author: {author}\n" if author else "") + "\n"
+        out_dir = "library-sources"
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = args.out or os.path.join(out_dir, slugify(title) + ".txt")
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(header + body)
+        print(f"Fetched from: {used_url}")
+        print(f"Title: {title}")
+        if author:
+            print(f"Author: {author}")
+        print(f"Wrote: {out_path}")
+        print(f"\nNext step: python tools/caravan/library-draft.py {out_path} "
+              f"--source \"{source}\" --license \"{args.license}\"")
+        return
 
     entry = {
         "title": title,

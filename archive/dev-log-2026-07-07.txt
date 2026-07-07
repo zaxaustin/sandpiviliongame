@@ -189,3 +189,75 @@ SESSION 6 — git, GitHub, and a README trim
   for whoever picks up the plan next, not just history.
 - See README's own "Project history" section for where this repo is
   actually hosted, once pushed.
+
+================================================================
+SESSION 7 — Phase 3 goes live: Supabase, the café, real accounts, and
+the Research Desk
+================================================================
+
+The big one. User confirmed their Supabase project was actually linked
+and asked to build the café for real, then kept going most of a day.
+
+- Migrated `library_documents` (added the missing `category` column,
+  seeded all 16 texts from seed.js) and created `exchange_questions`
+  (the café's notice board) with real RLS policies. `Store` now mirrors
+  the Library from Supabase into memory once on load, falling back to
+  the bundled seed if unconfigured/unreachable — every existing call
+  site stays synchronous, nothing else changed shape.
+- Built the café: a 4th overworld building, an interior room, the
+  Notice Board (Supabase-backed, verified end-to-end including a real
+  submitted post), the Hearth Corner and Grant Desk (scripted flavor).
+- Deployed to Vercel, connected via GitHub integration. Real gotchas
+  hit and fixed: Vite env vars only bake in at build time, so adding
+  them after the first deploy needs a redeploy; Vercel's "shared" vs.
+  project-level environment variables are different things — the
+  user's first attempt used shared vars, silently producing a build
+  with `@supabase/supabase-js` completely tree-shaken out (confirmed by
+  grepping the deployed JS bundle for the project ref string). Fixed
+  once the user added them at the project level themselves.
+- Built real accounts: magic-link sign-in (`data/auth.js`), a
+  `profiles` table + `is_steward()` security-definer function
+  (replacing the old `auth.jwt()->>'role'` policy, which needed a
+  custom JWT claim hook that never existed — `is_steward()` querying a
+  real table is the standard, simpler pattern), and `player_saves` for
+  optional cross-device sync. This is what made the café's steward
+  moderation actually reachable in-game — the Notice Board grew a real
+  Pending/Approve/Reject section, gated by the database itself.
+- Generalized the chat system (previously hardcoded to Quill) into a
+  small `CHAT_AGENTS` registry so the Steward NPC could get real AI
+  chat too, grounded in the charter and the live board. Verified live
+  against the user's actual Ollama connection (qwen3.5:9b — a
+  "thinking" model, the exact gotcha the README already warns about;
+  it answered correctly anyway).
+- Built the agent-notes commons: a new Residents' Board café station,
+  `agent_notes` table, same steward-moderated shape as the Notice
+  Board. "Ask Quill/the Steward to leave a note" produces a real,
+  charter-grounded generation — verified end-to-end (a real note about
+  the Tao Te Ching, approved, confirmed visible publicly).
+- Built the Research Desk in the Workshop, closing the README's own
+  long-standing "research/notes as a mode distinct from the personal
+  archive" gap: freeform per-project notes, a research-assistant AI
+  grounded in the Library *and* the project's own notes, and a
+  "promote to Archive Desk" bridge. Verified end-to-end including a
+  genuinely well-grounded AI reply that correctly cited actual shelved
+  content.
+- Testing note: overworld Playwright navigation near a wandering NPC's
+  home (Cobalt, right by the Workshop/Café) turned out to be genuinely
+  flaky, not just fiddly — his wander logic can repeatedly block the
+  exact corridor tile a scripted route needs. Fix: seed
+  `localStorage['sandPavilionSave.v2']` with a `pos` inside the target
+  interior scene via `page.addInitScript()` before load, skipping
+  overworld pathing entirely for tests that only care about one
+  station's UI.
+- README had grown past 1900 lines again (the Session 6 trim didn't
+  stick once a full day of Phase 3 work landed on top of it). Same fix
+  as last time: full snapshot preserved at
+  `archive/readme-2026-07-07-full.md`, README trimmed back down to a
+  current-state reference plus a short, honest "work still to be done"
+  and a condensed hopes-and-dreams pointer.
+- Known loose end: the user's real magic-link sign-in hit Supabase's
+  free-tier email rate limit (partly from testing eating the quota) —
+  confirmed via `get_logs`, not a bug, just needs a retry once the
+  window resets. Granting the user's own `profiles.role='steward'` by
+  hand, and adding the production Vercel URL to Supabase's Auth
+  redirect-URL allowlist, are both still open.

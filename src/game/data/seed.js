@@ -3,7 +3,7 @@
    library_documents table; `doc` becomes the JSONB column.
    License + source are first-class fields, never buried in the blob.
    ================================================================ */
-export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice'];
+export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice','Science','Nature'];
 /* Categories are a second, orthogonal axis to tradition — "what kind of
    text is this" rather than "which lineage." Every seed text today is
    the same kind (classical, hand-vetted, non-fiction) — the taxonomy is

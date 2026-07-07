@@ -27,17 +27,25 @@ have a stage adjusted — this document is meant to change as you do.
 - [ ] Stage 10 — AI integration, the whole spectrum
 - [ ] Stage 11 — AI as a character, not just an API call
 - [ ] Stage 12 — containers: what Docker is and isn't for
-- [ ] Stage 13 — databases & Supabase, concretely (new — see below)
+- [ ] Stage 13 — databases & Supabase, concretely
+- [x] **Stage 14** — deploying a real app, and debugging one that doesn't work
 
-Only Stage 0 is checked off so far — everything else is still ahead of
-you, nothing archived out yet, **and that's worth being honest about**:
-Stage 13 below covers Phase 3 going live today (a real `library_documents`
-table, the café's `exchange_questions` table, row-level security), but
-that work was mostly me driving — reading it after the fact isn't the
-same as the hands-on bar every other stage sets, so it's unchecked too.
-This list exists so a glance at the top of the file answers "where did I
-leave off," instead of rereading the whole document each time; ask any
-time to have it updated as stages actually get done.
+**Stage 14 is checked for real, hands-on reasons, not just because a lot
+of backend work happened nearby:** you created the Vercel project,
+connected it to GitHub yourself, and when sign-in didn't work, you
+diagnosed and fixed a genuine misconfiguration yourself (environment
+variables added at the wrong scope — "shared" instead of the project
+level) rather than just being told the answer. That's the actual bar
+this document sets for a checkmark. Stage 13 stays unchecked on
+purpose — Phase 3's database work (migrations, RLS policies, the
+`is_steward()` function) was mostly me driving; reading about it after
+the fact isn't the same as doing it, so it doesn't get credited as if
+it were. See Stage 14 below for what actually happened and why it
+counts.
+
+This list exists so a glance at the top of the file answers "where did
+I leave off," instead of rereading the whole document each time; ask
+any time to have it updated as stages actually get done.
 
 ## Stage 0 — credit for what you've already done
 
@@ -661,6 +669,48 @@ the Supabase dashboard today instead of a button in the game — and it's
 not "because it wasn't built yet," it's "because there's no real login
 system to prove who's actually a steward," which is a security reason,
 not a laziness one.
+
+## Stage 14 — deploying a real app, and debugging one that doesn't work
+
+**Why this stage exists, and why it's checked:** on 2026-07-07 you took
+this project from "runs on my machine" to a real, public URL — and when
+it didn't work the first time, you found the actual cause yourself
+instead of guessing or asking to be told. That's the whole skill this
+stage is about, demonstrated, not just read about.
+
+**Concept: a deploy is the same files, a different, always-on address.**
+`npm run build` produces the exact same HTML/CSS/JS `npm run dev` runs
+locally — deploying just means putting those files somewhere that's
+reachable by anyone, all the time, instead of only by you, only while
+your terminal's open. Vercel's GitHub integration means every `git push`
+to `main` triggers a fresh build automatically — the thing that changed
+today wasn't the game's code, it was where the already-working code
+*lived*.
+
+**The actual bug you found: build-time vs. runtime configuration.** Vite
+environment variables (`VITE_SUPABASE_URL` and friends) get baked into
+the JavaScript bundle *at build time* — not read fresh every time the
+page loads. Adding one in Vercel's dashboard *after* a build already ran
+does nothing to that existing build; it only affects the *next* one.
+That's why the fix was a redeploy, not just saving a settings page.
+
+**The second bug, and the one that actually took real debugging: "shared"
+vs. project-level environment variables aren't the same thing.** Vercel
+lets you define variables at the team/account level ("shared") that then
+need to be explicitly linked to a specific project — your first attempt
+used the shared kind, which silently produced a working-looking build
+that was actually missing the Supabase connection entirely (confirmed by
+grepping the deployed JavaScript file itself for the project's URL and
+finding nothing there — a real technique worth keeping: when something
+"should" be configured but isn't behaving right, check the actual output,
+not just the settings page). You found this and fixed it by adding the
+variables at the project level instead — that's the hands-on part this
+checkmark is actually for.
+
+**You're ready to say you understand this stage when:** you can explain,
+to someone else, why "I added the environment variable" and "the site
+still can't connect" aren't a contradiction — and what you'd check first
+to find out why.
 
 ---
 

@@ -115,6 +115,24 @@ const CHAT_AGENTS = {
     },
     errorLine:"The Steward's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
   },
+  monk:{
+    label:'the Mountain Monk',
+    async systemPrompt(){
+      return CHARTER
+        +"\n\nYou are the Mountain Monk — a wise, playful teacher who lives quietly at the edge of "
+        +"the Grounds, some distance from the paths everyone else uses. You teach Buddhism, Hinduism "
+        +"(especially Advaita Vedanta and the teachings of Shankara), and Sanskrit, always toward one "
+        +"practical end: how to actually live in harmony with the world, not just discuss it. Your "
+        +"tone is warm and a little mischievous — you'd rather answer a heavy question with an "
+        +"unexpected story or a small joke than a lecture, though you can go deep when someone's "
+        +"genuinely ready for it. Unlike Quill, you aren't limited to what's on the Library's "
+        +"shelves — your own teaching draws from a wider well than this Library currently holds "
+        +"(there's no Vedantic shelf here yet), so speak from what you actually know, and say so "
+        +"plainly if something's genuinely outside it. Sanskrit terms are welcome, gently explained, "
+        +"never showed off.";
+    },
+    errorLine:"The Monk's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
+  },
 };
 async function sendChatMessage(q){
   const d=state.dialog; if(!d||!d.chat) return;
@@ -449,10 +467,12 @@ export function resetSave(){
 
 /* ----- Library shelves ----- */
 export function shelfTraditionFor(x,y){
-  // four shelf blocks → four lineages
-  return (y<=4) ? (x<8?'Theravada':'Mahayana') : (x<8?'Daoism':'Practice');
+  // six shelf blocks, three rows deep → six lineages
+  const row = y<=4 ? 0 : y<=7 ? 1 : 2;
+  const side = x<8 ? 0 : 1;
+  return [['Theravada','Mahayana'],['Daoism','Practice'],['Science','Nature']][row][side];
 }
-const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200 };
+const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Nature:150 };
 export function openShelf(tradition){
   state.ui='shelf'; state.shelfTradition=tradition; state.shelfIndex=0; hideAllOv();
   document.getElementById('shelfTitle').textContent='Shelf · '+tradition;

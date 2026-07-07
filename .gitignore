@@ -7,3 +7,4 @@ library-sources/
 /gutenberg_*.json
 .env
 .env.local
+__pycache__/

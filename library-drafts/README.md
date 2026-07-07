@@ -28,14 +28,17 @@ there's more than one person submitting things.
    written. Ask me to draft this part with you if you want a first pass
    to react to — reading and summarizing honestly is the one step here
    that isn't just filling in blanks.
-4. **When it's ready**, ask me (or, once you're comfortable with the
-   pattern, do it yourself) to fold it into `src/game/data/seed.js` as a
-   real entry, matching the shape every other text there already uses.
-   That's a real code change — worth its own git commit, so there's a
-   record of exactly when and why each text joined the shelf.
-5. **Delete or archive the `.md` draft** once it's actually in
-   `seed.js` — this folder is a staging area, not a second copy of the
-   Library.
+4. **When it's ready**, run
+   `python tools/caravan/promote-draft.py library-drafts/<slug>.md` —
+   it parses the finished draft, refuses if license or tradition is
+   still `TODO`, and inserts it straight into Supabase's
+   `library_documents` table. Live in the game immediately, no code
+   deploy needed. (Needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+   set as environment variables first — see the script's own docstring;
+   `python tools/caravan/promote-draft.py --help`.)
+5. The script moves the finished draft to `library-drafts/done/`
+   automatically — this folder stays a staging area, not a second copy
+   of the Library.
 
 ## Why a `tradition` might not fit yet
 
