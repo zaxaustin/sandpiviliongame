@@ -197,13 +197,30 @@ function drawStation(st,ox,oy){
     ctx.fillStyle='#9c8b74'; ctx.fillRect(x+S*.22,y+S*.39,S*.24,S*.03); ctx.fillRect(x+S*.22,y+S*.45,S*.18,S*.03);
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.66,y+S*.28,S*.12,S*.14); // inkwell
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.7,y+S*.14,S*.03,S*.16);  // quill
-  } else if(st.kind==='courses'){ // course board
-    ctx.fillStyle='#63402a'; ctx.fillRect(x+S*.06,y+S*.08,S*.88,S*.78);
-    ctx.fillStyle='#a97c50'; ctx.fillRect(x+S*.12,y+S*.14,S*.76,S*.66);
-    const notes=[['#f5e9d4',.18,.2],['#ffd98a',.5,.24],['#cfe4d2',.3,.5],['#f0c9c9',.62,.52]];
+  } else if(st.kind==='courses'){ // course board — enlarged, spills over its own tile like a real bulletin board would
+    ctx.fillStyle='#63402a'; ctx.fillRect(x-S*.18,y-S*.32,S*1.36,S*1.14);
+    ctx.fillStyle='#a97c50'; ctx.fillRect(x-S*.1,y-S*.24,S*1.2,S*1.0);
+    const notes=[['#f5e9d4',-.02,-.14],['#ffd98a',.34,-.18],['#cfe4d2',.68,-.1],['#f0c9c9',.06,.16],['#cfe0f0',.42,.22],['#f5e9d4',.76,.14]];
     for(const [c,nx,ny] of notes){
-      ctx.fillStyle=c; ctx.fillRect(x+S*nx,y+S*ny,S*.22,S*.2);
-      ctx.fillStyle='#d94f4f'; ctx.beginPath(); ctx.arc(x+S*(nx+.11),y+S*ny,S*.03,0,7); ctx.fill();
+      ctx.fillStyle=c; ctx.fillRect(x+S*nx,y+S*ny,S*.24,S*.22);
+      ctx.fillStyle='#d94f4f'; ctx.beginPath(); ctx.arc(x+S*(nx+.12),y+S*ny,S*.03,0,7); ctx.fill();
+    }
+  } else if(st.kind==='computer'){ // a desk with a computer — the AI planning assistant
+    ctx.fillStyle='#75542e'; ctx.fillRect(x+S*.08,y+S*.62,S*.1,S*.36); ctx.fillRect(x+S*.82,y+S*.62,S*.1,S*.36);
+    ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.02,y+S*.56,S*.96,S*.14);
+    ctx.fillStyle='#3a342e'; ctx.fillRect(x+S*.28,y+S*.16,S*.44,S*.36); // monitor body
+    const glow=.5+.5*Math.sin(state.time*1.3);
+    ctx.fillStyle=`rgba(126,196,222,${.55+glow*.35})`; ctx.fillRect(x+S*.32,y+S*.2,S*.36,S*.26); // screen
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.46,y+S*.52,S*.08,S*.08); // stand
+    ctx.fillStyle='#5a4a38'; ctx.fillRect(x+S*.22,y+S*.58,S*.56,S*.05); // keyboard
+  } else if(st.kind==='requests'){ // request board — a corkboard with a few pinned cards, waiting for the Caravan
+    ctx.fillStyle='#8a6d4a'; ctx.fillRect(x+S*.04,y+S*.06,S*.92,S*.82);
+    ctx.fillStyle='#c9a06a'; ctx.fillRect(x+S*.1,y+S*.12,S*.8,S*.7);
+    const cards=[['#f5e9d4',.2,.22],['#f5e9d4',.52,.2],['#f5e9d4',.32,.5],['#f5e9d4',.6,.52]];
+    for(const [c,nx,ny] of cards){
+      ctx.fillStyle=c; ctx.fillRect(x+S*nx,y+S*ny,S*.2,S*.18);
+      ctx.strokeStyle='#9c8b74'; ctx.lineWidth=.6; ctx.strokeRect(x+S*nx,y+S*ny,S*.2,S*.18);
+      ctx.fillStyle='#2a2118'; ctx.beginPath(); ctx.arc(x+S*(nx+.1),y+S*ny,S*.025,0,7); ctx.fill();
     }
   } else { // the Archive Desk — an open book, plus a small stack of your own bound volumes
     ctx.fillStyle='#4a3520'; ctx.fillRect(x,y+S*.6,S,S*.34);

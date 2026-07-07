@@ -89,6 +89,12 @@ const RAW_SEED_LIBRARY = [
      sections:[
        {heading:'The map', body:'Seven chapters: free wandering, the equality of things, nourishing life, the human world, the sign of full virtue, the great source as teacher, and responding to emperors and kings.'},
        {heading:'A steward’s suggestion', body:'Begin with chapter three, Nourishing Life. It is the shortest, and the butcher story inside it is the whole book in miniature.'}]}},
+ { slug:'religions-ancient-china', tradition:'Daoism', title:'Religions of Ancient China',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/2330', attribution:'Herbert A. Giles · Project Gutenberg',
+   doc:{ summary:'A scholar’s overview of how Chinese religious life actually moved from an early sky-and-ancestor faith into Confucianism, Taoism, and Buddhism — history, not scripture, and useful for exactly that reason.',
+     sections:[
+       {heading:'What it is', body:'Giles traces a plain historical line: an old faith centered on Shang-ti and ancestor worship, gradually joined and reshaped by Confucius’s ethics, Lao-tzu’s Tao, and Buddhism arriving from India. It reads as history and comparative religion, not devotion.'},
+       {heading:'Why it earns a shelf spot here', body:'Every other Daoist text on this shelf is a primary source or a steward’s close reading of one. This is the outside view — where Taoism actually came from and how it sat alongside its neighbors — useful before or after sitting with the Tao Te Ching itself, not instead of it.'}]}},
  // ---- Practice ----
  { slug:'hearth-logbook', tradition:'Practice', title:'A Practice Logbook — Crucible Trial No. 1',
    license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'The first user',

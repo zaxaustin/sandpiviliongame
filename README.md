@@ -420,6 +420,32 @@ to the module boundaries:
   fill it, same instinct as `saveVersion`.
 - The Library floor is parchment-toned now, not a carpet — a small
   visual pass toward "this room feels like paper."
+- **The Study, expanded** — two new stations alongside the Writing Desk
+  and (now visually bigger) Course Board:
+  - **The Computer** (🖥) — an AI planning assistant distinct from the
+    Writing Desk's pen-and-paper practice: ask for help planning today,
+    drafting a lesson plan from a rough idea, or thinking something
+    through. Same `NoProvider`-safe pattern as everything else — a
+    clear message when no AI is connected, a real conversation when one
+    is. A reply can be saved straight to the Archive Desk.
+  - **The Request Board** — a wishlist of books you'd like added,
+    feeding the Caravan connector's queue. Nothing here fetches itself;
+    it's where a request waits until a human actually runs
+    `tools/caravan/gutenberg.py` and reviews what comes back.
+- **A first curated addition to the Library**, via that same connector:
+  Herbert Giles' *Religions of Ancient China* (public domain, Gutenberg),
+  a scholarly overview rather than primary scripture — chosen
+  specifically because it doesn't duplicate the Tao Te Ching/Zhuangzi
+  already on the Daoism shelf. Fetched, reviewed, and hand-added with an
+  original summary, the exact human-in-the-loop path this project's own
+  rules require for the shared Library (16 texts now, up from 15).
+- **Inventory** (🎒, from the Reader or the pause menu) — carry a book
+  with you and read it from anywhere, no walk back to the shelf. Nothing
+  is depleted from the Library; it's a personal "currently carrying"
+  list. Includes an AI-assisted categorization suggestion (ask "the
+  Computer" what a loose grouping across what you're carrying might be)
+  — a suggestion to consider, never applied automatically.
+- More fish varieties at the pond (ten now, up from six).
 
 Full session-by-session build narrative (what broke, what got fixed,
 what got verified how) lives in `archive/` — see "Project history"

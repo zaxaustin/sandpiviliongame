@@ -6,7 +6,7 @@ import {
   blocked, facingTile, opposite, MOVE_TIME,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openComputer, openRequests, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus } from './ui/overlays.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -114,7 +114,14 @@ function onAction(){
 
   const ft=facingTile();
   const st=stationAt(ft.x,ft.y);
-  if(st){ if(st.kind==='planner') openPlanner(); else if(st.kind==='courses') openCourses(); else if(st.kind==='archive') openArchive(); return; }
+  if(st){
+    if(st.kind==='planner') openPlanner();
+    else if(st.kind==='courses') openCourses();
+    else if(st.kind==='archive') openArchive();
+    else if(st.kind==='computer') openComputer();
+    else if(st.kind==='requests') openRequests();
+    return;
+  }
   const npc=npcAt(ft.x,ft.y);
   if(npc){
     npc.face=opposite(state.player.dir);

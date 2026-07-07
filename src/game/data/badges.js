@@ -15,4 +15,5 @@ export const BADGES = [
   { id:'first-course',   icon:'🗺️', name:'A Path Pinned',      desc:'Pin a course on the Course Board.' },
   { id:'first-entry',    icon:'📔', name:'Your Own Words',     desc:'Write an entry at the Archive Desk.' },
   { id:'first-waypoint', icon:'🔗', name:'A Trail Marked',     desc:'Add a link to your Waypoints list.' },
+  { id:'first-carry',    icon:'🎒', name:'Packed for the Road', desc:'Take a book with you from the Reader.' },
 ];

@@ -224,7 +224,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); }
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','computerOv','requestsOv','inventoryOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Pause menu — reachable with Esc from the open world, or the ☰ HUD button ----- */
@@ -241,6 +241,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
       <button class="btn ghost" onclick="openBadges()" style="margin-bottom:9px">🏅 Badges</button>
+      <button class="btn ghost" onclick="openInventory()" style="margin-bottom:9px">🎒 Inventory</button>
       <button class="btn ghost" onclick="exportSave()" style="margin-bottom:9px">⬇ Export save (.json)</button>
       <button class="btn ghost" onclick="triggerImportSave()" style="margin-bottom:9px">⬆ Import save…</button>
       <button class="btn ghost" onclick="returnToTitle()" style="margin-bottom:9px">← Return to title screen</button>
@@ -433,11 +434,14 @@ export function openReader(slug){
   document.getElementById('rdMark').textContent = data.read[slug] ? 'Read ✓' : 'Mark as read';
   document.getElementById('rdSpokenNote').textContent='';
   updateReaderSpeakBtns();
+  const carryBtn=document.getElementById('rdCarryBtn');
+  if(carryBtn) carryBtn.textContent = data.inventory.includes(slug) ? '🎒 Carrying' : '🎒 Take with you';
   const panel=document.querySelector('#readerOv .panel');
   panel.classList.remove('bookPanel'); void panel.offsetWidth; panel.classList.add('bookPanel');
   showOv('readerOv');
   awardBadge('first-page');
 }
+export function currentDocSlug(){ return state.currentDoc; }
 export function markRead(){
   const slug=state.currentDoc; if(!slug) return;
   if(!data.read[slug]){
@@ -864,6 +868,160 @@ export function runBulkImport(){
   blip(added?784:220,.08);
 }
 
+/* ----- The Computer — an AI planning assistant, distinct from the
+   Writing Desk's pen-and-paper daily practice: ask for help planning
+   today, drafting a lesson plan from a rough idea, or thinking
+   something through. Same NoProvider-safe pattern as everything else —
+   works with zero setup (scripted planning still lives at the Writing
+   Desk), gets real once an AI connection is live. */
+const COMPUTER_PROMPTS = [
+  'Help me plan today, based on what I have going on.',
+  'Draft a lesson plan from this idea: ',
+  'Help me think through this: ',
+];
+function computerSystemPrompt(){
+  return CHARTER+'\n\nYou are a calm, practical planning assistant at a desk in the Sand '
+    +'Pavilion\'s Study. Help the visitor plan their day, draft a lesson plan from a rough idea, '
+    +'or think through whatever work is in front of them. Be concrete and brief — a short plan or '
+    +'a few next steps, not an essay. You are not Quill the Librarian; you don\'t need to reference '
+    +'the Library\'s shelves unless the visitor brings one up.';
+}
+export function openComputer(){
+  state.ui='computer'; hideAllOv();
+  state.computerView = state.computerView || { history:[], lastReply:'' };
+  renderComputer(); showOv('computerOv');
+}
+function renderComputer(){
+  const v=state.computerView, aiOn=isAIActive();
+  document.getElementById('computerPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>The Computer</h2>
+    <div class="meta">${aiOn
+      ? 'Ask for help planning today, drafting a lesson plan from an idea, or thinking something through.'
+      : 'No local AI connected right now (⚙ Manage AI connections) — this desk needs a live connection to actually answer. Scripted planning still works fine at the Writing Desk.'}</div>
+    ${aiOn ? `
+    <div class="row" style="margin-bottom:10px">
+      ${COMPUTER_PROMPTS.map(p=>`<button class="btn ghost" style="font-size:11.5px" onclick="fillComputerPrompt(${JSON.stringify(p)})">${esc(p.length>30?p.slice(0,30)+'…':p)}</button>`).join('')}
+    </div>
+    <div id="computerHistory">${v.history.map(h=>`
+      <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':'The Computer'}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
+    <textarea id="computerInput" rows="3" placeholder="Type here, or pick a quick start above…"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="sendComputerMessage()">Ask</button>
+      ${v.lastReply?'<button class="btn ghost" onclick="saveComputerReplyToArchive()">💾 Save last reply to Archive Desk</button>':''}
+    </div>` : ''}`;
+}
+export function fillComputerPrompt(p){ const el=document.getElementById('computerInput'); el.value=p; el.focus(); }
+export async function sendComputerMessage(){
+  const input=document.getElementById('computerInput');
+  const q=input.value.trim(); if(!q) return;
+  const v=state.computerView;
+  v.history.push({role:'user',content:q}); input.value=''; renderComputer();
+  try{
+    const reply=await AI.chat([{role:'system',content:computerSystemPrompt()}, ...v.history]);
+    v.history.push({role:'assistant',content:reply}); v.lastReply=reply;
+    logActivity('Asked the Computer for planning help.');
+  }catch(e){
+    v.history.push({role:'assistant',content:"The connection flickered — no answer this time. Check that your AI connection is still running."});
+  }
+  renderComputer();
+}
+export function saveComputerReplyToArchive(){
+  const v=state.computerView; if(!v.lastReply) return;
+  const title='Plan · '+todayKey();
+  let slug=slugify(title), n=1;
+  while(data.workshop.docs.some(d=>d.slug===slug)) slug=slugify(title)+'-'+(++n);
+  data.workshop.docs.unshift({slug,title,license:'personal record',source:'The Computer',body:v.lastReply,created:todayKey(),category:'ai-written'});
+  persist(); logActivity('Saved a plan from the Computer to the Archive Desk.'); blip(784,.09);
+  renderComputer();
+  document.getElementById('computerPanel').insertAdjacentHTML('beforeend','<p style="color:#ffd98a">Saved to your Archive Desk.</p>');
+}
+
+/* ----- The Request Board — a wishlist of books you'd like added,
+   feeding the Caravan connector's "what to fetch next" queue. Nothing
+   here fetches itself; a request just sits until a human decides to
+   actually run tools/caravan/gutenberg.py and review what comes back —
+   same discipline as everything else about the shared Library. */
+export function openRequests(){ state.ui='requests'; hideAllOv(); renderRequests(); showOv('requestsOv'); }
+function renderRequests(){
+  const reqs=data.bookRequests;
+  document.getElementById('requestsPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>The Request Board</h2>
+    <div class="meta">Books you'd like to see on a shelf someday. Nothing here fetches itself —
+      it's the queue for the Caravan (<code>tools/caravan/gutenberg.py</code>) to work through by
+      hand, one reviewed text at a time.</div>
+    <div id="reqList">${reqs.length ? reqs.map(r=>`
+      <div class="card" style="cursor:default">
+        <div class="t">${esc(r.title)}</div>
+        <div class="s">${esc(r.note||'')}</div>
+        <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="removeRequest(${r.id})">Remove</button></div>
+      </div>`).join('') : '<p>No requests yet.</p>'}</div>
+    <h3>Request a book</h3>
+    <label>Title</label><input type="text" id="reqTitle" placeholder="e.g. The Bhagavad Gita">
+    <label>Note (optional)</label><input type="text" id="reqNote" placeholder="Which shelf it might fit, or why">
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="addRequest()">Add request</button></div>`;
+}
+export function addRequest(){
+  const title=document.getElementById('reqTitle').value.trim();
+  const note=document.getElementById('reqNote').value.trim();
+  if(!title) return;
+  data.bookRequests.unshift({id:Date.now(),title,note,added:todayKey()});
+  persist(); logActivity('Requested a book: "'+title+'".'); renderRequests(); blip(700,.06);
+}
+export function removeRequest(id){
+  data.bookRequests=data.bookRequests.filter(r=>r.id!==id);
+  persist(); renderRequests();
+}
+
+/* ----- Inventory — carry a book with you, read it from anywhere without
+   walking back to its shelf. Doesn't remove it from the Library (nothing
+   is depleted); it's a personal "currently carrying" list. The AI
+   categorization suggestion is human-in-the-loop, same as Quill's memory
+   report — a suggestion to look at, never applied on its own. */
+export function toggleInventory(slug){
+  const i=data.inventory.indexOf(slug);
+  if(i>=0) data.inventory.splice(i,1);
+  else { data.inventory.push(slug); awardBadge('first-carry'); logActivity('Packed a book to carry with you.'); }
+  persist();
+  const btn=document.getElementById('rdCarryBtn'); if(btn) btn.textContent = data.inventory.includes(slug) ? '🎒 Carrying' : '🎒 Take with you';
+}
+export function openInventory(){ state.ui='inventory'; hideAllOv(); renderInventory(); showOv('inventoryOv'); }
+function renderInventory(){
+  const docs=data.inventory.map(slug=>Store.getDoc(slug)).filter(Boolean);
+  document.getElementById('inventoryPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Your Inventory</h2>
+    <div class="meta">Books you're carrying — read any of these from anywhere, no walk back to the
+      shelf required. Nothing is missing from the Library; this is just your own copy in hand.</div>
+    ${docs.length ? `
+      <div id="invList">${docs.map(d=>`
+        <div class="card" onclick="openReader('${d.slug}')">
+          <div class="t">${esc(d.title)}</div>
+          <div class="s">${esc(d.tradition)}</div>
+          <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="event.stopPropagation();toggleInventory('${d.slug}');openInventory()">Put it back</button></div>
+        </div>`).join('')}</div>
+      <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="suggestInventoryCategories()">🪄 Ask the Computer to organize this</button></div>
+      <div id="invSuggestion" class="meta"></div>`
+    : '<p>Not carrying anything yet — in the Reader, "🎒 Take with you" adds a book here.</p>'}`;
+}
+export async function suggestInventoryCategories(){
+  const docs=data.inventory.map(slug=>Store.getDoc(slug)).filter(Boolean);
+  const box=document.getElementById('invSuggestion'); if(!box) return;
+  if(!docs.length) return;
+  if(!isAIActive()){ box.textContent='No local AI connected right now (⚙ Manage AI connections) — nothing to ask.'; return; }
+  box.textContent='Thinking about how these fit together…';
+  try{
+    const list=docs.map(d=>`- "${d.title}" (${d.tradition})`).join('\n');
+    const ask=`Here's what a visitor is currently carrying from the Library:\n${list}\n\nIn 2-3 `
+      +`sentences, suggest a loose way to group or think about these together — a theme, a reading `
+      +`order, or a connection between them. This is just a suggestion for the visitor to consider, `
+      +`not an instruction.`;
+    const reply=await AI.chat([{role:'system',content:CHARTER},{role:'user',content:ask}]);
+    box.textContent='Suggestion: '+reply;
+  }catch(e){ box.textContent="The connection flickered — no suggestion this time."; }
+}
+
 /* ----- Quill's memory report — a formal, human-in-the-loop checkpoint on
    what an agent has been carrying about you, not a silent summarization.
    Reuses the exact same document shape and book-reader UI as everything
@@ -925,4 +1083,7 @@ Object.assign(window, {
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
   openBadges, openIndex, setIndexCategory, openIndexItem,
+  openComputer, fillComputerPrompt, sendComputerMessage, saveComputerReplyToArchive,
+  openRequests, addRequest, removeRequest,
+  openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
 });

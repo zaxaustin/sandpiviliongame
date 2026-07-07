@@ -128,6 +128,8 @@ function buildStudy(){
     stations:[
       {x:3,y:3,kind:'planner',name:'THE WRITING DESK'},
       {x:8,y:2,kind:'courses',name:'THE COURSE BOARD'},
+      {x:5,y:7,kind:'computer',name:'THE COMPUTER'},
+      {x:9,y:6,kind:'requests',name:'THE REQUEST BOARD'},
     ],
     npcs:[],
     spawn:{x:1,y:4}

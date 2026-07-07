@@ -13,7 +13,7 @@
 import { scenes, SOLID } from '../src/game/scenes.js';
 import { SEED_LIBRARY, TRADITIONS } from '../src/game/data/seed.js';
 
-const KNOWN_STATION_KINDS = ['planner', 'courses', 'archive'];
+const KNOWN_STATION_KINDS = ['planner', 'courses', 'archive', 'computer', 'requests'];
 
 const failures = [];
 const fail = (msg) => failures.push(msg);

@@ -15,7 +15,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, workshop:{docs:[]}, waypoints:[], activityLog:[], badges:{} }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, workshop:{docs:[]}, waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[] }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 let saveWarned=false; // only interrupt the visitor once per session, not on every failed micro-save
 export function persist(){
@@ -112,12 +112,16 @@ export function updateNPCs(dt){
    Fishing
    ================================================================ */
 const FISH=[
-  {name:'Sand Carp',w:34,flavor:"A stout, patient fish. It seems unbothered by the whole affair."},
-  {name:'Dusk Koi',w:26,flavor:"Its scales hold the last color of the evening. You let it go — it lives here."},
-  {name:'Lantern Eel',w:14,flavor:"It glows faintly, like a reading lamp with opinions."},
-  {name:'Paper Boat',w:12,flavor:"Someone's wish, folded and released upstream. You set it sailing again."},
-  {name:'Old Boot',w:9,flavor:"Every pond has one. Tradition, probably."},
-  {name:'Pearl of Impermanence',w:5,flavor:"It dissolves the moment you hold it. It still counts. Everything does."},
+  {name:'Sand Carp',w:30,flavor:"A stout, patient fish. It seems unbothered by the whole affair."},
+  {name:'Dusk Koi',w:22,flavor:"Its scales hold the last color of the evening. You let it go — it lives here."},
+  {name:'Lantern Eel',w:12,flavor:"It glows faintly, like a reading lamp with opinions."},
+  {name:'Paper Boat',w:10,flavor:"Someone's wish, folded and released upstream. You set it sailing again."},
+  {name:'Marginalia Minnow',w:9,flavor:"Small enough to miss, covered in scratches that almost look like handwriting."},
+  {name:'Quiet Catfish',w:8,flavor:"It has clearly been down there thinking about something for a very long time."},
+  {name:'Old Boot',w:7,flavor:"Every pond has one. Tradition, probably."},
+  {name:'Bell Carp',w:5,flavor:"A faint chime rings somewhere below the surface each time it turns. No one has explained this."},
+  {name:'Pearl of Impermanence',w:4,flavor:"It dissolves the moment you hold it. It still counts. Everything does."},
+  {name:'The One That Got Away, Again',w:2,flavor:"You've caught this exact fish before. It remembers you too, and is not impressed."},
 ];
 function rollFish(){ const tot=FISH.reduce((a,f)=>a+f.w,0); let r=Math.random()*tot;
   for(const f of FISH){ if((r-=f.w)<0) return f; } return FISH[0]; }

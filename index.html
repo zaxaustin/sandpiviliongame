@@ -38,6 +38,7 @@
     <button class="btn" id="rdMark" onclick="markRead()">Mark as read</button>
     <button class="btn ghost" id="rdReadBtn" onclick="toggleReadAloud()">🔊 Read aloud</button>
     <button class="btn ghost" id="rdSummaryBtn" onclick="toggleSpokenSummary()">🔊 Summary aloud</button>
+    <button class="btn ghost" id="rdCarryBtn" onclick="toggleInventory(currentDocSlug())">🎒 Take with you</button>
     <button class="btn ghost" onclick="backToShelf()">← Back to shelf</button>
   </div>
   <div class="meta" id="rdSpokenNote"></div>
@@ -89,6 +90,15 @@
 
 <!-- Library Index (categories, across the Library and your own Archive) -->
 <div class="overlay" id="indexOv"><div class="panel" id="indexPanel"></div></div>
+
+<!-- The Computer (AI planning assistant, in the Study) -->
+<div class="overlay" id="computerOv"><div class="panel" id="computerPanel"></div></div>
+
+<!-- The Request Board (book wishlist feeding the Caravan) -->
+<div class="overlay" id="requestsOv"><div class="panel" id="requestsPanel"></div></div>
+
+<!-- Your Inventory (books you're carrying) -->
+<div class="overlay" id="inventoryOv"><div class="panel" id="inventoryPanel"></div></div>
 
 <!-- Badge unlock toast -->
 <div id="badgeToast"></div>
