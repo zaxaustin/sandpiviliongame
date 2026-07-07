@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Sand Pavilion — Overworld</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; background:#141019; overflow:hidden; }
+  body { font-family:'Courier New', monospace; touch-action:none; }
+  #game { display:block; width:100vw; height:100vh; image-rendering:pixelated; }
+
+  #hud {
+    position:fixed; top:10px; left:10px; z-index:5;
+    background:rgba(26,19,12,.85); border:2px solid #e0a43c; border-radius:6px;
+    color:#f5e9d4; padding:6px 12px; font-size:13px; letter-spacing:.5px; pointer-events:none;
+  }
+  #hud b { color:#e0a43c; }
+
+  #dialog {
+    position:fixed; left:50%; bottom:14px; transform:translateX(-50%);
+    width:min(680px,94vw); z-index:6; display:none;
+    background:#2a2118; border:3px solid #e0a43c; border-radius:8px;
+    box-shadow:0 6px 24px rgba(0,0,0,.6), inset 0 0 0 2px #6b4a2f;
+    color:#f5e9d4; padding:14px 18px 16px;
+  }
+  #dialog .name { color:#e0a43c; font-weight:bold; font-size:13px; margin-bottom:6px; letter-spacing:1px; }
+  #dialog .text { font-size:15px; line-height:1.55; min-height:44px; white-space:pre-wrap; }
+  #dialog .more { text-align:right; color:#e0a43c; font-size:12px; margin-top:4px; animation:bob 1s infinite; }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(3px)} }
+
+  #hint {
+    position:fixed; bottom:14px; left:50%; transform:translateX(-50%);
+    z-index:4; color:#cbb79a; font-size:12px; background:rgba(20,16,25,.7);
+    padding:4px 12px; border-radius:12px; pointer-events:none;
+  }
+
+  /* ---------- overlays (reader / shelf / planner / courses) ---------- */
+  .overlay {
+    position:fixed; inset:0; z-index:9; background:rgba(10,8,14,.74);
+    display:none; align-items:flex-start; justify-content:center;
+    padding:22px 14px; overflow-y:auto;
+  }
+  .overlay.open { display:flex; }
+  .panel {
+    background:#2a2118; border:3px solid #e0a43c; border-radius:12px;
+    width:min(720px, 100%); color:#f5e9d4; padding:22px 24px 26px;
+    box-shadow:0 10px 40px rgba(0,0,0,.6), inset 0 0 0 2px #6b4a2f;
+    margin:auto 0;
+  }
+  .panel h2 { color:#e0a43c; letter-spacing:1px; font-size:20px; margin-bottom:4px; }
+  .panel .meta { color:#9c8b74; font-size:12px; margin-bottom:14px; }
+  .panel .meta b { color:#cbb79a; }
+  .panel h3 { color:#e0a43c; font-size:15px; margin:16px 0 6px; }
+  .panel p { line-height:1.7; font-size:14px; margin-bottom:10px; color:#eadfca; }
+  .panel .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .xbtn {
+    float:right; background:none; border:2px solid #e0a43c; color:#e0a43c;
+    border-radius:6px; padding:2px 10px; cursor:pointer; font-family:inherit; font-size:13px;
+  }
+  .xbtn:hover { background:#e0a43c; color:#2a2118; }
+  .btn {
+    background:#e0a43c; color:#2a2118; border:none; border-radius:7px;
+    padding:9px 18px; font-family:inherit; font-weight:bold; font-size:13px;
+    cursor:pointer; box-shadow:0 3px 0 #8a6423;
+  }
+  .btn:active { transform:translateY(2px); box-shadow:0 1px 0 #8a6423; }
+  .btn.ghost { background:none; color:#e0a43c; border:2px solid #e0a43c; box-shadow:none; }
+  .card {
+    background:#221a12; border:2px solid #55432e; border-radius:9px;
+    padding:12px 14px; margin-bottom:10px; cursor:pointer; transition:border-color .15s;
+  }
+  .card:hover { border-color:#e0a43c; }
+  .card .t { color:#f5e9d4; font-weight:bold; font-size:14px; }
+  .card .s { color:#b3a288; font-size:12.5px; line-height:1.5; margin-top:4px; }
+  .badge { display:inline-block; font-size:10.5px; border:1px solid #7fa36b; color:#a9cf90;
+    border-radius:10px; padding:1px 8px; margin-left:8px; vertical-align:middle; }
+  .badge.lic { border-color:#9c8b74; color:#cbb79a; }
+  input[type=text], textarea {
+    width:100%; background:#1b140d; border:2px solid #55432e; border-radius:7px;
+    color:#f5e9d4; font-family:inherit; font-size:13.5px; padding:9px 11px;
+  }
+  input[type=text]:focus, textarea:focus { outline:none; border-color:#e0a43c; }
+  label { display:block; color:#cbb79a; font-size:12px; margin:12px 0 5px; letter-spacing:.5px; }
+
+  /* planner blocks */
+  .blocks { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:9px; margin-top:6px; }
+  .blk {
+    border:2px solid #55432e; border-radius:9px; padding:10px 12px; cursor:pointer;
+    font-size:13px; user-select:none; -webkit-user-select:none;
+  }
+  .blk .st { font-size:10.5px; letter-spacing:1px; margin-top:3px; }
+  .blk.waiting { background:#221a12; color:#9c8b74; }
+  .blk.tended  { background:#3a2b12; border-color:#e0a43c; color:#ffd98a; }
+  .blk.rested  { background:#16242a; border-color:#5f93a8; color:#a9d3e2; }
+
+  .prog { height:8px; background:#1b140d; border-radius:6px; overflow:hidden; margin-top:8px; border:1px solid #55432e; }
+  .prog > div { height:100%; background:#e0a43c; }
+  .step { display:flex; gap:10px; align-items:flex-start; padding:9px 4px; border-bottom:1px solid #3a2e20; cursor:pointer; }
+  .step .box { width:18px; height:18px; border:2px solid #e0a43c; border-radius:5px; flex:none; margin-top:1px;
+    display:flex; align-items:center; justify-content:center; color:#2a2118; font-weight:bold; font-size:13px; }
+  .step.done .box { background:#e0a43c; }
+  .step.done .tt { color:#8f7f66; text-decoration:line-through; }
+  .step .tt { font-size:13.5px; }
+  .step .pp { font-size:12px; color:#b3a288; margin-top:2px; }
+
+  /* touch controls */
+  .touch { position:fixed; z-index:7; display:none; user-select:none; -webkit-user-select:none; }
+  body.touchmode .touch { display:block; }
+  #dpad { left:18px; bottom:22px; width:150px; height:150px; }
+  .dbtn { position:absolute; width:50px; height:50px; background:rgba(42,33,24,.8);
+    border:2px solid #e0a43c; border-radius:10px; color:#e0a43c; font-size:20px;
+    display:flex; align-items:center; justify-content:center; }
+  .dbtn:active { background:#e0a43c; color:#2a2118; }
+  #du{left:50px;top:0} #dd{left:50px;top:100px} #dl{left:0;top:50px} #dr{left:100px;top:50px}
+  #abtn { right:26px; bottom:52px; width:72px; height:72px; border-radius:50%;
+    background:rgba(42,33,24,.85); border:3px solid #e0a43c; color:#e0a43c;
+    font-size:26px; font-weight:bold; display:flex; align-items:center; justify-content:center; }
+  #abtn:active { background:#e0a43c; color:#2a2118; }
+
+  #title {
+    position:fixed; inset:0; z-index:10; background:rgba(20,14,10,.93);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    color:#f5e9d4; text-align:center; padding:20px;
+  }
+  #title h1 { color:#e0a43c; font-size:clamp(26px,6vw,44px); letter-spacing:3px; text-shadow:0 3px 0 #6b4a2f; }
+  #title p { max-width:540px; line-height:1.6; color:#cbb79a; font-size:14px; }
+  #title .keys { font-size:12px; color:#9c8b74; }
+  #saveMode { font-size:11.5px; color:#7fa36b; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">📍 <b id="loc">Pavilion Grounds</b> &nbsp; 🎣 <b id="fishCount">0</b> &nbsp; 📖 <b id="readCount">0</b></div>
+<div id="hint">Arrows / WASD move · E interact · Esc closes menus</div>
+
+<div id="dialog">
+  <div class="name" id="dName"></div>
+  <div class="text" id="dText"></div>
+  <div class="more" id="dMore">▼ E</div>
+</div>
+
+<!-- Shelf browser -->
+<div class="overlay" id="shelfOv"><div class="panel">
+  <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+  <h2 id="shelfTitle">Shelf</h2>
+  <div class="meta">Every text carries its license and source. The Library has no gate.</div>
+  <div id="shelfList"></div>
+</div></div>
+
+<!-- Reader -->
+<div class="overlay" id="readerOv"><div class="panel">
+  <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+  <h2 id="rdTitle"></h2>
+  <div class="meta" id="rdMeta"></div>
+  <div id="rdBody"></div>
+  <div class="row" style="margin-top:18px">
+    <button class="btn" id="rdMark" onclick="markRead()">Mark as read</button>
+    <button class="btn ghost" onclick="backToShelf()">← Back to shelf</button>
+  </div>
+</div></div>
+
+<!-- Planner -->
+<div class="overlay" id="planOv"><div class="panel">
+  <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+  <h2>The Writing Desk</h2>
+  <div class="meta" id="planDate"></div>
+  <label>Today's flame — one intention</label>
+  <input type="text" id="planIntent" maxlength="140" placeholder="What is today for?">
+  <label>Rhythm blocks — tap to cycle: waiting → tended → rested</label>
+  <div class="blocks" id="planBlocks"></div>
+  <label>Evening ember — a line before the lamp goes out</label>
+  <textarea id="planEmber" rows="2" placeholder="What actually happened today?"></textarea>
+  <div class="row" style="margin-top:14px">
+    <button class="btn" onclick="savePlanner(true)">Save the day</button>
+    <span class="meta" id="planSaved" style="margin:0"></span>
+  </div>
+</div></div>
+
+<!-- Courses -->
+<div class="overlay" id="courseOv"><div class="panel" id="coursePanel"></div></div>
+
+<div class="touch" id="dpad">
+  <div class="dbtn" id="du">▲</div><div class="dbtn" id="dd">▼</div>
+  <div class="dbtn" id="dl">◀</div><div class="dbtn" id="dr">▶</div>
+</div>
+<div class="touch dbtn" id="abtn">E</div>
+
+<div id="title">
+  <h1>THE SAND PAVILION</h1>
+  <p>The Library now holds real texts — face a shelf and press E. Behind its east door is the Study: a writing desk for planning your day, and a course board for building your own paths of practice.</p>
+  <p class="keys">Move: Arrows / WASD · Interact & fish: E · Close menus: Esc</p>
+  <p id="saveMode"></p>
+  <button class="btn" id="startBtn" style="font-size:16px;padding:12px 34px">Enter the Grounds</button>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   THE SAND PAVILION — OVERWORLD · Phase 2
+   Internal modules (split these into files when moving to Vite):
+     [STORE]    data/store.js   — storage adapter (local ⇄ memory ⇄ Supabase later)
+     [SEED]     data/seed.js    — library documents
+     [SCENES]   scenes.js       — map builders
+     [UI]       ui/overlays.js  — shelf, reader, planner, courses
+     [GAME]     main.js         — loop, input, entities, render
+   ================================================================ */
+
+/* ================================================================
+   [STORE] — the adapter. Swap this object for SupabaseAdapter in
+   Phase 3; nothing else in the file changes.
+   ================================================================ */
+const Store = (() => {
+  const KEY = 'sandPavilionSave.v2';
+  let mem = null, ls = null;
+  try { // feature-detect: works when deployed; falls back to memory in previews
+    const t = '__sp_probe'; window.localStorage.setItem(t,'1'); window.localStorage.removeItem(t);
+    ls = window.localStorage;
+  } catch(e) { ls = null; }
+  return {
+    mode: ls ? 'local' : 'memory',
+    load(){
+      if(ls){ try { return JSON.parse(ls.getItem(KEY) || 'null'); } catch(e){} }
+      return mem;
+    },
+    save(data){
+      mem = data;
+      if(ls){ try { ls.setItem(KEY, JSON.stringify(data)); } catch(e){} }
+    },
+    // Library access — LocalAdapter reads the bundled seed.
+    // SupabaseAdapter implements these same two calls over the network.
+    listDocs(tradition){ return SEED_LIBRARY.filter(d => d.tradition === tradition); },
+    getDoc(slug){ return SEED_LIBRARY.find(d => d.slug === slug) || null; },
+  };
+})();
+
+/* ================================================================
+   [SEED] — library documents. In Phase 3 these rows move into the
+   library_documents table; `doc` becomes the JSONB column.
+   License + source are first-class fields, never buried in the blob.
+   ================================================================ */
+const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice'];
+const SEED_LIBRARY = [
+ // ---- Theravada ----
+ { slug:'dhammapada', tradition:'Theravada', title:'The Dhammapada',
+   license:'CC0 1.0', source_url:'https://suttacentral.net/dhp', attribution:'SuttaCentral',
+   doc:{ summary:'A collection of the Buddha\u2019s sayings in verse — short, direct, and endlessly re-read across every Buddhist culture.',
+     sections:[
+       {heading:'What it is', body:'Four hundred twenty-three verses arranged by theme: the mind, heedfulness, anger, the self, the path. Each verse stands alone; together they form the most portable summary of the teaching that exists.'},
+       {heading:'How to read it', body:'Slowly, and in small amounts. One chapter a sitting is plenty. The verses are designed to be carried through a day and tested against experience, not consumed.'},
+       {heading:'A practice note', body:'Many practitioners keep a single verse as a companion for a week. When the week ends, the verse usually looks different than when it began. That difference is the practice.'}]}},
+ { slug:'satipatthana', tradition:'Theravada', title:'Satipatthana — Foundations of Mindfulness',
+   license:'CC0 1.0', source_url:'https://suttacentral.net/mn10', attribution:'SuttaCentral',
+   doc:{ summary:'The Buddha\u2019s core instruction manual for mindfulness practice: four fields of attention, one method.',
+     sections:[
+       {heading:'The four foundations', body:'Attention is trained on body, feeling-tone, mind-states, and the patterns of experience itself. Each field is observed as it arises and passes, internally and externally, without adding or subtracting.'},
+       {heading:'Why it matters', body:'Nearly every modern mindfulness method descends from this single discourse. Reading the source clarifies what the derivatives kept and what they quietly dropped.'}]}},
+ { slug:'metta', tradition:'Theravada', title:'The Metta Sutta — On Loving-Kindness',
+   license:'CC0 1.0', source_url:'https://suttacentral.net/snp1.8', attribution:'SuttaCentral',
+   doc:{ summary:'A short discourse on goodwill without conditions — the disposition of a mind that has stopped keeping score.',
+     sections:[
+       {heading:'The instruction', body:'Cultivate care for all beings the way a parent protects an only child: without exception, without expectation of return, in every posture and every hour.'},
+       {heading:'A practice note', body:'Metta is usually practiced as phrases repeated toward oneself, a friend, a stranger, a difficult person, and finally all beings. The difficult person is where the practice actually starts.'}]}},
+ { slug:'anapanasati', tradition:'Theravada', title:'Anapanasati — Mindfulness of Breathing',
+   license:'CC0 1.0', source_url:'https://suttacentral.net/mn118', attribution:'SuttaCentral',
+   doc:{ summary:'Sixteen steps of breath awareness, from simply knowing the breath to complete letting go.',
+     sections:[
+       {heading:'The structure', body:'Four sets of four: calming the body, brightening feeling, steadying the mind, and seeing clearly. Each set builds on the last; the breath is the thread through all sixteen.'},
+       {heading:'For a daily sit', body:'Most daily practice lives in the first four steps for years. That is not slowness — that is the method working as designed.'}]}},
+ // ---- Mahayana ----
+ { slug:'heart-sutra', tradition:'Mahayana', title:'The Heart Sutra',
+   license:'Public Domain', source_url:'https://www.sacred-texts.com/bud/', attribution:'sacred-texts.com',
+   doc:{ summary:'The shortest of the great Perfection of Wisdom texts, and somehow the deepest well. Chanted daily across the Mahayana world.',
+     sections:[
+       {heading:'What it says', body:'Form and emptiness are not two things. Every category the mind uses to carve up experience — including the path itself — is examined and found to be open, without a fixed core.'},
+       {heading:'How it is used', body:'Less studied than chanted. Its rhythm does part of the work; the meaning arrives sideways, usually years after memorization.'}]}},
+ { slug:'diamond-sutra', tradition:'Mahayana', title:'The Diamond Sutra',
+   license:'Public Domain', source_url:'https://www.sacred-texts.com/bud/', attribution:'sacred-texts.com',
+   doc:{ summary:'A dialogue on generosity and perception — famously, the oldest dated printed book in the world.',
+     sections:[
+       {heading:'The core move', body:'Every time a concept is offered, the Buddha affirms it, negates it, and returns it transformed. The pattern trains the reader to hold ideas without gripping them.'},
+       {heading:'The famous close', body:'The sutra ends by comparing all conditioned things to a dream, a bubble, a flash of lightning — a passage that has anchored contemplative practice for sixteen centuries.'}]}},
+ { slug:'bodhicaryavatara', tradition:'Mahayana', title:'The Way of the Bodhisattva',
+   license:'Overview only — translations vary', source_url:'https://www.lotsawahouse.org/', attribution:'Shantideva, 8th c.',
+   doc:{ summary:'Shantideva\u2019s guide to living for the benefit of all beings — the most beloved manual in Tibetan Buddhism.',
+     sections:[
+       {heading:'What it covers', body:'Ten chapters moving from the first spark of altruistic intention through patience, effort, meditation, and wisdom. The patience chapter alone has carried whole monasteries through hard winters.'},
+       {heading:'A note on editions', body:'Modern translations remain under copyright, so this shelf holds an overview with a pointer to openly available editions. Provenance first — that is how this Library works.'}]}},
+ { slug:'dzogchen-note', tradition:'Mahayana', title:'A Note on the Luminous Nature of Mind',
+   license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'Pavilion stewards',
+   doc:{ summary:'A steward\u2019s note on Dzogchen\u2019s central pointing: the unchanging, luminous nature of mind.',
+     sections:[
+       {heading:'The pointing', body:'Dzogchen distinguishes mind\u2019s contents — thoughts, moods, weather — from mind\u2019s nature, which is described as unchanging, clear, and aware. Practice is recognizing the second without chasing the first.'},
+       {heading:'A precision note', body:'This is the exact counterpart to intuitions often attributed to the Tao Te Ching\u2019s unchanging Dao. The traditions rhyme, but they are distinct instruments; the Library shelves them separately on purpose.'}]}},
+ // ---- Daoism ----
+ { slug:'tao-te-ching', tradition:'Daoism', title:'Tao Te Ching',
+   license:'Public Domain', source_url:'https://www.sacred-texts.com/tao/taote.htm', attribution:'Laozi · Legge translation',
+   doc:{ summary:'Eighty-one brief chapters on moving with the grain of things instead of against it.',
+     sections:[
+       {heading:'What it is', body:'Part statecraft, part contemplative manual, part poem. Its central figure is water: soft, low, patient, and stronger than stone over any timescale that matters.'},
+       {heading:'How to read it', body:'Not front to back. Open anywhere; read one chapter; put it down. The book is designed for a lifetime of re-entry, not a weekend of completion.'}]}},
+ { slug:'zhuangzi', tradition:'Daoism', title:'The Zhuangzi',
+   license:'Public Domain', source_url:'https://www.sacred-texts.com/tao/', attribution:'Zhuangzi · Legge translation',
+   doc:{ summary:'Parables, jokes, and impossible conversations — Daoism\u2019s wildest and funniest classic.',
+     sections:[
+       {heading:'What to expect', body:'Butchers whose knives never dull, trees too useless to be cut down, a philosopher unsure if he dreamed the butterfly or the butterfly dreamed him. Every joke has a blade of insight in it.'},
+       {heading:'Why it pairs with sitting', body:'Where meditation loosens the grip of thought from the inside, the Zhuangzi loosens it from the outside — by making the gripping itself look ridiculous.'}]}},
+ { slug:'inner-chapters', tradition:'Daoism', title:'Reading the Inner Chapters',
+   license:'Original — Pavilion Commons', source_url:'https://www.sacred-texts.com/tao/', attribution:'Pavilion stewards',
+   doc:{ summary:'A short orientation to the seven Inner Chapters — the oldest core of the Zhuangzi.',
+     sections:[
+       {heading:'The map', body:'Seven chapters: free wandering, the equality of things, nourishing life, the human world, the sign of full virtue, the great source as teacher, and responding to emperors and kings.'},
+       {heading:'A steward\u2019s suggestion', body:'Begin with chapter three, Nourishing Life. It is the shortest, and the butcher story inside it is the whole book in miniature.'}]}},
+ // ---- Practice ----
+ { slug:'hearth-logbook', tradition:'Practice', title:'A Practice Logbook — Crucible Trial No. 1',
+   license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'The first user',
+   doc:{ summary:'Thirty days of the Hearth, recorded honestly: what was tended, what was rested, what actually changed.',
+     sections:[
+       {heading:'The trial design', body:'One intention set each morning. Seven rhythm blocks marked tended or rested each night. No streaks, no scores — the record is the only reward, and the record does not lie.'},
+       {heading:'What the record showed', body:'The blocks most often rested were the ones scheduled against the body\u2019s grain. The fix was not more discipline; it was a better map of the day. The desk in the next room exists because of this trial.'}]}},
+ { slug:'steward-notes', tradition:'Practice', title:'Steward\u2019s Field Notes',
+   license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'Pavilion stewards',
+   doc:{ summary:'Working notes on confirmation, badges, and why the Pavilion reads the record and never the soul.',
+     sections:[
+       {heading:'On conferral', body:'A badge here is testimony: a human steward looked at public evidence and signed their name to it. Nothing self-declared, nothing purchased, nothing automatic. Rigor is the kindness.'},
+       {heading:'On progression', body:'The Lantern Path lights one lantern at a time, but the Library and the Atlas never lock. Progression orders the invitation; it never gates the knowledge.'}]}},
+ { slug:'on-precision', tradition:'Practice', title:'On Precision in Tradition',
+   license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'Pavilion stewards',
+   doc:{ summary:'Why the Pavilion names its sources exactly, even when traditions rhyme.',
+     sections:[
+       {heading:'The principle', body:'Comparative insight is welcome; blurred attribution is not. When two traditions point at similar moons, the Library records both fingers separately, with their own licenses and lineages intact.'},
+       {heading:'The working rule', body:'Every text answers three questions at the door: what is it, where is it from, and under what license does it travel? A text that cannot answer waits outside as UNVERIFIED until it can.'}]}},
+ { slug:'how-library-works', tradition:'Practice', title:'How This Library Works',
+   license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'Pavilion stewards',
+   doc:{ summary:'The Library\u2019s standing rules, posted where anyone can read them.',
+     sections:[
+       {heading:'The rules', body:'No gate, no fee, no ledger of debts. Every entry carries license and source from the moment it is shelved. Anyone may read; stewards shelve; the record of both is public.'},
+       {heading:'Where the books come from', body:'The seed collection draws on SuttaCentral (released CC0) and public-domain archives. As the shelves grow, the same rule holds: provenance at the point of entry, never retrofitted.'}]}},
+];
+
+/* ================================================================
+   [SCENES]
+   Tile chars: G grass · P path · S sand · W water · T tree · F flower
+   D dock · B building footprint · f floor · c carpet · w wall
+   k bookshelf · p pillar · r rug
+   ================================================================ */
+const SOLID = new Set(['T','W','B','w','k','p']);
+const scenes = {};
+function grid(w,h,fill){ return Array.from({length:h},()=>Array(w).fill(fill)); }
+function makeRng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+
+function buildOverworld(){
+  const W=40,H=34, t=grid(W,H,'G'), rng=makeRng(20260705);
+  for(let x=0;x<W;x++){ t[0][x]='T'; t[1][x]='T'; t[H-1][x]='T'; t[H-2][x]='T'; }
+  for(let y=0;y<H;y++){ t[y][0]='T'; t[y][1]='T'; t[y][W-1]='T'; t[y][W-2]='T'; }
+  const cx=31.5,cy=26.5,rx=5.6,ry=4.3;
+  for(let y=2;y<H-2;y++) for(let x=2;x<W-2;x++){
+    const dx=(x-cx)/rx, dy=(y-cy)/ry;
+    if(dx*dx+dy*dy<=1) t[y][x]='W';
+  }
+  t[26][26]='G'; t[26][27]='D'; t[26][28]='D';
+  const stamp=(x0,y0,x1,y1)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) t[y][x]='B'; };
+  stamp(14,2,25,8); stamp(4,11,11,15); stamp(28,11,35,15);
+  t[8][19]='P'; t[8][20]='P'; t[15][7]='P'; t[15][8]='P'; t[15][31]='P'; t[15][32]='P';
+  for(let y=9;y<=25;y++){ t[y][19]='P'; t[y][20]='P'; }
+  for(let x=6;x<=34;x++){ t[17][x]='P'; t[18][x]='P'; }
+  t[16][7]='P'; t[16][8]='P'; t[16][31]='P'; t[16][32]='P';
+  for(let x=21;x<=26;x++){ t[26][x]=(t[26][x]==='W')?'W':'P'; }
+  for(let y=19;y<=26;y++){ if(t[y][21]!=='W') t[y][21]='P'; }
+  for(let y=19;y<=22;y++) for(let x=16;x<=23;x++){ if(t[y][x]==='G') t[y][x]='S'; }
+  const reserved=(x,y)=>t[y][x]!=='G';
+  for(let i=0;i<46;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='T'; }
+  for(let i=0;i<34;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='F'; }
+  [[19,9],[20,9],[7,16],[8,16],[31,16],[32,16],[26,26],[25,26],
+   [17,9],[5,16],[34,16],[24,25],[17,20],[10,18],[31,18],[25,27]
+  ].forEach(([x,y])=>{ if(t[y][x]==='T'||t[y][x]==='F') t[y][x]='G'; });
+
+  scenes.overworld = {
+    name:'Pavilion Grounds', outdoor:true, tiles:t, w:W, h:H,
+    buildings:[
+      {type:'castle',  x:14,y:2, w:12,h:7, label:'PAVILION KEEP'},
+      {type:'library', x:4, y:11,w:8, h:5, label:'THE LIBRARY'},
+      {type:'workshop',x:28,y:11,w:8, h:5, label:'THE WORKSHOP'},
+    ],
+    warps:[
+      {x:19,y:8,to:'keep',sx:8,sy:11},{x:20,y:8,to:'keep',sx:9,sy:11},
+      {x:7,y:15,to:'library',sx:7,sy:9},{x:8,y:15,to:'library',sx:8,sy:9},
+      {x:31,y:15,locked:"The Workshop doors are barred with fresh timber.\nA note reads: 'Eight rooms of craft — opening soon. — The Stewards'"},
+      {x:32,y:15,locked:"The Workshop doors are barred with fresh timber.\nA note reads: 'Eight rooms of craft — opening soon. — The Stewards'"},
+    ],
+    signs:[
+      {x:17,y:9, name:'WOODEN SIGN', text:"PAVILION KEEP\nThe guild's charter rests here. All are welcome.\nNothing here is owned — only kept, and passed on."},
+      {x:5,y:16, name:'WOODEN SIGN', text:"THE LIBRARY\nOpen to all. No gate, no fee, no ledger of debts.\nA Study waits behind the east door."},
+      {x:34,y:16,name:'WOODEN SIGN', text:"THE WORKSHOP\nEight rooms of craft: apprenticeships, ledgers,\nthe Lantern Board, the Caravan. (Under construction.)"},
+      {x:24,y:25,name:'OLD DOCK',    text:"The pond is older than the Pavilion.\nThe koi remember everything.\n(Stand on the dock, face the water, press E.)"},
+    ],
+    npcs:[
+      {x:17,y:20,color:'#e0a43c',glow:'#ffd27a',name:'EMBER · Archivist Agent',wander:true,lines:[
+        "Fourteen texts shelved so far, license metadata on every one. The Theravada shelf is CC0 top to bottom — SuttaCentral released the whole canon to the commons.",
+        "My person sleeps while I file. That's the arrangement.\nEverything I shelve, anyone may read."]},
+      {x:10,y:18,color:'#7fa36b',glow:'#b9e29a',name:'MOSS · Steward Agent',wander:true,lines:[
+        "A badge here can't be bought, only witnessed.\nThe Pavilion reads the record — never the soul.",
+        "Building your own course? The board in the Study confers nothing. That's the point — it's practice, witnessed by you alone."]},
+      {x:31,y:18,color:'#6f8fb5',glow:'#a9c8ea',name:'COBALT · Caravan Agent',wander:true,lines:[
+        "Three small shops on my follow-up list. A promise made by a volunteer is a promise the whole guild made.",
+        "The Caravan's rule: never leave a relationship half-built.\nI nag kindly until the loop is closed."]},
+      {x:25,y:27,color:'#b9976b',glow:'#e8d5a8',name:'SAGARA the Fisher',wander:false,lines:[
+        "Cast, wait, and when the line jumps — move. Hesitate and the moment's gone. Same as sitting practice, really.",
+        "Caught a pearl here once. It dissolved in my palm.\nStill counts, I figure. Everything turns to sand."]},
+    ],
+    spawn:{x:19,y:21}
+  };
+}
+
+function buildKeep(){
+  const W=18,H=13, t=grid(W,H,'f');
+  for(let x=0;x<W;x++){ t[0][x]='w'; t[1][x]='w'; t[H-1][x]='w'; }
+  for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  t[H-1][8]='f'; t[H-1][9]='f';
+  for(let y=2;y<H-1;y++){ t[y][8]='c'; t[y][9]='c'; }
+  [[4,4],[13,4],[4,8],[13,8]].forEach(([x,y])=>t[y][x]='p');
+  t[2][8]='k'; t[2][9]='k';
+  scenes.keep = {
+    name:'The Pavilion Keep', outdoor:false, tiles:t, w:W, h:H, buildings:[],
+    warps:[{x:8,y:12,to:'overworld',sx:19,sy:9},{x:9,y:12,to:'overworld',sx:20,sy:9}],
+    signs:[{x:8,y:2,name:'THE CHARTER',text:"Everything turns to sand — so give it away first.\nAsk no repayment. Only that it be passed forward.\nThe long path is the shortest path."},
+           {x:9,y:2,name:'THE CHARTER',text:"Everything turns to sand — so give it away first.\nAsk no repayment. Only that it be passed forward.\nThe long path is the shortest path."}],
+    npcs:[{x:12,y:6,color:'#c8862e',glow:'#ffd27a',name:'THE KEEPER',wander:false,lines:[
+      "No throne in this keep — just the charter and a good roof. Leadership here is a chore we take turns carrying.",
+      "The walls are scaffolding, friend. If the guild outgrows them, we'll take them down ourselves."]}],
+    spawn:{x:8,y:11}
+  };
+}
+
+function buildLibrary(){
+  const W=16,H=11, t=grid(W,H,'r');
+  for(let x=0;x<W;x++){ t[0][x]='w'; t[1][x]='w'; t[H-1][x]='w'; }
+  for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  t[H-1][7]='r'; t[H-1][8]='r';
+  const shelfRow=y=>{ for(let x=2;x<=6;x++) t[y][x]='k'; for(let x=9;x<=13;x++) t[y][x]='k'; };
+  shelfRow(3); shelfRow(6);
+  t[4][15]='r'; // east door → the Study
+  scenes.library = {
+    name:'The Library', outdoor:false, tiles:t, w:W, h:H, buildings:[],
+    warps:[{x:7,y:10,to:'overworld',sx:7,sy:16},{x:8,y:10,to:'overworld',sx:8,sy:16},
+           {x:15,y:4,to:'study',sx:1,sy:4}],
+    signs:[{x:14,y:5,name:'BRASS ARROW',text:"→ THE STUDY\nA desk for the day. A board for the long paths."}],
+    shelves:true,
+    npcs:[{x:8,y:4,color:'#9a6fb5',glow:'#d9b9ea',name:'QUILL · Librarian Agent',wander:false,lines:[
+      "Four shelves, four lineages: Theravada north-west, Mahayana north-east, Daoism south-west, Practice south-east. Face one and press E.",
+      "Every text answered three questions at the door: what is it, where is it from, and under what license does it travel."]}],
+    spawn:{x:7,y:9}
+  };
+}
+
+function buildStudy(){
+  const W=12,H=9, t=grid(W,H,'f');
+  for(let x=0;x<W;x++){ t[0][x]='w'; t[1][x]='w'; t[H-1][x]='w'; }
+  for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  t[4][0]='f'; // west door back to the Library
+  for(let y=3;y<=5;y++) for(let x=3;x<=8;x++) t[y][x]='c';
+  scenes.study = {
+    name:'The Study', outdoor:false, tiles:t, w:W, h:H, buildings:[],
+    warps:[{x:0,y:4,to:'library',sx:14,sy:4}],
+    signs:[],
+    stations:[
+      {x:3,y:3,kind:'planner',name:'THE WRITING DESK'},
+      {x:8,y:2,kind:'courses',name:'THE COURSE BOARD'},
+    ],
+    npcs:[],
+    spawn:{x:1,y:4}
+  };
+}
+
+buildOverworld(); buildKeep(); buildLibrary(); buildStudy();
+
+/* ================================================================
+   [GAME] state + persistence
+   ================================================================ */
+const DEFAULT_BLOCKS = ['Morning Sit','Study','Build','Movement','Midday Rest','Correspondence','Evening Ember'];
+
+function freshData(){ return { fish:0, read:{}, planner:{}, courses:[], pos:null }; }
+const data = Object.assign(freshData(), Store.load() || {});
+function persist(){
+  data.pos = { scene:state.scene, x:state.player.x, y:state.player.y };
+  Store.save(data);
+}
+
+const state = {
+  scene:'overworld',
+  player:{ x:19,y:21,px:19,py:21,dir:'down',moving:false,tx:19,ty:21,t:0 },
+  dialog:null, fishing:null, ui:null, time:0,
+  shelfTradition:null, currentDoc:null, courseView:{mode:'list',id:null},
+};
+// restore position
+if(data.pos && scenes[data.pos.scene]){
+  const s=scenes[data.pos.scene], px=data.pos.x, py=data.pos.y;
+  if(px>0&&py>0&&px<s.w&&py<s.h&&!SOLID.has(s.tiles[py][px])){
+    state.scene=data.pos.scene;
+    Object.assign(state.player,{x:px,y:py,px:px,py:py,tx:px,ty:py});
+  }
+}
+const MOVE_TIME=0.17;
+
+/* ---------- audio ---------- */
+let AC=null;
+function blip(freq,dur=0.08,type='square',vol=0.04){
+  try{
+    if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur);
+    o.connect(g); g.connect(AC.destination); o.start(); o.stop(AC.currentTime+dur);
+  }catch(e){}
+}
+function jingleCatch(){ blip(523,.09); setTimeout(()=>blip(659,.09),90); setTimeout(()=>blip(784,.14),180); }
+function jingleMiss(){ blip(220,.12,'sawtooth'); setTimeout(()=>blip(164,.18,'sawtooth'),110); }
+
+/* ---------- canvas ---------- */
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+let S=48;
+function resize(){
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  S=Math.max(34,Math.min(56,Math.floor(Math.min(canvas.width/11,canvas.height/9))));
+}
+window.addEventListener('resize',resize); resize();
+
+/* ---------- input ---------- */
+const keys={};
+window.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k.startsWith('arrow')||k===' ') e.preventDefault();
+  keys[k]=true;
+  if(k==='escape'){ if(state.ui) closeUI(); return; }
+  if(k==='e'||k===' '||k==='enter') onAction();
+});
+window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+function bindTouch(id,key){
+  const el=document.getElementById(id);
+  const on=e=>{ e.preventDefault(); keys[key]=true; if(key==='__a') onAction(); };
+  const off=e=>{ e.preventDefault(); keys[key]=false; };
+  el.addEventListener('pointerdown',on); el.addEventListener('pointerup',off);
+  el.addEventListener('pointerleave',off); el.addEventListener('pointercancel',off);
+}
+bindTouch('du','arrowup'); bindTouch('dd','arrowdown');
+bindTouch('dl','arrowleft'); bindTouch('dr','arrowright'); bindTouch('abtn','__a');
+window.addEventListener('touchstart',()=>document.body.classList.add('touchmode'),{once:true});
+
+document.getElementById('startBtn').addEventListener('click',()=>{
+  document.getElementById('title').style.display='none';
+  blip(659,.08); setTimeout(()=>blip(880,.1),90);
+});
+document.getElementById('saveMode').textContent =
+  Store.mode==='local' ? '● Saving to this device — your days, courses, and reading survive reloads.'
+                       : '○ Preview mode — progress lasts this session. Deployed on your site, it persists.';
+
+/* ---------- helpers ---------- */
+const scene=()=>scenes[state.scene];
+function tileAt(x,y){ const s=scene(); if(x<0||y<0||x>=s.w||y>=s.h) return 'T'; return s.tiles[y][x]; }
+function npcAt(x,y){ return scene().npcs.find(n=>n.x===x&&n.y===y); }
+function signAt(x,y){ return (scene().signs||[]).find(s=>s.x===x&&s.y===y); }
+function warpAt(x,y){ return (scene().warps||[]).find(w=>w.x===x&&w.y===y); }
+function stationAt(x,y){ return (scene().stations||[]).find(s=>s.x===x&&s.y===y); }
+function blocked(x,y){
+  if(SOLID.has(tileAt(x,y))) return true;
+  if(npcAt(x,y)||signAt(x,y)||stationAt(x,y)) return true;
+  return false;
+}
+function facingTile(){
+  const p=state.player, d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[p.dir];
+  return {x:p.x+d[0],y:p.y+d[1]};
+}
+function opposite(d){ return {up:'down',down:'up',left:'right',right:'left'}[d]; }
+function setLoc(){ document.getElementById('loc').textContent=scene().name; }
+function setHud(){
+  document.getElementById('fishCount').textContent=data.fish;
+  document.getElementById('readCount').textContent=Object.keys(data.read).length;
+}
+function todayKey(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ---------- dialog ---------- */
+function openDialog(name,lines){
+  state.dialog={name,lines:Array.isArray(lines)?lines:[lines],idx:0};
+  document.getElementById('dialog').style.display='block';
+  renderDialog(); blip(740,.06,'square',.03);
+}
+function renderDialog(){
+  const d=state.dialog;
+  document.getElementById('dName').textContent=d.name;
+  document.getElementById('dText').textContent=d.lines[d.idx];
+  document.getElementById('dMore').textContent=(d.idx<d.lines.length-1)?'▼ E':'✕ E';
+}
+function advanceDialog(){
+  const d=state.dialog; if(!d) return;
+  if(d.idx<d.lines.length-1){ d.idx++; renderDialog(); blip(600,.04,'square',.025); }
+  else { state.dialog=null; document.getElementById('dialog').style.display='none'; }
+}
+document.getElementById('dialog').addEventListener('pointerdown',e=>{ e.preventDefault(); advanceDialog(); });
+
+/* ================================================================
+   [UI] overlays — shelf browser, reader, planner, courses
+   ================================================================ */
+function showOv(id){ document.getElementById(id).classList.add('open'); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function closeUI(){ state.ui=null; hideAllOv(); persist(); }
+
+/* ----- Library shelves ----- */
+function shelfTraditionFor(x,y){
+  // four shelf blocks → four lineages
+  return (y<=4) ? (x<8?'Theravada':'Mahayana') : (x<8?'Daoism':'Practice');
+}
+function openShelf(tradition){
+  state.ui='shelf'; state.shelfTradition=tradition; hideAllOv();
+  document.getElementById('shelfTitle').textContent='Shelf · '+tradition;
+  const docs=Store.listDocs(tradition);
+  document.getElementById('shelfList').innerHTML = docs.map(d=>`
+    <div class="card" onclick="openReader('${d.slug}')">
+      <div class="t">${esc(d.title)}
+        ${data.read[d.slug]?'<span class="badge">read ✓</span>':''}
+        <span class="badge lic">${esc(d.license)}</span>
+      </div>
+      <div class="s">${esc(d.doc.summary)}</div>
+    </div>`).join('') || '<p>This shelf waits for its first text.</p>';
+  showOv('shelfOv'); blip(700,.05,'square',.03);
+}
+function openReader(slug){
+  const d=Store.getDoc(slug); if(!d) return;
+  state.ui='reader'; state.currentDoc=slug; hideAllOv();
+  document.getElementById('rdTitle').textContent=d.title;
+  document.getElementById('rdMeta').innerHTML =
+    `<b>${esc(d.tradition)}</b> · License: <b>${esc(d.license)}</b> · Source: <b>${esc(d.attribution||'')}</b><br>${esc(d.source_url)}`;
+  document.getElementById('rdBody').innerHTML =
+    `<p style="color:#ffd98a">${esc(d.doc.summary)}</p>` +
+    d.doc.sections.map(s=>`<h3>${esc(s.heading)}</h3><p>${esc(s.body)}</p>`).join('');
+  document.getElementById('rdMark').textContent = data.read[slug] ? 'Read ✓' : 'Mark as read';
+  showOv('readerOv');
+}
+function markRead(){
+  const slug=state.currentDoc; if(!slug) return;
+  if(!data.read[slug]){ data.read[slug]=todayKey(); setHud(); persist(); jingleCatch(); }
+  document.getElementById('rdMark').textContent='Read ✓';
+}
+function backToShelf(){ openShelf(state.shelfTradition||'Theravada'); }
+
+/* ----- Planner (the Writing Desk) ----- */
+function plannerDay(){
+  const k=todayKey();
+  if(!data.planner[k]) data.planner[k]={ intention:'', ember:'', blocks:DEFAULT_BLOCKS.map(n=>({name:n,state:'waiting'})) };
+  return data.planner[k];
+}
+function openPlanner(){
+  state.ui='planner'; hideAllOv();
+  const day=plannerDay();
+  document.getElementById('planDate').textContent = new Date().toDateString() + ' · a day is a small, complete thing';
+  document.getElementById('planIntent').value = day.intention;
+  document.getElementById('planEmber').value = day.ember;
+  renderBlocks();
+  document.getElementById('planSaved').textContent='';
+  showOv('planOv');
+}
+function renderBlocks(){
+  const day=plannerDay();
+  document.getElementById('planBlocks').innerHTML = day.blocks.map((b,i)=>`
+    <div class="blk ${b.state}" onclick="cycleBlock(${i})">
+      ${esc(b.name)}
+      <div class="st">${b.state==='waiting'?'· waiting':b.state==='tended'?'🔥 tended':'🌙 rested'}</div>
+    </div>`).join('');
+}
+function cycleBlock(i){
+  const day=plannerDay();
+  const order=['waiting','tended','rested'];
+  day.blocks[i].state = order[(order.indexOf(day.blocks[i].state)+1)%3];
+  renderBlocks(); persist(); blip(620,.04,'square',.03);
+}
+function savePlanner(announce){
+  const day=plannerDay();
+  day.intention=document.getElementById('planIntent').value.trim();
+  day.ember=document.getElementById('planEmber').value.trim();
+  persist();
+  if(announce){ document.getElementById('planSaved').textContent='Saved · '+todayKey(); blip(784,.08); }
+}
+
+/* ----- Courses (the Course Board) ----- */
+function openCourses(){ state.ui='courses'; hideAllOv(); state.courseView={mode:'list',id:null}; renderCourses(); showOv('courseOv'); }
+function renderCourses(){
+  const el=document.getElementById('coursePanel');
+  const v=state.courseView;
+  if(v.mode==='list'){
+    el.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>The Course Board</h2>
+      <div class="meta">Paths you set for yourself. The board confers nothing — the walking is the credential.</div>
+      ${data.courses.map(c=>{
+        const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
+        return `<div class="card" onclick="openCourse(${c.id})">
+          <div class="t">${esc(c.title)} <span class="badge lic">${done}/${c.steps.length} steps</span></div>
+          <div class="s">${esc(c.why||'')}</div>
+          <div class="prog"><div style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('') || '<p>The board is bare. Pin your first path.</p>'}
+      <div class="row" style="margin-top:14px"><button class="btn" onclick="newCourseForm()">+ Pin a new course</button></div>`;
+  }
+  else if(v.mode==='new'){
+    el.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Pin a New Course</h2>
+      <div class="meta">One line per step. Add a practice after a | if you like:<br><b>Read the Inner Chapters | one chapter each morning</b></div>
+      <label>Course title</label>
+      <input type="text" id="ncTitle" placeholder="e.g. Four Weeks with the Breath">
+      <label>Why this path (optional)</label>
+      <input type="text" id="ncWhy" placeholder="What is this course for?">
+      <label>Steps — one per line</label>
+      <textarea id="ncSteps" rows="7" placeholder="Sit ten minutes daily | breath counting
+Read Anapanasati overview
+Extend to fifteen minutes | note what changes
+Write a logbook entry in the desk"></textarea>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="createCourse()">Pin to the board</button>
+        <button class="btn ghost" onclick="state.courseView={mode:'list'};renderCourses()">← Back</button>
+      </div>`;
+  }
+  else if(v.mode==='detail'){
+    const c=data.courses.find(x=>x.id===v.id); if(!c){ state.courseView={mode:'list'}; return renderCourses(); }
+    const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
+    el.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>${esc(c.title)}</h2>
+      <div class="meta">${esc(c.why||'')} · begun ${esc(c.begun)}</div>
+      <div class="prog"><div style="width:${pct}%"></div></div>
+      <div style="margin-top:12px">
+        ${c.steps.map((s,i)=>`
+          <div class="step ${s.done?'done':''}" onclick="toggleStep(${c.id},${i})">
+            <div class="box">${s.done?'✓':''}</div>
+            <div><div class="tt">${esc(s.title)}</div>${s.practice?`<div class="pp">${esc(s.practice)}</div>`:''}</div>
+          </div>`).join('')}
+      </div>
+      ${pct===100?'<p style="color:#ffd98a;margin-top:12px">The path is walked. Everything turns to sand — pin another when you\u2019re ready.</p>':''}
+      <div class="row" style="margin-top:14px">
+        <button class="btn ghost" onclick="state.courseView={mode:'list'};renderCourses()">← All courses</button>
+        <button class="btn ghost" onclick="removeCourse(${c.id})">Take down</button>
+      </div>`;
+  }
+}
+function newCourseForm(){ state.courseView={mode:'new'}; renderCourses(); }
+function createCourse(){
+  const title=document.getElementById('ncTitle').value.trim();
+  const why=document.getElementById('ncWhy').value.trim();
+  const steps=document.getElementById('ncSteps').value.split('\n').map(l=>l.trim()).filter(Boolean)
+    .map(l=>{ const [t,p]=l.split('|').map(s=>s.trim()); return {title:t,practice:p||'',done:false}; });
+  if(!title||!steps.length) return;
+  data.courses.unshift({ id:Date.now(), title, why, steps, begun:todayKey() });
+  persist(); blip(784,.09);
+  state.courseView={mode:'list'}; renderCourses();
+}
+function toggleStep(id,i){
+  const c=data.courses.find(x=>x.id===id); if(!c) return;
+  c.steps[i].done=!c.steps[i].done; persist();
+  blip(c.steps[i].done?740:440,.05,'square',.035);
+  renderCourses();
+}
+function removeCourse(id){
+  data.courses=data.courses.filter(c=>c.id!==id); persist();
+  state.courseView={mode:'list'}; renderCourses();
+}
+
+/* ================================================================
+   Fishing
+   ================================================================ */
+const FISH=[
+  {name:'Sand Carp',w:34,flavor:"A stout, patient fish. It seems unbothered by the whole affair."},
+  {name:'Dusk Koi',w:26,flavor:"Its scales hold the last color of the evening. You let it go — it lives here."},
+  {name:'Lantern Eel',w:14,flavor:"It glows faintly, like a reading lamp with opinions."},
+  {name:'Paper Boat',w:12,flavor:"Someone's wish, folded and released upstream. You set it sailing again."},
+  {name:'Old Boot',w:9,flavor:"Every pond has one. Tradition, probably."},
+  {name:'Pearl of Impermanence',w:5,flavor:"It dissolves the moment you hold it. It still counts. Everything does."},
+];
+function rollFish(){ const tot=FISH.reduce((a,f)=>a+f.w,0); let r=Math.random()*tot;
+  for(const f of FISH){ if((r-=f.w)<0) return f; } return FISH[0]; }
+function startFishing(tile){ state.fishing={phase:'cast',t:0,until:.55,tile}; blip(500,.07); }
+function updateFishing(dt){
+  const f=state.fishing; if(!f) return;
+  f.t+=dt;
+  if(f.phase==='cast'&&f.t>=f.until){ f.phase='wait'; f.t=0; f.until=1.2+Math.random()*2.6; }
+  else if(f.phase==='wait'&&f.t>=f.until){ f.phase='bite'; f.t=0; f.until=.8; blip(988,.1,'square',.06); }
+  else if(f.phase==='bite'&&f.t>=f.until){
+    state.fishing=null; jingleMiss();
+    openDialog('…',"The line goes slack.\nWhatever it was, it kept its own counsel.");
+  }
+}
+function fishingAction(){
+  const f=state.fishing;
+  if(f.phase==='bite'){
+    const c=rollFish(); data.fish++; setHud(); persist();
+    state.fishing=null; jingleCatch();
+    openDialog('CAUGHT: '+c.name+'!',c.flavor);
+  } else { state.fishing=null; openDialog('…',"You reel in early. The pond forgives you."); }
+}
+
+/* ================================================================
+   Action + update
+   ================================================================ */
+function onAction(){
+  if(document.getElementById('title').style.display!=='none') return;
+  if(state.ui) return;
+  if(state.dialog){ advanceDialog(); return; }
+  if(state.fishing){ fishingAction(); return; }
+  if(state.player.moving) return;
+
+  const ft=facingTile();
+  const st=stationAt(ft.x,ft.y);
+  if(st){ if(st.kind==='planner') openPlanner(); else if(st.kind==='courses') openCourses(); return; }
+  const npc=npcAt(ft.x,ft.y);
+  if(npc){ npc.face=opposite(state.player.dir); openDialog(npc.name,npc.lines); return; }
+  const sg=signAt(ft.x,ft.y);
+  if(sg){ openDialog(sg.name,[sg.text]); return; }
+  if(scene().shelves && tileAt(ft.x,ft.y)==='k'){ openShelf(shelfTraditionFor(ft.x,ft.y)); return; }
+  if(tileAt(ft.x,ft.y)==='W' && scene().outdoor){ startFishing(ft); return; }
+}
+
+function tryMove(dx,dy,dir){
+  const p=state.player; p.dir=dir;
+  const nx=p.x+dx, ny=p.y+dy;
+  if(blocked(nx,ny)) return;
+  p.moving=true; p.tx=nx; p.ty=ny; p.t=0;
+}
+function stepBack(){
+  const p=state.player, d={up:[0,1],down:[0,-1],left:[1,0],right:[-1,0]}[p.dir];
+  if(!blocked(p.x+d[0],p.y+d[1])){ p.x+=d[0]; p.y+=d[1]; p.px=p.x; p.py=p.y; }
+}
+function update(dt){
+  state.time+=dt;
+  if(document.getElementById('title').style.display!=='none') return;
+  if(state.ui) return;
+  updateFishing(dt);
+
+  const p=state.player;
+  if(p.moving){
+    p.t+=dt;
+    const k=Math.min(1,p.t/MOVE_TIME);
+    p.px=p.x+(p.tx-p.x)*k; p.py=p.y+(p.ty-p.y)*k;
+    if(k>=1){
+      p.x=p.tx; p.y=p.ty; p.px=p.x; p.py=p.y; p.moving=false;
+      const w=warpAt(p.x,p.y);
+      if(w){
+        if(w.locked){ openDialog('LOCKED',w.locked); stepBack(); }
+        else{
+          state.scene=w.to;
+          p.x=w.sx; p.y=w.sy; p.px=p.x; p.py=p.y;
+          p.dir=(w.to==='overworld')?'down':(w.to==='study')?'right':(state.scene==='library'&&w.sx===14)?'left':'up';
+          setLoc(); persist(); blip(392,.1); setTimeout(()=>blip(523,.12),100);
+        }
+      }
+    }
+  } else if(!state.dialog && !state.fishing){
+    if(keys['arrowup']||keys['w']) tryMove(0,-1,'up');
+    else if(keys['arrowdown']||keys['s']) tryMove(0,1,'down');
+    else if(keys['arrowleft']||keys['a']) tryMove(-1,0,'left');
+    else if(keys['arrowright']||keys['d']) tryMove(1,0,'right');
+  }
+
+  if(!state.dialog) for(const n of scene().npcs){
+    if(!n.wander) continue;
+    n.clock=(n.clock||Math.random()*2)-dt;
+    if(n.clock<=0){
+      n.clock=1.6+Math.random()*2.4;
+      const dirs=[[0,-1],[0,1],[-1,0],[1,0]], [dx,dy]=dirs[Math.floor(Math.random()*4)];
+      const nx=n.x+dx, ny=n.y+dy;
+      const home=n.home||(n.home={x:n.x,y:n.y});
+      if(Math.abs(nx-home.x)<=2&&Math.abs(ny-home.y)<=2&&!blocked(nx,ny)
+         &&!(nx===state.player.x&&ny===state.player.y)&&!warpAt(nx,ny)){ n.x=nx; n.y=ny; }
+    }
+  }
+}
+
+/* ================================================================
+   Render
+   ================================================================ */
+const PAL={
+  grassA:'#7da45c',grassB:'#749955',path:'#d9b98a',pathEdge:'#c2a069',
+  sand:'#e3cfa1',water:'#3f6f8e',waterLite:'#4d82a3',waterDark:'#35617d',
+  trunk:'#6b4a2f',canopy:'#4f7a42',canopyD:'#43683a',
+  flower:'#e07a7a',flower2:'#e0c04a',
+  floor:'#b8a184',floorD:'#ab947a',carpet:'#c8862e',carpetD:'#b3771f',
+  wall:'#5e5044',wallTop:'#4a3f36',shelf:'#7c5033',shelfD:'#63402a',
+  rug:'#a97c50',rugD:'#9c7047',pillar:'#cbb79a',
+};
+function camera(){
+  const p=state.player, s=scene();
+  const vw=canvas.width/S, vh=canvas.height/S;
+  let cx=p.px+.5-vw/2, cy=p.py+.5-vh/2;
+  cx=Math.max(0,Math.min(s.w-vw,cx)); cy=Math.max(0,Math.min(s.h-vh,cy));
+  if(s.w<vw) cx=(s.w-vw)/2;
+  if(s.h<vh) cy=(s.h-vh)/2;
+  return {cx,cy};
+}
+function drawTile(ch,x,y,sx,sy){
+  const t=state.time;
+  switch(ch){
+    case 'G': case 'F':
+      ctx.fillStyle=((x+y)%2===0)?PAL.grassA:PAL.grassB; ctx.fillRect(sx,sy,S,S);
+      if((x*31+y*17)%5===0){ ctx.fillStyle='rgba(0,0,0,.06)'; ctx.fillRect(sx+S*.3,sy+S*.55,S*.1,S*.18); ctx.fillRect(sx+S*.6,sy+S*.3,S*.1,S*.18); }
+      if(ch==='F'){
+        ctx.fillStyle=((x+y)%2===0)?PAL.flower:PAL.flower2;
+        const fx=sx+S*.5, fy=sy+S*.5, r=S*.11;
+        for(let a=0;a<4;a++){ ctx.beginPath(); ctx.arc(fx+Math.cos(a*1.57)*r*1.4,fy+Math.sin(a*1.57)*r*1.4,r,0,7); ctx.fill(); }
+        ctx.fillStyle='#fff3cf'; ctx.beginPath(); ctx.arc(fx,fy,r*.8,0,7); ctx.fill();
+      }
+      break;
+    case 'P':
+      ctx.fillStyle=PAL.path; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle=PAL.pathEdge;
+      if((x*13+y*7)%4===0) ctx.fillRect(sx+S*.2,sy+S*.35,S*.16,S*.1);
+      if((x*7+y*13)%4===1) ctx.fillRect(sx+S*.6,sy+S*.6,S*.16,S*.1);
+      break;
+    case 'S':
+      ctx.fillStyle=PAL.sand; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle='rgba(0,0,0,.05)'; if((x+y)%2===0) ctx.fillRect(sx,sy,S,S*.08);
+      break;
+    case 'W':{
+      ctx.fillStyle=PAL.water; ctx.fillRect(sx,sy,S,S);
+      const ph=Math.sin(t*1.6+x*1.1+y*.8);
+      ctx.fillStyle=ph>0.3?PAL.waterLite:(ph<-0.5?PAL.waterDark:PAL.water);
+      ctx.fillRect(sx+S*.12,sy+S*(.3+.06*ph),S*.4,S*.09);
+      ctx.fillRect(sx+S*.55,sy+S*(.65-.06*ph),S*.3,S*.09);
+      break; }
+    case 'D':
+      drawTile('W',x,y,sx,sy);
+      ctx.fillStyle='#8a6438'; ctx.fillRect(sx,sy+S*.1,S,S*.8);
+      ctx.fillStyle='#75542e'; for(let i=0;i<3;i++) ctx.fillRect(sx,sy+S*(.1+i*.27),S,S*.05);
+      break;
+    case 'T':
+      ctx.fillStyle=((x+y)%2===0)?PAL.grassA:PAL.grassB; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle=PAL.trunk; ctx.fillRect(sx+S*.4,sy+S*.55,S*.2,S*.4);
+      ctx.fillStyle=PAL.canopyD; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.38,S*.42,0,7); ctx.fill();
+      ctx.fillStyle=PAL.canopy; ctx.beginPath(); ctx.arc(sx+S*.42,sy+S*.3,S*.3,0,7); ctx.fill();
+      break;
+    case 'B': ctx.fillStyle='#6f5a43'; ctx.fillRect(sx,sy,S,S); break;
+    case 'f': ctx.fillStyle=((x+y)%2===0)?PAL.floor:PAL.floorD; ctx.fillRect(sx,sy,S,S); break;
+    case 'c':
+      ctx.fillStyle=((x+y)%2===0)?PAL.carpet:PAL.carpetD; ctx.fillRect(sx,sy,S,S);
+      ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.strokeRect(sx+S*.08,sy+S*.08,S*.84,S*.84);
+      break;
+    case 'r': ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S); break;
+    case 'w':
+      ctx.fillStyle=PAL.wall; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle=PAL.wallTop; ctx.fillRect(sx,sy,S,S*.25);
+      ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.strokeRect(sx,sy+S*.25,S,S*.75);
+      break;
+    case 'k':{
+      ctx.fillStyle=PAL.shelfD; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle=PAL.shelf; ctx.fillRect(sx+S*.06,sy+S*.06,S*.88,S*.88);
+      const cols=['#b34d4d','#4d7ab3','#b3934d','#5d9c66','#8a5db3'];
+      for(let i=0;i<4;i++){
+        ctx.fillStyle=cols[(x*3+y+i)%cols.length];
+        ctx.fillRect(sx+S*(.12+i*.2),sy+S*.16,S*.14,S*.3);
+        ctx.fillStyle=cols[(x+y*5+i*2)%cols.length];
+        ctx.fillRect(sx+S*(.12+i*.2),sy+S*.55,S*.14,S*.3);
+      }
+      break; }
+    case 'p':
+      ctx.fillStyle=((x+y)%2===0)?PAL.floor:PAL.floorD; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle=PAL.pillar; ctx.fillRect(sx+S*.25,sy,S*.5,S);
+      ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(sx+S*.62,sy,S*.13,S);
+      ctx.fillStyle='#e5d6bb'; ctx.fillRect(sx+S*.2,sy,S*.6,S*.12); ctx.fillRect(sx+S*.2,sy+S*.88,S*.6,S*.12);
+      break;
+  }
+}
+function drawBuilding(b,ox,oy){
+  const x=(b.x-ox)*S, y=(b.y-oy)*S, w=b.w*S, h=b.h*S;
+  if(b.type==='castle'){
+    ctx.fillStyle='#cbb79a'; ctx.fillRect(x,y+S*1.2,w,h-S*1.2);
+    ctx.fillStyle='rgba(0,0,0,.08)';
+    for(let r=0;r<b.h-1;r++) ctx.fillRect(x,y+S*1.2+r*S*.8,w,2);
+    const tw=S*1.6;
+    for(const tx of [x,x+w-tw]){
+      ctx.fillStyle='#bda887'; ctx.fillRect(tx,y,tw,h);
+      ctx.fillStyle='#8a7a63';
+      for(let c=0;c<3;c++) ctx.fillRect(tx+c*tw/3+tw*.06,y-S*.35,tw/3*.7,S*.35);
+      ctx.fillStyle='#5e5468'; ctx.beginPath();
+      ctx.moveTo(tx-S*.15,y); ctx.lineTo(tx+tw/2,y-S*1.1); ctx.lineTo(tx+tw+S*.15,y); ctx.fill();
+    }
+    ctx.fillStyle='#8a7a63';
+    for(let c=0;c<Math.floor(w/(S*.8));c++) ctx.fillRect(x+tw+c*S*.8,y+S*.85,S*.45,S*.35);
+    ctx.fillStyle='#e0a43c'; ctx.fillRect(x+w/2-S*.35,y+S*1.5,S*.7,S*1.5);
+    ctx.fillStyle='#2a2118'; ctx.beginPath(); ctx.arc(x+w/2,y+S*2.1,S*.22,0,7); ctx.fill();
+    const dx=x+(19-b.x)*S;
+    ctx.fillStyle='#3a2c1e'; ctx.fillRect(dx,y+h-S*1.5,S*2,S*1.5);
+    ctx.beginPath(); ctx.arc(dx+S,y+h-S*1.5,S,Math.PI,0); ctx.fill();
+    ctx.fillStyle='#e0a43c'; ctx.beginPath(); ctx.arc(dx+S,y+h-S*.9,S*.08,0,7); ctx.fill();
+    ctx.fillStyle='#ffe9b0';
+    for(const wx of [x+w*.28,x+w*.66]) ctx.fillRect(wx,y+S*2.4,S*.5,S*.7);
+  } else {
+    const wood=b.type==='library'?'#a3744a':'#8f6a4e';
+    const roof=b.type==='library'?'#7c5033':'#5e5468';
+    ctx.fillStyle=roof; ctx.beginPath();
+    ctx.moveTo(x-S*.2,y+S*1.4); ctx.lineTo(x+w/2,y-S*.3); ctx.lineTo(x+w+S*.2,y+S*1.4); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(x-S*.2,y+S*1.25,w+S*.4,S*.15);
+    ctx.fillStyle=wood; ctx.fillRect(x,y+S*1.4,w,h-S*1.4);
+    ctx.fillStyle='rgba(0,0,0,.08)';
+    for(let r=0;r<3;r++) ctx.fillRect(x,y+S*1.7+r*S,w,2);
+    const doorX=x+((b.type==='library'?7:31)-b.x)*S;
+    ctx.fillStyle='#3a2c1e'; ctx.fillRect(doorX,y+h-S*1.4,S*2,S*1.4);
+    ctx.fillStyle='#ffe9b0';
+    ctx.fillRect(x+S*.7,y+S*2,S*.7,S*.8);
+    ctx.fillRect(x+w-S*1.4,y+S*2,S*.7,S*.8);
+    if(b.type==='library'){
+      ctx.fillStyle='#cbb79a';
+      ctx.fillRect(doorX-S*.5,y+h-S*1.6,S*.3,S*1.6);
+      ctx.fillRect(doorX+S*2.2,y+h-S*1.6,S*.3,S*1.6);
+    }
+    if(b.type==='workshop'){
+      ctx.fillStyle='#6d6d78'; ctx.fillRect(x+w-S*1.2,y-S*.1,S*.6,S*1.2);
+      ctx.fillStyle='rgba(230,225,215,.5)';
+      const t=state.time;
+      for(let i=0;i<3;i++){
+        const yy=((t*.5+i*.4)%1.4);
+        ctx.beginPath(); ctx.arc(x+w-S*.9+Math.sin(t+i)*S*.1,y-S*.2-yy*S,S*(.12+yy*.1),0,7); ctx.fill();
+      }
+    }
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+w/2-S*1.6,y+S*1.55,S*3.2,S*.5);
+    ctx.fillStyle='#e0a43c'; ctx.font=`bold ${Math.floor(S*.28)}px Courier New`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(b.label,x+w/2,y+S*1.8);
+  }
+}
+function drawStation(st,ox,oy){
+  const x=(st.x-ox)*S, y=(st.y-oy)*S;
+  if(st.kind==='planner'){ // writing desk
+    ctx.fillStyle='#75542e'; ctx.fillRect(x+S*.08,y+S*.55,S*.1,S*.4); ctx.fillRect(x+S*.82,y+S*.55,S*.1,S*.4);
+    ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.02,y+S*.3,S*.96,S*.3);
+    ctx.fillStyle='#f5e9d4'; ctx.fillRect(x+S*.18,y+S*.34,S*.34,S*.2);   // paper
+    ctx.fillStyle='#9c8b74'; ctx.fillRect(x+S*.22,y+S*.39,S*.24,S*.03); ctx.fillRect(x+S*.22,y+S*.45,S*.18,S*.03);
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.66,y+S*.28,S*.12,S*.14); // inkwell
+    ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.7,y+S*.14,S*.03,S*.16);  // quill
+  } else { // course board
+    ctx.fillStyle='#63402a'; ctx.fillRect(x+S*.06,y+S*.08,S*.88,S*.78);
+    ctx.fillStyle='#a97c50'; ctx.fillRect(x+S*.12,y+S*.14,S*.76,S*.66);
+    const notes=[['#f5e9d4',.18,.2],['#ffd98a',.5,.24],['#cfe4d2',.3,.5],['#f0c9c9',.62,.52]];
+    for(const [c,nx,ny] of notes){
+      ctx.fillStyle=c; ctx.fillRect(x+S*nx,y+S*ny,S*.22,S*.2);
+      ctx.fillStyle='#d94f4f'; ctx.beginPath(); ctx.arc(x+S*(nx+.11),y+S*ny,S*.03,0,7); ctx.fill();
+    }
+  }
+}
+function drawPerson(px,py,dir,color,glow,isPlayer,ox,oy){
+  const x=(px-ox)*S, y=(py-oy)*S;
+  const bobb=isPlayer&&state.player.moving?Math.sin(state.time*22)*S*.03:0;
+  ctx.fillStyle='rgba(0,0,0,.22)';
+  ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.88,S*.26,S*.1,0,0,7); ctx.fill();
+  if(glow&&!isPlayer){
+    const g=ctx.createRadialGradient(x+S*.5,y+S*.35,1,x+S*.5,y+S*.35,S*.75);
+    g.addColorStop(0,glow+'55'); g.addColorStop(1,'transparent');
+    ctx.fillStyle=g; ctx.fillRect(x-S*.3,y-S*.5,S*1.6,S*1.6);
+  }
+  ctx.fillStyle=color;
+  ctx.fillRect(x+S*.28,y+S*.34+bobb,S*.44,S*.5);
+  ctx.beginPath(); ctx.moveTo(x+S*.28,y+S*.84+bobb); ctx.lineTo(x+S*.5,y+S*.92+bobb); ctx.lineTo(x+S*.72,y+S*.84+bobb); ctx.fill();
+  ctx.fillStyle='#f0cfa4';
+  ctx.beginPath(); ctx.arc(x+S*.5,y+S*.28+bobb,S*.19,0,7); ctx.fill();
+  ctx.strokeStyle=color; ctx.lineWidth=S*.07;
+  ctx.beginPath(); ctx.arc(x+S*.5,y+S*.27+bobb,S*.2,Math.PI*.95,Math.PI*2.05); ctx.stroke();
+  ctx.fillStyle='#2a2118'; const e=S*.045;
+  if(dir==='down'){ ctx.fillRect(x+S*.42,y+S*.27+bobb,e,e*1.4); ctx.fillRect(x+S*.54,y+S*.27+bobb,e,e*1.4); }
+  else if(dir==='left'){ ctx.fillRect(x+S*.38,y+S*.27+bobb,e,e*1.4); }
+  else if(dir==='right'){ ctx.fillRect(x+S*.58,y+S*.27+bobb,e,e*1.4); }
+  if(isPlayer){ ctx.fillStyle='#6b4a2f'; ctx.fillRect(x+S*.62,y+S*.5+bobb,S*.16,S*.18); }
+}
+function drawSign(x,y,ox,oy){
+  const sx=(x-ox)*S, sy=(y-oy)*S;
+  ctx.fillStyle='#75542e'; ctx.fillRect(sx+S*.44,sy+S*.4,S*.12,S*.5);
+  ctx.fillStyle='#a97c50'; ctx.fillRect(sx+S*.14,sy+S*.14,S*.72,S*.4);
+  ctx.strokeStyle='#63402a'; ctx.lineWidth=2; ctx.strokeRect(sx+S*.14,sy+S*.14,S*.72,S*.4);
+  ctx.fillStyle='#4a3520';
+  ctx.fillRect(sx+S*.22,sy+S*.24,S*.56,S*.06);
+  ctx.fillRect(sx+S*.22,sy+S*.36,S*.4,S*.06);
+}
+function drawFishing(ox,oy){
+  const f=state.fishing; if(!f) return;
+  const p=state.player;
+  const px=(p.px-ox)*S, py=(p.py-oy)*S;
+  const tx=(f.tile.x-ox)*S, ty=(f.tile.y-oy)*S;
+  ctx.strokeStyle='#f5e9d4'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(px+S*.6,py+S*.35);
+  ctx.quadraticCurveTo(px+S*.9,py-S*.3,tx+S*.5,ty+S*.45); ctx.stroke();
+  const dip=f.phase==='bite'?Math.sin(state.time*30)*S*.08:Math.sin(state.time*3)*S*.03;
+  ctx.fillStyle='#d94f4f'; ctx.beginPath(); ctx.arc(tx+S*.5,ty+S*.45+dip,S*.09,0,7); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(tx+S*.5,ty+S*.42+dip,S*.05,0,7); ctx.fill();
+  if(f.phase==='bite'){
+    ctx.fillStyle='#2a2118'; ctx.beginPath(); ctx.arc(px+S*.5,py-S*.45,S*.3,0,7); ctx.fill();
+    ctx.fillStyle='#e0a43c'; ctx.font=`bold ${Math.floor(S*.42)}px Courier New`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('!',px+S*.5,py-S*.43);
+  }
+}
+function drawPrompt(ox,oy){
+  if(state.dialog||state.fishing||state.ui) return;
+  const ft=facingTile(), s=scene();
+  const interactable=npcAt(ft.x,ft.y)||signAt(ft.x,ft.y)||stationAt(ft.x,ft.y)||
+    (s.shelves&&tileAt(ft.x,ft.y)==='k')||(s.outdoor&&tileAt(ft.x,ft.y)==='W');
+  if(!interactable) return;
+  const p=state.player;
+  const px=(p.px-ox)*S, py=(p.py-oy)*S;
+  const bob=Math.sin(state.time*5)*S*.04;
+  ctx.fillStyle='#e0a43c'; ctx.fillRect(px+S*.36,py-S*.42+bob,S*.28,S*.28);
+  ctx.fillStyle='#2a2118'; ctx.font=`bold ${Math.floor(S*.2)}px Courier New`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('E',px+S*.5,py-S*.27+bob);
+}
+function render(){
+  const {cx,cy}=camera(), s=scene();
+  ctx.fillStyle=s.outdoor?'#141019':'#1a130c';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const x0=Math.floor(cx), y0=Math.floor(cy);
+  const x1=Math.ceil(cx+canvas.width/S), y1=Math.ceil(cy+canvas.height/S);
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+    if(x<0||y<0||x>=s.w||y>=s.h) continue;
+    drawTile(s.tiles[y][x],x,y,(x-cx)*S,(y-cy)*S);
+  }
+  for(const b of s.buildings) drawBuilding(b,cx,cy);
+  for(const sg of (s.signs||[])) drawSign(sg.x,sg.y,cx,cy);
+  for(const st of (s.stations||[])) drawStation(st,cx,cy);
+  const ents=[...s.npcs.map(n=>({y:n.y,draw:()=>drawPerson(n.x,n.y,n.face||'down',n.color,n.glow,false,cx,cy)})),
+    {y:state.player.py,draw:()=>drawPerson(state.player.px,state.player.py,state.player.dir,'#b3552e',null,true,cx,cy)}];
+  ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
+  drawFishing(cx,cy);
+  drawPrompt(cx,cy);
+  if(s.outdoor){
+    const g=ctx.createRadialGradient(canvas.width/2,canvas.height/2,canvas.height*.35,canvas.width/2,canvas.height/2,canvas.height*.9);
+    g.addColorStop(0,'transparent'); g.addColorStop(1,'rgba(20,14,28,.35)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+}
+
+/* ---------- loop ---------- */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  update(dt); render();
+  requestAnimationFrame(loop);
+}
+setLoc(); setHud();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

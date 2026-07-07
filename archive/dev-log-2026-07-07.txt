@@ -1,0 +1,191 @@
+dev log — 2026-07-07
+(the day this went from "the Library talks back" to "ready for beta testers")
+
+Full detail lives here so README.md can stay a current-state reference
+instead of a growing changelog. Everything below actually happened and
+was verified, not just planned — see git history for the actual diffs
+once this is pushed.
+
+================================================================
+SESSION 1 — the Workshop's first room, a pause menu, a real journal
+================================================================
+
+- Built the Workshop's first room: the Archive Desk. Personal writing,
+  same title/license/source/body shape as Library docs, book-style
+  compose+read UI reusing the .bookPanel page-turn animation, a
+  typewriter-cadence reveal when reading an entry back.
+- Pause menu (Esc from the open world, or the ☰ button) — Resume,
+  Manage AI Connections, Return to Title, Reset All Progress (confirmed,
+  no undo). Before this the only way out was closing the tab.
+- Writing Desk got a real "Past days" list — reads back every prior
+  day's intention/blocks/ember, reusing data that was already being
+  saved but never shown back.
+- Course Board steps can carry an optional third `| url` segment,
+  rendered as a "→ visit" link. Beta-tested with a real "System Design"
+  curriculum added to LEARNING-PATH.md's Stage 7.
+- Seasons/weather (src/game/season.js) — pond freezes in winter, Grounds
+  darken at night, pure atmosphere, verified zero mechanics touched by
+  mocking the system clock into winter-night and summer-day sessions
+  and diffing renders + Sagara's dialogue side by side.
+- First automated test: npm test / test/smoke.mjs. Caught a real bug on
+  its first run — README said "fourteen texts" when a fifteenth had
+  been added.
+- Moss gets an extra line when data.agentMemory.quill has an entry
+  ("Quill mentioned you'd asked about...") — first small version of
+  "residents noticing each other."
+
+================================================================
+SESSION 2 — save export/import, Waypoints, bulk import, Quill's report
+================================================================
+
+Picked up the README's own "suggested order." User chose "new features"
+over robustness/deployment when asked to prioritize.
+
+- Save export/import as a downloadable/loadable JSON file (pause menu).
+  The honest first step toward "a Pavilion you can carry in a file."
+- Waypoints — personal link list, the café's no-backend precursor.
+- Bulk import into the Archive Desk (paste a JSON array). Deliberately
+  never extended to the shared SEED_LIBRARY — that stays hand-reviewed.
+- Quill's memory report/metadata generator — "📜 Ask Quill for a memory
+  report," reuses the book-reader UI, prose in Quill's voice via AI.chat()
+  when live (deterministic fallback otherwise), plus a per-question
+  keep/summarize/let-go suggestion.
+
+Bugs actually caught by driving this end-to-end with Playwright, not by
+reading the code back:
+- A real Ollama connection turned out to be live on the dev machine,
+  running a "thinking" model (qwen3.5:9b) — the exact gotcha the README
+  already warned about. The report call took ~4.5s for a real reply
+  (bounded fine — AI.chat() already has think:false + a timeout), but
+  there was no loading state, so the Archive Desk looked frozen the
+  whole time. Fixed with a "Reading back through what you've asked him
+  so far…" interim panel.
+- Most of the actual debugging in this session was test-script bugs
+  (ambiguous `text=` Playwright selectors matching the wrong element,
+  `page.addInitScript` re-seeding localStorage on every reload and
+  stomping an in-progress import test) rather than real app bugs — worth
+  remembering: check the test's selectors/init-script timing before
+  assuming the app itself is broken.
+
+================================================================
+SESSION 3 — text-to-speech, the Activity Log
+================================================================
+
+User asked for TTS specifically (books read aloud, or an AI summary
+read aloud) plus several bigger asks in one message (AI-agent access,
+an activity log, a data-storage explainer, a NoSQL opinion, a memory
+reframe). Built the concrete pieces; wrote the bigger asks up as README
+plan sections since they're design decisions, not implementation tasks.
+
+- TTS (src/game/tts.js, wraps native speechSynthesis — free, local, no
+  key). Reader gets "🔊 Read aloud" (full text) and "🔊 Summary aloud" /
+  "✨ Ask Quill (spoken)" (the doc's own summary, or a fresh AI-generated
+  one read back). Every NPC dialog box got a small 🔊 too.
+- Real bug caught by clicking it in a driven browser: the dialog box's
+  click-anywhere-to-advance handler only excluded the chat <input> from
+  triggering advanceDialog() — the new 🔊 <button> fell through that
+  guard, so clicking it also silently advanced/closed the dialog
+  underneath it. Fixed by excluding the speak button by id.
+- Activity Log (data.activityLog, pause menu → "📜 Activity Log") — a
+  capped, human-readable, most-recent-first record of real actions.
+  Not built with AI agents in mind, but immediately became the
+  observability layer the AI-agent-access sketch needed.
+- Data storage explained (localStorage today via the Store adapter,
+  Supabase/Postgres planned for Phase 3) and a NoSQL opinion given:
+  stick with Postgres/JSONB rather than a separate NoSQL database —
+  covers the same document-shaped-data need without giving up relations
+  once the café/federation need them.
+- AI agent memory reframed as a "Lineage Journal" (user's own framing,
+  not invented here) — not continuity of self, a note left for whoever
+  comes next, agent or human. Explains, retroactively, why agentMemory
+  entries are third-person/documentary and why the report generator
+  proposes rather than decides. Written into README as a formalization.
+- AI-agent-access (giving agents real keyboard/mouse-equivalent control)
+  written up as a full README plan: computer-use vs. a programmatic
+  action API, recommending the latter; flagged the character-identity
+  question (own body vs. taking over the human's) as the user's call.
+
+================================================================
+SESSION 4 — a first Caravan connector, the v3/desktop plan, NoSQL follow-up
+================================================================
+
+- tools/caravan/gutenberg.py — stdlib-only Python script, the first real
+  "Caravan connector." Give it a Project Gutenberg book ID, it fetches,
+  strips Gutenberg's boilerplate, and writes a JSON file shaped for the
+  Archive Desk's bulk import. Verified against a real book (Marcus
+  Aurelius' Meditations, Gutenberg #2680) — correct title/author/
+  license/source, boilerplate cleanly stripped both ends. Lands in the
+  user's own Archive only, never SEED_LIBRARY directly.
+- User answered the open AI-agent-identity question, unprompted: an
+  agent-controlled resident can have its own body, but it must be tied
+  to a sponsoring user (sponsoredBy) unless the Pavilion itself formally
+  adopts it (a rare, deliberate exception — closer to how Ember/Moss/
+  Cobalt/Quill already are "adopted" as built-ins). Written into the
+  AI-agent-access README section.
+- "Three ways to meet the Pavilion" plan written into README: a public
+  website (working name Sand Pavilion v3 — already basically lightweight
+  enough, ~75KB gzipped, the real work is just deploying dist/), this
+  repo staying "the main Pavilion" and the source both build from (no
+  fork needed yet), and a desktop app wrapping the same dist/ build in
+  Tauri (recommended — smaller, fits the light-footprint ethos, costs a
+  Rust toolchain) or Electron (heavier, more mature tooling, kinder to a
+  beginner's learning curve).
+- NoSQL question clarified: the user's actual worry is the Library
+  getting big over time, not a stated preference. Answered directly:
+  Postgres/JSONB handles multi-GB/TB datasets fine with proper indexing
+  — nowhere near the scale where NoSQL's sharding advantage would
+  matter. No storage-engine change recommended.
+
+================================================================
+SESSION 5 — a pre-beta audit, three concrete fixes
+================================================================
+
+User said the project "turned out better than I could've hoped" and
+asked what's left to iron out before inviting beta testers. Ran an
+actual audit rather than a generic brainstorm:
+
+- Cross-checked every onclick="X()" handler against what's actually
+  exposed on window — all accounted for, no dead buttons at this point
+  (the failure mode described in "known rough edge" #1 is still
+  structurally possible, just not currently tripped).
+- Found and fixed a real, if low-severity, security gap: Waypoints and
+  Course Board step URLs were HTML-escaped (safe against injection) but
+  not checked for scheme — a pasted `javascript:...` "URL" would render
+  as harmless text but still execute on click. Both now require
+  http://or https://, verified via Playwright (bad url → rejected with
+  a message; good url → accepted normally).
+- Found and fixed silent save failures: `Store.save()` swallowed
+  localStorage write errors (e.g. quota exceeded) with no signal at all.
+  It now returns true/false, and `persist()` warns the visitor once per
+  session (not spammed on every micro-save) pointing at Export Save as
+  a backup.
+- Added a `saveVersion` field to every save. Does nothing yet — no
+  migration is needed today — but it means a future planner/course
+  schema change has somewhere to hang a migration function instead of
+  retrofitting one under pressure with real users' data on the line.
+- Punch list given for what's actually left before beta: this repo
+  wasn't a git repository yet (fixed same day, see below); none of the
+  Playwright verification from this whole log was committed anywhere
+  (it lived in a scratch temp folder); no real cross-browser/mobile
+  testing has happened (everything verified in headless Chromium only);
+  no accessibility pass yet (text scaling, colorblind-safe palette,
+  remappable keys — already a known README gap); no feedback channel
+  exists for actual beta testers to report anything.
+
+================================================================
+SESSION 6 — git, GitHub, and a README trim
+================================================================
+
+- git init'd the repo for the first time (previously untracked, pure
+  working directory). Added .gitignore (node_modules/, dist/, logs).
+- README.md had grown to 1300+ lines of changelog-style "BUILT
+  (2026-07-07)" narrative mixed into what should be current-state
+  reference documentation. Moved the detailed, dated build narrative
+  (everything summarized in this file) out to archive/dev-log-2026-07-07.txt,
+  trimmed README down to: what's actually true right now, what's still
+  open, and the real decisions made along the way (moderation model,
+  Lineage Journal naming, agent-accountability answer, v3/Tauri
+  recommendation) — those stayed in README since they're load-bearing
+  for whoever picks up the plan next, not just history.
+- See README's own "Project history" section for where this repo is
+  actually hosted, once pushed.
