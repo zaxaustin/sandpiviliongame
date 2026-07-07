@@ -101,15 +101,21 @@ it works from the outside.
 **You're ready for Stage 5 when:** "API call" stops sounding abstract and
 starts meaning, specifically, "that thing I watched happen in the Network tab."
 
-## Stage 5 — git, when you're ready (not yet, and that's fine)
+## Stage 5 — git, now that it's actually set up
 
-**Concept:** This project isn't using git yet — there's no history of
-changes being tracked. That's completely fine at this stage, but it's
-worth knowing git exists for when you want to: undo a mistake, see what
-changed and when, or eventually share this project with someone else
-safely. This stage is deliberately last and optional — say the word
-whenever you want to set it up together, and we'll do it hands-on rather
-than as a reading exercise.
+**Concept:** This project now has real git history, pushed to
+`github.com/zaxaustin/sandpiviliongame` (private) — every change from
+here on can be undone, compared, or shared safely. The core habit worth
+building: `git status` (what's changed since the last save point),
+`git add <file>` (mark a change to be included), `git commit -m "..."`
+(actually save that snapshot, with a short note on *why*), `git push`
+(send your saved snapshots up to GitHub). Nothing is lost by committing
+often — think of each commit as a checkpoint you could always walk back to.
+
+**Try this:** next time you (or I) change a file, run `git status` before
+anything else and just read what it says — it'll name the exact files
+that changed. That's the whole habit: check status, decide what to save,
+commit with a sentence about why, push when you want it backed up.
 
 ## Stage 6 — make a real change yourself
 
@@ -291,11 +297,71 @@ first exchange sitting there in plain text, resent in full — not
 referenced, not recalled, *literally retyped*. That's the whole
 mechanism, with nothing hidden.
 
-**You're ready for Stage 9 (whenever it exists) when:** "the AI
-remembers" stops sounding like a property of the AI, and starts sounding
-like a property of *what the game chooses to hand it, and when* — because
-that reframe is the actual design skill behind every future memory/report/
-agent-notes feature still sketched in the README.
+**You're ready for Stage 9 when:** "the AI remembers" stops sounding
+like a property of the AI, and starts sounding like a property of *what
+the game chooses to hand it, and when* — because that reframe is the
+actual design skill behind every future memory/report/agent-notes
+feature still sketched in the README.
+
+## Stage 9 — web scraping: what it actually is, and what the Caravan does instead
+
+**Why this stage exists:** you asked what happens if you do "web
+scraping," and what you're actually allowed and able to do inside the
+Pavilion around bringing in outside books. Worth being precise here,
+because "can my computer technically fetch this page" and "am I allowed
+to" are two completely different questions, and conflating them is how
+people accidentally get themselves in trouble.
+
+**Concept: scraping is just "a program reads a page instead of a
+person."** Every website you visit, your browser fetches some HTML and
+displays it. "Scraping" is the same fetch, done by a script instead of a
+human clicking around — nothing magic, nothing hidden. The part that
+actually matters isn't the technique, it's **whether the site's owner
+has said this is okay**: a site's `robots.txt` file and Terms of Service
+often explicitly say what automated fetching is and isn't allowed, some
+sites charge for or forbid bulk access to protect their servers or their
+business, and copyright still applies to scraped text exactly as it
+would to a photocopy — fetching something doesn't grant you rights to
+redistribute it. None of that is about whether you *can*; it's about
+whether you're *allowed*.
+
+**This is exactly why the Caravan isn't a general scraper.** Look at
+`tools/caravan/gutenberg.py` — it only ever talks to `gutenberg.org`, a
+site that explicitly publishes its catalog for bulk, automated,
+public-domain reuse; the script doesn't (and structurally can't) point
+at some other website you hand it. That's the actual design decision:
+one named, hand-picked, explicitly-permitted source per connector, never
+"give me a URL and I'll grab whatever's there." Standard Ebooks,
+archive.org, and SuttaCentral's API (already the quiet source of the
+Library's Theravada shelf) are the same kind of source — public,
+explicitly reuse-friendly, and legally uncomplicated. A random news site
+or someone's personal blog would not be, even though the *code* to fetch
+either one looks identical.
+
+**What you can actually do in the Pavilion today:**
+- Run `tools/caravan/gutenberg.py <book id>` (see its own docstring for
+  usage) to pull a public-domain book into a JSON file, then paste that
+  file into your **own** Archive Desk via "+ Bulk import." This is
+  completely automatic, and completely fine — it's your device, your
+  data, no one else is affected.
+- You **cannot** (by design, not by missing feature) bulk-import
+  anything into the shared Library shelves (`SEED_LIBRARY`). Every text
+  that's ever gone on those shelves was looked at by a person first —
+  what is it, where's it from, what license does it carry. That rule is
+  permanent, not a v1 limitation waiting to be lifted; automating it
+  away is exactly the thing that would make the Library untrustworthy.
+
+**Try this:** open `tools/caravan/gutenberg.py` and read `strip_boilerplate()`
+— it's just a couple of regular expressions cutting Gutenberg's standard
+header/footer off a text file. Then run it for real against a book ID of
+your choosing (find one at gutenberg.org, the number's in the URL) and
+open the JSON file it produces — you're looking at the exact same shape
+the Archive Desk's bulk-import box expects.
+
+**You're ready for Stage 10 (whenever it exists) when:** you can look at
+any "fetch data from the internet" idea and immediately ask two separate
+questions — "can this technically be done" and "has the source actually
+said this kind of use is okay" — instead of only asking the first one.
 
 ---
 
