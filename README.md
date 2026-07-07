@@ -407,6 +407,19 @@ to the module boundaries:
   needed.
 - Moss references what Quill remembers about you, by name — a first,
   one-directional taste of residents noticing each other.
+- **Badges** (🏅, pause menu) — a first-time-actions checklist doubling
+  as a soft tutorial: nine badges (first steps, first word, first page,
+  first cast, and so on) unlock with a short toast the first time you
+  try each core mechanic; the panel lists locked ones with their trigger
+  still visible, so it reads as "things to try," not a forced walkthrough.
+- **The Index** (📑, from any Library shelf) — every text in one list,
+  sorted by category (Classical, Non-fiction, Fiction, Research papers,
+  AI-written, Personal) rather than tradition, spanning both the Library
+  shelves and your own Archive Desk. Categories with nothing in them yet
+  are still shown — the taxonomy exists ahead of the content that will
+  fill it, same instinct as `saveVersion`.
+- The Library floor is parchment-toned now, not a carpet — a small
+  visual pass toward "this room feels like paper."
 
 Full session-by-session build narrative (what broke, what got fixed,
 what got verified how) lives in `archive/` — see "Project history"

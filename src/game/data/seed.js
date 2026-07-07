@@ -4,7 +4,21 @@
    License + source are first-class fields, never buried in the blob.
    ================================================================ */
 export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice'];
-export const SEED_LIBRARY = [
+/* Categories are a second, orthogonal axis to tradition — "what kind of
+   text is this" rather than "which lineage." Every seed text today is
+   the same kind (classical, hand-vetted, non-fiction) — the taxonomy is
+   defined now, ahead of content that will actually use the other
+   values, same instinct as `saveVersion`: the field should exist before
+   it's needed, not be retrofitted once it is. */
+export const CATEGORIES = [
+  { id:'classical',   label:'Classical' },
+  { id:'non-fiction',  label:'Non-fiction' },
+  { id:'fiction',      label:'Fiction' },
+  { id:'research',     label:'Research papers' },
+  { id:'ai-written',   label:'AI-written' },
+  { id:'personal',     label:'Personal' },
+];
+const RAW_SEED_LIBRARY = [
  // ---- Theravada ----
  { slug:'dhammapada', tradition:'Theravada', title:'The Dhammapada',
    license:'CC0 1.0', source_url:'https://suttacentral.net/dhp', attribution:'SuttaCentral',
@@ -101,3 +115,4 @@ export const SEED_LIBRARY = [
        {heading:'The rules', body:'No gate, no fee, no ledger of debts. Every entry carries license and source from the moment it is shelved. Anyone may read; stewards shelve; the record of both is public.'},
        {heading:'Where the books come from', body:'The seed collection draws on SuttaCentral (released CC0) and public-domain archives. As the shelves grow, the same rule holds: provenance at the point of entry, never retrofitted.'}]}},
 ];
+export const SEED_LIBRARY = RAW_SEED_LIBRARY.map(d => ({ category:'classical', ...d }));

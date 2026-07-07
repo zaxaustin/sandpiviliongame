@@ -4,7 +4,7 @@ import { Store } from './data/store.js';
 import {
   state, data, persist, scene, tileAt, npcAt, signAt, warpAt, stationAt,
   blocked, facingTile, opposite, MOVE_TIME,
-  startFishing, fishingAction, updateFishing, updateNPCs, logActivity,
+  startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
 import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus } from './ui/overlays.js';
 import { render } from './render.js';
@@ -119,6 +119,7 @@ function onAction(){
   if(npc){
     npc.face=opposite(state.player.dir);
     if(npc.ai && isAIActive()) openChatDialog(npc); else openDialog(npc.name,npcLines(npc));
+    awardBadge('first-word');
     return;
   }
   const sg=signAt(ft.x,ft.y);
@@ -132,6 +133,7 @@ function tryMove(dx,dy,dir){
   const nx=p.x+dx, ny=p.y+dy;
   if(blocked(nx,ny)) return;
   p.moving=true; p.tx=nx; p.ty=ny; p.t=0;
+  awardBadge('first-steps');
 }
 function stepBack(){
   const p=state.player, d={up:[0,1],down:[0,-1],left:[1,0],right:[-1,0]}[p.dir];

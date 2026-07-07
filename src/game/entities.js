@@ -1,7 +1,8 @@
 import { Store } from './data/store.js';
 import { scenes, SOLID } from './scenes.js';
-import { openDialog } from './ui/overlays.js';
+import { openDialog, showBadgeToast } from './ui/overlays.js';
 import { jingleCatch, jingleMiss, blip, setHud } from './main.js';
+import { BADGES } from './data/badges.js';
 
 /* ================================================================
    [GAME] state + persistence
@@ -14,7 +15,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, workshop:{docs:[]}, waypoints:[], activityLog:[] }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, workshop:{docs:[]}, waypoints:[], activityLog:[], badges:{} }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 let saveWarned=false; // only interrupt the visitor once per session, not on every failed micro-save
 export function persist(){
@@ -36,6 +37,16 @@ export function logActivity(text){
   data.activityLog.unshift({ ts:new Date().toISOString(), text });
   if(data.activityLog.length>ACTIVITY_CAP) data.activityLog.length=ACTIVITY_CAP;
   persist();
+}
+
+/* ----- Badges — first-time-actions checklist / soft tutorial ----- */
+export function awardBadge(id){
+  if(data.badges[id]) return;
+  const b=BADGES.find(x=>x.id===id); if(!b) return;
+  data.badges[id]=todayKey();
+  persist();
+  logActivity('Earned a badge: '+b.name+'.');
+  showBadgeToast(b);
 }
 
 export const state = {
@@ -110,7 +121,7 @@ const FISH=[
 ];
 function rollFish(){ const tot=FISH.reduce((a,f)=>a+f.w,0); let r=Math.random()*tot;
   for(const f of FISH){ if((r-=f.w)<0) return f; } return FISH[0]; }
-export function startFishing(tile){ state.fishing={phase:'cast',t:0,until:.55,tile}; blip(500,.07); }
+export function startFishing(tile){ state.fishing={phase:'cast',t:0,until:.55,tile}; blip(500,.07); awardBadge('first-cast'); }
 export function updateFishing(dt){
   const f=state.fishing; if(!f) return;
   f.t+=dt;

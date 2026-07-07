@@ -22,7 +22,7 @@ const PAL={
   flower:'#e07a7a',flower2:'#e0c04a',
   floor:'#b8a184',floorD:'#ab947a',carpet:'#c8862e',carpetD:'#b3771f',
   wall:'#5e5044',wallTop:'#4a3f36',shelf:'#7c5033',shelfD:'#63402a',
-  rug:'#a97c50',rugD:'#9c7047',pillar:'#cbb79a',
+  rug:'#e8dcb8',rugD:'#e0d2a8',pillar:'#cbb79a', // the Library floor — parchment, not a carpet
 };
 /* seasonal grass/canopy/flower palette — pure atmosphere, read once per
    frame (not per tile) since it only depends on the real calendar date */
@@ -101,7 +101,11 @@ function drawTile(ch,x,y,sx,sy){
       ctx.fillStyle=((x+y)%2===0)?PAL.carpet:PAL.carpetD; ctx.fillRect(sx,sy,S,S);
       ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.strokeRect(sx+S*.08,sy+S*.08,S*.84,S*.84);
       break;
-    case 'r': ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S); break;
+    case 'r': // the Library floor — parchment, with faint fiber flecks and the occasional ruled line
+      ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S);
+      if((x*17+y*11)%5===0){ ctx.fillStyle='rgba(120,100,60,.10)'; ctx.fillRect(sx+S*.2,sy+S*.62,S*.6,S*.03); }
+      if((x*7+y*23)%6===0){ ctx.fillStyle='rgba(120,100,60,.07)'; ctx.fillRect(sx+S*.3,sy+S*.3,S*.04,S*.04); }
+      break;
     case 'w':
       ctx.fillStyle=PAL.wall; ctx.fillRect(sx,sy,S,S);
       ctx.fillStyle=PAL.wallTop; ctx.fillRect(sx,sy,S,S*.25);

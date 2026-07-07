@@ -1,9 +1,10 @@
 import { Store } from '../data/store.js';
-import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity } from '../entities.js';
+import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge } from '../entities.js';
+import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI } from '../ai/provider.js';
 import { CHARTER } from '../data/charter.js';
-import { SEED_LIBRARY } from '../data/seed.js';
+import { SEED_LIBRARY, CATEGORIES } from '../data/seed.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable } from '../tts.js';
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -109,6 +110,36 @@ document.getElementById('dChatInput').addEventListener('keydown',e=>{
   const q=e.target.value.trim(); if(q) sendChatMessage(q);
 });
 
+/* ----- Badges — a small toast on first unlock, plus a panel to review
+   locked/unlocked ones. Locked entries keep their description visible,
+   so the panel doubles as a "things to try" checklist without forcing
+   a walkthrough on anyone who'd rather just wander. ----- */
+let badgeToastTimer=null;
+export function showBadgeToast(b){
+  const el=document.getElementById('badgeToast'); if(!el) return;
+  el.innerHTML = `<div class="bIcon">${b.icon}</div><div><div class="bT">New badge: ${esc(b.name)}</div><div class="bS">${esc(b.desc)}</div></div>`;
+  el.classList.add('show');
+  clearTimeout(badgeToastTimer);
+  badgeToastTimer=setTimeout(()=>el.classList.remove('show'),4200);
+  blip(880,.07); setTimeout(()=>blip(1100,.09),80);
+}
+export function openBadges(){ state.ui='badges'; hideAllOv(); renderBadges(); showOv('badgesOv'); }
+function renderBadges(){
+  const unlocked=Object.keys(data.badges).length;
+  document.getElementById('badgesPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Badges</h2>
+    <div class="meta">${unlocked}/${BADGES.length} earned — each one marks the first time you tried something.
+      The locked ones double as a list of things worth trying.</div>
+    ${BADGES.map(b=>{
+      const got=data.badges[b.id];
+      return `<div class="card" style="cursor:default;opacity:${got?1:.55}">
+        <div class="t">${b.icon} ${esc(b.name)} ${got?`<span class="badge">${esc(got)}</span>`:'<span class="badge">locked</span>'}</div>
+        <div class="s">${esc(b.desc)}</div>
+      </div>`;
+    }).join('')}`;
+}
+
 /* ----- AI status + Connections panel ----- */
 export async function refreshAIStatus(){
   await detectAI(data.aiConnections);
@@ -193,11 +224,11 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); }
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Pause menu — reachable with Esc from the open world, or the ☰ HUD button ----- */
-export function openMenu(){ state.ui='menu'; hideAllOv(); renderMenu(); showOv('menuOv'); }
+export function openMenu(){ state.ui='menu'; hideAllOv(); renderMenu(); showOv('menuOv'); awardBadge('first-menu'); }
 function renderMenu(){
   document.getElementById('menuPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
@@ -209,6 +240,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="openConnections()" style="margin-bottom:9px">⚙ Manage AI connections</button>
       <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
+      <button class="btn ghost" onclick="openBadges()" style="margin-bottom:9px">🏅 Badges</button>
       <button class="btn ghost" onclick="exportSave()" style="margin-bottom:9px">⬇ Export save (.json)</button>
       <button class="btn ghost" onclick="triggerImportSave()" style="margin-bottom:9px">⬆ Import save…</button>
       <button class="btn ghost" onclick="returnToTitle()" style="margin-bottom:9px">← Return to title screen</button>
@@ -292,7 +324,7 @@ export function addWaypoint(){
   if(!title||!rawUrl) return;
   if(!url){ document.getElementById('wpMsg').textContent='Only http:// or https:// links are allowed here.'; return; }
   data.waypoints.unshift({id:Date.now(), title, url, note, added:todayKey()});
-  persist(); logActivity('Added a waypoint: "'+title+'".'); renderWaypoints(); blip(700,.06);
+  persist(); logActivity('Added a waypoint: "'+title+'".'); awardBadge('first-waypoint'); renderWaypoints(); blip(700,.06);
 }
 export function removeWaypoint(id){
   data.waypoints=data.waypoints.filter(w=>w.id!==id);
@@ -364,7 +396,10 @@ function renderShelf(){
         <span class="badge lic">${esc(sel.license)}</span>
       </div>
       <div class="blSummary">${esc(sel.doc.summary)}</div>
-      <div class="row" style="margin-top:12px"><button class="btn" onclick="shelfOpenSelected()">Open book</button></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="shelfOpenSelected()">Open book</button>
+        <button class="btn ghost" onclick="openIndex()">📑 Full Index</button>
+      </div>
       <div class="blHint">◀ ▶ browse the shelf · Enter / E open</div>
     </div>` : '<p>This shelf waits for its first text.</p>';
 }
@@ -401,6 +436,7 @@ export function openReader(slug){
   const panel=document.querySelector('#readerOv .panel');
   panel.classList.remove('bookPanel'); void panel.offsetWidth; panel.classList.add('bookPanel');
   showOv('readerOv');
+  awardBadge('first-page');
 }
 export function markRead(){
   const slug=state.currentDoc; if(!slug) return;
@@ -412,6 +448,47 @@ export function markRead(){
   document.getElementById('rdMark').textContent='Read ✓';
 }
 export function backToShelf(){ stopSpeaking(); openShelf(state.shelfTradition||'Theravada'); }
+
+/* ----- The Index — every text in one list, sorted by category rather
+   than tradition: the Library's own shelves (all "classical" today)
+   plus your own Archive Desk (personal writing, and Quill's "ai-written"
+   reports). Categories are defined even where nothing's shelved there
+   yet — the taxonomy is meant to hold future content, not just today's. */
+export function openIndex(){
+  state.ui='index'; hideAllOv();
+  state.indexCategory = state.indexCategory || 'classical';
+  renderIndex(); showOv('indexOv');
+}
+function indexItems(){
+  const lib = SEED_LIBRARY.map(d=>({kind:'library', slug:d.slug, title:d.title, category:d.category, sub:d.tradition}));
+  const arc = data.workshop.docs.map(d=>({kind:'archive', slug:d.slug, title:d.title, category:d.category||'personal', sub:d.license||''}));
+  return [...lib, ...arc];
+}
+export function setIndexCategory(id){ state.indexCategory=id; renderIndex(); }
+export function openIndexItem(kind,slug){
+  if(kind==='library') openReader(slug); else openArchiveDoc(slug);
+}
+function renderIndex(){
+  const items=indexItems();
+  const cat=state.indexCategory;
+  const counts={}; items.forEach(i=>{ counts[i.category]=(counts[i.category]||0)+1; });
+  const shown=items.filter(i=>i.category===cat);
+  document.getElementById('indexPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>The Index</h2>
+    <div class="meta">Every text in one place, sorted by kind rather than lineage — the Library's
+      shelves and your own Archive Desk together. Categories with nothing in them yet are still
+      shown; the shape's there before the content is.</div>
+    <div class="row" style="margin-bottom:12px">
+      ${CATEGORIES.map(c=>`<button class="btn ${c.id===cat?'':'ghost'}" style="font-size:11.5px;padding:6px 12px"
+        onclick="setIndexCategory('${c.id}')">${esc(c.label)} <span class="badge">${counts[c.id]||0}</span></button>`).join('')}
+    </div>
+    ${shown.length ? shown.map(i=>`
+      <div class="card" onclick="openIndexItem('${i.kind}','${i.slug}')">
+        <div class="t">${i.kind==='library'?'📖':'📔'} ${esc(i.title)}</div>
+        <div class="s">${esc(i.sub||'')}</div>
+      </div>`).join('') : '<p>Nothing here yet.</p>'}`;
+}
 
 /* ----- read-aloud for the Library — the actual "have books be read to
    you" ask: full text always works (native browser voice, no AI needed);
@@ -525,7 +602,7 @@ export function savePlanner(announce){
   day.intention=document.getElementById('planIntent').value.trim();
   day.ember=document.getElementById('planEmber').value.trim();
   persist();
-  if(announce){ document.getElementById('planSaved').textContent='Saved · '+todayKey(); blip(784,.08); }
+  if(announce){ document.getElementById('planSaved').textContent='Saved · '+todayKey(); blip(784,.08); awardBadge('first-plan'); }
 }
 
 /* ----- Courses (the Course Board) ----- */
@@ -603,7 +680,7 @@ export function createCourse(){
     .map(l=>{ const [t,p,u]=l.split('|').map(s=>s.trim()); return {title:t,practice:p||'',url:safeUrl(u),done:false}; });
   if(!title||!steps.length) return;
   data.courses.unshift({ id:Date.now(), title, why, steps, begun:todayKey() });
-  persist(); logActivity('Pinned a new course: "'+title+'".'); blip(784,.09);
+  persist(); logActivity('Pinned a new course: "'+title+'".'); awardBadge('first-course'); blip(784,.09);
   state.courseView={mode:'list'}; renderCourses();
 }
 export function toggleStep(id,i){
@@ -657,6 +734,13 @@ function renderArchive(){
         <code>{"title":"…","license":"…","source":"…","body":"…"}</code>. Every entry lands in
         your own Archive Desk exactly as if you'd written it by hand — this never touches the
         shared Library shelves, which stay a human-reviewed, hand-seeded commons on purpose.</div>
+      <div class="meta"><b>Where entries actually come from:</b> type or paste them by hand, or run
+        <code>tools/caravan/gutenberg.py</code> (a small local script, no install needed) to pull a
+        public-domain book from Project Gutenberg into this exact shape — it only ever talks to
+        Gutenberg's own catalog, never an arbitrary web page, on purpose. This is <i>not</i> a general
+        web scraper: fetching whatever a program can technically reach isn't the same as being
+        allowed to, which is why this only ever points at one named, explicitly reuse-friendly
+        source. See <code>LEARNING-PATH.md</code> Stage 9 for the full explanation.</div>
       <textarea id="bulkJson" rows="10" placeholder='[{"title":"First entry","license":"CC0","source":"written here","body":"..."}]'></textarea>
       <div id="bulkMsg" class="meta"></div>
       <div class="row" style="margin-top:14px">
@@ -747,8 +831,8 @@ export function createArchiveDoc(){
   const source=document.getElementById('arcSource').value.trim();
   let slug=slugify(title), n=1;
   while(data.workshop.docs.some(d=>d.slug===slug)) slug=slugify(title)+'-'+(++n);
-  data.workshop.docs.unshift({slug,title,license,source,body,created:todayKey()});
-  persist(); logActivity('Wrote a new Archive Desk entry: "'+title+'".'); blip(784,.09);
+  data.workshop.docs.unshift({slug,title,license,source,body,created:todayKey(),category:'personal'});
+  persist(); logActivity('Wrote a new Archive Desk entry: "'+title+'".'); awardBadge('first-entry'); blip(784,.09);
   state.archiveView={mode:'read',slug}; renderArchive();
 }
 export function deleteArchiveDoc(slug){
@@ -840,4 +924,5 @@ Object.assign(window, {
   openConnections, returnToTitle, resetSave,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
+  openBadges, openIndex, setIndexCategory, openIndexItem,
 });
