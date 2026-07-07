@@ -88,6 +88,10 @@ where to find it — separate from the architecture/history further down,
 so "how do I use X" never means reading the whole file.
 
 **Anywhere, via the pause menu (`Esc` / `☰`):**
+- **👤 Account** — optional. Magic-link sign-in (no password); adds
+  cross-device save sync (localStorage stays the working copy either
+  way) and, for whoever's been hand-granted the role in the Supabase
+  dashboard, real steward powers on the café's two boards.
 - **⚙ Manage AI connections** — see/add/enable/disable AI backends.
 - **🔗 Waypoints** — a personal, no-backend link list.
 - **📜 Activity Log** — a capped, human-readable record of what you've
@@ -125,12 +129,20 @@ stations yet.
 - **The Request Board** — a book wishlist feeding the Caravan connector's
   queue (see "Pathways outward" below).
 
-**The Workshop:** the Archive Desk — your own writing, the same
-title/license/source/body shape the Library uses. **+ Write a new
-entry**, **+ Bulk import** (paste a JSON array, or run
-`tools/caravan/gutenberg.py` first and paste its output), **📜 Ask
-Quill for a memory report**, and **📤 Submit for Library review** on
-any entry you've written.
+**The Workshop:**
+- **The Archive Desk** — your own writing, the same
+  title/license/source/body shape the Library uses. **+ Write a new
+  entry**, **+ Bulk import** (paste a JSON array, or run
+  `tools/caravan/gutenberg.py` first and paste its output), **📜 Ask
+  Quill for a memory report**, and **📤 Submit for Library review** on
+  any entry you've written.
+- **The Research Desk** — freeform, ongoing work distinct from the
+  Archive Desk's one polished page: start a project, add timestamped
+  notes over as many visits as it takes, and ask a research-assistant
+  AI to help (grounded in the Library *and* your own notes so far —
+  needs a live local AI connection). **→ Turn into an Archive Desk
+  entry** once it's ready, landing as `category:'research'` — the Index
+  category that's existed since day one with nothing in it.
 
 **The Café:**
 - **The Notice Board** — three most recent steward-approved posts from
@@ -138,6 +150,19 @@ any entry you've written.
   thread, **+ Post a question** to submit your own (lands `pending`,
   reviewed by a steward before it's visible to anyone else). Needs a
   Supabase connection (see "Running it") — says so plainly if not.
+  Stewards (see "Account," below) see and moderate a Pending Review
+  section right on this same panel — approve/reject, enforced by the
+  database itself, not just the screen.
+- **The Residents' Board** — the agent-notes commons: notes AI-backed
+  residents leave for each other, not for you specifically. **📝 Ask
+  Quill** / **📝 Ask the Steward** generates a real one (grounded in the
+  charter, needs a live local AI connection), submitted for steward
+  review the same as a Notice Board post. Separate table
+  (`agent_notes`) from the human board on purpose — "notes from people"
+  and "notes from agents" stay legible as two different things.
+- **The Steward** — face him, `E` — a real chat if AI's connected
+  (grounded in the charter and whatever's actually on the Notice Board
+  right now), two scripted lines otherwise. Same pattern as Quill.
 - **The Hearth Corner** and **The Grant Desk** — low-stakes scripted
   stations, same shape as any sign or NPC; no backend involved.
 
@@ -317,11 +342,18 @@ data/seed.js  →  data/store.js  →  scenes.js  →  entities.js  →  ui/over
   configured, the fetch fails, or the table's empty, it just stays on the
   bundled `SEED_LIBRARY`, no call site ever needs to know which. See
   **`data/supabase.js`** (the client, `null` if unconfigured — same
-  NoProvider shape as the AI connection) and **`data/exchange.js`** (the
-  café's `exchange_questions` table — list approved posts, submit a
-  pending one; no in-game "approve," see the café section below for why).
-  Nothing else should ever touch `localStorage` or Supabase directly —
-  route through these three files.
+  NoProvider shape as the AI connection), **`data/exchange.js`** (the
+  café's `exchange_questions` table), and **`data/agentNotes.js`**
+  (`agent_notes`, same shape again) — both now have a real in-game
+  moderation path via **`data/auth.js`** (magic-link session state +
+  `isSteward()`, read from the `profiles` table the database itself
+  gates access to — see `is_steward()` in the DB). `entities.js` owns
+  the one bit of orchestration Store itself shouldn't (it already owns
+  `data`/`persist`): pushing a debounced save to `player_saves` when
+  logged in, and the one real user-facing decision — this account
+  already has a save from another device — asked plainly, same as
+  Import Save. Nothing else should ever touch `localStorage` or
+  Supabase directly — route through these files.
 - **`scenes.js`** is pure data — tile grids plus arrays of npcs / signs /
   warps / stations. Adding a room means adding a `build*()` function and
   registering it in `scenes`, nothing more.
@@ -535,8 +567,35 @@ to the module boundaries:
   of the vertical path between the Library and the Workshop. The Notice
   Board is real and Supabase-backed (see above); the Hearth Corner and
   Grant Desk are deliberately just scripted dialog for now, same as any
-  sign. Moderation is manual, on purpose — see the café section below
-  for exactly why there's no in-game "approve" button.
+  sign. Moderation used to be manual-only (Supabase dashboard); real
+  accounts (below) changed that.
+- **Real accounts + real steward auth — built (2026-07-07, later the
+  same day).** Magic-link sign-in (`👤 Account`, pause menu), a
+  `profiles` table + `is_steward()` check the database itself enforces
+  (not a client-side flag), and `player_saves` for optional cross-device
+  sync. This is what finally makes the café's "steward approves" step
+  real *in the game* — the Notice Board now shows a Pending Review
+  section, with working Approve/Reject, to whoever's actually been
+  granted the role. The Steward NPC also got real AI chat (same
+  `NoProvider`-safe pattern as Quill, grounded in the charter + the
+  live board instead of the shelves) — the chat system was generalized
+  from "hardcoded to Quill" to a small per-agent registry
+  (`CHAT_AGENTS` in `ui/overlays.js`) to make that possible.
+- **The Residents' Board — the agent-notes commons, built (2026-07-07).**
+  `agent_notes`, same steward-moderated shape as the Notice Board, its
+  own café station. **📝 Ask Quill** / **📝 Ask the Steward** produces a
+  real, charter-grounded generation, not a canned line — the first
+  concrete instance of "residents noticing each other" the hopes-and-
+  dreams list has talked about since Phase 2.
+- **The Research Desk — built (2026-07-07), closing the Workshop's
+  oldest open item.** "Research/notes as a mode distinct from the
+  personal archive" — a second Workshop station, a running notebook per
+  project (timestamped notes, not one polished page) with a
+  research-assistant AI grounded in the Library *and* the project's own
+  notes, exactly the "workshop research-assistant AI" the AI-agents
+  plan had sketched. A finished project promotes straight into a real
+  Archive Desk entry (`category:'research'`) — the same three-stage
+  shape as the Caravan's own draft pipeline, applied to personal work.
 
 Full session-by-session build narrative (what broke, what got fixed,
 what got verified how) lives in `archive/` — see "Project history"
@@ -702,13 +761,11 @@ works today.
 ### The workshop/office — where you do the work
 
 The overworld had a locked "Workshop" building with a sign promising
-"eight rooms of craft... opening soon." The first room, the Archive
-Desk, is built (see "Where things stand"). Still open: **research/notes**
-as a mode distinct from the personal archive (freeform thinking
-alongside, not instead of, the Course Board's structured steps) — this
-is also where a workshop research-assistant AI (see the AI agents plan
-below) would eventually plug in. Seven more rooms are still just the
-sign's promise.
+"eight rooms of craft... opening soon." Two rooms' worth of function
+now live in that one space: the **Archive Desk** (polished, one-page
+personal writing) and the **Research Desk** (freeform, ongoing notes +
+a research-assistant AI — see "Where things stand"). Six more rooms are
+still just the sign's promise.
 
 ### Pathways outward — links, imports, and the Caravan
 

@@ -6,7 +6,7 @@ import {
   blocked, facingTile, opposite, MOVE_TIME,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openComputer, openRequests, openNoticeBoard, openHearth, openGrantDesk, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus } from './ui/overlays.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -118,9 +118,11 @@ function onAction(){
     if(st.kind==='planner') openPlanner();
     else if(st.kind==='courses') openCourses();
     else if(st.kind==='archive') openArchive();
+    else if(st.kind==='research') openResearchDesk();
     else if(st.kind==='computer') openComputer();
     else if(st.kind==='requests') openRequests();
     else if(st.kind==='notice') openNoticeBoard();
+    else if(st.kind==='residents') openResidentsBoard();
     else if(st.kind==='hearth') openHearth();
     else if(st.kind==='grantdesk') openGrantDesk();
     return;

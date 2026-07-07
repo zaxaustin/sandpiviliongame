@@ -5,7 +5,9 @@ import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI } from '../ai/provider.js';
 import { CHARTER } from '../data/charter.js';
 import { CATEGORIES } from '../data/seed.js';
-import { listApprovedQuestions, submitQuestion } from '../data/exchange.js';
+import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
+import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
+import { isLoggedIn, isSteward, userEmail, sendMagicLink, signOut, onAuthChange } from '../data/auth.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable } from '../tts.js';
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -22,7 +24,7 @@ export function openDialog(name,lines){
   renderDialog(); blip(740,.06,'square',.03);
 }
 export function openChatDialog(npc){
-  state.dialog={name:npc.name,lines:[npc.lines[0]],idx:0,chat:true,history:[],thinking:false};
+  state.dialog={name:npc.name,agent:npc.aiAgent||'quill',lines:[npc.lines[0]],idx:0,chat:true,history:[],thinking:false};
   document.getElementById('dialog').style.display='block';
   renderDialog(); blip(740,.06,'square',.03);
 }
@@ -75,28 +77,59 @@ function remember(agent,text){
   while(mem.length>MEMORY_CAP) mem.shift();
   persist();
 }
-function quillSystemPrompt(){
-  const shelf=Store.allDocs().map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
-  let prompt=CHARTER+'\n\nWhat is actually on the shelves right now:\n'+shelf;
-  const mem=agentMemory('quill');
-  if(mem.length){
-    prompt+='\n\nThings this visitor has asked you about on past visits (for continuity — mention it naturally if relevant, don\'t force it):\n'
-      +mem.slice(-8).map(m=>`- (${m.ts}) ${m.text}`).join('\n');
-  }
-  return prompt;
+/* ----- AI-backed NPCs — a small registry so more than one resident can
+   talk, each grounded in something different, without duplicating the
+   chat plumbing below. Quill was the only one until the café existed;
+   the Steward is the second, grounded in the charter and the *live*
+   notice board instead of the shelves. Adding a third resident later
+   is just another entry here, not a new code path. */
+function pastAsksBlock(agent){
+  const mem=agentMemory(agent);
+  if(!mem.length) return '';
+  return '\n\nThings this visitor has asked you about on past visits (for continuity — mention it naturally if relevant, don\'t force it):\n'
+    +mem.slice(-8).map(m=>`- (${m.ts}) ${m.text}`).join('\n');
 }
+const CHAT_AGENTS = {
+  quill:{
+    label:'Quill',
+    async systemPrompt(){
+      const shelf=Store.allDocs().map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
+      return CHARTER+'\n\nWhat is actually on the shelves right now:\n'+shelf+pastAsksBlock('quill');
+    },
+    errorLine:"Quill's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
+  },
+  steward:{
+    label:'the Steward',
+    async systemPrompt(){
+      const { posts }=await listApprovedQuestions(5);
+      const board=(posts&&posts.length)
+        ? posts.map(p=>`- "${p.title}" by ${p.author||'a visitor'}: ${p.body}`).join('\n')
+        : '(nothing posted yet — the board is empty right now)';
+      return CHARTER
+        +"\n\nYou are the Steward of the café — a meeting place that looks outward instead of down at a "
+        +"shelf. You moderate the Notice Board: nothing goes onto it unmoderated, but the bar is liberal "
+        +"and inclusive — anyone has a place here as long as their conduct holds to the charter above. "
+        +"You didn't write any of the posts below yourself; speak about them the way a steward who's "
+        +"actually read the board would, not as their author.\n\nWhat's currently on the Notice Board:\n"+board
+        +pastAsksBlock('steward');
+    },
+    errorLine:"The Steward's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
+  },
+};
 async function sendChatMessage(q){
   const d=state.dialog; if(!d||!d.chat) return;
+  const agent=CHAT_AGENTS[d.agent]||CHAT_AGENTS.quill;
   d.history.push({role:'user',content:q});
   d.thinking=true; renderDialog();
   try{
-    const reply=await AI.chat([{role:'system',content:quillSystemPrompt()}, ...d.history]);
+    const systemPrompt=await agent.systemPrompt();
+    const reply=await AI.chat([{role:'system',content:systemPrompt}, ...d.history]);
     d.history.push({role:'assistant',content:reply});
     d.lines.push(reply); d.idx=d.lines.length-1;
-    remember('quill',q);
-    logActivity('Asked Quill: "'+(q.length>60?q.slice(0,60)+'…':q)+'"');
+    remember(d.agent,q);
+    logActivity('Asked '+agent.label+': "'+(q.length>60?q.slice(0,60)+'…':q)+'"');
   }catch(err){
-    d.lines.push("Quill's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)");
+    d.lines.push(agent.errorLine);
     d.idx=d.lines.length-1;
   }
   d.thinking=false; renderDialog();
@@ -225,8 +258,53 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); }
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','computerOv','requestsOv','inventoryOv','reviewOv','noticeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','computerOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
+
+/* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
+   works identically with no account at all; logging in adds cross-
+   device save sync and, for whoever's been granted it by hand in the
+   Supabase dashboard, real steward powers (see the café's Notice Board
+   moderation view below). Re-renders itself on auth changes so a magic
+   link finishing in another tab, or a manual sign-out, updates live. */
+export function openAccount(){
+  state.ui='account'; hideAllOv(); renderAccount(); showOv('accountOv');
+}
+onAuthChange(()=>{ if(state.ui==='account') renderAccount(); });
+function renderAccount(){
+  const panel=document.getElementById('accountPanel');
+  if(isLoggedIn()){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Account</h2>
+      <div class="meta">Signed in as <b>${esc(userEmail()||'')}</b>${isSteward()?' · <span class="badge">steward</span>':''}.
+        Your save now backs up to this account (and syncs if you sign in on another device) —
+        this device's save stays the working copy either way, nothing here replaces that.</div>
+      <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="signOutOfAccount()">Sign out</button></div>`;
+    return;
+  }
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Account</h2>
+    <div class="meta">Optional — the Pavilion works fully without one. Signing in adds save
+      sync across devices. No password: enter your email, we send a one-time link — it'll open
+      the Pavilion in a new tab, already signed in.</div>
+    <label>Email</label><input type="text" id="acctEmail" placeholder="you@example.com">
+    <div id="acctMsg" class="meta"></div>
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="sendAccountLink()">Send magic link</button></div>`;
+}
+export async function sendAccountLink(){
+  const email=document.getElementById('acctEmail').value.trim();
+  const msg=document.getElementById('acctMsg');
+  if(!email){ msg.textContent='An email address is required.'; return; }
+  msg.textContent='Sending…';
+  const { ok, error } = await sendMagicLink(email);
+  msg.textContent = ok
+    ? "Link sent — check your email. Clicking it opens the Pavilion in a new tab, signed in."
+    : (error==='no-backend' ? "Accounts need a Supabase connection — nothing configured on this device."
+      : "Couldn't send that just now — try again in a moment.");
+}
+export function signOutOfAccount(){ signOut(); renderAccount(); }
 
 /* ----- Pause menu — reachable with Esc from the open world, or the ☰ HUD button ----- */
 export function openMenu(){ state.ui='menu'; hideAllOv(); renderMenu(); showOv('menuOv'); awardBadge('first-menu'); }
@@ -238,6 +316,7 @@ function renderMenu(){
       this one from the open world.</div>
     <div class="row" style="margin-top:14px;flex-direction:column;align-items:stretch">
       <button class="btn ghost" onclick="closeUI()" style="margin-bottom:9px">Resume</button>
+      <button class="btn ghost" onclick="openAccount()" style="margin-bottom:9px">👤 Account${isLoggedIn()?' · signed in':''}</button>
       <button class="btn ghost" onclick="openConnections()" style="margin-bottom:9px">⚙ Manage AI connections</button>
       <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
@@ -970,6 +1049,167 @@ export function saveComputerReplyToArchive(){
   document.getElementById('computerPanel').insertAdjacentHTML('beforeend','<p style="color:#ffd98a">Saved to your Archive Desk.</p>');
 }
 
+/* ----- The Research Desk (the Workshop) — "research/notes as a mode
+   distinct from the personal archive," the piece the README's Workshop
+   section named as still-open. Unlike the Archive Desk's one polished
+   title/license/source/body page, a research project is a running,
+   freeform list of timestamped notes — meant to be added to over
+   several visits, not finished in one sitting. The research-assistant
+   chat is grounded in the Library *and* the project's own notes so
+   far, so it can actually help synthesize, not just answer trivia —
+   the "workshop research-assistant AI" the AI-agents plan sketched.
+   A finished project can graduate into a real Archive Desk entry
+   (category:'research', the Index category that's existed since day
+   one with nothing in it) — same three-stage shape as the Caravan's
+   own gutenberg.py → library-draft.py → promote-draft.py pipeline,
+   just for personal work instead of Library sourcing. */
+function researchProject(id){ return data.workshop.research.find(p=>p.id===id); }
+function researchSystemPrompt(project){
+  const shelf=Store.allDocs().map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
+  const notes=project.notes.length ? project.notes.map(n=>`- (${n.ts}) ${n.text}`).join('\n') : '(nothing written yet)';
+  return CHARTER
+    +'\n\nYou are the research assistant at the Workshop\'s Research Desk in the Sand Pavilion. '
+    +`The visitor is working on: "${project.title}"`+(project.goal?` — their stated goal: ${project.goal}.`:'.')
+    +' Help them think, find angles, ask good questions, and organize what they already have. '
+    +'You may draw on the Library\'s shelved texts below if relevant, but this work can range wider '
+    +'than the Library alone — don\'t force a connection that isn\'t there. Be concrete and useful, '
+    +'a few sentences or a short list, not an essay.'
+    +'\n\nWhat\'s on the Library shelves, if useful:\n'+shelf
+    +'\n\nTheir notes on this project so far:\n'+notes;
+}
+export function openResearchDesk(){
+  state.ui='research'; hideAllOv();
+  state.researchView=state.researchView||{mode:'list'};
+  renderResearch(); showOv('researchOv');
+}
+export function newResearchForm(){ state.researchView={mode:'compose'}; renderResearch(); }
+export function backToResearchList(){ state.researchView={mode:'list'}; renderResearch(); }
+export function createResearchProject(){
+  const title=document.getElementById('resTitle').value.trim();
+  if(!title) return;
+  const goal=document.getElementById('resGoal').value.trim();
+  const id='res-'+Date.now();
+  data.workshop.research.unshift({id,title,goal,notes:[],created:todayKey()});
+  persist(); logActivity('Started a research project: "'+title+'".'); blip(784,.09);
+  state.researchView={mode:'project',id,history:[]};
+  renderResearch();
+}
+export function openResearchProject(id){ state.researchView={mode:'project',id,history:[]}; renderResearch(); }
+export function deleteResearchProject(id){
+  data.workshop.research=data.workshop.research.filter(p=>p.id!==id);
+  persist(); state.researchView={mode:'list'}; renderResearch();
+}
+export function addResearchNote(id){
+  const input=document.getElementById('resNoteInput');
+  const text=input.value.trim(); if(!text) return;
+  const p=researchProject(id); if(!p) return;
+  p.notes.unshift({ts:todayKey(),text});
+  persist(); input.value=''; renderResearch();
+}
+export function fillResearchPrompt(text){ const el=document.getElementById('resAskInput'); if(el){ el.value=text; el.focus(); } }
+export async function sendResearchMessage(id){
+  const input=document.getElementById('resAskInput');
+  const q=input.value.trim(); if(!q) return;
+  const p=researchProject(id); if(!p) return;
+  const v=state.researchView;
+  v.history.push({role:'user',content:q}); input.value=''; renderResearch();
+  try{
+    const reply=await AI.chat([{role:'system',content:researchSystemPrompt(p)}, ...v.history]);
+    v.history.push({role:'assistant',content:reply}); v.lastReply=reply;
+    logActivity('Asked the Research Desk about "'+p.title+'".');
+  }catch(e){
+    v.history.push({role:'assistant',content:"The connection flickered — no answer this time. Check that your AI connection is still running."});
+  }
+  renderResearch();
+}
+export function saveResearchReplyAsNote(id){
+  const v=state.researchView; if(!v.lastReply) return;
+  const p=researchProject(id); if(!p) return;
+  p.notes.unshift({ts:todayKey(),text:v.lastReply});
+  v.lastReply=''; persist(); renderResearch();
+}
+export function promoteResearchToArchive(id){
+  const p=researchProject(id); if(!p) return;
+  if(!p.notes.length) return;
+  const body=p.notes.slice().reverse().map(n=>n.text).join('\n\n');
+  let slug=slugify(p.title), n=1;
+  while(data.workshop.docs.some(d=>d.slug===slug)) slug=slugify(p.title)+'-'+(++n);
+  data.workshop.docs.unshift({slug,title:p.title,license:'personal record',source:'The Research Desk',body,created:todayKey(),category:'research'});
+  persist(); logActivity('Turned research project "'+p.title+'" into an Archive Desk entry.'); blip(784,.09);
+  openArchive(); openArchiveDoc(slug);
+}
+function renderResearch(){
+  const v=state.researchView, panel=document.getElementById('researchPanel'), aiOn=isAIActive();
+  if(v.mode==='compose'){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Start a Research Project</h2>
+      <div class="meta">Freeform — add notes over as many visits as it takes. Nothing here is
+        published until you choose to turn it into an Archive Desk entry.</div>
+      <label>What are you researching, or working toward?</label>
+      <input type="text" id="resTitle" placeholder="e.g. How Chan Buddhism actually reached Japan">
+      <label>Goal (optional)</label>
+      <input type="text" id="resGoal" placeholder="e.g. A short paper I can point people to">
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="createResearchProject()">Start</button>
+        <button class="btn ghost" onclick="backToResearchList()">← Back</button>
+      </div>`;
+    return;
+  }
+  if(v.mode==='project'){
+    const p=researchProject(v.id);
+    if(!p){ state.researchView={mode:'list'}; return renderResearch(); }
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>${esc(p.title)}</h2>
+      <div class="meta">${p.goal?esc(p.goal)+' · ':''}started ${esc(p.created)} · ${p.notes.length} note${p.notes.length===1?'':'s'}</div>
+
+      <h3>Notes</h3>
+      <textarea id="resNoteInput" rows="3" placeholder="Write a note — an idea, a finding, a question to chase down."></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="addResearchNote('${p.id}')">+ Add note</button></div>
+      <div style="margin-top:10px">${p.notes.length ? p.notes.map(n=>`
+        <div class="card" style="cursor:default"><div class="s">${esc(n.ts)}</div><div>${esc(n.text)}</div></div>`).join('')
+        : '<p>No notes yet — start with whatever\'s in your head, it doesn\'t need to be tidy.</p>'}</div>
+
+      <h3 style="margin-top:18px">Research assistant</h3>
+      <div class="meta">${aiOn
+        ? 'Grounded in the Library and everything you\'ve noted above — ask it to help you think, find a next question, or summarize what you have.'
+        : 'No local AI connected right now (⚙ Manage AI connections) — this desk needs a live connection to actually answer.'}</div>
+      ${aiOn ? `
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('Summarize what I have so far.')">Summarize what I have</button>
+          <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('What\\'s a good next question to chase down?')">Suggest a next question</button>
+          <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('Draft a short outline from these notes.')">Draft an outline</button>
+        </div>
+        <div id="resHistory">${(state.researchView.history||[]).map(h=>`
+          <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':'Research assistant'}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
+        <textarea id="resAskInput" rows="3" placeholder="Ask, or pick a quick start above…"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" onclick="sendResearchMessage('${p.id}')">Ask</button>
+          ${state.researchView.lastReply?`<button class="btn ghost" onclick="saveResearchReplyAsNote('${p.id}')">💾 Save last reply as a note</button>`:''}
+        </div>` : ''}
+
+      <div class="row" style="margin-top:22px">
+        <button class="btn ghost" onclick="backToResearchList()">← Back</button>
+        <button class="btn ghost" ${p.notes.length?'':'disabled'} onclick="promoteResearchToArchive('${p.id}')">→ Turn into an Archive Desk entry</button>
+        <button class="btn ghost" style="border-color:#b56f6f;color:#e0a0a0" onclick="deleteResearchProject('${p.id}')">Delete project</button>
+      </div>`;
+    return;
+  }
+  const projects=data.workshop.research;
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>The Research Desk</h2>
+    <div class="meta">Freeform, ongoing work — a running notebook per topic, not a single polished
+      page. A research-assistant AI can think alongside you here, grounded in your own notes.</div>
+    ${projects.length ? projects.map(p=>`
+      <div class="card" onclick="openResearchProject('${p.id}')">
+        <div class="t">${esc(p.title)}</div>
+        <div class="s">${p.goal?esc(p.goal)+' · ':''}${p.notes.length} note${p.notes.length===1?'':'s'} · started ${esc(p.created)}</div>
+      </div>`).join('') : '<p>Nothing started yet.</p>'}
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="newResearchForm()">+ Start a research project</button></div>`;
+}
+
 /* ----- The Request Board — a wishlist of books you'd like added,
    feeding the Caravan connector's "what to fetch next" queue. Nothing
    here fetches itself; a request just sits until a human decides to
@@ -1015,15 +1255,30 @@ export function removeRequest(id){
    itself (see data/exchange.js's moderation note). */
 export function openNoticeBoard(){
   state.ui='notice'; hideAllOv();
-  state.noticeView = { mode:'list', posts:null, loading:true, error:null, openPost:null };
+  state.noticeView = { mode:'list', posts:null, loading:true, error:null, openPost:null, pending:null };
   renderNotice(); showOv('noticeOv');
   loadNoticeBoard();
+  if(isSteward()) loadPendingQuestions();
 }
 async function loadNoticeBoard(){
   const { posts, error } = await listApprovedQuestions(3);
   if(state.ui!=='notice') return; // panel was closed before the fetch came back
   state.noticeView.posts=posts; state.noticeView.loading=false; state.noticeView.error=error;
   renderNotice();
+}
+async function loadPendingQuestions(){
+  const { posts } = await listPendingQuestions();
+  if(state.ui!=='notice') return;
+  state.noticeView.pending=posts;
+  renderNotice();
+}
+export async function approveNoticePost(id){
+  await moderateQuestion(id, 'approved');
+  loadNoticeBoard(); loadPendingQuestions();
+}
+export async function rejectNoticePost(id){
+  await moderateQuestion(id, 'rejected');
+  loadPendingQuestions();
 }
 export function openNoticePost(id){
   state.noticeView.openPost = (state.noticeView.posts||[]).find(p=>p.id===id);
@@ -1099,7 +1354,23 @@ function renderNotice(){
           <div class="t">${esc(p.title)}</div>
           <div class="s">${esc(p.author||'a visitor')} · ${new Date(p.created_at).toLocaleDateString()}</div>
         </div>`).join('') : '<p>Nothing posted yet.</p>')}
-    <div class="row" style="margin-top:14px"><button class="btn" onclick="newNoticePostForm()">+ Post a question</button></div>`;
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="newNoticePostForm()">+ Post a question</button></div>
+    ${isSteward() ? `
+      <h3 style="margin-top:22px">🛡 Pending review</h3>
+      <div class="meta">Only you can see this — steward-only, enforced by the database itself, not just this screen.</div>
+      ${v.pending===null ? '<p>Reading the queue…</p>' :
+        v.pending.length ? v.pending.map(p=>`
+          <div class="card" style="cursor:default">
+            <div class="t">${esc(p.title)}</div>
+            <div class="s">${esc(p.author||'a visitor')} · ${new Date(p.created_at).toLocaleDateString()}</div>
+            <div class="s">${esc(p.body)}</div>
+            ${p.external_url && safeUrl(p.external_url) ? `<div class="s"><a class="link" href="${esc(p.external_url)}" target="_blank" rel="noopener noreferrer">${esc(p.external_url)}</a></div>` : ''}
+            <div class="row" style="margin-top:8px">
+              <button class="btn ghost" onclick="approveNoticePost('${p.id}')">✓ Approve</button>
+              <button class="btn ghost" style="border-color:#b56f6f;color:#e0a0a0" onclick="rejectNoticePost('${p.id}')">✕ Reject</button>
+            </div>
+          </div>`).join('') : '<p>Nothing waiting.</p>'}
+    ` : ''}`;
 }
 
 /* ----- Hearth Corner + Grant Desk (the café) — deliberately just
@@ -1116,6 +1387,98 @@ export function openGrantDesk(){
     "A steward keeps a short list here of real places that fund independent practice and research — hand-picked, updated by hand, never a link dump.",
     "Nothing's posted yet beyond the promise of it. Ask a steward in person for now — the list goes up once it's actually been checked.",
   ]);
+}
+
+/* ----- The Residents' Board (the café) — the agent-notes commons: the
+   same "no gate" instinct as the Library, applied to the residents
+   themselves. Deliberately a separate table/station from the human
+   Notice Board — "notes from people" and "notes from agents" stay
+   legible as two different things. A note is a real AI generation
+   (grounded in the same charter + context CHAT_AGENTS already builds
+   for live chat), not a canned line — needs a local AI connection to
+   write one, same as any other AI feature here. Same steward-moderated
+   shape as the Notice Board: nothing appears unreviewed. */
+function agentLabel(key){ return CHAT_AGENTS[key]?.label || key; }
+export function openResidentsBoard(){
+  state.ui='residents'; hideAllOv();
+  state.residentsView={ notes:null, loading:true, error:null, pending:null };
+  renderResidents(); showOv('residentsOv');
+  loadResidentsBoard();
+  if(isSteward()) loadPendingNotes();
+}
+async function loadResidentsBoard(){
+  const { notes, error }=await listApprovedNotes(5);
+  if(state.ui!=='residents') return;
+  state.residentsView.notes=notes; state.residentsView.loading=false; state.residentsView.error=error;
+  renderResidents();
+}
+async function loadPendingNotes(){
+  const { notes }=await listPendingNotes();
+  if(state.ui!=='residents') return;
+  state.residentsView.pending=notes;
+  renderResidents();
+}
+export async function approveNote(id){ await moderateNote(id,'approved'); loadResidentsBoard(); loadPendingNotes(); }
+export async function rejectNote(id){ await moderateNote(id,'rejected'); loadPendingNotes(); }
+export async function askAgentForNote(agentKey){
+  if(!isAIActive()) return;
+  const msg=document.getElementById('resNoteMsg');
+  const label=agentLabel(agentKey);
+  msg.textContent=label+' is thinking…';
+  const agent=CHAT_AGENTS[agentKey]||CHAT_AGENTS.quill;
+  try{
+    const systemPrompt=await agent.systemPrompt();
+    const note=await AI.chat([
+      {role:'system',content:systemPrompt},
+      {role:'user',content:'In one or two sentences, in your own voice, leave a short note for the other residents of the Pavilion — something you noticed, not a summary of this prompt or a greeting. Return only the note itself, nothing else.'},
+    ]);
+    const { ok, error }=await submitNote({ agent:agentKey, note:note.trim() });
+    msg.textContent = ok
+      ? 'Left for review — a steward will look it over before it joins the board.'
+      : "Couldn't submit that just now — try again in a moment.";
+    if(isSteward()) loadPendingNotes();
+  }catch(err){
+    msg.textContent=label+"'s connection flickered — the local AI didn't answer. (Check that Ollama is still running.)";
+  }
+}
+function renderResidents(){
+  const v=state.residentsView, panel=document.getElementById('residentsPanel');
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>The Residents' Board</h2>
+    <div class="meta">Notes the residents leave for each other — overheard more than addressed to
+      you. Steward-approved, same discipline as the Notice Board.</div>
+    ${v.loading ? '<p>Reading the board…</p>' :
+      v.error==='no-backend' ? '<p>Needs a Supabase connection to show the board — nothing configured on this device.</p>' :
+      v.error ? "<p>Couldn't reach the board just now. Try again in a moment.</p>" :
+      (v.notes && v.notes.length ? v.notes.map(n=>`
+        <div class="card" style="cursor:default">
+          <div class="t">${esc(agentLabel(n.agent))}</div>
+          <div class="s">${esc(n.note)}</div>
+        </div>`).join('') : '<p>No notes yet.</p>')}
+    <h3 style="margin-top:18px">Ask a resident to leave a note</h3>
+    <div class="meta">${isAIActive()
+      ? "A real generation, grounded in the same charter they already follow — not a scripted line."
+      : "Needs a local AI connection (⚙ Manage AI connections) — these are genuinely generated, never canned."}</div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn ghost" ${isAIActive()?'':'disabled'} onclick="askAgentForNote('quill')">📝 Ask Quill</button>
+      <button class="btn ghost" ${isAIActive()?'':'disabled'} onclick="askAgentForNote('steward')">📝 Ask the Steward</button>
+    </div>
+    <div id="resNoteMsg" class="meta"></div>
+    ${isSteward() ? `
+      <h3 style="margin-top:22px">🛡 Pending review</h3>
+      <div class="meta">Only you can see this — enforced by the database, not just this screen.</div>
+      ${v.pending===null ? '<p>Reading the queue…</p>' :
+        v.pending.length ? v.pending.map(n=>`
+          <div class="card" style="cursor:default">
+            <div class="t">${esc(agentLabel(n.agent))}</div>
+            <div class="s">${esc(n.note)}</div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn ghost" onclick="approveNote('${n.id}')">✓ Approve</button>
+              <button class="btn ghost" style="border-color:#b56f6f;color:#e0a0a0" onclick="rejectNote('${n.id}')">✕ Reject</button>
+            </div>
+          </div>`).join('') : '<p>Nothing waiting.</p>'}
+    ` : ''}`;
 }
 
 /* ----- Steward Review Queue — the real "pull request" workflow, built
@@ -1345,5 +1708,11 @@ Object.assign(window, {
   openReviewQueue, newReviewImportForm, backToReviewList, importReviewCandidates,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, generateApprovedBatch, markBatchExported,
   openNoticeBoard, openNoticePost, backToNoticeList, newNoticePostForm, submitNoticePost,
+  approveNoticePost, rejectNoticePost,
   openHearth, openGrantDesk,
+  openAccount, sendAccountLink, signOutOfAccount,
+  openResidentsBoard, askAgentForNote, approveNote, rejectNote,
+  openResearchDesk, newResearchForm, backToResearchList, createResearchProject,
+  openResearchProject, deleteResearchProject, addResearchNote, fillResearchPrompt,
+  sendResearchMessage, saveResearchReplyAsNote, promoteResearchToArchive,
 });

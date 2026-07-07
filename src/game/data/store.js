@@ -63,5 +63,27 @@ export const Store = (() => {
     allDocs(){ return libraryDocs; },
     listDocs(tradition){ return libraryDocs.filter(d => d.tradition === tradition); },
     getDoc(slug){ return libraryDocs.find(d => d.slug === slug) || null; },
+
+    // Account save sync (Phase 3) — reads/writes `player_saves`, one row
+    // per logged-in user. Never called unless a session exists; the
+    // orchestration (first-sync vs. conflict) lives in entities.js, which
+    // already owns `data`/`persist`. This stays a thin, honest wrapper.
+    async pullAccountSave(userId){
+      if(!supabase) return null;
+      try{
+        const { data: row, error } = await supabase.from('player_saves')
+          .select('data,updated_at').eq('user_id', userId).maybeSingle();
+        if(error || !row) return null;
+        return row;
+      }catch(e){ return null; }
+    },
+    async pushAccountSave(userId, saveData){
+      if(!supabase) return false;
+      try{
+        const { error } = await supabase.from('player_saves')
+          .upsert({ user_id:userId, data:saveData, updated_at:new Date().toISOString() });
+        return !error;
+      }catch(e){ return false; }
+    },
   };
 })();

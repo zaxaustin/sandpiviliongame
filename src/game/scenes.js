@@ -150,8 +150,11 @@ function buildWorkshop(){
     name:'The Workshop', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:6,y:9,to:'overworld',sx:31,sy:16},{x:7,y:9,to:'overworld',sx:32,sy:16}],
     signs:[{x:2,y:4,name:'ROUGH TIMBER SIGN',
-      text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nFace the desk and press E."}],
-    stations:[{x:6,y:3,kind:'archive',name:'THE ARCHIVE DESK'}],
+      text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. Face a desk and press E."}],
+    stations:[
+      {x:6,y:3,kind:'archive',name:'THE ARCHIVE DESK'},
+      {x:10,y:6,kind:'research',name:'THE RESEARCH DESK'},
+    ],
     npcs:[],
     spawn:{x:6,y:7}
   };
@@ -171,10 +174,11 @@ function buildCafe(){
       text:"THE CAFE\nA place to look outward, not down at a shelf. Face a\nstation and press E."}],
     stations:[
       {x:6,y:3,kind:'notice',name:'THE NOTICE BOARD'},
+      {x:2,y:3,kind:'residents',name:"THE RESIDENTS' BOARD"},
       {x:10,y:6,kind:'hearth',name:'THE HEARTH CORNER'},
       {x:2,y:6,kind:'grantdesk',name:'THE GRANT DESK'},
     ],
-    npcs:[{x:9,y:3,color:'#c86e5a',glow:'#f2b6a3',name:'THE STEWARD',wander:false,lines:[
+    npcs:[{x:9,y:3,color:'#c86e5a',glow:'#f2b6a3',name:'THE STEWARD',wander:false,ai:true,aiAgent:'steward',lines:[
       "Sit if you like. Nothing here is owed, only offered — same rule as everywhere else in this place.",
       "Every link on that board was walked through by a person first. Liberal, but never blind — that's the whole moderation model."]}],
     spawn:{x:6,y:8}

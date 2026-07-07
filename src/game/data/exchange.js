@@ -31,3 +31,25 @@ export async function submitQuestion({ title, body, external_url, author }){
   });
   return { ok: !error, error: error ? error.message : null };
 }
+
+/* ----- Steward moderation — only reachable at all once RLS actually
+   grants it (see is_steward() in the DB): a non-steward calling these
+   just gets an empty list / a denied write, same as anyone else. There's
+   no separate client-side gate here on purpose — the database is the
+   real gate, this is just the UI for someone the database already trusts. */
+export async function listPendingQuestions(){
+  if(!supabase) return { posts: [], error: 'no-backend' };
+  const { data, error } = await supabase
+    .from('exchange_questions')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+  if(error) return { posts: [], error: error.message };
+  return { posts: data, error: null };
+}
+
+export async function moderateQuestion(id, status){
+  if(!supabase) return { ok: false, error: 'no-backend' };
+  const { error } = await supabase.from('exchange_questions').update({ status }).eq('id', id);
+  return { ok: !error, error: error ? error.message : null };
+}
