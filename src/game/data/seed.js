@@ -18,6 +18,11 @@ export const CATEGORIES = [
   { id:'ai-written',   label:'AI-written' },
   { id:'personal',     label:'Personal' },
 ];
+/* Optional `added:'YYYY-MM-DD'` field, same "define before it's needed"
+   instinct — undated entries (everything seeded so far) just never show
+   the Index/shelf's "NEW" tag. `promote-draft.py` (sketched in the
+   README's Growing the Library section) should stamp this automatically
+   once it exists; until then, set it by hand on anything freshly added. */
 const RAW_SEED_LIBRARY = [
  // ---- Theravada ----
  { slug:'dhammapada', tradition:'Theravada', title:'The Dhammapada',

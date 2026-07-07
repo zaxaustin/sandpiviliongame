@@ -11,6 +11,34 @@ Go at whatever pace feels right. Skip stages that are already easy. Come
 back to this at any time and ask to pick up where you left off, or to
 have a stage adjusted — this document is meant to change as you do.
 
+## Where you are (updated 2026-07-07)
+
+- [x] **Stage 0** — credit for what you've already done
+- [ ] Stage 1 — the terminal isn't scary, it's just literal
+- [ ] Stage 2 — HTML, CSS, and JS are three different jobs
+- [ ] Stage 3 — how the files talk to each other
+- [ ] Stage 4 — what "local" and "API" actually mean, from the inside
+- [ ] Stage 5 — git, now that it's actually set up
+- [ ] Stage 6 — make a real change yourself
+- [ ] Stage 7 — system design (this one's paced in months, not days — fine
+  to leave unchecked indefinitely)
+- [ ] Stage 8 — how Quill's memory actually works
+- [ ] Stage 9 — web scraping vs. what the Caravan does
+- [ ] Stage 10 — AI integration, the whole spectrum
+- [ ] Stage 11 — AI as a character, not just an API call
+- [ ] Stage 12 — containers: what Docker is and isn't for
+- [ ] Stage 13 — databases & Supabase, concretely (new — see below)
+
+Only Stage 0 is checked off so far — everything else is still ahead of
+you, nothing archived out yet, **and that's worth being honest about**:
+Stage 13 below covers Phase 3 going live today (a real `library_documents`
+table, the café's `exchange_questions` table, row-level security), but
+that work was mostly me driving — reading it after the fact isn't the
+same as the hands-on bar every other stage sets, so it's unchecked too.
+This list exists so a glance at the top of the file answers "where did I
+leave off," instead of rereading the whole document each time; ask any
+time to have it updated as stages actually get done.
+
 ## Stage 0 — credit for what you've already done
 
 Before starting, worth noticing: you've already installed a program from
@@ -338,12 +366,7 @@ explicitly reuse-friendly, and legally uncomplicated. A random news site
 or someone's personal blog would not be, even though the *code* to fetch
 either one looks identical.
 
-**What you can actually do in the Pavilion today:**
-- Run `tools/caravan/gutenberg.py <book id>` (see its own docstring for
-  usage) to pull a public-domain book into a JSON file, then paste that
-  file into your **own** Archive Desk via "+ Bulk import." This is
-  completely automatic, and completely fine — it's your device, your
-  data, no one else is affected.
+
 - You **cannot** (by design, not by missing feature) bulk-import
   anything into the shared Library shelves (`SEED_LIBRARY`). Every text
   that's ever gone on those shelves was looked at by a person first —
@@ -577,6 +600,67 @@ in your own words, why "put it in Docker" wasn't the fix for the actual
 vulnerability that was found — and why that doesn't make containers a
 bad idea, just an answer to a different question than the one that was
 asked.
+
+## Stage 13 — databases & Supabase, concretely
+
+**Why this stage exists:** on 2026-07-07 the Library and the café's
+notice board both moved onto a real Supabase project — actual tables,
+actual security rules, actual network calls. That's a good excuse to
+build the vocabulary for what a real database actually is, since
+`localStorage` (everything up to now) quietly avoided all of it.
+
+**Concept: `localStorage` is a file; Postgres is a filing system with a
+bouncer.** Your save data has always lived as one big JSON blob in your
+own browser — simple, but only one visitor could ever see it, and
+nothing stopped any code on the page from reading or rewriting all of
+it. A real database like Postgres (what Supabase runs) organizes data
+into **tables** (rows and columns, like a spreadsheet with rules), and —
+critically — sits behind an actual security layer, so "can this specific
+request read or write this specific row" is enforced by the database
+itself, not by trusting the code that's asking.
+
+**The word for that security layer: RLS — Row Level Security.** Every
+table Phase 3 uses has RLS turned on, plus a short list of **policies**,
+each one a plain rule like "anyone can read a row where `status =
+'approved'`" or "a new row can only be inserted with `status =
+'pending'`." Go read the actual ones for the café's board:
+`exchange_questions`'s policies in the README's café section are the
+real, live rules — not a metaphor. This is the actual mechanism behind
+"nothing goes onto the notice board unmoderated": it's not a promise the
+app's code makes, it's a rule the database itself refuses to break,
+even if someone bypassed the game entirely and called the API directly.
+
+**A related word: migration.** Every schema change (adding a column,
+creating a table, writing a policy) went through Supabase as a named,
+ordered, saved step — `add_category_to_library_documents`,
+`create_exchange_questions`, and so on — the database's equivalent of a
+git commit: a durable record of exactly what changed, in order, that
+could in principle be replayed on a fresh database to reach the same
+state. Contrast this with just clicking around in a spreadsheet-like UI
+and manually editing cells — that leaves no trail.
+
+**One more, since it comes up immediately: why is it safe to put an API
+key in `.env.local` and ship it in the browser bundle?** `VITE_SUPABASE_PUBLISHABLE_KEY`
+is a **publishable** key — it's the front door, meant to be public, and
+it can *only* do what RLS policies allow it to do. That's different from
+a **service role** key (never used in this codebase), which bypasses RLS
+entirely and must never appear in anything that reaches a browser. The
+MCP tools used to set all this up (`apply_migration`, `execute_sql`) run
+with that higher trust level, on your behalf, outside the browser — the
+game itself never gets that power, on purpose.
+
+**Try this:** open your Supabase project's dashboard → Table Editor →
+`exchange_questions`. You're looking at the exact same rows the café's
+Notice Board reads. Then open the SQL Editor and run
+`select * from pg_policies where tablename = 'exchange_questions';` —
+that's the RLS rules above, but as the database sees them, not as prose.
+
+**You're ready to call this stage done when:** you can explain, in your
+own words, why the café's "approve a submission" step has to happen in
+the Supabase dashboard today instead of a button in the game — and it's
+not "because it wasn't built yet," it's "because there's no real login
+system to prove who's actually a steward," which is a security reason,
+not a laziness one.
 
 ---
 

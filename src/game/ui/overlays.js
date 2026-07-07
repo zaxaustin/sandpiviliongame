@@ -4,7 +4,8 @@ import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI } from '../ai/provider.js';
 import { CHARTER } from '../data/charter.js';
-import { SEED_LIBRARY, CATEGORIES } from '../data/seed.js';
+import { CATEGORIES } from '../data/seed.js';
+import { listApprovedQuestions, submitQuestion } from '../data/exchange.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable } from '../tts.js';
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -75,7 +76,7 @@ function remember(agent,text){
   persist();
 }
 function quillSystemPrompt(){
-  const shelf=SEED_LIBRARY.map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
+  const shelf=Store.allDocs().map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
   let prompt=CHARTER+'\n\nWhat is actually on the shelves right now:\n'+shelf;
   const mem=agentMemory('quill');
   if(mem.length){
@@ -224,7 +225,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); }
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','computerOv','requestsOv','inventoryOv','reviewOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','computerOv','requestsOv','inventoryOv','reviewOv','noticeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Pause menu — reachable with Esc from the open world, or the ☰ HUD button ----- */
@@ -389,12 +390,14 @@ function renderShelf(){
       ${docs.map((d,i)=>`
         <div class="spine ${i===state.shelfIndex?'sel':''}" style="--hue:${hue+i*4}" onclick="selectBook(${i})">
           ${data.read[d.slug]?'<span class="spineRead">✓</span>':''}
+          ${isRecentlyAdded(d.added)?'<span class="spineNew">NEW</span>':''}
           <span class="spineTitle">${esc(d.title)}</span>
         </div>`).join('')}
     </div>
     <div class="bookLabel">
       <div class="blTitle">${esc(sel.title)}
         ${data.read[sel.slug]?'<span class="badge">read ✓</span>':''}
+        ${isRecentlyAdded(sel.added)?'<span class="badge">NEW</span>':''}
         <span class="badge lic">${esc(sel.license)}</span>
       </div>
       <div class="blSummary">${esc(sel.doc.summary)}</div>
@@ -465,34 +468,62 @@ export function openIndex(){
   renderIndex(); showOv('indexOv');
 }
 function indexItems(){
-  const lib = SEED_LIBRARY.map(d=>({kind:'library', slug:d.slug, title:d.title, category:d.category, sub:d.tradition}));
-  const arc = data.workshop.docs.map(d=>({kind:'archive', slug:d.slug, title:d.title, category:d.category||'personal', sub:d.license||''}));
+  const lib = Store.allDocs().map(d=>({kind:'library', slug:d.slug, title:d.title, category:d.category,
+    sub:d.tradition, license:d.license, summary:d.doc.summary, added:d.added}));
+  const arc = data.workshop.docs.map(d=>({kind:'archive', slug:d.slug, title:d.title, category:d.category||'personal',
+    sub:d.license||'', summary:d.body||'', added:d.created}));
   return [...lib, ...arc];
 }
-export function setIndexCategory(id){ state.indexCategory=id; renderIndex(); }
+export function setIndexCategory(id){ state.indexCategory=id; state.indexSearch=''; renderIndex(); }
+// live-filters as you type; a full innerHTML rebuild on every keystroke would normally
+// drop focus/cursor from the input that triggered it, so re-focus and restore the
+// cursor position explicitly after each render.
+export function setIndexSearch(v){
+  state.indexSearch=v; renderIndex();
+  const inp=document.getElementById('indexSearch');
+  if(inp){ inp.focus(); inp.setSelectionRange(v.length, v.length); }
+}
+export function clearIndexSearch(){ state.indexSearch=''; renderIndex(); }
 export function openIndexItem(kind,slug){
   if(kind==='library') openReader(slug); else openArchiveDoc(slug);
+}
+// "new" is deliberately short-lived (14 days) — a welcome-mat for something just
+// shelved, not a permanent label. `added`/`created` are plain 'YYYY-MM-DD' strings.
+const INDEX_NEW_DAYS = 14;
+function isRecentlyAdded(dateStr){
+  if(!dateStr) return false;
+  const t = new Date(dateStr+'T00:00:00').getTime();
+  return !isNaN(t) && (Date.now()-t) < INDEX_NEW_DAYS*86400000;
 }
 function renderIndex(){
   const items=indexItems();
   const cat=state.indexCategory;
+  const search=(state.indexSearch||'').trim().toLowerCase();
   const counts={}; items.forEach(i=>{ counts[i.category]=(counts[i.category]||0)+1; });
-  const shown=items.filter(i=>i.category===cat);
+  const shown = search
+    ? items.filter(i => i.title.toLowerCase().includes(search) || (i.summary||'').toLowerCase().includes(search))
+    : items.filter(i=>i.category===cat);
   document.getElementById('indexPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>The Index</h2>
     <div class="meta">Every text in one place, sorted by kind rather than lineage — the Library's
       shelves and your own Archive Desk together. Categories with nothing in them yet are still
       shown; the shape's there before the content is.</div>
-    <div class="row" style="margin-bottom:12px">
-      ${CATEGORIES.map(c=>`<button class="btn ${c.id===cat?'':'ghost'}" style="font-size:11.5px;padding:6px 12px"
+    <input type="text" id="indexSearch" placeholder="Search titles and summaries…"
+      value="${esc(state.indexSearch||'')}" oninput="setIndexSearch(this.value)" style="margin-top:12px">
+    ${search ? `<div class="meta" style="margin:8px 0 0">
+        Searching every category for "${esc(state.indexSearch)}".
+        <button class="btn ghost" style="font-size:11px;padding:3px 10px;margin-left:6px" onclick="clearIndexSearch()">✕ clear</button>
+      </div>` : ''}
+    <div class="row" style="margin:12px 0${search?';opacity:.4':''}">
+      ${CATEGORIES.map(c=>`<button class="btn ${c.id===cat&&!search?'':'ghost'}" style="font-size:11.5px;padding:6px 12px"
         onclick="setIndexCategory('${c.id}')">${esc(c.label)} <span class="badge">${counts[c.id]||0}</span></button>`).join('')}
     </div>
     ${shown.length ? shown.map(i=>`
       <div class="card" onclick="openIndexItem('${i.kind}','${i.slug}')">
-        <div class="t">${i.kind==='library'?'📖':'📔'} ${esc(i.title)}</div>
+        <div class="t">${i.kind==='library'?'📖':'📔'} ${esc(i.title)}${i.kind==='library'?` <span class="badge lic">${esc(i.license)}</span>`:''}${isRecentlyAdded(i.added)?' <span class="badge">NEW</span>':''}</div>
         <div class="s">${esc(i.sub||'')}</div>
-      </div>`).join('') : '<p>Nothing here yet.</p>'}`;
+      </div>`).join('') : `<p>${search?'Nothing matches that search.':'Nothing here yet.'}</p>`}`;
 }
 
 /* ----- read-aloud for the Library — the actual "have books be read to
@@ -976,6 +1007,117 @@ export function removeRequest(id){
   persist(); renderRequests();
 }
 
+/* ----- The Notice Board (the café) — the shared, steward-moderated
+   counterpart to Waypoints: a post points outward at wherever its real
+   conversation lives, the same shape as a Waypoint, just shared instead
+   of personal. Read is public once approved; posting always lands as
+   'pending' — there's deliberately no "approve" button in the game
+   itself (see data/exchange.js's moderation note). */
+export function openNoticeBoard(){
+  state.ui='notice'; hideAllOv();
+  state.noticeView = { mode:'list', posts:null, loading:true, error:null, openPost:null };
+  renderNotice(); showOv('noticeOv');
+  loadNoticeBoard();
+}
+async function loadNoticeBoard(){
+  const { posts, error } = await listApprovedQuestions(3);
+  if(state.ui!=='notice') return; // panel was closed before the fetch came back
+  state.noticeView.posts=posts; state.noticeView.loading=false; state.noticeView.error=error;
+  renderNotice();
+}
+export function openNoticePost(id){
+  state.noticeView.openPost = (state.noticeView.posts||[]).find(p=>p.id===id);
+  state.noticeView.mode='post'; renderNotice();
+}
+export function backToNoticeList(){ state.noticeView.mode='list'; state.noticeView.openPost=null; renderNotice(); }
+export function newNoticePostForm(){ state.noticeView.mode='compose'; renderNotice(); }
+export async function submitNoticePost(){
+  const title=document.getElementById('npTitle').value.trim();
+  const body=document.getElementById('npBody').value.trim();
+  const url=safeUrl(document.getElementById('npUrl').value.trim());
+  const author=document.getElementById('npAuthor').value.trim();
+  const msg=document.getElementById('npMsg');
+  if(!title||!body){ msg.textContent='A title and a body are both required.'; return; }
+  msg.textContent='Submitting…';
+  const { ok, error } = await submitQuestion({ title, body, external_url:url||null, author:author||null });
+  if(!ok){
+    msg.textContent = error==='no-backend'
+      ? "The café needs a Supabase connection to post — nothing configured on this device."
+      : "Couldn't submit just now — try again in a moment.";
+    return;
+  }
+  logActivity('Posted a question to the café notice board: "'+title+'".');
+  state.noticeView.mode='submitted'; renderNotice();
+}
+function renderNotice(){
+  const v=state.noticeView, panel=document.getElementById('noticePanel');
+  if(v.mode==='compose'){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Post a Question</h2>
+      <div class="meta">Goes to a steward for review before it appears on the board — liberal, but never blind.</div>
+      <label>Title</label><input type="text" id="npTitle" maxlength="140" placeholder="What are you asking or sharing?">
+      <label>Body</label><textarea id="npBody" rows="5" placeholder="Say more, in your own words."></textarea>
+      <label>Link (optional)</label><input type="text" id="npUrl" placeholder="https://... if the real conversation lives elsewhere">
+      <label>Your name (optional)</label><input type="text" id="npAuthor" placeholder="How to sign it — defaults to anonymous">
+      <div id="npMsg" class="meta"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="submitNoticePost()">Submit for review</button>
+        <button class="btn ghost" onclick="backToNoticeList()">← Back</button>
+      </div>`;
+    return;
+  }
+  if(v.mode==='submitted'){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Submitted</h2>
+      <div class="meta">Thank you — a steward will look it over. Nothing goes onto the board unmoderated.</div>
+      <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="backToNoticeList()">← Back to the board</button></div>`;
+    return;
+  }
+  if(v.mode==='post' && v.openPost){
+    const p=v.openPost;
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>${esc(p.title)}</h2>
+      <div class="meta">${esc(p.author||'a visitor')} · ${new Date(p.created_at).toLocaleDateString()}</div>
+      <p>${esc(p.body)}</p>
+      ${p.external_url && safeUrl(p.external_url) ? `<p><a class="link" href="${esc(p.external_url)}" target="_blank" rel="noopener noreferrer">→ where the conversation continues</a></p>` : ''}
+      <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="backToNoticeList()">← Back to the board</button></div>`;
+    return;
+  }
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>The Notice Board</h2>
+    <div class="meta">Three most recent, steward-approved. A post here points outward — the real
+      conversation may live elsewhere, or right in the words below.</div>
+    ${v.loading ? '<p>Reading the board…</p>' :
+      v.error==='no-backend' ? '<p>The café needs a Supabase connection to show the board — nothing configured on this device.</p>' :
+      v.error ? "<p>Couldn't reach the board just now. Try again in a moment.</p>" :
+      (v.posts && v.posts.length ? v.posts.map(p=>`
+        <div class="card" onclick="openNoticePost('${p.id}')">
+          <div class="t">${esc(p.title)}</div>
+          <div class="s">${esc(p.author||'a visitor')} · ${new Date(p.created_at).toLocaleDateString()}</div>
+        </div>`).join('') : '<p>Nothing posted yet.</p>')}
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="newNoticePostForm()">+ Post a question</button></div>`;
+}
+
+/* ----- Hearth Corner + Grant Desk (the café) — deliberately just
+   scripted dialog, same as any sign or NPC. Low-stakes flavor stations,
+   not new subsystems; see the README's café section for why. */
+export function openHearth(){
+  openDialog('THE HEARTH CORNER', [
+    "The fire's always going here. No agenda — just a chair, and whoever else wandered in.",
+    "What are you working on lately? (No need to answer out loud. Some questions are just good to sit with.)",
+  ]);
+}
+export function openGrantDesk(){
+  openDialog('THE GRANT DESK', [
+    "A steward keeps a short list here of real places that fund independent practice and research — hand-picked, updated by hand, never a link dump.",
+    "Nothing's posted yet beyond the promise of it. Ask a steward in person for now — the list goes up once it's actually been checked.",
+  ]);
+}
+
 /* ----- Steward Review Queue — the real "pull request" workflow, built
    single-steward-first since only one user exists today. Anything
    headed for the shared Library — a submitted Archive Desk piece, or a
@@ -1196,10 +1338,12 @@ Object.assign(window, {
   openConnections, returnToTitle, resetSave,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
-  openBadges, openIndex, setIndexCategory, openIndexItem,
+  openBadges, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openComputer, fillComputerPrompt, sendComputerMessage, saveComputerReplyToArchive,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
   openReviewQueue, newReviewImportForm, backToReviewList, importReviewCandidates,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, generateApprovedBatch, markBatchExported,
+  openNoticeBoard, openNoticePost, backToNoticeList, newNoticePostForm, submitNoticePost,
+  openHearth, openGrantDesk,
 });

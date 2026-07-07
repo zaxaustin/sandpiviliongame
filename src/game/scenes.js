@@ -20,11 +20,11 @@ function buildOverworld(){
   }
   t[26][26]='G'; t[26][27]='D'; t[26][28]='D';
   const stamp=(x0,y0,x1,y1)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) t[y][x]='B'; };
-  stamp(14,2,25,8); stamp(4,11,11,15); stamp(28,11,35,15);
-  t[8][19]='P'; t[8][20]='P'; t[15][7]='P'; t[15][8]='P'; t[15][31]='P'; t[15][32]='P';
+  stamp(14,2,25,8); stamp(4,11,11,15); stamp(28,11,35,15); stamp(21,11,27,15);
+  t[8][19]='P'; t[8][20]='P'; t[15][7]='P'; t[15][8]='P'; t[15][31]='P'; t[15][32]='P'; t[15][24]='P'; t[15][25]='P';
   for(let y=9;y<=25;y++){ t[y][19]='P'; t[y][20]='P'; }
   for(let x=6;x<=34;x++){ t[17][x]='P'; t[18][x]='P'; }
-  t[16][7]='P'; t[16][8]='P'; t[16][31]='P'; t[16][32]='P';
+  t[16][7]='P'; t[16][8]='P'; t[16][31]='P'; t[16][32]='P'; t[16][24]='P'; t[16][25]='P';
   for(let x=21;x<=26;x++){ t[26][x]=(t[26][x]==='W')?'W':'P'; }
   for(let y=19;y<=26;y++){ if(t[y][21]!=='W') t[y][21]='P'; }
   for(let y=19;y<=22;y++) for(let x=16;x<=23;x++){ if(t[y][x]==='G') t[y][x]='S'; }
@@ -32,7 +32,7 @@ function buildOverworld(){
   for(let i=0;i<46;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='T'; }
   for(let i=0;i<34;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='F'; }
   [[19,9],[20,9],[7,16],[8,16],[31,16],[32,16],[26,26],[25,26],
-   [17,9],[5,16],[34,16],[24,25],[17,20],[10,18],[31,18],[25,27]
+   [17,9],[5,16],[34,16],[24,25],[17,20],[10,18],[31,18],[25,27],[27,16]
   ].forEach(([x,y])=>{ if(t[y][x]==='T'||t[y][x]==='F') t[y][x]='G'; });
 
   scenes.overworld = {
@@ -41,16 +41,19 @@ function buildOverworld(){
       {type:'castle',  x:14,y:2, w:12,h:7, label:'PAVILION KEEP'},
       {type:'library', x:4, y:11,w:8, h:5, label:'THE LIBRARY'},
       {type:'workshop',x:28,y:11,w:8, h:5, label:'THE WORKSHOP'},
+      {type:'cafe',    x:21,y:11,w:7, h:5, label:'THE CAFE'},
     ],
     warps:[
       {x:19,y:8,to:'keep',sx:8,sy:11},{x:20,y:8,to:'keep',sx:9,sy:11},
       {x:7,y:15,to:'library',sx:7,sy:9},{x:8,y:15,to:'library',sx:8,sy:9},
       {x:31,y:15,to:'workshop',sx:6,sy:8},{x:32,y:15,to:'workshop',sx:7,sy:8},
+      {x:24,y:15,to:'cafe',sx:6,sy:8},{x:25,y:15,to:'cafe',sx:7,sy:8},
     ],
     signs:[
       {x:17,y:9, name:'WOODEN SIGN', text:"PAVILION KEEP\nThe guild's charter rests here. All are welcome.\nNothing here is owned — only kept, and passed on."},
       {x:5,y:16, name:'WOODEN SIGN', text:"THE LIBRARY\nOpen to all. No gate, no fee, no ledger of debts.\nA Study waits behind the east door."},
       {x:34,y:16,name:'WOODEN SIGN', text:"THE WORKSHOP\nOne room stands finished: the Archive Desk, for your\nown words. Seven more are still just framing and\ngood intentions. — The Stewards"},
+      {x:27,y:16,name:'HAND-LETTERED SIGN', text:"THE CAFE\nWhere the Pavilion looks outward. A notice board, a\nhearth corner, a grant desk. — The Stewards"},
       {x:24,y:25,name:'OLD DOCK',    text:"The pond is older than the Pavilion.\nThe koi remember everything.\n(Stand on the dock, face the water, press E.)"},
     ],
     npcs:[
@@ -154,4 +157,28 @@ function buildWorkshop(){
   };
 }
 
-buildOverworld(); buildKeep(); buildLibrary(); buildStudy(); buildWorkshop();
+function buildCafe(){
+  const W=14,H=10, t=grid(W,H,'f');
+  for(let x=0;x<W;x++){ t[0][x]='w'; t[1][x]='w'; t[H-1][x]='w'; }
+  for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  t[H-1][6]='f'; t[H-1][7]='f'; // south door back to the Grounds
+  for(let y=2;y<=4;y++) for(let x=4;x<=9;x++) t[y][x]='c'; // the hearth rug
+  [[2,2],[11,2],[2,7],[11,7]].forEach(([x,y])=>t[y][x]='p');
+  scenes.cafe = {
+    name:'The Cafe', outdoor:false, tiles:t, w:W, h:H, buildings:[],
+    warps:[{x:6,y:9,to:'overworld',sx:24,sy:16},{x:7,y:9,to:'overworld',sx:25,sy:16}],
+    signs:[{x:2,y:4,name:'HAND-LETTERED SIGN',
+      text:"THE CAFE\nA place to look outward, not down at a shelf. Face a\nstation and press E."}],
+    stations:[
+      {x:6,y:3,kind:'notice',name:'THE NOTICE BOARD'},
+      {x:10,y:6,kind:'hearth',name:'THE HEARTH CORNER'},
+      {x:2,y:6,kind:'grantdesk',name:'THE GRANT DESK'},
+    ],
+    npcs:[{x:9,y:3,color:'#c86e5a',glow:'#f2b6a3',name:'THE STEWARD',wander:false,lines:[
+      "Sit if you like. Nothing here is owed, only offered — same rule as everywhere else in this place.",
+      "Every link on that board was walked through by a person first. Liberal, but never blind — that's the whole moderation model."]}],
+    spawn:{x:6,y:8}
+  };
+}
+
+buildOverworld(); buildKeep(); buildLibrary(); buildStudy(); buildWorkshop(); buildCafe();

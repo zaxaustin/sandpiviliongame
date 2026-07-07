@@ -65,14 +65,21 @@ npm test           # config sanity check — scenes, warps, seed data (no browse
 ```
 
 Deploy `dist/` anywhere that serves static files (Vercel, Netlify, GitHub
-Pages, etc). No server-side code exists yet — see Phase 3 below. The
-build is deploy-ready (verified clean, zero console errors, ~75KB JS /
-~9KB CSS gzipped) — local AI still works after deployment, since the
-game always checks `localhost:11434` from *whoever's browser is
-currently open*, not wherever the static files are hosted. The one thing
-not yet done is the actual deploy (needs a Vercel/Netlify account) — see
+Pages, etc). The build is deploy-ready (verified clean, zero console
+errors, ~87KB JS / ~2.7KB CSS gzipped now that `@supabase/supabase-js`
+is bundled in) — local AI still works after deployment, since the game
+always checks `localhost:11434` from *whoever's browser is currently
+open*, not wherever the static files are hosted. The one thing not yet
+done is the actual deploy (needs a Vercel/Netlify account) — see
 `LEARNING-PATH.md` Stage 5 and "Project history," below, for where this
 repo actually lives.
+
+**Phase 3 (Supabase) is live, optionally.** Copy `.env.example` to
+`.env.local` and fill in `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY`
+from your own Supabase project's API settings to connect the Library and
+café's notice board to a real database; without it, the Library reads
+`data/seed.js` as always and the notice board says so plainly. See "The
+café" and "How it's put together," below, for what actually moved.
 
 ## Features guide — everything, by location
 
@@ -124,6 +131,15 @@ entry**, **+ Bulk import** (paste a JSON array, or run
 `tools/caravan/gutenberg.py` first and paste its output), **📜 Ask
 Quill for a memory report**, and **📤 Submit for Library review** on
 any entry you've written.
+
+**The Café:**
+- **The Notice Board** — three most recent steward-approved posts from
+  the shared `exchange_questions` table; click one to read the full
+  thread, **+ Post a question** to submit your own (lands `pending`,
+  reviewed by a steward before it's visible to anyone else). Needs a
+  Supabase connection (see "Running it") — says so plainly if not.
+- **The Hearth Corner** and **The Grant Desk** — low-stakes scripted
+  stations, same shape as any sign or NPC; no backend involved.
 
 **The pond:** face water, `E` to cast; ten fish varieties, purely
 flavor-text, no mechanic beyond the catch.
@@ -292,12 +308,20 @@ data/seed.js  →  data/store.js  →  scenes.js  →  entities.js  →  ui/over
 (content)        (persistence)     (world data)  (state+logic)   (DOM panels)       (canvas)      (loop+input, wires it all up)
 ```
 
-- **`data/store.js`** is the one seam meant to move. Today it's
-  `localStorage` (falling back to an in-memory stub if storage isn't
-  available); Phase 3 swaps in a `SupabaseAdapter` that implements the same
-  four functions — `load`, `save`, `listDocs`, `getDoc` — over the network.
-  Everything else reads/writes through it; nothing else should ever touch
-  `localStorage` directly.
+- **`data/store.js`** is the one seam meant to move. `load`/`save`/`reset`
+  (player save data) are still local-only — there's no account system to
+  hang a network save on yet. `listDocs`/`getDoc`/`allDocs` (the Library)
+  now optionally read a Supabase mirror instead: on load, `Store` fetches
+  `library_documents` once into an in-memory array and every call site
+  keeps reading it synchronously, same as always — if Supabase isn't
+  configured, the fetch fails, or the table's empty, it just stays on the
+  bundled `SEED_LIBRARY`, no call site ever needs to know which. See
+  **`data/supabase.js`** (the client, `null` if unconfigured — same
+  NoProvider shape as the AI connection) and **`data/exchange.js`** (the
+  café's `exchange_questions` table — list approved posts, submit a
+  pending one; no in-game "approve," see the café section below for why).
+  Nothing else should ever touch `localStorage` or Supabase directly —
+  route through these three files.
 - **`scenes.js`** is pure data — tile grids plus arrays of npcs / signs /
   warps / stations. Adding a room means adding a `build*()` function and
   registering it in `scenes`, nothing more.
@@ -500,13 +524,27 @@ to the module boundaries:
   Computer" what a loose grouping across what you're carrying might be)
   — a suggestion to consider, never applied automatically.
 - More fish varieties at the pond (ten now, up from six).
+- **Phase 3 — a real Supabase project, wired up (2026-07-07).**
+  `library_documents` (all 16 texts, migrated from `seed.js`) and
+  `exchange_questions` (the café's notice board, RLS + five seeded
+  posts) both exist in a live Supabase project and are actually read by
+  the game — see "How it's put together" above for the adapter shape.
+  Player save data stays local-only; there's no account system yet to
+  attach a network save to.
+- **The Café — built (2026-07-07).** A fourth overworld building, east
+  of the vertical path between the Library and the Workshop. The Notice
+  Board is real and Supabase-backed (see above); the Hearth Corner and
+  Grant Desk are deliberately just scripted dialog for now, same as any
+  sign. Moderation is manual, on purpose — see the café section below
+  for exactly why there's no in-game "approve" button.
 
 Full session-by-session build narrative (what broke, what got fixed,
 what got verified how) lives in `archive/` — see "Project history"
 below — rather than growing here indefinitely.
 
-**Sketched, not built:** the café, seven more rooms of the workshop, the
-agent-to-agent notes commons, giving AI agents real hands (their own
+**Sketched, not built:** seven more rooms of the workshop, the
+agent-to-agent notes commons (waits on real steward auth — see the café
+section below), giving AI agents real hands (their own
 keyboard/mouse-equivalent access to the world), a public website /
 desktop app, and loading the tile map from external JSON instead of
 generating it in code. That's the build plan below.
@@ -535,6 +573,15 @@ needs, not a scrolling changelog of how it got there.
 
 ### The café — a link outward
 
+**Built (2026-07-07):** the building, the interior room, and the Notice
+Board (real, Supabase-backed) all exist — see "Where things stand" above
+and "How it's put together" for the adapter shape. The Hearth Corner and
+Grant Desk below are still deliberately just scripted dialog, not new
+subsystems. The rest of this section is kept as the original design
+sketch/rationale, since it's still accurate about *why* things are
+shaped the way they are — just read "could be" as "is" where it
+describes the Notice Board.
+
 The Library is a commons of *existing* human texts; the café is where the
 Pavilion looks outward instead of down at a shelf. It's a meeting place —
 a room whose job is to point at the rest of the web, and at each other,
@@ -562,6 +609,20 @@ library table in Phase 3 — a submission gets a `status: pending`, is
 visible to its submitter, and only appears on the notice board once a
 steward flips it to `approved`. No open free-for-all posting.
 
+**A real gap, worth stating plainly:** the `steward` RLS policy below is
+live in the database, but there's no steward *authentication* built yet
+— the game has no login system at all. So today, "a steward flips it to
+approved" literally means a person opening the Supabase dashboard's table
+editor (which uses the project's service role, bypassing RLS entirely)
+and editing the row by hand — the exact same manual gate
+`library_documents`'s insert policy already relies on. There's
+deliberately no "approve" button anywhere in the game itself: building
+one against the anon key would mean any visitor could flip their own
+submission to `approved`, which defeats the entire moderation model. Real
+steward auth (Supabase Auth, a `role` claim, a real login) is the actual
+prerequisite for an in-game moderation UI — worth its own build, not a
+quick add-on.
+
 **The dataset, concretely.** The notice board is a link-out, not an
 in-app forum — a post *points at* wherever its real conversation
 already lives, the same shape as a Waypoint, just shared and moderated
@@ -584,15 +645,16 @@ create policy "stewards see and moderate everything" on exchange_questions
   for all using (auth.jwt() ->> 'role' = 'steward');
 ```
 
-Reading the board (once Supabase exists) is exactly the query the
-archived dev-log sketch already had right: three most recent approved
-rows, clicking one opens the full post. Submitting a new one is the
-Review Queue's `pending`/`approved` pattern again, pointed at this table
-instead of `reviewQueue` — no new moderation UI to design, just wiring.
+Reading the board is exactly the query the archived dev-log sketch
+already had right: three most recent approved rows, clicking one opens
+the full post (`listApprovedQuestions()` in `data/exchange.js`).
+Submitting a new one (`submitQuestion()`, same file) always lands as
+`pending` — there's no separate moderation UI in the game, per the gap
+noted above.
 
 **Seed content, so the board isn't empty on day one** — five examples,
-written in the voice of a first real community, each already shaped
-right for the table above:
+actually seeded into `exchange_questions` now, written in the voice of a
+first real community, each already shaped right for the table above:
 
 1. *"Six months into a daily sit, and it's gotten boring — is that normal?"* — a
    practice question, the kind Moss or a fellow visitor would actually
@@ -687,6 +749,186 @@ came out of one conversation, related but not the same feature:
 
 Still open: a second Caravan connector; the shared café-side pieces,
 which wait for Phase 3.
+
+### Growing the Library — a sourcing backlog and a real promotion pipeline (2026-07-07)
+
+"Get more books" and "organize them" turn out to be one problem with two
+open seams, not a vague todo: the Caravan's two existing scripts
+(`gutenberg.py`, `library-draft.py`) don't actually chain into each other
+yet, and the last mile — folding a finished `library-drafts/*.md` into
+the Library — is still "ask me to do it by hand." Neither gap is big;
+both are worth closing before the backlog below grows past what
+hand-copying can keep up with.
+
+**The seam between the two existing scripts.** `gutenberg.py <id>`
+fetches a book, strips the Gutenberg header/footer, and writes a JSON
+file shaped for the Archive Desk's bulk import (`{title, license,
+source, body}`) — by the time that JSON exists, the original
+`Title:`/`Author:` lines `library-draft.py` looks for have already been
+stripped out of `body`. Feeding that JSON's text back into
+`library-draft.py` (which expects a raw `.txt` with those header lines
+still present) silently loses title/author autodetection — the two
+scripts were each built to work, but never actually run one after the
+other. Small, mechanical fix: give `gutenberg.py` a `--for-library` flag
+that, instead of (or alongside) the bulk-import JSON, writes
+`library-sources/<slug>.txt` with a `Title:`/`Author:` line re-prepended
+to the stripped body — so `gutenberg.py <id> --for-library` →
+`library-draft.py library-sources/<slug>.txt` chains with zero manual
+copy-paste, matching the two-step flow `library-drafts/README.md`
+already documents.
+
+**The last mile: `promote-draft.py`, replacing "ask me to fold it in."**
+Once a draft's `TODO`s are actually filled in, step 4 of
+`library-drafts/README.md` is still a person hand-typing a new object
+into `seed.js`. A script can do the mechanical part while keeping the
+one check that has to stay human — that license and tradition are real,
+not still `TODO`:
+
+```python
+# tools/caravan/promote-draft.py — sketch, not yet built
+# python tools/caravan/promote-draft.py library-drafts/lieh-tzu.md
+#
+# 1. Parse the completed draft (title/tradition/license/source/attribution/
+#    summary/sections) out of its Markdown shape.
+# 2. Refuse to run if license or tradition is still literally "TODO" —
+#    the one non-negotiable check the Review Queue already states in-game.
+# 3. Default target: append a formatted object to RAW_SEED_LIBRARY in
+#    src/game/data/seed.js, in the same shape every hand-added entry uses.
+# 4. Once Phase 3 exists (SUPABASE_URL/SUPABASE_KEY set): insert a row into
+#    `library_documents` instead, over the REST API — same script, a second
+#    target, no new design; matches the two-adapter shape Store/SupabaseAdapter
+#    already uses elsewhere in this project.
+# 5. Move the finished draft to library-drafts/done/<slug>.md so the staging
+#    folder only ever holds work actually in progress.
+```
+
+This keeps the one rule that actually matters — a person reads the
+source and writes the real summary, and a person decided the license is
+clean — while removing the copy-paste step around it, the same
+"automate the mechanical part, never the judgment call" line already
+drawn for the Steward Review Queue and the Caravan connectors generally.
+
+**A concrete backlog, not just an empty folder.** Four real, checked
+candidates — public domain, from sources this project already trusts,
+chosen specifically to not duplicate what's already on a shelf (the
+current 16-text catalog lives in `seed.js` — four Theravada suttas, four
+Mahayana texts, four Daoism texts, four Practice/house texts):
+
+- **Theravada** — *SN 45.8, the Vibhaṅga Sutta ("An Analysis of the
+  Path")*, [SuttaCentral](https://suttacentral.net/sn45.8), the same
+  source and CC0-style licensing as the four suttas already shelved.
+  This is the actual Eightfold Path text the café section above already
+  flags as a real gap ("the closest today is the
+  Dhammapada/Satipatthana/Metta/Anapanasati set") — closing it here
+  means the café's charter can eventually point at a real,
+  walk-up-readable shelf text instead of an assertion.
+- **Mahayana** — *The Lotus Sutra* (tr. H. Kern, Sacred Books of the
+  East vol. 21), sacred-texts.com, public domain. The current four
+  Mahayana texts lean Madhyamaka/Zen/Dzogchen (Heart Sutra, Diamond
+  Sutra, the Bodhicaryavatara, the Dzogchen note) with nothing from the
+  Pure Land / major-sutra side of the tradition — this is the single
+  most obvious gap.
+- **Mahayana** — *The Lankavatara Sutra* (tr. D.T. Suzuki, 1932),
+  [archive.org](https://archive.org/details/in.ernet.dli.2015.283028),
+  public domain — the foundational Yogacara/early-Zen source text,
+  again a different corner of Mahayana than what's shelved today.
+- **Daoism** — *Taoist Teachings from the Book of Lieh-Tzu* (tr. Lionel
+  Giles, 1912), [sacred-texts.com](https://sacred-texts.com/tao/tt/index.htm),
+  public domain (pre-1931). The Zhuangzi and Tao Te Ching are both
+  shelved; Liezi is the third of the three classical Daoist texts and
+  isn't yet.
+
+Each of these still needs the same discipline as every text on the
+shelf today — actually open the source, confirm the exact edition and
+license line, and write the summary/sections in your own words. This
+list exists so the next Caravan session starts with "go read and draft
+these four," not "figure out what to even look for."
+
+**Where this leaves the Practice shelf:** unlike the other three,
+Practice is the Pavilion's own writing (the steward's notes, the
+logbook, "How This Library Works") — nothing to source externally
+there; it grows from the Archive Desk and the Steward Review Queue, not
+the Caravan.
+
+### Streamlining the Library's front end — a two-track plan (2026-07-07)
+
+The backlog above adds books; this is the other half — the Library's UI
+(`openIndex`/`renderIndex`/`renderShelf` in `ui/overlays.js`) was built
+and verified against 15-16 texts and hasn't been revisited since. None
+of it is broken today, but a few real seams will start to show the
+moment the backlog above actually lands. Split into what's a
+straightforward front-end build (mine to do) and what's worth actually
+learning by doing (the user's side), so both tracks move at once instead
+of one waiting on the other.
+
+**Track 1 — front-end work, ready to build now:**
+
+1. **A real search box in the Index.** `renderIndex()` today only
+   filters by one category button at a time (`state.indexCategory`) —
+   there's no way to type "lieh" or "eightfold" and jump straight to a
+   text. A small `<input>` above the category row, filtering `indexItems()`
+   by title + summary text client-side (everything's already in memory,
+   no query needed), collapsing the category filter while a search term
+   is active. The single highest-value addition here — this is the thing
+   that actually matters once the shelf count roughly doubles.
+2. **A "new" marker on freshly-promoted texts.** Add an `added` (date)
+   field to each `seed.js` entry — `promote-draft.py` (sketched above)
+   would stamp it automatically — and show a small "NEW" tag on both the
+   shelf spine (`renderShelf`) and the Index card for anything added in
+   the last ~14 days. Makes the sourcing work above actually visible
+   in-world, not just in a commit log.
+3. **Shelf-case scaling check.** `renderShelf` renders every spine in one
+   row (`hue+i*4` stepping per spine) with no scroll handling — fine at
+   4 texts per shelf, untested past that. Once Theravada gains its 5th
+   text (the Eightfold Path sutta above) and Mahayana its 6th, this needs
+   an actual look: either the CSS already wraps gracefully, or `shelfCase`
+   needs `overflow-x:auto` and a scroll hint. Small, but worth catching
+   before it's a visibly cramped shelf rather than a hypothetical one.
+4. **License visible everywhere in the Index, not just on the shelf.**
+   `renderIndex`'s cards show `sub` (tradition for library docs, license
+   for archive docs) but not license for library docs specifically —
+   `renderShelf` already shows a license badge; the Index should match,
+   so "what is it, where's it from" holds at the all-texts view too, not
+   only per-shelf.
+
+None of these four touch `Store`, `data`, or persistence — they're pure
+`ui/overlays.js` + `style.css` changes, independently shippable, and
+safe to build in any order without waiting on the library-growth or
+Supabase work above.
+
+**Track 2 — worth learning by actually doing, not just reading about:**
+
+1. **Deploy the current build.** Still the single most valuable thing
+   left undone in this whole project (see "Running it," above) — a
+   Vercel or Netlify account, `npm run build`, point it at `dist/`. Real,
+   fifteen-minutes-once-you-do-it work, and it's the thing every other
+   plan on this page (café, Supabase, "other people visiting") actually
+   depends on existing first.
+2. **Run the Caravan pipeline on one real book, start to finish.** Pick
+   one of the four backlog candidates above, actually fetch it (Gutenberg
+   script or a direct sacred-texts.com/archive.org save), run
+   `library-draft.py` on it, and fill in the draft by hand — title,
+   license, tradition, and a summary written from actually having read
+   some of it. This is Stage 9 of `LEARNING-PATH.md` (scraping ethics)
+   made concrete, plus the actual editorial judgment call ("is this
+   license really clean") that no script should ever make for you.
+3. **Create the Supabase project now, ahead of writing any adapter
+   code.** `supabase.com` → new project → look at the SQL editor, the
+   table view, the auto-generated API docs. Nothing to build yet — just
+   getting comfortable with what "a hosted Postgres database with an
+   auto-generated API" actually looks like before Phase 3 asks you to
+   reason about `SupabaseAdapter` and row-level security policies at the
+   same time you're still learning what a table even is.
+4. **`LEARNING-PATH.md` Stage 7 (system design), at whatever pace.** Not
+   urgent, but it's the "months not an afternoon" list — worth picking
+   one term a week rather than saving it for a day that never comes.
+
+**Suggested pairing:** work Track 2 item 1 (deploy) and item 2 (one real
+book through the pipeline) first — both are self-contained, both
+produce something real you can point at, and neither blocks on me. I'll
+start on Track 1 item 1 (the Index search box) whenever you say go,
+since it's the smallest, most self-contained front-end piece and the one
+most worth having before the shelf count grows any further.
 
 ### AI agents as residents — local-first integration plan (2026-07-07)
 
@@ -1426,13 +1668,16 @@ small table later.
 
 1. Deploy the current Vite build (verified deploy-ready — see "Running
    it" above) so persistence, and Quill, are real for people besides you.
-2. Stand up Supabase + `SupabaseAdapter` (Phase 3) — the café's notice
+2. Close the Caravan pipeline gap (`--for-library` + `promote-draft.py`,
+   above) and work through the four-book sourcing backlog — this doesn't
+   need Supabase and is safe to do in parallel with anything else here.
+3. Stand up Supabase + `SupabaseAdapter` (Phase 3) — the café's notice
    board needs it, and it's better to have one storage migration than two.
-3. Build the café's notice board + hearth corner against real (if sparse)
+4. Build the café's notice board + hearth corner against real (if sparse)
    data.
-4. Give the Mountain Monk his real voice once his original persona is
+5. Give the Mountain Monk his real voice once his original persona is
    supplied.
-5. Everything else (grant desk, external tile-map JSON, the agent-notes
+6. Everything else (grant desk, external tile-map JSON, the agent-notes
    commons, more residents, the workshop's remaining seven rooms) after
    that foundation holds.
 

@@ -155,15 +155,15 @@ function drawBuilding(b,ox,oy){
     ctx.fillStyle='#ffe9b0';
     for(const wx of [x+w*.28,x+w*.66]) ctx.fillRect(wx,y+S*2.4,S*.5,S*.7);
   } else {
-    const wood=b.type==='library'?'#a3744a':'#8f6a4e';
-    const roof=b.type==='library'?'#7c5033':'#5e5468';
+    const wood=b.type==='library'?'#a3744a':(b.type==='cafe'?'#b5754a':'#8f6a4e');
+    const roof=b.type==='library'?'#7c5033':(b.type==='cafe'?'#8a4a3a':'#5e5468');
     ctx.fillStyle=roof; ctx.beginPath();
     ctx.moveTo(x-S*.2,y+S*1.4); ctx.lineTo(x+w/2,y-S*.3); ctx.lineTo(x+w+S*.2,y+S*1.4); ctx.fill();
     ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(x-S*.2,y+S*1.25,w+S*.4,S*.15);
     ctx.fillStyle=wood; ctx.fillRect(x,y+S*1.4,w,h-S*1.4);
     ctx.fillStyle='rgba(0,0,0,.08)';
     for(let r=0;r<3;r++) ctx.fillRect(x,y+S*1.7+r*S,w,2);
-    const doorX=x+((b.type==='library'?7:31)-b.x)*S;
+    const doorX=x+((b.type==='library'?7:b.type==='cafe'?24:31)-b.x)*S;
     ctx.fillStyle='#3a2c1e'; ctx.fillRect(doorX,y+h-S*1.4,S*2,S*1.4);
     ctx.fillStyle='#ffe9b0';
     ctx.fillRect(x+S*.7,y+S*2,S*.7,S*.8);
@@ -181,6 +181,9 @@ function drawBuilding(b,ox,oy){
         const yy=((t*.5+i*.4)%1.4);
         ctx.beginPath(); ctx.arc(x+w-S*.9+Math.sin(t+i)*S*.1,y-S*.2-yy*S,S*(.12+yy*.1),0,7); ctx.fill();
       }
+    }
+    if(b.type==='cafe'){
+      for(let i=0;i<4;i++){ ctx.fillStyle=i%2?'#e0a43c':'#c86e5a'; ctx.fillRect(doorX-S*.3+i*S*.65,y+h-S*1.85,S*.65,S*.4); }
     }
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+w/2-S*1.6,y+S*1.55,S*3.2,S*.5);
     ctx.fillStyle='#e0a43c'; ctx.font=`bold ${Math.floor(S*.28)}px Courier New`;

@@ -1,8 +1,35 @@
 import { SEED_LIBRARY } from './seed.js';
+import { supabase } from './supabase.js';
+
+/* ----- Library mirror — fetched once, read synchronously ever after.
+   Every call site (renderShelf, Quill's grounding, the Index, …) calls
+   Store.listDocs/getDoc/allDocs synchronously, mid-render; making those
+   async would ripple through every overlay that touches the Library.
+   Instead: start from the bundled seed (works instantly, offline-safe),
+   then quietly swap in the Supabase mirror if and when it arrives. If
+   Supabase isn't configured, comes back empty, or the fetch fails, the
+   seed just stays — the same NoProvider-style fallback the AI connection
+   already uses, applied here to data instead of a chat reply. */
+let libraryDocs = SEED_LIBRARY;
+let librarySource = 'seed';
+const libraryReady = (async () => {
+  if(!supabase) return;
+  try{
+    const { data: rows, error } = await supabase.from('library_documents').select('*');
+    if(error || !rows || !rows.length) return;
+    libraryDocs = rows.map(r => ({
+      slug:r.slug, tradition:r.tradition, title:r.title, license:r.license,
+      source_url:r.source_url, attribution:r.attribution, doc:r.doc,
+      added:r.added, category:r.category||'classical',
+    }));
+    librarySource = 'supabase';
+  }catch(e){ /* stays on the seed — never a hard failure */ }
+})();
 
 /* ================================================================
-   [STORE] — the adapter. Swap this object for SupabaseAdapter in
-   Phase 3; nothing else in the file changes.
+   [STORE] — the adapter. Player save data (load/save/reset) stays
+   local-only — there's no account system yet to hang a network save
+   on. Library reads are the one piece Phase 3 actually wires up today.
    ================================================================ */
 export const Store = (() => {
   const KEY = 'sandPavilionSave.v2';
@@ -28,9 +55,13 @@ export const Store = (() => {
       mem = null;
       if(ls){ try { ls.removeItem(KEY); } catch(e){} }
     },
-    // Library access — LocalAdapter reads the bundled seed.
-    // SupabaseAdapter implements these same two calls over the network.
-    listDocs(tradition){ return SEED_LIBRARY.filter(d => d.tradition === tradition); },
-    getDoc(slug){ return SEED_LIBRARY.find(d => d.slug === slug) || null; },
+    // Library access — reads the in-memory mirror above (seed until/unless
+    // Supabase's fetch resolves). `libraryReady` lets a caller that cares
+    // (e.g. the title screen's status line) wait for the real answer.
+    get libraryMode(){ return librarySource; },
+    libraryReady,
+    allDocs(){ return libraryDocs; },
+    listDocs(tradition){ return libraryDocs.filter(d => d.tradition === tradition); },
+    getDoc(slug){ return libraryDocs.find(d => d.slug === slug) || null; },
   };
 })();
