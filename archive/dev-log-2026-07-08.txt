@@ -141,3 +141,148 @@ SESSION 5 — README overhaul, and the Sand Pavilion opinions
 - README rewritten for a professional, current-state read rather than a
   running changelog — the detailed narrative of everything built across
   2026-07-08 moved here, to this file, where it belongs.
+
+================================================================
+SESSION 6 — Library cleanup, and a real desktop app goes live
+================================================================
+
+- Seven shelf entries that stood in for a real book but only had a
+  summary — Heart Sutra, Diamond Sutra, Bodhicaryavatara, Kalama Sutta,
+  Sigalovada Sutta, Zhuangzi, Religions of Ancient China — removed from
+  both `seed.js` and the live Supabase table. Found, separately, eight
+  more placeholder-only entries live in Supabase that had drifted ahead
+  of `seed.js` entirely (added via the drafting pipeline, never
+  reflected locally); five given real full text (Chemical History of a
+  Candle, Our National Parks, Man and Nature, Tesla's
+  Inventions/Researches/Writings, the Vibhaṅga Sutta), three removed
+  for lack of an open-license source. Caught a real bug along the way:
+  two books tagged `tradition:'Nature'` had no matching shelf and were
+  unreachable in-game; reassigned to Science.
+- Electron picked over Tauri (pure JS, same language as the whole
+  codebase). `electron/main.cjs` proxies Ollama requests through Node's
+  own `fetch` instead of the renderer's — the permanent fix for the
+  browser CORS wall that requires `OLLAMA_ORIGINS` configured exactly
+  right. Proven live, not assumed: a real `GET /api/tags` and
+  `POST /api/chat` round-trip through the bridge, then an actual
+  in-game conversation. A first-run "install Ollama" link (routed to
+  the real system browser via `shell.openExternal`, not a second app
+  window) when no local AI is reachable. A real Windows installer
+  (`npm run electron:build`) and a one-click dev launcher batch file.
+- A real environment gotcha: the sandboxed shell used to build this had
+  `ELECTRON_RUN_AS_NODE=1` set, making Electron's own binary run as
+  plain Node instead of opening a window — not a code bug, worked
+  around per-launch. A second, separate gotcha hit building the
+  installer: Vite's own dev server, left running in the background,
+  fought with electron-builder's file extraction (its HMR watcher
+  picked up the newly-written installer files mid-build), producing a
+  Windows `EPERM` on a folder rename three times in a row before the
+  actual cause was found.
+- The Research Desk broadened to help with real-world projects, not
+  just research topics — new quick-starts ("break this into next
+  steps," "what do I need to get started," "what could go wrong") and
+  a system-prompt rewrite recognizing "build a garden" as a different
+  kind of ask than "study a topic."
+- The Mountain Monk moved from the Library to the Pavilion Keep — a
+  quieter room, off the Grounds' main paths, for an actual one-on-one
+  conversation instead of competing with the shelves. Formalized the
+  role split in both his and the Steward's AI personas: the Monk for
+  conduct/meaning/practice, the Steward for daily life.
+- The Writing Desk gained real AI help: "Ask the Steward," grounded in
+  today's intention, rhythm blocks, and what's due soon.
+
+================================================================
+SESSION 7 — Real search, a Library-storage health check, more books
+================================================================
+
+- Real search: a Postgres `tsvector` column + GIN index on
+  `library_documents` (title weighted highest, tradition/summary next,
+  section text lowest), plus a `search_library_documents()` RPC
+  returning results ranked by `ts_rank`. The Index panel's search now
+  calls it (debounced, race-safe against a faster follow-up keystroke),
+  falling back to the existing local substring match if Supabase isn't
+  configured or a query errors. Verified live: a word-stemmed query
+  ("mindfulness breathing") correctly found the right book with no
+  literal substring match.
+- A passive Library-storage status line, same pattern as the existing
+  Ollama one — checks MinIO's real `/minio/health/live` endpoint, but
+  only shown when the mirrored Library actually has a MinIO-backed
+  book, so it never alarms a visitor who isn't using local storage.
+  Wired into `Store.libraryReady`, a hook that had existed unused since
+  Phase 3.
+- Five more real texts: the Buddha's first and second sermons and the
+  Mangala Sutta (SuttaCentral, Bhikkhu Sujato), Epictetus's Enchiridion
+  and Plato's Apology/Crito/Phaedo (Gutenberg). Caught two
+  mis-attributions before shelving anything — the actual file headers
+  named Thomas W. Higginson and Henry Cary as translators, not the
+  translators a web search's summary text had suggested — checked the
+  real source before writing anything into the database.
+- `library-inbox/` — one subfolder per source website for manually
+  downloaded books, gitignored like `library-sources/` — and
+  `LIBRARY-GROWTH-PLAN.md`: the license-first rule (free to read is not
+  the same as free to shelve), why hand-picked connectors stay the
+  approach over a general scraper, and a real categorized source list.
+- Actually installed and ran the packaged installer for the first
+  time (previously only the build itself had been proven, never the
+  real install-and-launch). Surfaced a real, previously-unverified gap:
+  the installed app (`file://` origin) and the dev/browser version
+  (`http://localhost:5173`) have completely separate, mutually
+  invisible `localStorage` — basic same-origin browser behavior, not a
+  bug — meaning save progress doesn't carry over between them. The
+  existing Export/Import save feature (built a prior session) turned
+  out to already be the exact bridge needed, no new code required.
+
+================================================================
+SESSION 8 — Closing the loop, the sect look, and the Monk's standing priority
+================================================================
+
+- The actual gap named directly by the user as the project's real
+  point: "I want my day to be at ease where this place can help me
+  find direction and the tools needed to make use of the knowledge
+  provided." Closed the concrete version of it: every book note in the
+  Reader now has a "Bring to today's plan" button — one click, and it
+  lands as a "spark" on the Writing Desk's planner-day record,
+  attributed to the book it came from, folded straight into the
+  Steward's day-planning system prompt alongside due items and past
+  embers. Verified live end to end.
+- The player/NPC sprite redesigned from a plain colored rectangle with
+  a stroked hood outline into an actual robed silhouette: shoulders
+  wide, waist gathered at a sash, hem flaring back out; wide sleeves
+  draping down from the shoulder; dark hair with a topknot and a
+  sect-colored pin. One shared helper keeps the look consistent across
+  walking and all three meditation poses. Verified visually, not just
+  read back as code — real screenshots captured from a running
+  Electron window via `webContents.capturePage()`, cropped and
+  upscaled with PowerShell's `System.Drawing`, reviewed, and iterated
+  once (the first sleeve version read as flat triangular wings, fixed
+  by angling them down). Player robe recolored purple-and-black per
+  direct request; sash changed from cream to black across every
+  character. `CHARACTER-CUSTOMIZATION-PLAN.md` written for the real
+  color/hairstyle picker, deliberately deferred rather than built now.
+- A standing rule, the user's own words: "the mountain monk should
+  always be the best local model, never let that change for other
+  things... this is a Buddhist temple first and foremost." Built
+  `bestLocalModel()` (reads whatever `isAvailable()` already confirmed
+  is installed, picks the largest by parameter count) and
+  `chatOptsFor()`, applying it — plus `think:true` and a new `deep`
+  token/timeout tier well past what everything else gets — to the
+  Monk's live chat and anything drafted from a conversation with him.
+  Verified live against the user's real installed models. Surfaced a
+  real, separate, unresolved gotcha: the user's *default* connection
+  (everyone but the Monk) was still pinned to a thinking model from a
+  choice made before `llama3.2` was installed, silently overriding the
+  auto-pick that would otherwise favor it — flagged directly, fix is a
+  manual Connections-panel change, not yet confirmed done.
+- `AGENT-EMBODIMENT-PLAN.md` written: giving AI residents actual bodies
+  (act, not just answer), scoped to a bounded first version (one
+  resident, one real action) instead of a full action API on day one.
+- `LIBRARY-GROWTH-PLAN.md` expanded with a dedicated research-papers
+  plan: more real sources (PLOS, OpenAlex, Unpaywall, bioRxiv/medRxiv,
+  SciELO), and the actual identified gap — arXiv already fetches a
+  PDF, but nothing turns it into plain text, so it never becomes a real
+  shelf entry. `tools/caravan/pdf-to-text.py` named as the single
+  missing piece, now the roadmap's #1 item.
+- README's "What's next" reordered around the user's own stated north
+  star instead of rough technical priority, and two "go big" Hopes and
+  Dreams sections written at the user's explicit request: the best
+  home office anyone's had, and what would make "AI worth everyone
+  actually having" true rather than just truthfully claimed.

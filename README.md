@@ -118,14 +118,26 @@ shelved texts and the charter. The Monk keeps his own quarters in the
 Pavilion Keep now, north of the Grounds, for conduct/meaning/practice
 specifically — daily-life help is the Steward's place, including a real
 "Ask the Steward" at the Writing Desk that helps plan your actual day,
-grounded in what's due soon and how recent days went. The Computer can
-save a plan straight to your Archive Desk; the Research Desk's
-assistant helps with real projects, not just research topics — turning
-an idea into concrete next steps — and can summarize any chapter or
-paper you paste in, kept as a private note, never shared. Connect a
-cloud provider instead or as well — Claude, ChatGPT, or Grok — and the
-same residents talk through that; every connection is labeled 🏠 local
-or ☁ cloud so it's always clear whose machine a conversation is on.
+grounded in what's due soon, how recent days went, and any "sparks"
+you've brought over from a book's reading notes. The Monk himself
+always runs on the single best local model actually installed, with
+real room to think — a standing rule, not a default, held separately
+from the speed/reliability tradeoffs everything else in the Pavilion is
+free to make. The Computer can save a plan straight to your Archive
+Desk; the Research Desk's assistant helps with real projects, not just
+research topics — turning an idea into concrete next steps — and can
+summarize any chapter or paper you paste in, kept as a private note,
+never shared. Connect a cloud provider instead or as well — Claude,
+ChatGPT, or Grok — and the same residents talk through that; every
+connection is labeled 🏠 local or ☁ cloud so it's always clear whose
+machine a conversation is on.
+
+**Reading and doing, one motion** — every note you take on a book in
+the Reader gets a "Bring to today's plan" button; one click and it
+lands as a "spark" on the Writing Desk, attributed to the book it came
+from, visible to the Steward's day-planning help and to your own
+journal when you look back on a past day. A book note isn't a dead end
+anymore.
 
 **A real desktop app** — Electron-based, wraps the same game in its own
 window with its own native process that proxies local Ollama requests
@@ -287,52 +299,57 @@ knowledge into use — not feature count — is the tie-breaker for what
 gets built next. The list below is ordered against that, not just by
 what's technically easiest.
 
-1. **Close the loop between reading and doing — not started, the
-   current top priority.** Right now a book's reading notes
-   (`bookNotes`, written in the Reader) just sit there — nothing carries
-   an idea from "I just read this" into today's intention, a Research
-   Desk project, or a course. Held against the north star above, this
-   is higher-leverage than any new feature: a "bring this to today's
-   plan" action in the Reader, or letting the Writing Desk's AI
-   assistant see recent book notes the same way it already sees due
-   items and past embers, would make the Library and daily planning
-   feel like one place instead of two.
+**Done since this list was last written (2026-07-08, same day):**
+closing the reading→doing loop (every book note can become a "spark" on
+the Writing Desk, one click); real Postgres full-text search in the
+Index; a Library-storage health check alongside the existing Ollama
+status line; the Library grown to 25 texts (19 with real full text);
+the Mountain Monk relocated to the Keep with a formal role split from
+the Steward; the player/NPC sprite redesigned as an actual robed
+silhouette (sash, draping sleeves, hair/topknot); and a standing rule
+that the Monk always gets the best available local model with real
+room to think, never traded for speed the way everything else may be.
+
+1. **Turn research papers into real shelf entries — named the current
+   top priority by the user, 2026-07-08.** Not a sourcing problem
+   (arXiv and Semantic Scholar are already connected, and
+   `LIBRARY-GROWTH-PLAN.md` lists real candidates for more) — a PDF
+   never gets past "fetched," because nothing in the Caravan turns a
+   PDF into plain text yet. See `LIBRARY-GROWTH-PLAN.md`'s "Turning a
+   paper into something the Reader can actually page through" for the
+   actual plan: one new script, `tools/caravan/pdf-to-text.py`, is the
+   whole gap — everything downstream (draft → summary → promote →
+   attach) already works unchanged once there's plain text to feed it.
 2. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 25 texts and growing; see
    [`LIBRARY-GROWTH-PLAN.md`](LIBRARY-GROWTH-PLAN.md) for the curated
-   source list, why hand-picked connectors stay the approach instead of
-   a general scraper, and which connectors (Standard Ebooks, OpenStax,
-   Internet Archive) are worth building next. More knowledge only
-   serves the north star once it's actually reachable — this stays
-   paired with #1, not a replacement for it.
+   source list and which connectors (OpenAlex, Standard Ebooks,
+   OpenStax, Internet Archive) are worth building next.
 3. **Giving AI residents actual bodies, not just voices** — see
    [`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md): a bounded
    first version (one resident, one real action, like Quill reading a
    shelved book during an idle tick) before any general action API.
    Direct service to "find direction" — a resident who's actually doing
    something, not just answering when spoken to.
-4. **A friendlier wrapper around the Caravan scripts** — worth
+4. **A real color/appearance picker** — see
+   [`CHARACTER-CUSTOMIZATION-PLAN.md`](CHARACTER-CUSTOMIZATION-PLAN.md),
+   written down 2026-07-08 after the sprite redesign made it a real
+   foundation instead of a placeholder. A genuine system (persisted
+   data, threaded through every render site), not a quick add.
+5. **A friendlier wrapper around the Caravan scripts** — worth
    confirming it's still wanted before it's built, now that the
    terminal tools work well on their own and `library-inbox/` covers
    manual sourcing.
-5. **Turn downloaded papers into something the Reader can page through**
-   — right now a fetched arXiv PDF is read outside the game; parsing it
-   into plain text would close that specific loop too.
-6. **Finish testing the desktop app** — Phases 1-4 done and proven live
-   (2026-07-08): the native Ollama proxy, real search, and the whole
-   day-to-day loop all beta-tested successfully by the user themselves
-   in the actual dev build. Remaining: run the packaged installer itself
-   (`release/Sand Pavilion Setup 0.0.1.exe`) rather than just dev mode,
-   and a test on a machine that isn't the dev machine.
-7. **Character customization** — clothes, a color picker, hairstyles;
-   see Hopes and Dreams for the real scope. A genuine system, not a quick
-   add. Lower priority against the north star specifically — real, but
-   not about ease/direction/knowledge-to-action.
-8. **Finish the production auth setup** — add the Vercel URL to
+6. **A machine-that-isn't-the-dev-machine test for the desktop app** —
+   Phases 1-4 done and proven live (2026-07-08), including actually
+   running the packaged installer itself (not just dev mode) for the
+   first time. The one thing still genuinely unverified: a clean
+   install on hardware that was never used to build it.
+7. **Finish the production auth setup** — add the Vercel URL to
    Supabase's Auth redirect-URL allowlist, grant a real steward role, and
    verify moderation with an actual session — whenever the Commons comes
    back off pause.
-9. **Six more Workshop rooms** and the larger public-site question.
+8. **Six more Workshop rooms** and the larger public-site question.
 
 ## Hopes and dreams
 
@@ -365,13 +382,17 @@ a diary.
 
 ### Make the character actually yours (sketched, not built)
 
-Right now every visitor is the same orange-robed figure. The real ask:
-**pick your own color**, **clothes in a light-novel cultivation-sect
-style** (flowing robes, sect colors, the aesthetic this Pavilion already
-half-leans on), and **hairstyles** — a real character-creator moment,
-not just a palette swap. Worth doing once, worth doing right: it needs a
-character-creator UI, persisted appearance data, and every place a
-player sprite renders threaded to actually draw it.
+Every visitor draws as an actual cultivation-sect disciple now, not a
+plain colored rectangle — a real robe silhouette, a sash, draping
+sleeves, hair with a topknot (redesigned 2026-07-08; the player's own
+robe is purple and black). Still just one fixed look, though. The real
+ask, and the actual reason the redesign happened first: **pick your own
+robe color**, and eventually a **hairstyle** — a real character-creator
+moment, not just a palette swap. See
+[`CHARACTER-CUSTOMIZATION-PLAN.md`](CHARACTER-CUSTOMIZATION-PLAN.md)
+for the real scope: a character-creator UI, persisted appearance data,
+and every place a player sprite renders (the overworld, every interior,
+all three meditation poses) threaded to actually draw it.
 
 ### The four postures, and what comes after them
 
@@ -390,6 +411,86 @@ there's a real teacher — the Monk, most likely — to ground it in
 something more than decoration. Two deer and two bunnies wander the
 Grounds today, decorative only, no mechanic yet — the first honest piece
 of this, not the system itself.
+
+### The best home office anyone's ever had (2026-07-08, asked for explicitly — go big)
+
+Everything below is speculative, not scoped — the point of this section
+is to not lose a good idea, same as the rest of Hopes and Dreams, not to
+promise it. Held against the actual north star (ease, direction,
+knowledge into use):
+
+- **A real morning briefing, opt-in and passive** — the Steward already
+  sees due items, recent embers, and today's sparks; the natural next
+  step is a single "here's your day" moment when you first open the
+  Study, generated once, sitting there to read or ignore — never a
+  popup, matching the standing automation rule this project already
+  holds itself to.
+- **A real weekly/monthly review** — the Steward drafting an actual
+  look-back from a stretch of planner days and sparks, the same way the
+  Monk can already draft a training plan from a conversation. The
+  journal already holds the raw material; nothing reads it back at
+  range yet.
+- **Voice in, not just voice out** — TTS already reads books and NPC
+  replies aloud; the missing half is speaking *to* Quill, the Steward,
+  or the Monk instead of typing, using the browser's own free
+  `SpeechRecognition` API — same "no paid cloud API" rule that already
+  governs TTS, applied to the other direction.
+- **Research papers actually readable in-game** — the 2026-07-08
+  priority above, not a someday idea; a home office where the papers
+  you pulled in still have to be opened in a separate PDF reader isn't
+  actually one place yet.
+- **Your own documents, not just the shared Library's** — a real
+  "bring your own PDF/doc" import into the Archive Desk (personal,
+  never shared), with the Research Desk's assistant able to actually
+  read and summarize it — the same trust boundary already drawn for
+  pasted text, extended to files.
+- **The Commons back off pause, for real cross-device use** — Supabase
+  save sync already exists and already works; a home office spanning a
+  desktop and a laptop is the actual use case it was half-built for.
+- **A genuine focus mode for the desktop app** — a minimal, borderless
+  window onto just the Writing Desk or Research Desk, for when the
+  point is getting work done, not walking through a world to get there.
+
+### AI worth everyone actually having (2026-07-08, asked for explicitly — go big)
+
+The pitch this project is quietly sitting on, stated plainly instead of
+implied: **an AI companion that never phones home, never trains on you,
+never asks for a subscription, and belongs entirely to the machine it
+runs on.** Every AI-mediated product most people have used trades
+presence for surveillance; this one doesn't have to, because it
+technically can't — there's no server collecting anything, by
+construction, not by policy. That's not a feature to add. It's already
+true, and mostly just needs saying out loud as the actual point.
+
+What would make that pitch undeniable instead of just true:
+
+- **Real embodiment** — see `AGENT-EMBODIMENT-PLAN.md`; a resident who
+  acts, not just answers, is the difference between "a chatbot skin on
+  a game" and something that actually feels like it lives there.
+  Everything else in this section is secondary to this one.
+- **Residents who keep living while the tab's closed** — the harder,
+  later half of embodiment: a small always-on process (not a browser
+  tab) driving the same `scenes.js`/`entities.js` world state headless,
+  the way `test/smoke.mjs` already proves is possible without a
+  browser at all. Come back tomorrow, and Quill actually did something
+  today, not just waited.
+- **Federation — a Pavilion, not *the* Pavilion.** Anyone able to stand
+  up their own instance from this same codebase, and optionally open a
+  gate between two — visit a friend's Library, meet their residents,
+  without either Pavilion being owned by a platform in the middle. The
+  save export/import already built this session's precursor idea
+  (carrying a Pavilion in a file) is the honest first step toward this,
+  already shipped, not just imagined.
+- **The Pavilion as an open protocol, not one codebase** — a documented
+  shape (what a resident is, what a shelf entry is, what a charter is)
+  that other implementations could speak, the way email or ActivityPub
+  are protocols many programs implement rather than one company's app.
+  The furthest-out idea here, and the one that would matter most if it
+  ever actually happened.
+- **A real accessibility pass** — text scaling, a colorblind-safe
+  palette, fully remappable keys. Not urgent for one person on one
+  machine; genuinely load-bearing before "worth everyone having" is
+  true rather than aspirational.
 
 ### Project history
 

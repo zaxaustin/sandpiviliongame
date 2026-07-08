@@ -144,7 +144,10 @@ copyrighted modern introduction, for instance).
 - [Saylor Academy](https://learn.saylor.org) — free courses with open
   textbook-style materials, mixed open licenses, check per-course.
 
-**Research papers — two connectors already exist:**
+**Research papers — the priority, 2026-07-08: two connectors already
+exist, several more real candidates, and the actual current gap is
+integration, not sourcing (see the dedicated section right after this
+list):**
 - [arXiv](https://arxiv.org) — already connected (`arxiv.py`); physics,
   math, CS preprints, mostly author-retains-copyright but freely
   readable — confirm redistribution terms per paper, not assumed CC0.
@@ -157,6 +160,68 @@ copyrighted modern introduction, for instance).
   biomedical/life-sciences papers, explicit license tag per article.
 - [CORE](https://core.ac.uk) — aggregates open-access papers across
   thousands of repositories, one API, license metadata included.
+- [PLOS](https://plos.org) — Public Library of Science; every article
+  in every PLOS journal is CC-BY, no exceptions, no per-article
+  license-checking needed — about as clean a source as exists here.
+- [OpenAlex](https://openalex.org) — a fully open scholarly index (a
+  free, modern replacement for the old Microsoft Academic Graph), one
+  API, and it links straight to open-access full text when one exists
+  — a strong candidate for the *next* connector specifically because it
+  can point at the right OA copy across many publishers in one lookup
+  instead of searching each source separately.
+- [Unpaywall](https://unpaywall.org) — not a source of papers itself,
+  but an API that finds the legal open-access version of a paper given
+  its DOI; genuinely useful paired with OpenAlex or Semantic Scholar's
+  own search — look a paper up, then ask Unpaywall where the real
+  legal copy actually lives before fetching anything.
+- [bioRxiv](https://biorxiv.org) / [medRxiv](https://medrxiv.org) —
+  biology/medicine preprints; license varies per paper (many CC-BY,
+  some more restrictive), check the specific paper's license tag, same
+  discipline as arXiv.
+- [SciELO](https://scielo.org) — open-access journals, strong Latin
+  American and Global South coverage most of the sources above don't
+  reach; license varies per journal, check per article.
+
+## Turning a paper into something the Reader can actually page through
+
+**This is the real gap, not sourcing** — `arxiv.py` already fetches a
+paper; what happens after is the problem. Right now a fetched arXiv PDF
+gets read *outside* the game, breaking the one promise every other
+shelf entry keeps: read it, note it, bring it into today's plan,
+without leaving the Pavilion.
+
+**Why this stalled at "fetch," not "shelve": PDFs aren't plain text.**
+Every existing connector (`gutenberg.py`, `suttacentral.py`) works
+because the source hands back clean text directly — no extraction step
+needed. A PDF is a page-layout format, not a text format; getting
+readable text out of one is a real, separate problem the existing
+pipeline has never had to solve.
+
+**The actual fix — one new step, not a new pipeline:**
+1. **Fetch the PDF** — `arxiv.py` mostly already does this (or would,
+   with the same one-connector-per-source discipline extended slightly).
+2. **Extract plain text from it** — a new small script,
+   `tools/caravan/pdf-to-text.py`, doing exactly one job: take a PDF,
+   hand back clean paragraph text. Needs one real dependency
+   (`pypdf` or `pdfplumber` — pure-Python, no system-level install,
+   `pip install pypdf`) since this is the one place in the whole
+   Caravan toolkit that genuinely can't stay stdlib-only; every other
+   connector's "no dependencies" rule was about avoiding scraping
+   frameworks, not avoiding PDF parsing specifically.
+3. **From there, the existing pipeline already works unchanged** —
+   `library-draft.py` → write the real summary by hand → `promote-draft.py`
+   → `push-fulltext.py`. A paper becomes a shelf entry exactly the way
+   a book does today; nothing downstream needs to know the source was
+   ever a PDF.
+
+**Known, real risk, worth naming honestly:** academic PDF layout is
+messy — two-column text, footnotes, figure captions, references — and
+naive extraction can interleave columns or scramble reading order.
+Expect the first version to need real per-paper cleanup, not a
+one-shot perfect extraction; scope it as "gets you 90% of the way,
+still needs a human pass before shelving," same trust model as every
+other step in this pipeline that already assumes a human reads before
+anything ships.
 
 **Whole open-license books, not just textbooks:**
 - [Directory of Open Access Books (DOAB)](https://www.doabooks.org) —
@@ -199,22 +264,34 @@ we build next" from a guess into an observation.
 
 ## Roadmap — in rough order
 
-1. **A `gutenberg-like` connector for Standard Ebooks and Wikisource** —
+1. **`tools/caravan/pdf-to-text.py`, 2026-07-08's named priority** — see
+   "Turning a paper into something the Reader can actually page
+   through" above. This is the one piece actually blocking research
+   papers from being real shelf entries instead of external downloads;
+   everything else in this document is sourcing more raw material,
+   which doesn't matter yet if what's already fetchable (arXiv) still
+   can't make it onto a shelf.
+2. **An OpenAlex connector** — pairs naturally with the PDF extractor:
+   OpenAlex finds the legal open-access copy of a paper across many
+   publishers in one lookup, `pdf-to-text.py` turns what it finds into
+   something shelvable. Also directly addresses the README's known
+   Science-shelf gap once papers can actually be read in-game.
+3. **A `gutenberg-like` connector for Standard Ebooks and Wikisource** —
    both structured enough for a clean stdlib connector, both fill real
    gaps (better-typeset classics; primary-source documents Gutenberg
    doesn't have).
-2. **An OpenStax connector** — directly addresses the README's known
-   Science-shelf gap with real, current, professionally-written
-   textbooks, not just 19th-century public domain science writing.
-3. **An Internet Archive connector** — the highest-volume option by
+4. **An OpenStax connector** — the textbook-specific version of the
+   same Science-shelf gap, real current professionally-written
+   textbooks rather than 19th-century public domain science writing.
+5. **An Internet Archive connector** — the highest-volume option by
    far; needs the most care distinguishing actual public-domain items
    from access-restricted loans before fetching anything.
-4. **In-game discoverability** — SuttaCentral already has a live
+6. **In-game discoverability** — SuttaCentral already has a live
    in-game search (Caravan Desk); the same pattern (search a source,
    preview a result, one-click into a draft) is worth extending to
    whichever connector above gets built next, rather than leaving new
    sources terminal-only forever.
-5. **A visible "how a book gets here" panel at the Caravan Desk** —
+7. **A visible "how a book gets here" panel at the Caravan Desk** —
    right now this whole pipeline only lives in `library-drafts/README.md`
    and this document; a short in-game sign or panel pointing at the real
    process (fetch → draft → human writes the summary → promote → attach
