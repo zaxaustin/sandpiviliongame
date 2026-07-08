@@ -816,10 +816,35 @@ export function addBookNote(slug){
   logActivity('Added a note to "'+(d?d.title:slug)+'".');
   awardBadge('first-note');
 }
+/* The actual bridge between reading and doing: one click carries a note
+   straight onto today's planner record (see plannerDay()'s `sparks`
+   field in the Writing Desk section below) instead of it just sitting
+   on the book forever. No dedicated "notes" table of its own — sparks
+   live inside the same data.planner[day] object as everything else the
+   Writing Desk already saves. */
+export function sendNoteToToday(slug, i){
+  const notes=data.bookNotes[slug]||[];
+  const note=notes[i]; if(!note) return;
+  const d=Store.getDoc(slug);
+  const day=plannerDay();
+  day.sparks.unshift({ts:todayKey(), text:note.text, source:d?d.title:slug});
+  persist(); logActivity('Brought a note from "'+(d?d.title:slug)+'" to today\'s plan.'); blip(784,.09);
+  renderBookNotes(slug);
+}
 function renderBookNotes(slug){
   const notes=data.bookNotes[slug]||[];
+  const today=plannerDay();
   document.getElementById('rdNotesList').innerHTML = notes.length
-    ? notes.map(n=>`<div class="card" style="cursor:default"><div class="s">${esc(n.ts)}</div><div>${esc(n.text)}</div></div>`).join('')
+    ? notes.map((n,i)=>{
+      const alreadySent=today.sparks.some(s=>s.text===n.text);
+      return `<div class="card" style="cursor:default">
+        <div class="s">${esc(n.ts)}</div><div>${esc(n.text)}</div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px" ${alreadySent?'disabled':''}
+            onclick="sendNoteToToday('${slug}',${i})">${alreadySent?'✓ In today\'s plan':'→ Bring to today\'s plan'}</button>
+        </div>
+      </div>`;
+    }).join('')
     : '<p class="meta">No notes yet on this book — jot down whatever\'s worth remembering.</p>';
 }
 export function currentDocSlug(){ return state.currentDoc; }
@@ -1083,7 +1108,8 @@ export async function toggleSpokenSummary(){
 /* ----- Planner (the Writing Desk) ----- */
 function plannerDay(){
   const k=todayKey();
-  if(!data.planner[k]) data.planner[k]={ intention:'', ember:'', blocks:DEFAULT_BLOCKS.map(n=>({name:n,state:'waiting'})) };
+  if(!data.planner[k]) data.planner[k]={ intention:'', ember:'', blocks:DEFAULT_BLOCKS.map(n=>({name:n,state:'waiting'})), sparks:[] };
+  if(!data.planner[k].sparks) data.planner[k].sparks=[]; // upgrade days saved before sparks existed
   return data.planner[k];
 }
 export function openPlanner(){
@@ -1093,12 +1119,38 @@ export function openPlanner(){
   document.getElementById('planIntent').value = day.intention;
   document.getElementById('planEmber').value = day.ember;
   renderBlocks();
+  renderPlanSparks();
   document.getElementById('planSaved').textContent='';
   renderPastDays();
   renderPlanUpcoming();
   state.plannerChat=state.plannerChat||{history:[]};
   renderPlannerAssist();
   showOv('planOv');
+}
+/* ----- Sparks — the bridge closing the gap between reading and doing:
+   a book note, brought over from the Reader in one click, lands here
+   instead of just sitting on the book forever. Lives on the same
+   planner-day record as everything else (persists/exports for free),
+   and plannerContext() below folds it straight into the Steward's
+   day-planning grounding, the same way it already sees due items and
+   past embers. */
+function renderPlanSparks(){
+  const day=plannerDay();
+  const el=document.getElementById('planSparks'); if(!el) return;
+  el.innerHTML = day.sparks.length
+    ? day.sparks.map((s,i)=>`
+      <div class="card" style="cursor:default">
+        <div class="s">from "${esc(s.source)}"</div>
+        <div>${esc(s.text)}</div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="removeSpark(${i})">✕ remove</button>
+        </div>
+      </div>`).join('')
+    : '<p class="meta">Nothing yet — in any book\'s Reader, bring a note over with one click.</p>';
+}
+export function removeSpark(i){
+  const day=plannerDay();
+  day.sparks.splice(i,1); persist(); renderPlanSparks();
 }
 // the one place "planning today" and the quiet due-date badge actually
 // meet — still nothing that pops up on its own, just here if you came to
@@ -1140,6 +1192,8 @@ export function viewPastDay(key){
       <div class="blk ${b.state}">${esc(b.name)}
         <div class="st">${b.state==='waiting'?'· waiting':b.state==='tended'?'🔥 tended':'🌙 rested'}</div>
       </div>`).join('')}</div>
+    ${(d.sparks&&d.sparks.length) ? `<h3>Sparks from reading</h3>
+    ${d.sparks.map(s=>`<div class="card" style="cursor:default"><div class="s">from "${esc(s.source)}"</div><div>${esc(s.text)}</div></div>`).join('')}` : ''}
     <h3>Evening ember</h3>
     <p>${esc(d.ember||'(nothing written that night)')}</p>
     <div class="row" style="margin-top:14px">
@@ -1188,18 +1242,24 @@ function plannerContext(){
     const d=data.planner[k];
     return `- ${k}: intention "${d.intention||'(none)'}" — ember: "${(d.ember||'(nothing written)').slice(0,140)}"`;
   }).join('\n') : '(no earlier days recorded yet)';
-  return { day, blocksSummary, upcoming, recent };
+  const sparks=(day.sparks||[]).length
+    ? day.sparks.map(s=>`- (from "${s.source}") ${s.text}`).join('\n')
+    : '(nothing brought over from reading yet today)';
+  return { day, blocksSummary, upcoming, recent, sparks };
 }
 async function plannerSystemPrompt(){
   const stewardBase=await CHAT_AGENTS.steward.systemPrompt();
-  const { day, blocksSummary, upcoming, recent }=plannerContext();
+  const { day, blocksSummary, upcoming, recent, sparks }=plannerContext();
   return stewardBase
     +"\n\nRight now you're specifically helping at the Writing Desk, not the café counter — a "
     +"visitor wants real help planning or reviewing their actual day, not café chat. Be concrete: "
     +"suggest an actual intention, which rhythm blocks deserve real focus today, or what to notice "
-    +"given what's coming up. A short, usable answer, not a lecture.\n\n"
+    +"given what's coming up. If they've brought sparks over from something they read, treat those "
+    +"as real signal for what's actually on their mind right now — weave them into the day rather "
+    +"than ignoring them in favor of due dates alone. A short, usable answer, not a lecture.\n\n"
     +"Today's intention so far: "+(day.intention||'(not set yet)')
     +"\nToday's rhythm blocks: "+blocksSummary
+    +"\nSparks brought over from reading today:\n"+sparks
     +"\nWhat's due soon:\n"+upcoming
     +"\nRecent days, for pattern:\n"+recent;
 }
@@ -2835,7 +2895,7 @@ export async function generateQuillReport(){
    onclick="..." handlers, which only resolve against `window` —
    module-scoped functions aren't visible there, so wire them up. */
 Object.assign(window, {
-  closeUI, openReader, markRead, backToShelf, addBookNote,
+  closeUI, openReader, markRead, backToShelf, addBookNote, sendNoteToToday, removeSpark,
   openFullText, backToSummary, fullTextNextPage, fullTextPrevPage, toggleFullTextReadAloud,
   selectBook, shelfOpenSelected,
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
