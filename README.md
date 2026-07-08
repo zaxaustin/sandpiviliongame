@@ -96,18 +96,20 @@ needs an account, a local AI, or a database — it just works, locally,
 forever.
 
 **The Library** — six shelves (Theravada, Mahayana, Daoism, Practice,
-Science, Classics), 20 texts. Fourteen of them are full, real,
+Science, Classics), 25 texts. Nineteen of them are full, real,
 page-by-page books, not summaries: the Dhammapada, Satipatthana, the
-Metta Sutta, the Vibhaṅga Sutta, and Anapanasati (Theravada); the Tao Te
-Ching (Daoism); Meditations, The Republic, and The Nicomachean Ethics
-(Classics); and On the Origin of Species, Our National Parks, Man and
-Nature, The Chemical History of a Candle, and The Inventions, Researches
-and Writings of Nikola Tesla (Science) — every one hash-verified against
-its real source before it reached a shelf. The remaining six shelf
-entries are short original Pavilion Commons essays, complete as-is — not
-placeholders for a longer work, just not full-length books either. A
-reading nook exists in the world now too: a bean bag chair inside, a
-bench just outside the door.
+Metta Sutta, Anapanasati, the Vibhaṅga Sutta, and the Buddha's first and
+second sermons and the Mangala Sutta (Theravada); the Tao Te Ching
+(Daoism); Meditations, The Republic, The Nicomachean Ethics, Epictetus's
+Enchiridion, and Plato's Apology/Crito/Phaedo (Classics); and On the
+Origin of Species, Our National Parks, Man and Nature, The Chemical
+History of a Candle, and The Inventions, Researches and Writings of
+Nikola Tesla (Science) — every one hash-verified against its real source
+before it reached a shelf. The remaining six shelf entries are short
+original Pavilion Commons essays, complete as-is — not placeholders for
+a longer work, just not full-length books either. A reading nook exists
+in the world now too: a bean bag chair inside, a bench just outside the
+door.
 
 **AI residents** — connect a local model (Ollama) and Quill, the
 Steward, the Mountain Monk, and the Computer (a full JARVIS-style
@@ -139,6 +141,19 @@ directly from a browser (a real limit of the platform, not a missing
 feature) — the Request Board is where a text you want, but can't fetch
 in-game, gets tracked until it's brought in by hand.
 
+**Adding books manually** — for any source without a Caravan connector
+yet, download the text by hand and drop it in `library-inbox/`, sorted
+into whichever subfolder matches the site it came from (one already
+exists per source — see `library-inbox/README.md`). From there it's the
+same pipeline as an automated fetch: `library-draft.py` to start a
+draft, a real hand-written summary and confirmed license, then
+`promote-draft.py` to shelve it and `push-fulltext.py` to attach the
+full text. `LIBRARY-GROWTH-PLAN.md` has the actual list of legitimately
+free sources to pull from (checked for license, not just "free to
+read") and the reasoning behind sorting drops by source in the first
+place — a folder that fills up by hand is the real signal a proper
+connector for that site is worth writing next.
+
 **The Commons** — connect Supabase and the Library mirrors a real hosted
 database, the café's two boards become genuinely shared, and signing in
 (magic link, no password) adds cross-device save sync plus real steward
@@ -148,10 +163,9 @@ Currently dormant by choice while local-first daily use is the priority
 
 **Sketched, not built yet:** character customization (clothes, color,
 hairstyle — a real system, scoped below); a fuller pet/companion system;
-six more Workshop rooms; a standalone desktop app (see
-[`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md)); real full-text search
-across a much larger Library; giving AI agents actual hands, not just a
-voice.
+six more Workshop rooms; real full-text search across a much larger
+Library; giving AI agents actual hands, not just a voice — see
+[`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md) for the real plan.
 
 ## Setting up local AI — a beginner's guide
 
@@ -253,11 +267,15 @@ Roughly in priority order:
 2. **A friendlier wrapper around the Caravan scripts** — real and
    buildable, not yet started; worth confirming it's still wanted before
    it's built, now that the terminal tools work well on their own.
-3. **Fill out the Science and Classics shelves further** — coding and
-   electronics material specifically is thin, since most modern texts in
-   that space are copyrighted; the honest path is openly-licensed
-   sources (like *Lessons In Electric Circuits*) fetched deliberately,
-   not scraped from anywhere reachable.
+3. **Grow the Library toward a much bigger real dataset** — see
+   [`LIBRARY-GROWTH-PLAN.md`](LIBRARY-GROWTH-PLAN.md) for the actual
+   plan: a curated list of legitimately free/open sources by category,
+   why hand-picked connectors stay the approach instead of a general
+   scraper, and which new connectors (Standard Ebooks, OpenStax,
+   Internet Archive) are worth building next. Coding/electronics
+   material specifically is thin today, since most modern texts in that
+   space are copyrighted — openly-licensed sources fetched deliberately,
+   not scraped from anywhere reachable, same rule as everything else.
 4. **Turn downloaded papers into something the Reader can page through**
    — right now a fetched arXiv PDF is read outside the game; parsing it
    into plain text would close that loop.
@@ -270,18 +288,21 @@ Roughly in priority order:
    Supabase's Auth redirect-URL allowlist, grant a real steward role, and
    verify moderation with an actual session — whenever the Commons comes
    back off pause.
-7. **A standalone desktop app** — see [`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md).
-   The real problem it solves: a browser's CORS rules block local Ollama
-   unless configured just right; a proper desktop shell routes that
-   through native code instead, permanently, for every future person who
-   installs it. Electron picked, Phase 1 done and proven live
-   (2026-07-08): a real Electron window reaching Ollama through a native
-   proxy with zero `OLLAMA_ORIGINS` setup. Remaining: a real installer,
-   a first-run "no local AI found" message, and a test on a machine that
-   isn't the dev machine.
-8. **Six more Workshop rooms**, a real action API for AI agents (a
-   designed-but-unbuilt way for an agent to move/act in the world, not
-   just answer questions), and the larger public-site question.
+7. **A standalone desktop app** — mostly done, see
+   [`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md). Electron picked, and
+   Phases 1-4 proven live (2026-07-08): the native Ollama proxy works
+   with zero `OLLAMA_ORIGINS` setup, a first-run "install Ollama" link
+   for when none is found, and a real Windows installer
+   (`release/Sand Pavilion Setup 0.0.1.exe`). Remaining: an actual
+   run-the-installer test, and a test on a machine that isn't the dev
+   machine.
+8. **Giving AI residents actual bodies, not just voices** — see
+   [`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md) for the real
+   plan: a bounded first version (one resident, one real action) before
+   any general action API, and an honest look at why "acts while you're
+   playing" and "keeps living while the tab's closed" are two very
+   different-sized projects, not one.
+9. **Six more Workshop rooms** and the larger public-site question.
 
 ## Hopes and dreams
 

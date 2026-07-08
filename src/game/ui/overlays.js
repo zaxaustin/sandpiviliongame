@@ -352,6 +352,35 @@ function renderBadges(){
     }).join('')}`;
 }
 
+/* ----- Local Library storage status — same passive-status-line pattern
+   as refreshAIStatus() below, for MinIO instead of Ollama. Waits on
+   Store.libraryReady first (an existing hook, unused until now) since
+   the Supabase mirror — the only place a fullText.storage pointer can
+   come from — hasn't necessarily resolved yet at page load. Only shown
+   when it's actually relevant: if nothing in the mirrored Library uses
+   MinIO storage at all (the zero-setup seed.js fallback, or Supabase
+   simply not configured), there's nothing to warn about, so the line
+   stays hidden rather than alarming a visitor about a thing that
+   doesn't apply to them. */
+export async function refreshLibraryStorageStatus(){
+  const el=document.getElementById('libMode');
+  if(!el) return;
+  await Store.libraryReady;
+  const usesStorage=Store.allDocs().some(d=>d.doc.fullText && d.doc.fullText.storage);
+  if(!usesStorage){ el.textContent=''; return; }
+  const base=(import.meta.env && import.meta.env.VITE_MINIO_ENDPOINT) || 'http://localhost:9000';
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),1500);
+    const res=await fetch(base+'/minio/health/live', { signal:ctrl.signal });
+    clearTimeout(t);
+    el.textContent = res.ok
+      ? '● Local Library storage connected — full texts will load'
+      : "○ Local Library storage (MinIO) not responding — full texts won't load until it's running";
+  }catch(e){
+    el.textContent = "○ Local Library storage (MinIO) not running — full texts won't load until it's running (see LIBRARY-SCALING-PLAN.md)";
+  }
+}
+
 /* ----- AI status + Connections panel ----- */
 export async function refreshAIStatus(){
   await detectAI(data.aiConnections);
@@ -492,7 +521,7 @@ export function removeConnection(i){
   data.aiConnections.splice(i,1);
   persist(); renderConnections(); refreshAIStatus();
 }
-export function recheckConnections(){ renderConnections(); refreshAIStatus(); }
+export function recheckConnections(){ renderConnections(); refreshAIStatus(); refreshLibraryStorageStatus(); }
 
 /* ================================================================
    [UI] overlays — shelf browser, reader, planner, courses
@@ -912,15 +941,43 @@ function indexItems(){
   return [...lib, ...arc];
 }
 export function setIndexCategory(id){ state.indexCategory=id; state.indexSearch=''; renderIndex(); }
-// live-filters as you type; a full innerHTML rebuild on every keystroke would normally
-// drop focus/cursor from the input that triggered it, so re-focus and restore the
-// cursor position explicitly after each render.
+/* Real search (Store.searchDocs -> Postgres tsvector/ts_rank) runs
+   debounced, since every keystroke firing a network request would be
+   wasteful; a "generation" counter drops any response that's been
+   superseded by a newer keystroke before it got back. While waiting
+   (or when there's no Supabase to search), the existing local
+   substring match still runs immediately so the box never feels dead —
+   real results simply replace it, ranked, once they arrive. */
+let indexSearchTimer=null, indexSearchGen=0;
 export function setIndexSearch(v){
-  state.indexSearch=v; renderIndex();
+  state.indexSearch=v;
+  clearTimeout(indexSearchTimer);
+  const gen=++indexSearchGen;
+  state.indexSearchResults=null; state.indexSearching=false;
+  renderIndex();
+  // a full innerHTML rebuild on every keystroke would normally drop focus/cursor
+  // from the input that triggered it, so re-focus and restore the cursor
+  // position explicitly right here — only for this immediate, synchronous
+  // render; the later async re-renders below must NOT steal focus back if
+  // the visitor has since clicked elsewhere.
   const inp=document.getElementById('indexSearch');
   if(inp){ inp.focus(); inp.setSelectionRange(v.length, v.length); }
+  const q=v.trim();
+  if(!q) return;
+  indexSearchTimer=setTimeout(async ()=>{
+    if(gen!==indexSearchGen) return;
+    state.indexSearching=true; renderIndex();
+    const results=await Store.searchDocs(q);
+    if(gen!==indexSearchGen) return; // a newer keystroke already superseded this
+    state.indexSearching=false; state.indexSearchResults=results;
+    renderIndex();
+  }, 300);
 }
-export function clearIndexSearch(){ state.indexSearch=''; renderIndex(); }
+export function clearIndexSearch(){
+  clearTimeout(indexSearchTimer); indexSearchGen++;
+  state.indexSearch=''; state.indexSearchResults=null; state.indexSearching=false;
+  renderIndex();
+}
 export function openIndexItem(kind,slug){
   if(kind==='library') openReader(slug); else openArchiveDoc(slug);
 }
@@ -937,9 +994,25 @@ function renderIndex(){
   const cat=state.indexCategory;
   const search=(state.indexSearch||'').trim().toLowerCase();
   const counts={}; items.forEach(i=>{ counts[i.category]=(counts[i.category]||0)+1; });
-  const shown = search
-    ? items.filter(i => i.title.toLowerCase().includes(search) || (i.summary||'').toLowerCase().includes(search))
-    : items.filter(i=>i.category===cat);
+  let shown, usedRealSearch=false;
+  if(search){
+    if(state.indexSearchResults){
+      // Real, ranked results already came back — library matches are in
+      // relevance order from Postgres; a local substring match covers the
+      // Archive Desk too, since personal writing never lives in Supabase
+      // and real search can't reach it.
+      const libResults=state.indexSearchResults.map(d=>({kind:'library', slug:d.slug, title:d.title,
+        category:d.category, sub:d.tradition, license:d.license, summary:d.doc.summary, added:d.added}));
+      const archiveMatches=items.filter(i=>i.kind==='archive'
+        && (i.title.toLowerCase().includes(search) || (i.summary||'').toLowerCase().includes(search)));
+      shown=[...libResults, ...archiveMatches];
+      usedRealSearch=true;
+    } else {
+      shown=items.filter(i => i.title.toLowerCase().includes(search) || (i.summary||'').toLowerCase().includes(search));
+    }
+  } else {
+    shown=items.filter(i=>i.category===cat);
+  }
   document.getElementById('indexPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>The Index</h2>
@@ -949,7 +1022,8 @@ function renderIndex(){
     <input type="text" id="indexSearch" placeholder="Search titles and summaries…"
       value="${esc(state.indexSearch||'')}" oninput="setIndexSearch(this.value)" style="margin-top:12px">
     ${search ? `<div class="meta" style="margin:8px 0 0">
-        Searching every category for "${esc(state.indexSearch)}".
+        ${state.indexSearching ? 'Searching…' : usedRealSearch ? 'Ranked by relevance —' : 'Matching titles/summaries for'}
+        "${esc(state.indexSearch)}".
         <button class="btn ghost" style="font-size:11px;padding:3px 10px;margin-left:6px" onclick="clearIndexSearch()">✕ clear</button>
       </div>` : ''}
     <div class="row" style="margin:12px 0${search?';opacity:.4':''}">

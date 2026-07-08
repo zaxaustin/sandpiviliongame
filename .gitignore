@@ -5,6 +5,8 @@ release/
 .DS_Store
 .claude/settings.local.json
 library-sources/
+library-inbox/*
+!library-inbox/README.md
 /gutenberg_*.json
 .env
 .env.local

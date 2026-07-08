@@ -64,6 +64,31 @@ export const Store = (() => {
     listDocs(tradition){ return libraryDocs.filter(d => d.tradition === tradition); },
     getDoc(slug){ return libraryDocs.find(d => d.slug === slug) || null; },
 
+    /* Real search — Postgres full-text search (tsvector + ts_rank) via
+       the search_library_documents() function, word-stemmed and ranked
+       by relevance (title matches outrank an incidental mention in a
+       section body). Deliberately kept separate from allDocs() rather
+       than folded into the synchronous mirror above: a network call
+       can't be synchronous, and every existing call site (shelf
+       rendering, Quill's grounding) depends on allDocs() staying that
+       way. Returns null (not an empty array) when it can't really
+       search — signals the caller to fall back to local substring
+       matching, the same NoProvider-style pattern used everywhere else
+       in this file. */
+    async searchDocs(query){
+      const q = (query||'').trim();
+      if(!supabase || !q) return null;
+      try{
+        const { data: rows, error } = await supabase.rpc('search_library_documents', { search_query:q });
+        if(error || !rows) return null;
+        return rows.map(r => ({
+          slug:r.slug, tradition:r.tradition, title:r.title, license:r.license,
+          source_url:r.source_url, attribution:r.attribution, doc:r.doc,
+          added:r.added, category:r.category||'classical',
+        }));
+      }catch(e){ return null; }
+    },
+
     // Account save sync (Phase 3) — reads/writes `player_saves`, one row
     // per logged-in user. Never called unless a session exists; the
     // orchestration (first-sync vs. conflict) lives in entities.js, which

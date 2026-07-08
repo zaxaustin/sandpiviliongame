@@ -6,7 +6,7 @@ import {
   blocked, facingTile, opposite, MOVE_TIME, dueSoon, todayKey,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus } from './ui/overlays.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -76,6 +76,7 @@ document.getElementById('saveMode').textContent =
   Store.mode==='local' ? '● Saving to this device — your days, courses, and reading survive reloads.'
                        : '○ Preview mode — progress lasts this session. Deployed on your site, it persists.';
 refreshAIStatus();
+refreshLibraryStorageStatus();
 document.getElementById('connBtn').addEventListener('click', openConnections);
 document.getElementById('menuBtn').addEventListener('click', openMenu);
 
