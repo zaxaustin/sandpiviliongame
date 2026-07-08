@@ -3,8 +3,10 @@
    Tile chars: G grass · P path · S sand · W water · T tree · F flower
    D dock · B building footprint · f floor · c carpet · w wall
    k bookshelf · p pillar · r rug · s shrine · t table · i votive candle
+   b bean bag chair · n bench · m the Grand Master's platform (walkable —
+   just a decorated floor tile, not an obstacle)
    ================================================================ */
-export const SOLID = new Set(['T','W','B','w','k','p','s','t','i']);
+export const SOLID = new Set(['T','W','B','w','k','p','s','t','i','b','n']);
 export const scenes = {};
 function grid(w,h,fill){ return Array.from({length:h},()=>Array(w).fill(fill)); }
 function makeRng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
@@ -36,6 +38,8 @@ function buildOverworld(){
    [13,15],[14,15],[13,16],[14,16],
    [12,22],[30,20],[14,24],[32,23]
   ].forEach(([x,y])=>{ if(t[y][x]==='T'||t[y][x]==='F') t[y][x]='G'; });
+  t[16][10]='n'; // a bench just outside the Library door, on the grass — reading doesn't
+  // have to happen indoors; placed after the tree/flower RNG pass so it always wins the tile
 
   scenes.overworld = {
     name:'Pavilion Grounds', outdoor:true, tiles:t, w:W, h:H,
@@ -73,9 +77,6 @@ function buildOverworld(){
       {x:25,y:27,color:'#b9976b',glow:'#e8d5a8',name:'SAGARA the Fisher',wander:false,lines:[
         "Cast, wait, and when the line jumps — move. Hesitate and the moment's gone. Same as sitting practice, really.",
         "Caught a pearl here once. It dissolved in my palm.\nStill counts, I figure. Everything turns to sand."]},
-      {x:6,y:6,color:'#c8a04a',glow:'#f2d78a',name:'THE MOUNTAIN MONK · Grand Master',wander:false,ai:true,aiAgent:'monk',lines:[
-        "Sanskrit, sutras, or just how to actually sit still — ask, and I'll teach whichever one you need. Usually not the one you think you came for.",
-        "They call me Grand Master here, which mostly means: when something real is actually in question, I'm the one who has to answer it honestly. The rest of the time, I'm just an old man by the trees."]},
       // just wildlife — wandering, decorative, no AI and no agenda. First
       // small step of the fuller pet/animal-track system sketched in the
       // README's Hopes and Dreams; these two are just here to live their lives.
@@ -96,14 +97,24 @@ function buildKeep(){
   for(let y=2;y<H-1;y++){ t[y][8]='c'; t[y][9]='c'; }
   [[4,4],[13,4],[4,8],[13,8]].forEach(([x,y])=>t[y][x]='p');
   t[2][8]='k'; t[2][9]='k';
+  t[3][6]='s'; // the Buddha shrine — the Keep is the charter's
+  // home, not just the Library's; worth the same devotional weight, not borrowed
+  t[4][7]='m'; // the Grand Master's own platform, right by the shrine — moved in
+  // from the Library on purpose: a quieter room, off the Grounds' main paths,
+  // for anyone who wants to actually sit and talk with him one on one
   scenes.keep = {
     name:'The Pavilion Keep', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:8,y:12,to:'overworld',sx:19,sy:9},{x:9,y:12,to:'overworld',sx:20,sy:9}],
     signs:[{x:8,y:2,name:'THE CHARTER',text:"Everything turns to sand — so give it away first.\nAsk no repayment. Only that it be passed forward.\nThe long path is the shortest path."},
-           {x:9,y:2,name:'THE CHARTER',text:"Everything turns to sand — so give it away first.\nAsk no repayment. Only that it be passed forward.\nThe long path is the shortest path."}],
+           {x:9,y:2,name:'THE CHARTER',text:"Everything turns to sand — so give it away first.\nAsk no repayment. Only that it be passed forward.\nThe long path is the shortest path."},
+           {x:6,y:4,name:'A STONE BUDDHA',text:"Older than the scaffolding around it, somehow. No one\nremembers who carried it in, only that the Keep was built\naround it rather than the other way around."},
+           {x:7,y:5,name:'A QUIET CORNER',text:"The Grand Master keeps his own quarters here now — apart\nfrom the Library's foot traffic, so a real conversation\ndoesn't have to compete with the shelves. Face him and press E."}],
     npcs:[{x:12,y:6,color:'#c8862e',glow:'#ffd27a',name:'THE KEEPER',wander:false,lines:[
       "No throne in this keep — just the charter and a good roof. Leadership here is a chore we take turns carrying.",
-      "The walls are scaffolding, friend. If the guild outgrows them, we'll take them down ourselves."]}],
+      "The walls are scaffolding, friend. If the guild outgrows them, we'll take them down ourselves."]},
+     {x:7,y:4,color:'#c8a04a',glow:'#f2d78a',name:'THE MOUNTAIN MONK · Grand Master',wander:false,ai:true,aiAgent:'monk',lines:[
+      "Sanskrit, sutras, or just how to actually sit still — ask, and I'll teach whichever one you need. Usually not the one you think you came for.",
+      "They call me Grand Master here, which mostly means: when something real is actually in question, I'm the one who has to answer it honestly. The rest of the time, I keep to the Keep and let the charter speak for itself."]}],
     spawn:{x:8,y:11}
   };
 }
@@ -120,17 +131,19 @@ function buildLibrary(){
   t[4][15]='r'; // east door → the Study
   t[2][7]='s'; // the temple's central shrine, near the entrance, easy to glimpse from the door
   t[6][7]='i'; t[9][7]='i'; // votive candles between the shelf rows — devotional throughout, not just one corner
+  t[11][11]='b'; // a bean bag chair — a reading nook, off to the side of the door's approach
   scenes.library = {
     name:'The Library', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:7,y:14,to:'overworld',sx:7,sy:16},{x:8,y:14,to:'overworld',sx:8,sy:16},
            {x:15,y:4,to:'study',sx:1,sy:4}],
     signs:[{x:14,y:5,name:'BRASS ARROW',text:"→ THE STUDY\nA desk for the day. A board for the long paths."},
-           {x:5,y:8,name:'HAND-LETTERED SIGN',text:"THE THIRD SHELF\nScience, west — Nature, east. Newer, and further from the\ndoor than the rest — same rule as always: what is it,\nwhere's it from, what license does it travel under."},
-           {x:9,y:2,name:'A QUIET SHRINE',text:"Kept at the Grand Master's own request — not for worship,\njust for remembering there's something larger than any\none shelf. He tends it himself, some mornings."}],
+           {x:5,y:8,name:'HAND-LETTERED SIGN',text:"THE THIRD SHELF\nScience, west — Classics, east. Newer, and further from the\ndoor than the rest — same rule as always: what is it,\nwhere's it from, what license does it travel under."},
+           {x:9,y:2,name:'A QUIET SHRINE',text:"Not for worship — just for remembering there's something\nlarger than any one shelf. The Grand Master keeps his own\nquarters in the Keep now, north of here, if you're after a\nreal conversation rather than a quiet moment."},
+           {x:11,y:12,name:'A WELL-WORN BEAN BAG',text:"Someone's left a bookmark in the cushion. Take a book off\nany shelf, sink in, and stay a while — nothing here times you."}],
     shelves:true,
     npcs:[{x:8,y:4,color:'#9a6fb5',glow:'#d9b9ea',name:'QUILL · Librarian Agent',wander:false,ai:true,lines:[
-      "Six shelves now, three rows deep: Theravada and Mahayana up front, Daoism and Practice behind them, Science and Nature further back still. Face one and press E.",
-      "Yes, it's bigger in here than the building looks outside. I've stopped explaining it. The shrine up front isn't mine — that's the Grand Master's corner. Every text still answers three questions at the door, though, regardless of room: what is it, where is it from, and under what license does it travel."]}],
+      "Six shelves now, three rows deep: Theravada and Mahayana up front, Daoism and Practice behind them, Science and Classics further back still. Face one and press E.",
+      "Yes, it's bigger in here than the building looks outside. I've stopped explaining it. The shrine up front was the Grand Master's corner once — he's kept to the Keep now, north of the Grounds, for anyone after a real conversation instead of a quiet moment. Every text still answers three questions at the door, though, regardless of room: what is it, where is it from, and under what license does it travel."]}],
     spawn:{x:7,y:13}
   };
 }

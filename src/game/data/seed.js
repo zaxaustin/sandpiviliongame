@@ -4,8 +4,11 @@
    License + source are first-class fields, never buried in the blob.
    ================================================================ */
 import { dhammapadaFullText } from './library-texts/dhammapada.js';
+import { satipatthanaFullText } from './library-texts/satipatthana.js';
+import { mettaFullText } from './library-texts/metta.js';
+import { anapanasatiFullText } from './library-texts/anapanasati.js';
 
-export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice','Science','Nature'];
+export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice','Science','Classics'];
 /* Categories are a second, orthogonal axis to tradition — "what kind of
    text is this" rather than "which lineage." Every seed text today is
    the same kind (classical, hand-vetted, non-fiction) — the taxonomy is
@@ -46,38 +49,30 @@ const RAW_SEED_LIBRARY = [
    doc:{ summary:'The Buddha’s core instruction manual for mindfulness practice: four fields of attention, one method.',
      sections:[
        {heading:'The four foundations', body:'Attention is trained on body, feeling-tone, mind-states, and the patterns of experience itself. Each field is observed as it arises and passes, internally and externally, without adding or subtracting.'},
-       {heading:'Why it matters', body:'Nearly every modern mindfulness method descends from this single discourse. Reading the source clarifies what the derivatives kept and what they quietly dropped.'}]}},
+       {heading:'Why it matters', body:'Nearly every modern mindfulness method descends from this single discourse. Reading the source clarifies what the derivatives kept and what they quietly dropped.'}],
+     // same honestly-sourced pattern as the Dhammapada above: summary/sections
+     // stay tied to the SuttaCentral CC0 shelf record; the full text is
+     // Bhikkhu Sujato's own CC0 translation, fetched via
+     // tools/caravan/suttacentral.py from the suttacentral.net bilara API.
+     fullText:{ text:satipatthanaFullText, translator:'Bhikkhu Sujato',
+       source_url:'https://suttacentral.net/mn10', license:'CC0 1.0' }}},
  { slug:'metta', tradition:'Theravada', title:'The Metta Sutta — On Loving-Kindness',
    license:'CC0 1.0', source_url:'https://suttacentral.net/snp1.8', attribution:'SuttaCentral',
    doc:{ summary:'A short discourse on goodwill without conditions — the disposition of a mind that has stopped keeping score.',
      sections:[
        {heading:'The instruction', body:'Cultivate care for all beings the way a parent protects an only child: without exception, without expectation of return, in every posture and every hour.'},
-       {heading:'A practice note', body:'Metta is usually practiced as phrases repeated toward oneself, a friend, a stranger, a difficult person, and finally all beings. The difficult person is where the practice actually starts.'}]}},
+       {heading:'A practice note', body:'Metta is usually practiced as phrases repeated toward oneself, a friend, a stranger, a difficult person, and finally all beings. The difficult person is where the practice actually starts.'}],
+     fullText:{ text:mettaFullText, translator:'Bhikkhu Sujato',
+       source_url:'https://suttacentral.net/snp1.8', license:'CC0 1.0' }}},
  { slug:'anapanasati', tradition:'Theravada', title:'Anapanasati — Mindfulness of Breathing',
    license:'CC0 1.0', source_url:'https://suttacentral.net/mn118', attribution:'SuttaCentral',
    doc:{ summary:'Sixteen steps of breath awareness, from simply knowing the breath to complete letting go.',
      sections:[
        {heading:'The structure', body:'Four sets of four: calming the body, brightening feeling, steadying the mind, and seeing clearly. Each set builds on the last; the breath is the thread through all sixteen.'},
-       {heading:'For a daily sit', body:'Most daily practice lives in the first four steps for years. That is not slowness — that is the method working as designed.'}]}},
+       {heading:'For a daily sit', body:'Most daily practice lives in the first four steps for years. That is not slowness — that is the method working as designed.'}],
+     fullText:{ text:anapanasatiFullText, translator:'Bhikkhu Sujato',
+       source_url:'https://suttacentral.net/mn118', license:'CC0 1.0' }}},
  // ---- Mahayana ----
- { slug:'heart-sutra', tradition:'Mahayana', title:'The Heart Sutra',
-   license:'Public Domain', source_url:'https://www.sacred-texts.com/bud/', attribution:'sacred-texts.com',
-   doc:{ summary:'The shortest of the great Perfection of Wisdom texts, and somehow the deepest well. Chanted daily across the Mahayana world.',
-     sections:[
-       {heading:'What it says', body:'Form and emptiness are not two things. Every category the mind uses to carve up experience — including the path itself — is examined and found to be open, without a fixed core.'},
-       {heading:'How it is used', body:'Less studied than chanted. Its rhythm does part of the work; the meaning arrives sideways, usually years after memorization.'}]}},
- { slug:'diamond-sutra', tradition:'Mahayana', title:'The Diamond Sutra',
-   license:'Public Domain', source_url:'https://www.sacred-texts.com/bud/', attribution:'sacred-texts.com',
-   doc:{ summary:'A dialogue on generosity and perception — famously, the oldest dated printed book in the world.',
-     sections:[
-       {heading:'The core move', body:'Every time a concept is offered, the Buddha affirms it, negates it, and returns it transformed. The pattern trains the reader to hold ideas without gripping them.'},
-       {heading:'The famous close', body:'The sutra ends by comparing all conditioned things to a dream, a bubble, a flash of lightning — a passage that has anchored contemplative practice for sixteen centuries.'}]}},
- { slug:'bodhicaryavatara', tradition:'Mahayana', title:'The Way of the Bodhisattva',
-   license:'Overview only — translations vary', source_url:'https://www.lotsawahouse.org/', attribution:'Shantideva, 8th c.',
-   doc:{ summary:'Shantideva’s guide to living for the benefit of all beings — the most beloved manual in Tibetan Buddhism.',
-     sections:[
-       {heading:'What it covers', body:'Ten chapters moving from the first spark of altruistic intention through patience, effort, meditation, and wisdom. The patience chapter alone has carried whole monasteries through hard winters.'},
-       {heading:'A note on editions', body:'Modern translations remain under copyright, so this shelf holds an overview with a pointer to openly available editions. Provenance first — that is how this Library works.'}]}},
  { slug:'dzogchen-note', tradition:'Mahayana', title:'A Note on the Luminous Nature of Mind',
    license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'Pavilion stewards',
    doc:{ summary:'A steward’s note on Dzogchen’s central pointing: the unchanging, luminous nature of mind.',
@@ -91,24 +86,12 @@ const RAW_SEED_LIBRARY = [
      sections:[
        {heading:'What it is', body:'Part statecraft, part contemplative manual, part poem. Its central figure is water: soft, low, patient, and stronger than stone over any timescale that matters.'},
        {heading:'How to read it', body:'Not front to back. Open anywhere; read one chapter; put it down. The book is designed for a lifetime of re-entry, not a weekend of completion.'}]}},
- { slug:'zhuangzi', tradition:'Daoism', title:'The Zhuangzi',
-   license:'Public Domain', source_url:'https://www.sacred-texts.com/tao/', attribution:'Zhuangzi · Legge translation',
-   doc:{ summary:'Parables, jokes, and impossible conversations — Daoism’s wildest and funniest classic.',
-     sections:[
-       {heading:'What to expect', body:'Butchers whose knives never dull, trees too useless to be cut down, a philosopher unsure if he dreamed the butterfly or the butterfly dreamed him. Every joke has a blade of insight in it.'},
-       {heading:'Why it pairs with sitting', body:'Where meditation loosens the grip of thought from the inside, the Zhuangzi loosens it from the outside — by making the gripping itself look ridiculous.'}]}},
  { slug:'inner-chapters', tradition:'Daoism', title:'Reading the Inner Chapters',
    license:'Original — Pavilion Commons', source_url:'https://www.sacred-texts.com/tao/', attribution:'Pavilion stewards',
    doc:{ summary:'A short orientation to the seven Inner Chapters — the oldest core of the Zhuangzi.',
      sections:[
        {heading:'The map', body:'Seven chapters: free wandering, the equality of things, nourishing life, the human world, the sign of full virtue, the great source as teacher, and responding to emperors and kings.'},
        {heading:'A steward’s suggestion', body:'Begin with chapter three, Nourishing Life. It is the shortest, and the butcher story inside it is the whole book in miniature.'}]}},
- { slug:'religions-ancient-china', tradition:'Daoism', title:'Religions of Ancient China',
-   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/2330', attribution:'Herbert A. Giles · Project Gutenberg',
-   doc:{ summary:'A scholar’s overview of how Chinese religious life actually moved from an early sky-and-ancestor faith into Confucianism, Taoism, and Buddhism — history, not scripture, and useful for exactly that reason.',
-     sections:[
-       {heading:'What it is', body:'Giles traces a plain historical line: an old faith centered on Shang-ti and ancestor worship, gradually joined and reshaped by Confucius’s ethics, Lao-tzu’s Tao, and Buddhism arriving from India. It reads as history and comparative religion, not devotion.'},
-       {heading:'Why it earns a shelf spot here', body:'Every other Daoist text on this shelf is a primary source or a steward’s close reading of one. This is the outside view — where Taoism actually came from and how it sat alongside its neighbors — useful before or after sitting with the Tao Te Ching itself, not instead of it.'}]}},
  // ---- Practice ----
  { slug:'hearth-logbook', tradition:'Practice', title:'A Practice Logbook — Crucible Trial No. 1',
    license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'The first user',
@@ -134,5 +117,31 @@ const RAW_SEED_LIBRARY = [
      sections:[
        {heading:'The rules', body:'No gate, no fee, no ledger of debts. Every entry carries license and source from the moment it is shelved. Anyone may read; stewards shelve; the record of both is public.'},
        {heading:'Where the books come from', body:'The seed collection draws on SuttaCentral (released CC0) and public-domain archives. As the shelves grow, the same rule holds: provenance at the point of entry, never retrofitted.'}]}},
+ // ---- Classics ----
+ { slug:'meditations', tradition:'Classics', title:'Meditations',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/2680', attribution:'Marcus Aurelius · Project Gutenberg',
+   doc:{ summary:'The private notebook of a Roman emperor, written only for himself, on how to meet each day without being ruined by it.',
+     sections:[
+       {heading:'What it is', body:'Twelve short books Marcus Aurelius wrote to himself while commanding armies on the Danube frontier — never meant for anyone else to read, which is exactly why it still sounds so direct sixteen centuries later.'},
+       {heading:'How to read it', body:'The same instinct as the Dhammapada: open anywhere, read a page, let one line sit with you through the day. It was written in fragments and rewards being read that way.'}]}},
+ { slug:'republic', tradition:'Classics', title:'The Republic',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/1497', attribution:'Plato · tr. Benjamin Jowett · Project Gutenberg',
+   doc:{ summary:'Plato’s dialogue on justice, building an imagined ideal city from scratch to work out what justice actually is in a single person.',
+     sections:[
+       {heading:'What it is', body:'Socrates and his companions construct a city, institution by institution, on the theory that justice at the scale of a whole society will be easier to see than justice in one soul — then read the answer back onto the individual.'},
+       {heading:'Why it’s still read', body:'Its detours — the allegory of the cave, the philosopher-king, the divided line — have outlasted the argument they were built to illustrate, and mostly get read on their own terms now.'}]}},
+ { slug:'nicomachean-ethics', tradition:'Classics', title:'The Nicomachean Ethics',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/8438', attribution:'Aristotle · Project Gutenberg',
+   doc:{ summary:'Aristotle’s account of what a good life actually consists of — not a rulebook, but a case for virtue as a trained habit.',
+     sections:[
+       {heading:'What it is', body:'Ten books arguing that virtue isn’t a feeling or a rule but a disposition built through practice, typically found as a mean between two opposing failures — courage between recklessness and cowardice, and so on.'},
+       {heading:'How to read it', body:'Slower than it looks. The individual claims are plain, but Aristotle’s method is to test each one from several angles before trusting it — worth matching his pace rather than skimming for conclusions.'}]}},
+ // ---- Science ----
+ { slug:'origin-of-species', tradition:'Science', title:'On the Origin of Species',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/1228', attribution:'Charles Darwin · Project Gutenberg (1859, first edition)',
+   doc:{ summary:'Darwin’s 1859 case for evolution by natural selection, built patiently from evidence anyone of the time could go check for themselves.',
+     sections:[
+       {heading:'What it is', body:'Rather than opening with grand theory, Darwin starts with pigeon breeding and farm animals — variation under human selection that his Victorian readers already knew firsthand — before extending the same logic out to the whole natural world.'},
+       {heading:'Why it still matters', body:'It’s less a list of conclusions than a demonstration of how to argue carefully from ordinary evidence toward an enormous claim — arguably the more durable lesson, independent of the biology.'}]}},
 ];
 export const SEED_LIBRARY = RAW_SEED_LIBRARY.map(d => ({ category:'classical', ...d }));

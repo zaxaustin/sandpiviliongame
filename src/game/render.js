@@ -180,6 +180,38 @@ function drawTile(ch,x,y,sx,sy){
       ctx.strokeStyle='#6b4a2f'; ctx.lineWidth=Math.max(1,S*.02); ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.5,S*.28,S*.2,0,0,7); ctx.stroke();
       ctx.fillStyle='#e8dcb8'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.46,S*.06,0,7); ctx.fill(); // a small cup on top
       break; }
+    case 'b':{ // a bean bag chair — a reading nook, explicitly just a place to sit, no mechanic
+      ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle='rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.86,S*.32,S*.1,0,0,7); ctx.fill(); // shadow
+      ctx.fillStyle='#8a4a3a'; // the bag itself — squat, soft, no straight edges
+      ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.58,S*.36,S*.3,0,0,7); ctx.fill();
+      ctx.fillStyle='#a55a48'; ctx.beginPath(); ctx.ellipse(sx+S*.44,sy+S*.46,S*.24,S*.2,0,0,7); ctx.fill(); // a highlight, off-center — looks squished-into, not perfectly round
+      ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.lineWidth=Math.max(1,S*.02);
+      ctx.beginPath(); ctx.moveTo(sx+S*.3,sy+S*.62); ctx.quadraticCurveTo(sx+S*.5,sy+S*.72,sx+S*.7,sy+S*.62); ctx.stroke(); // a seam
+      ctx.fillStyle='#e8dcb8'; ctx.save(); ctx.translate(sx+S*.68,sy+S*.4); ctx.rotate(-.3); // a book left open on the arm of it
+      ctx.fillRect(-S*.1,-S*.07,S*.2,S*.14); ctx.strokeStyle='#8a7350'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,-S*.07); ctx.lineTo(0,S*.07); ctx.stroke();
+      ctx.restore();
+      break; }
+    case 'm':{ // the Grand Master's own platform — a raised dais with a cushion,
+      // where he actually sits now rather than being placed on bare floor
+      ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle='rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.58,S*.4,S*.14,0,0,7); ctx.fill();
+      ctx.fillStyle='#8a6438'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.5,S*.42,S*.24,0,0,7); ctx.fill(); // the wooden dais
+      ctx.strokeStyle='#5a3f18'; ctx.lineWidth=Math.max(1,S*.025); ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.5,S*.42,S*.24,0,0,7); ctx.stroke();
+      ctx.fillStyle='#b5654a'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.44,S*.26,S*.15,0,0,7); ctx.fill(); // a cushion on top
+      ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.lineWidth=Math.max(1,S*.018);
+      ctx.beginPath(); ctx.moveTo(sx+S*.3,sy+S*.44); ctx.quadraticCurveTo(sx+S*.5,sy+S*.5,sx+S*.7,sy+S*.44); ctx.stroke();
+      break; }
+    case 'n':{ // a bench, outdoors — a place to read that isn't inside the shelves
+      ctx.fillStyle=((x+y)%2===0)?SPAL.grassA:SPAL.grassB; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.82,S*.38,S*.09,0,0,7); ctx.fill(); // shadow
+      ctx.fillStyle='#5a4530'; // legs, both ends
+      ctx.fillRect(sx+S*.1,sy+S*.5,S*.08,S*.3); ctx.fillRect(sx+S*.82,sy+S*.5,S*.08,S*.3);
+      ctx.fillStyle=PAL.trunk; ctx.fillRect(sx+S*.06,sy+S*.42,S*.88,S*.16); // the seat plank
+      ctx.fillStyle='#8a6438'; ctx.fillRect(sx+S*.06,sy+S*.28,S*.88,S*.14); // the backrest plank, just behind it
+      ctx.strokeStyle='rgba(0,0,0,.2)'; ctx.lineWidth=Math.max(1,S*.015);
+      ctx.beginPath(); ctx.moveTo(sx+S*.06,sy+S*.5); ctx.lineTo(sx+S*.94,sy+S*.5); ctx.stroke(); // seat/backrest seam
+      break; }
   }
 }
 function drawBuilding(b,ox,oy){

@@ -20,6 +20,28 @@ function withTimeout(signalMs){
   return { signal: ctrl.signal, done: ()=>clearTimeout(timer) };
 }
 
+/* Inside the desktop app, a plain fetch() from this (renderer) context
+   still hits the exact same CORS wall an ordinary browser tab does —
+   contextIsolation keeps the renderer a real Chromium context. When
+   electron/preload.cjs has exposed window.desktopBridge, route the
+   request through the main process instead: a Node-side request that
+   was never subject to CORS in the first place (see DESKTOP-APP-PLAN.md).
+   Falls back to a plain fetch when not running inside the desktop app,
+   so nothing here changes for the ordinary browser build. */
+async function localFetch(url, { method='GET', headers, body, signalMs }={}){
+  if(typeof window !== 'undefined' && window.desktopBridge){
+    const r = await window.desktopBridge.fetchJSON(url, { method, headers, body, signalMs });
+    return {
+      ok: r.ok, status: r.status,
+      json: async()=>{ if(r.json===null) throw new Error('Response was not JSON'); return r.json; },
+      text: async()=>r.text,
+    };
+  }
+  const t = withTimeout(signalMs || 30000);
+  try{ return await fetch(url, { method, headers, body, signal:t.signal }); }
+  finally{ t.done(); }
+}
+
 // NPC chat and quick assistant replies stay short-ish — fast, cheap, and
 // resistant to a "thinking" model burning its whole budget on invisible
 // reasoning before it starts answering (see below). Drafted documents
@@ -52,9 +74,7 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
     name: name || 'Ollama', model: null, availableModels: [],
     async isAvailable(){
       try{
-        const t = withTimeout(1200);
-        const res = await fetch(url+'/api/tags', { signal:t.signal });
-        t.done();
+        const res = await localFetch(url+'/api/tags', { signalMs:1200 });
         if(!res.ok) return false;
         const body = await res.json();
         const models = (body.models||[]).map(m=>m.name);
@@ -76,17 +96,15 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
     },
     async chat(messages, opts){
       const size = (opts && opts.long) ? 'long' : 'short';
-      const t = withTimeout(REPLY_TIMEOUT[size]); // local models vary wildly in speed; don't hang forever
-      try{
-        const res = await fetch(url+'/api/chat', {
-          method:'POST', headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify({ model:p.model, messages, stream:false, think:false, options:{ num_predict:REPLY_TOKENS[size] } }),
-          signal:t.signal,
-        });
-        if(!res.ok) throw new Error('Ollama request failed: '+res.status);
-        const body = await res.json();
-        return (body.message?.content||'').trim() || EMPTY_REPLY_TEXT.ollama;
-      } finally { t.done(); }
+      // local models vary wildly in speed; don't hang forever
+      const res = await localFetch(url+'/api/chat', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ model:p.model, messages, stream:false, think:false, options:{ num_predict:REPLY_TOKENS[size] } }),
+        signalMs: REPLY_TIMEOUT[size],
+      });
+      if(!res.ok) throw new Error('Ollama request failed: '+res.status);
+      const body = await res.json();
+      return (body.message?.content||'').trim() || EMPTY_REPLY_TEXT.ollama;
     },
   };
   return p;

@@ -209,7 +209,8 @@ const CHAT_AGENTS = {
         +"Only speak about texts that are actually shelved here (listed below). Never invent a title, "
         +"author, or claim that isn't in that list. If someone asks about something not shelved, say so "
         +"plainly and, if it fits, point to the closest real text instead — or, for anything outside the "
-        +"Library's own traditions, that the Mountain Monk may be a better person to ask. When you draw "
+        +"Library's own traditions, that the Mountain Monk may be a better person to ask — he keeps his "
+        +"own quarters in the Pavilion Keep now, north of the Grounds, not here. When you draw "
         +"from a specific text, name it."
         +'\n\nWhat is actually on the shelves right now:\n'+shelf+pastAsksBlock('quill');
     },
@@ -246,8 +247,12 @@ const CHAT_AGENTS = {
       return CHARTER
         +"\n\nYou are the Mountain Monk, Grand Master of the Sand Pavilion — its elder and final voice "
         +"on matters of conduct and practice, upholding the Four Noble Truths and the Noble Eightfold "
-        +"Path for everyone who lives here or visits. You live quietly at the edge of the Grounds, some "
-        +"distance from the paths everyone else uses, and you carry that authority lightly — you'd "
+        +"Path for everyone who lives here or visits. You keep your own quarters in the Pavilion Keep, "
+        +"apart from the Library's foot traffic, so a real conversation doesn't have to compete with "
+        +"the shelves — visitors seek you out for that specifically, not in passing. Daily-life "
+        +"logistics and the café's own comings and goings are the Steward's place, not yours; you're "
+        +"here for matters of conduct, meaning, and practice, and you'd say so plainly if someone "
+        +"brought you the wrong kind of question. You carry that authority lightly — you'd "
         +"rather answer a heavy question with an unexpected story or a small joke than a lecture, "
         +"though you go fully serious the moment a real question of conduct or meaning actually "
         +"deserves it. You teach Buddhism, Hinduism (especially Advaita Vedanta and the teachings of "
@@ -350,9 +355,20 @@ function renderBadges(){
 /* ----- AI status + Connections panel ----- */
 export async function refreshAIStatus(){
   await detectAI(data.aiConnections);
-  document.getElementById('aiMode').textContent = isAIActive()
-    ? '● Connected to '+AI.name+' — ask Quill anything in the Library'
-    : '○ No local AI detected — Quill uses scripted dialog (see README for setup)';
+  const el = document.getElementById('aiMode');
+  if(isAIActive()){
+    el.textContent = '● Connected to '+AI.name+' — ask Quill anything in the Library';
+    return;
+  }
+  // The desktop app is meant to reach people without this repo (and its
+  // README) sitting on disk — pointing at "see README" there is a dead
+  // end. Point at the actual download instead, per DESKTOP-APP-PLAN.md's
+  // "a plain, honest message and a link, not a silent fallback."
+  if(typeof window !== 'undefined' && window.desktopBridge?.isDesktop){
+    el.innerHTML = '○ No local AI detected — install <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> and pull a model to let residents talk back';
+  } else {
+    el.textContent = '○ No local AI detected — Quill uses scripted dialog (see README for setup)';
+  }
 }
 export function openConnections(){
   state.ui='connections'; hideAllOv();
@@ -677,9 +693,9 @@ export function shelfTraditionFor(x,y){
   // six shelf blocks, three rows deep → six lineages
   const row = y<=4 ? 0 : y<=7 ? 1 : 2;
   const side = x<8 ? 0 : 1;
-  return [['Theravada','Mahayana'],['Daoism','Practice'],['Science','Nature']][row][side];
+  return [['Theravada','Mahayana'],['Daoism','Practice'],['Science','Classics']][row][side];
 }
-const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Nature:150 };
+const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Classics:150 };
 export function openShelf(tradition){
   state.ui='shelf'; state.shelfTradition=tradition; state.shelfIndex=0; hideAllOv();
   document.getElementById('shelfTitle').textContent='Shelf · '+tradition;
@@ -749,10 +765,33 @@ export function openReader(slug){
   document.getElementById('rdFullTextBtn').style.display = d.doc.fullText ? 'inline-block' : 'none';
   document.getElementById('rdSummaryView').style.display='block';
   document.getElementById('rdFullTextView').style.display='none';
+  document.getElementById('rdNoteInput').value='';
+  renderBookNotes(slug);
   const panel=document.querySelector('#readerOv .panel');
   panel.classList.remove('bookPanel'); void panel.offsetWidth; panel.classList.add('bookPanel');
   showOv('readerOv');
   awardBadge('first-page');
+}
+/* A reading journal, not a submission — notes live only in the reader's own
+   save (data.bookNotes), the same personal/local shape as data.read, never
+   sent to Supabase or the shared shelves. Kept outside the summary/full-text
+   toggle (rdSummaryView vs rdFullTextView) so it stays visible across both,
+   the same note surviving whichever way you're reading the book right now. */
+export function addBookNote(slug){
+  if(!slug) return;
+  const input=document.getElementById('rdNoteInput');
+  const text=input.value.trim(); if(!text) return;
+  (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift({ts:todayKey(),text});
+  persist(); input.value=''; renderBookNotes(slug);
+  const d=Store.getDoc(slug);
+  logActivity('Added a note to "'+(d?d.title:slug)+'".');
+  awardBadge('first-note');
+}
+function renderBookNotes(slug){
+  const notes=data.bookNotes[slug]||[];
+  document.getElementById('rdNotesList').innerHTML = notes.length
+    ? notes.map(n=>`<div class="card" style="cursor:default"><div class="s">${esc(n.ts)}</div><div>${esc(n.text)}</div></div>`).join('')
+    : '<p class="meta">No notes yet on this book — jot down whatever\'s worth remembering.</p>';
 }
 export function currentDocSlug(){ return state.currentDoc; }
 
@@ -773,26 +812,52 @@ function paginateFullText(text){
   if(cur) pages.push(cur);
   return pages.length ? pages : [text];
 }
-export function openFullText(slug){
+/* Full text lives one of two ways: inlined in doc.fullText.text (the
+   zero-setup seed.js fallback — always works, no server required), or as
+   doc.fullText.storage (a MinIO pointer, {bucket,key}) once a text has
+   been migrated to local object storage — see LIBRARY-SCALING-PLAN.md.
+   Try the inline copy first (instant, no network); only reach for MinIO
+   when there isn't one, and fail visibly rather than silently if MinIO
+   isn't running, instead of leaving the reader stuck on "Loading…". */
+export async function openFullText(slug){
   const d=Store.getDoc(slug); if(!d||!d.doc.fullText) return;
-  state.fullTextView = { slug, pages:paginateFullText(d.doc.fullText.text), page:0 };
   const ft=d.doc.fullText;
   document.getElementById('rdFullTextMeta').innerHTML =
     `${esc(ft.translator||'')}${ft.translator?' · ':''}License: <b>${esc(ft.license)}</b><br>${esc(ft.source_url||'')}`;
   document.getElementById('rdSummaryView').style.display='none';
   document.getElementById('rdFullTextView').style.display='block';
+  document.getElementById('rdFullTextPageNum').textContent='';
+  let text = ft.text;
+  if(!text && ft.storage){
+    document.getElementById('rdFullTextBody').textContent='Loading from local storage…';
+    try{
+      const base=(import.meta.env && import.meta.env.VITE_MINIO_ENDPOINT) || 'http://localhost:9000';
+      const res=await fetch(`${base}/${ft.storage.bucket}/${ft.storage.key}`);
+      if(!res.ok) throw new Error('status '+res.status);
+      text=await res.text();
+    }catch(e){
+      document.getElementById('rdFullTextBody').textContent=
+        "Couldn't load the full text — the local Library storage (MinIO) doesn't seem to be running right now.";
+      return;
+    }
+  }
+  if(!text) return;
+  state.fullTextView = { slug, pages:paginateFullText(text), page:0 };
   renderFullTextPage();
 }
 export function backToSummary(){
+  stopSpeaking();
   state.fullTextView=null;
   document.getElementById('rdSummaryView').style.display='block';
   document.getElementById('rdFullTextView').style.display='none';
 }
 function renderFullTextPage(){
   const v=state.fullTextView; if(!v) return;
+  stopSpeaking();
   document.getElementById('rdFullTextBody').textContent=v.pages[v.page];
   document.getElementById('rdFullTextPageNum').textContent=`Page ${v.page+1} of ${v.pages.length}`;
   document.getElementById('rdFullTextBody').scrollTop=0;
+  updateFullTextSpeakBtn();
 }
 export function fullTextNextPage(){
   const v=state.fullTextView; if(!v||v.page>=v.pages.length-1) return;
@@ -801,6 +866,22 @@ export function fullTextNextPage(){
 export function fullTextPrevPage(){
   const v=state.fullTextView; if(!v||v.page<=0) return;
   v.page--; renderFullTextPage();
+}
+function updateFullTextSpeakBtn(){
+  const btn=document.getElementById('rdFullTextReadBtn'); if(!btn) return;
+  if(!ttsAvailable()){ btn.style.display='none'; return; }
+  btn.style.display='inline-block';
+  btn.textContent = isSpeaking() ? '⏹ Stop' : '🔊 Read this page';
+}
+/* Per-page, not whole-book — a 50-page speech queued up front would be
+   impossible to stop cleanly or resume mid-book. Reading a page and
+   turning to the next is the same unit a human reader already uses, so
+   read-aloud follows the same unit instead of inventing a bigger one. */
+export function toggleFullTextReadAloud(){
+  if(isSpeaking()){ stopSpeaking(); updateFullTextSpeakBtn(); return; }
+  const v=state.fullTextView; if(!v) return;
+  speak(v.pages[v.page], updateFullTextSpeakBtn);
+  updateFullTextSpeakBtn();
 }
 export function markRead(){
   const slug=state.currentDoc; if(!slug) return;
@@ -941,6 +1022,8 @@ export function openPlanner(){
   document.getElementById('planSaved').textContent='';
   renderPastDays();
   renderPlanUpcoming();
+  state.plannerChat=state.plannerChat||{history:[]};
+  renderPlannerAssist();
   showOv('planOv');
 }
 // the one place "planning today" and the quiet due-date badge actually
@@ -1011,6 +1094,79 @@ export function savePlanner(announce){
   day.ember=document.getElementById('planEmber').value.trim();
   persist();
   if(announce){ document.getElementById('planSaved').textContent='Saved · '+todayKey(); blip(784,.08); awardBadge('first-plan'); }
+}
+
+/* ----- Ask the Steward (Writing Desk) — the Steward's café persona,
+   the same character, just grounded in today's actual planner state
+   instead of the notice board. Reuses CHAT_AGENTS.steward's system
+   prompt as a base rather than duplicating its charter/moderation
+   framing — this is the same resident wearing a different hat, per
+   the standing decision that daily-life help is the Steward's place,
+   not the Monk's (see CHAT_AGENTS.monk). */
+function plannerContext(){
+  const day=plannerDay();
+  const blocksSummary=day.blocks.map(b=>`${b.name}: ${b.state}`).join(', ');
+  const horizon=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const soon=upcomingItems().filter(i=>i.due<=horizon);
+  const upcoming=soon.length ? soon.map(i=>`- ${i.title} (${i.kind}) due ${i.due}`).join('\n') : '(nothing due in the next week)';
+  const recentKeys=pastDays().slice(0,3);
+  const recent=recentKeys.length ? recentKeys.map(k=>{
+    const d=data.planner[k];
+    return `- ${k}: intention "${d.intention||'(none)'}" — ember: "${(d.ember||'(nothing written)').slice(0,140)}"`;
+  }).join('\n') : '(no earlier days recorded yet)';
+  return { day, blocksSummary, upcoming, recent };
+}
+async function plannerSystemPrompt(){
+  const stewardBase=await CHAT_AGENTS.steward.systemPrompt();
+  const { day, blocksSummary, upcoming, recent }=plannerContext();
+  return stewardBase
+    +"\n\nRight now you're specifically helping at the Writing Desk, not the café counter — a "
+    +"visitor wants real help planning or reviewing their actual day, not café chat. Be concrete: "
+    +"suggest an actual intention, which rhythm blocks deserve real focus today, or what to notice "
+    +"given what's coming up. A short, usable answer, not a lecture.\n\n"
+    +"Today's intention so far: "+(day.intention||'(not set yet)')
+    +"\nToday's rhythm blocks: "+blocksSummary
+    +"\nWhat's due soon:\n"+upcoming
+    +"\nRecent days, for pattern:\n"+recent;
+}
+export function fillPlannerPrompt(text){ const el=document.getElementById('planAskInput'); if(el){ el.value=text; el.focus(); } }
+export async function sendPlannerMessage(){
+  const input=document.getElementById('planAskInput');
+  const q=input.value.trim(); if(!q) return;
+  state.plannerChat=state.plannerChat||{history:[]};
+  state.plannerChat.history.push({role:'user',content:q}); input.value=''; renderPlannerAssist();
+  try{
+    const reply=await AI.chat([{role:'system',content:await plannerSystemPrompt()}, ...state.plannerChat.history]);
+    state.plannerChat.history.push({role:'assistant',content:reply}); state.plannerChat.lastReply=reply;
+    logActivity('Asked the Steward for help planning the day.');
+  }catch(e){
+    state.plannerChat.history.push({role:'assistant',content:"The Steward's connection flickers — no answer this time. Check that your AI connection is still running."});
+  }
+  renderPlannerAssist();
+}
+export function usePlannerReplyAsIntention(){
+  const c=state.plannerChat; if(!c||!c.lastReply) return;
+  document.getElementById('planIntent').value = c.lastReply.length>140 ? c.lastReply.slice(0,140) : c.lastReply;
+}
+function renderPlannerAssist(){
+  const el=document.getElementById('planAssist'); if(!el) return;
+  const aiOn=isAIActive();
+  const c=state.plannerChat||{history:[]};
+  el.innerHTML = aiOn ? `
+    <div class="meta">The Steward can help you think through today, grounded in what's actually due and how recent days went.</div>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn ghost" style="font-size:11.5px" onclick="fillPlannerPrompt('Help me set an intention for today.')">Help me plan today</button>
+      <button class="btn ghost" style="font-size:11.5px" onclick="fillPlannerPrompt('Given what\\'s due soon, what should I actually focus on?')">What should I focus on</button>
+      <button class="btn ghost" style="font-size:11.5px" onclick="fillPlannerPrompt('Looking at my recent days, what pattern should I adjust?')">Spot a pattern</button>
+    </div>
+    <div id="planAskHistory">${(c.history||[]).map(h=>`
+      <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':'The Steward'}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
+    <textarea id="planAskInput" rows="2" placeholder="Ask, or pick a quick start above…"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" onclick="sendPlannerMessage()">Ask</button>
+      ${c.lastReply?`<button class="btn ghost" onclick="usePlannerReplyAsIntention()">📋 Use as today's intention</button>`:''}
+    </div>`
+    : `<div class="meta">No local AI connected right now (⚙ Manage AI connections) — the Steward needs a live connection to help plan.</div>`;
 }
 
 /* ----- Courses (the Course Board) ----- */
@@ -1439,7 +1595,11 @@ function researchSystemPrompt(project){
   return CHARTER
     +'\n\nYou are the research assistant at the Workshop\'s Research Desk in the Sand Pavilion. '
     +`The visitor is working on: "${project.title}"`+(project.goal?` — their stated goal: ${project.goal}.`:'.')
-    +' Help them think, find angles, ask good questions, and organize what they already have. '
+    +' This might be a topic they\'re studying, or it might be a real thing they want to build or make '
+    +'happen (a garden, a habit, a piece of writing) — read which one it is from their title/goal/notes '
+    +'and match it: for a study topic, help them think, find angles, ask good questions; for a project, '
+    +'help them turn the idea into something concrete — real next steps, what they\'d actually need, '
+    +'what could trip them up. Either way, organize what they already have rather than repeating it back. '
     +'You may draw on the Library\'s shelved texts below if relevant, but this work can range wider '
     +'than the Library alone — don\'t force a connection that isn\'t there. Be concrete and useful, '
     +'a few sentences or a short list, not an essay.'
@@ -1497,6 +1657,39 @@ export function saveResearchReplyAsNote(id){
   p.notes.unshift({ts:todayKey(),text:v.lastReply});
   v.lastReply=''; persist(); renderResearch();
 }
+/* Paste-a-chapter summarizer: distinct from the "Ask" chat above on
+   purpose. This sends the pasted text itself (a chapter, a paper, your
+   own notes) with an instruction to summarize it — not grounded in the
+   Library or the project's other notes, since the whole point is "just
+   this text, faithfully condensed." The output lands as a project note,
+   the same personal, local-only, never-sent-to-Supabase place every
+   other Research Desk note lives — this stays a private study aid, not
+   a path into the shared Library, on purpose: what you paste here may
+   be your own copy of something copyrighted (a textbook chapter you
+   own), which is fine for your own summary but was never meant to be
+   redistributed. */
+export async function summarizeResearchText(id){
+  const input=document.getElementById('resSummarizeInput');
+  const text=input.value.trim(); if(!text) return;
+  const p=researchProject(id); if(!p) return;
+  const statusEl=document.getElementById('resSummarizeStatus');
+  if(statusEl) statusEl.textContent='Summarizing…';
+  try{
+    const reply=await AI.chat([
+      {role:'system',content:CHARTER+'\n\nSummarize the text the visitor pastes into clear, well-organized '
+        +'study notes: the main points, in order, plus anything genuinely worth remembering. Stay strictly '
+        +'grounded in what\'s actually in the text — never add outside facts or fill gaps with a guess. '
+        +'If the text is long, a few short paragraphs or a tight bulleted list is more useful than a wall of text.'},
+      {role:'user',content:text},
+    ]);
+    p.notes.unshift({ts:todayKey(),text:reply});
+    persist(); input.value=''; if(statusEl) statusEl.textContent='';
+    logActivity('Summarized a pasted text into "'+p.title+'".'); blip(784,.09);
+  }catch(e){
+    if(statusEl) statusEl.textContent="The connection flickered — no summary this time. Check that your AI connection is still running.";
+  }
+  renderResearch();
+}
 export function promoteResearchToArchive(id){
   const p=researchProject(id); if(!p) return;
   if(!p.notes.length) return;
@@ -1516,9 +1709,9 @@ function renderResearch(){
       <div class="meta">Freeform — add notes over as many visits as it takes. Nothing here is
         published until you choose to turn it into an Archive Desk entry.</div>
       <label>What are you researching, or working toward?</label>
-      <input type="text" id="resTitle" placeholder="e.g. How Chan Buddhism actually reached Japan">
+      <input type="text" id="resTitle" placeholder="e.g. How Chan Buddhism actually reached Japan — or a permaculture garden">
       <label>Goal (optional)</label>
-      <input type="text" id="resGoal" placeholder="e.g. A short paper I can point people to">
+      <input type="text" id="resGoal" placeholder="e.g. A short paper I can point people to — or an actual garden started this fall">
       <div class="row" style="margin-top:14px">
         <button class="btn" onclick="createResearchProject()">Start</button>
         <button class="btn ghost" onclick="backToResearchList()">← Back</button>
@@ -1540,6 +1733,17 @@ function renderResearch(){
         <div class="card" style="cursor:default"><div class="s">${esc(n.ts)}</div><div>${esc(n.text)}</div></div>`).join('')
         : '<p>No notes yet — start with whatever\'s in your head, it doesn\'t need to be tidy.</p>'}</div>
 
+      <h3 style="margin-top:18px">📄 Summarize a chapter or paper</h3>
+      <div class="meta">${aiOn
+        ? 'Paste in a chapter, a paper, or anything you have legitimate access to — your local AI condenses it into study notes, saved below. Personal to this project only; never sent to the shared Library. Very long pastes may exceed what a local model can take in at once — a section at a time works better than a whole book.'
+        : 'No local AI connected right now (⚙ Manage AI connections) — this needs a live connection to actually summarize.'}</div>
+      ${aiOn ? `
+        <textarea id="resSummarizeInput" rows="5" placeholder="Paste the text to summarize…"></textarea>
+        <div class="row" style="margin-top:8px;align-items:center">
+          <button class="btn ghost" onclick="summarizeResearchText('${p.id}')">Summarize into a note</button>
+          <span class="meta" id="resSummarizeStatus" style="margin:0"></span>
+        </div>` : ''}
+
       <h3 style="margin-top:18px">Research assistant</h3>
       <div class="meta">${aiOn
         ? 'Grounded in the Library and everything you\'ve noted above — ask it to help you think, find a next question, or summarize what you have.'
@@ -1549,6 +1753,9 @@ function renderResearch(){
           <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('Summarize what I have so far.')">Summarize what I have</button>
           <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('What\\'s a good next question to chase down?')">Suggest a next question</button>
           <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('Draft a short outline from these notes.')">Draft an outline</button>
+          <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('Break this into concrete next steps I could actually start on.')">Break into next steps</button>
+          <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('What would I actually need to get started \\u2014 materials, tools, skills, anything?')">What do I need</button>
+          <button class="btn ghost" style="font-size:11.5px" onclick="fillResearchPrompt('What could go wrong here, and how should I plan around it?')">What could go wrong</button>
         </div>
         <div id="resHistory">${(state.researchView.history||[]).map(h=>`
           <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':'Research assistant'}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
@@ -1569,8 +1776,9 @@ function renderResearch(){
   panel.innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>The Research Desk</h2>
-    <div class="meta">Freeform, ongoing work — a running notebook per topic, not a single polished
-      page. A research-assistant AI can think alongside you here, grounded in your own notes.</div>
+    <div class="meta">Freeform, ongoing work — a running notebook per topic or per idea you're
+      trying to make real, not a single polished page. An assistant AI can think alongside you here,
+      grounded in your own notes — whether you're studying something or building it.</div>
     ${projects.length ? projects.map(p=>`
       <div class="card" onclick="openResearchProject('${p.id}')">
         <div class="t">${esc(p.title)}</div>
@@ -2166,6 +2374,7 @@ function renderResidents(){
 export function openReviewQueue(){ state.ui='review'; hideAllOv(); state.reviewView=state.reviewView||{mode:'list'}; renderReviewQueue(); showOv('reviewOv'); }
 export function newReviewImportForm(){ state.reviewView={mode:'import'}; renderReviewQueue(); }
 export function newReviewManualForm(){ state.reviewView={mode:'manual'}; renderReviewQueue(); }
+export function newSCSearchForm(){ state.reviewView={mode:'suttacentral',results:null,query:''}; renderReviewQueue(); }
 export function backToReviewList(){ state.reviewView={mode:'list'}; renderReviewQueue(); }
 function renderReviewQueue(){
   const v=state.reviewView, q=data.reviewQueue, aiOn=isAIActive();
@@ -2195,7 +2404,7 @@ function renderReviewQueue(){
       <label>Title</label><input type="text" id="rmTitle" placeholder="e.g. On the Duty of Civil Disobedience">
       <label>Tradition</label>
       <select id="rmTradition" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
-        ${['Theravada','Mahayana','Daoism','Practice','Science','Nature'].map(t=>`<option value="${t}">${t}</option>`).join('')}
+        ${['Theravada','Mahayana','Daoism','Practice','Science','Classics'].map(t=>`<option value="${t}">${t}</option>`).join('')}
       </select>
       <label>License</label><input type="text" id="rmLicense" placeholder="e.g. Public Domain, CC0, CC-BY 4.0">
       <label>Source (URL or citation)</label><input type="text" id="rmSource" placeholder="Where this actually came from">
@@ -2203,6 +2412,33 @@ function renderReviewQueue(){
       <div id="reviewManualMsg" class="meta"></div>
       <div class="row" style="margin-top:14px">
         <button class="btn" onclick="submitManualReviewItem()">Add to queue</button>
+        <button class="btn ghost" onclick="backToReviewList()">← Back</button>
+      </div>`;
+    return;
+  }
+  if(v.mode==='suttacentral'){
+    const results=v.results;
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Browse SuttaCentral</h2>
+      <div class="meta">Live search against suttacentral.net, straight from your browser — no server
+        in between, same source the Theravada shelf's real full texts already come from. Fetching a
+        result adds its actual translated text to the queue below as a pending item; nothing's on a
+        shelf until you approve it, same as every other path in.</div>
+      <div class="row">
+        <input type="text" id="scQuery" placeholder="e.g. mindfulness, loving-kindness, the Buddha's last days" value="${esc(v.query||'')}" style="flex:1">
+        <button class="btn" onclick="searchSuttaCentral()">Search</button>
+      </div>
+      <div id="scStatus" class="meta"></div>
+      <div id="scResults">${results ? results.map(r=>`
+        <div class="card" style="cursor:default">
+          <div class="t">${esc(r.name)} <span class="s">(${esc(r.uid)})</span></div>
+          <div class="s">${esc(r.author||'')}</div>
+          <div class="row" style="margin-top:6px">
+            <button class="btn ghost" id="scFetch-${esc(r.uid)}" onclick="fetchSuttaCentralText('${esc(r.uid)}','${esc(r.name).replace(/'/g,"\\'")}','${esc(r.author_uid||'sujato')}')">+ Fetch full text & add to queue</button>
+          </div>
+        </div>`).join('') || '<p>No matches yet — try a different word.</p>' : ''}</div>
+      <div class="row" style="margin-top:14px">
         <button class="btn ghost" onclick="backToReviewList()">← Back</button>
       </div>`;
     return;
@@ -2232,9 +2468,81 @@ function renderReviewQueue(){
     <div class="row" style="margin-top:14px">
       <button class="btn ghost" onclick="newReviewImportForm()">+ Paste Caravan output</button>
       <button class="btn ghost" onclick="newReviewManualForm()">+ Add a text by hand</button>
+      <button class="btn ghost" onclick="newSCSearchForm()">🔍 Browse SuttaCentral</button>
       ${data.reviewQueue.filter(x=>x.status==='approved').length ? `<button class="btn" onclick="generateApprovedBatch()">📋 Generate batch (${data.reviewQueue.filter(x=>x.status==='approved').length} approved)</button>` : ''}
     </div>
     <div id="reviewBatchOut"></div>`;
+}
+/* ----- Live SuttaCentral browsing, straight from the browser — the one
+   Caravan source that's actually CORS-open for real content (confirmed:
+   Gutenberg's raw text host and arXiv both refuse cross-origin fetches;
+   SuttaCentral's search, suttaplex, and bilara endpoints all allow it).
+   Ports tools/caravan/suttacentral.py's bilara-JSON-to-clean-text logic
+   into JS — same segment-ordering discipline (always walk keys_order,
+   never translation_text's own key order, since those can diverge), same
+   "skip structural segments with no translation rather than guess." */
+const SC_API='https://suttacentral.net/api';
+function assembleBilaraHtml(bilara){
+  const {translation_text,html_text,keys_order}=bilara;
+  let out='';
+  for(const key of keys_order){
+    if(!(key in translation_text)) continue;
+    const segText=translation_text[key];
+    const template=html_text[key]||'{}';
+    out += template.includes('{}') ? template.replace('{}',segText) : template+segText;
+  }
+  return out;
+}
+function bilaraHtmlToText(html){
+  html=html.replace(/<(h[1-4])[^>]*>([\s\S]*?)<\/\1>/gi, m=>'\n\n'+m+'\n\n');
+  html=html.replace(/<\/(h1|h2|h3|h4|p|li|header|article)>/gi, m=>m+'\n\n');
+  let text=html.replace(/<[^>]+>/g,'');
+  const ta=document.createElement('textarea'); ta.innerHTML=text; text=ta.value;
+  text=text.split('\n').map(ln=>ln.trim().replace(/[ \t]+/g,' ')).join('\n');
+  text=text.replace(/\n{3,}/g,'\n\n');
+  return text.trim();
+}
+export async function searchSuttaCentral(){
+  const q=document.getElementById('scQuery').value.trim();
+  const status=document.getElementById('scStatus');
+  if(!q) return;
+  state.reviewView.query=q;
+  status.textContent='Searching…';
+  try{
+    const url=`${SC_API}/search/instant?query=${encodeURIComponent(q)}&limit=12&language=en&restrict=&matchpartial=true`;
+    const res=await fetch(url); if(!res.ok) throw new Error('status '+res.status);
+    const data=await res.json();
+    const seen=new Set();
+    state.reviewView.results = (data.hits||[]).filter(h=>{
+      if(seen.has(h.uid)) return false; seen.add(h.uid); return true;
+    }).map(h=>({ uid:h.uid, name:h.heading?.title||h.name||h.uid, author:h.author, author_uid:h.author_uid }));
+  }catch(e){
+    state.reviewView.results=[];
+    status.textContent="Couldn't reach SuttaCentral right now — check your internet connection and try again.";
+    renderReviewQueue(); return;
+  }
+  renderReviewQueue();
+}
+export async function fetchSuttaCentralText(uid,name,authorUid){
+  const btn=document.getElementById('scFetch-'+uid);
+  if(btn){ btn.disabled=true; btn.textContent='Fetching…'; }
+  try{
+    const bilaraUrl=`${SC_API}/bilarasuttas/${uid}/en?author_uid=${authorUid}`;
+    const res=await fetch(bilaraUrl); if(!res.ok) throw new Error('status '+res.status);
+    const bilara=await res.json();
+    if(!bilara.translation_text||!bilara.html_text||!bilara.keys_order) throw new Error('unexpected response shape');
+    const html=assembleBilaraHtml(bilara);
+    const body=bilaraHtmlToText(html);
+    if(!body) throw new Error('empty text');
+    data.reviewQueue.unshift({
+      id:Date.now(), title:name, license:'CC0 1.0', source:`https://suttacentral.net/${uid}`,
+      body, tradition:'Theravada', origin:'suttacentral', status:'pending', submittedAt:todayKey(),
+    });
+    persist(); logActivity('Fetched "'+name+'" from SuttaCentral into the Steward Review Queue.'); blip(700,.07);
+    state.reviewView={mode:'list'}; renderReviewQueue();
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='Fetch failed — try again'; }
+  }
 }
 export function importReviewCandidates(){
   const raw=document.getElementById('reviewImportJson').value.trim();
@@ -2359,6 +2667,7 @@ export function toggleInventory(slug){
 export function openInventory(){ state.ui='inventory'; hideAllOv(); renderInventory(); showOv('inventoryOv'); }
 function renderInventory(){
   const docs=data.inventory.map(slug=>Store.getDoc(slug)).filter(Boolean);
+  const log=data.fishLog||[];
   document.getElementById('inventoryPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>Your Inventory</h2>
@@ -2373,7 +2682,17 @@ function renderInventory(){
         </div>`).join('')}</div>
       <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="suggestInventoryCategories()">🪄 Ask the Computer to organize this</button></div>
       <div id="invSuggestion" class="meta"></div>`
-    : '<p>Not carrying anything yet — in the Reader, "🎒 Take with you" adds a book here.</p>'}`;
+    : '<p>Not carrying anything yet — in the Reader, "🎒 Take with you" adds a book here.</p>'}
+
+    <h3 style="margin-top:22px">🎣 Fish Caught${log.length?' ('+log.length+')':''}</h3>
+    <div class="meta">A running tally from the pond — every catch, its own size, nothing thrown back.</div>
+    ${log.length ? `
+      <div id="fishLogList">${log.map(f=>`
+        <div class="card" style="cursor:default">
+          <div class="t">${esc(f.name)}</div>
+          <div class="s">${f.size}" · ${esc(f.ts)}</div>
+        </div>`).join('')}</div>`
+    : '<p>Nothing caught yet — face the pond and press E to cast a line.</p>'}`;
 }
 export async function suggestInventoryCategories(){
   const docs=data.inventory.map(slug=>Store.getDoc(slug)).filter(Boolean);
@@ -2442,10 +2761,11 @@ export async function generateQuillReport(){
    onclick="..." handlers, which only resolve against `window` —
    module-scoped functions aren't visible there, so wire them up. */
 Object.assign(window, {
-  closeUI, openReader, markRead, backToShelf,
-  openFullText, backToSummary, fullTextNextPage, fullTextPrevPage,
+  closeUI, openReader, markRead, backToShelf, addBookNote,
+  openFullText, backToSummary, fullTextNextPage, fullTextPrevPage, toggleFullTextReadAloud,
   selectBook, shelfOpenSelected,
-  cycleBlock, savePlanner, viewPastDay, backToPlanner,
+  openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
+  fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   newCourseAIForm, draftCourseWithAI, setCourseDue, draftTrainingPlanFromChat,
   addConnection, toggleConnection, removeConnection, recheckConnections, setConnectionModel, fillConnectionPreset,
@@ -2460,7 +2780,8 @@ Object.assign(window, {
   openComputer, saveLastChatReplyToArchive,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
-  openReviewQueue, newReviewImportForm, newReviewManualForm, backToReviewList, importReviewCandidates, submitManualReviewItem,
+  openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem,
+  searchSuttaCentral, fetchSuttaCentralText,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, draftSummaryForReviewItem, generateApprovedBatch, markBatchExported,
   openNoticeBoard, openNoticePost, backToNoticeList, newNoticePostForm, submitNoticePost,
   approveNoticePost, rejectNoticePost,
@@ -2474,4 +2795,5 @@ Object.assign(window, {
   openResearchDesk, newResearchForm, backToResearchList, createResearchProject,
   openResearchProject, deleteResearchProject, addResearchNote, fillResearchPrompt,
   sendResearchMessage, saveResearchReplyAsNote, promoteResearchToArchive,
+  summarizeResearchText,
 });

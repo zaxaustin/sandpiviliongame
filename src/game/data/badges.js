@@ -16,4 +16,5 @@ export const BADGES = [
   { id:'first-entry',    icon:'📔', name:'Your Own Words',     desc:'Write an entry at the Archive Desk.' },
   { id:'first-waypoint', icon:'🔗', name:'A Trail Marked',     desc:'Add a link to your Waypoints list.' },
   { id:'first-carry',    icon:'🎒', name:'Packed for the Road', desc:'Take a book with you from the Reader.' },
+  { id:'first-note',     icon:'📝', name:'A Thought Kept',     desc:'Add a note to a book in the Reader.' },
 ];

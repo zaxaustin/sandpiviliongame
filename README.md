@@ -1,19 +1,32 @@
 # The Sand Pavilion
 
-A small top-down world you can walk around in — a Library with real texts,
-a Keep with a charter, a Study where you plan your day, a Workshop for
-your own writing and research, a Café that looks outward. It's built like
-a game because a game is a good shape for a place, but the actual point
-is a commons: things freely given, license and source attached to
-everything, nothing gated.
+A small top-down world you walk around in — a Library with real, readable
+books, a Study for planning your day, a Workshop for your own writing and
+research, a Café that looks outward. It's built like a game because a
+game is a good shape for a place, but the actual point is a commons:
+things freely given, license and source attached to everything, nothing
+gated.
 
-The long-term idea: this becomes a platform where AI agents are
-residents, not just flavor text. The NPCs already carry that identity in
-their names — Ember · *Archivist Agent*, Moss · *Steward Agent*, Cobalt ·
-*Caravan Agent*, Quill · *Librarian Agent*, the Steward — some scripted,
-some with real AI voices now. A game that's not a game: an exploratory,
-spatial way to move through a personal (and now, partly, shared) body of
-data, practice, and writing, rather than a dashboard or a feed.
+The long-term idea: a platform where AI agents are residents, not just
+flavor text — and, further out, a free place where people study,
+practice, and pursue their own education together, the way a school or
+an order does, not a platform that owns what they learn. The NPCs
+already carry that identity in their names — Ember · *Archivist Agent*,
+Moss · *Steward Agent*, Cobalt · *Caravan Agent*, Quill · *Librarian
+Agent*, the Steward — some scripted, some with real AI voices now. A
+game that's not a game: an exploratory, spatial way to move through a
+personal (and, in time, shared) body of data, practice, and writing,
+rather than a dashboard or a feed.
+
+**Not everything has to happen inside the Pavilion, either.** Where the
+game can genuinely do something itself — read a book, hold a note,
+search SuttaCentral live from the Caravan Desk — it does. Where a real
+wall gets in the way (a browser can't fetch Project Gutenberg or arXiv
+directly — confirmed, not assumed), the honest move is to step outside,
+do that piece by hand or by script, and bring the result back in. The
+Request Board and `tools/caravan/` are that door, not a workaround to
+feel bad about — a commons that pretends to be more self-sufficient than
+it actually is just breaks trust with whoever's using it.
 
 ## New here? Start with this
 
@@ -36,12 +49,12 @@ Two things worth knowing going in:
 - **Nothing here can break by clicking around.** Every panel has an Esc
   in the corner. Worst case, you close it and try again.
 - **If you want to learn the "why" behind any of this alongside playing**
-  — what a terminal actually is, what "local" and "API" mean, how a real
-  database works, how this whole thing is built — there's a self-paced
-  curriculum for that in [`LEARNING-PATH.md`](LEARNING-PATH.md), built
-  around this project itself, plus
-  [`API-AI-INTEGRATION-PLAN.md`](API-AI-INTEGRATION-PLAN.md) for the
-  same ideas pointed outward at work/desktop AI integration generally.
+  — a terminal, APIs, Docker, databases, how this whole thing is built,
+  and how to actually go find and add real books yourself — there's a
+  self-paced curriculum for that in [`LEARNING-PATH.md`](LEARNING-PATH.md),
+  built around this project itself, plus
+  [`API-AI-INTEGRATION-PLAN.md`](API-AI-INTEGRATION-PLAN.md) for the same
+  ideas pointed outward at work/desktop AI integration generally.
 
 ## Running it
 
@@ -67,73 +80,78 @@ npm test           # config sanity check — scenes, warps, seed data (no browse
 checks `localhost:11434` from *whoever's browser is currently open*, not
 wherever the static files are hosted.
 
-**Phase 3 (Supabase) is live.** Copy `.env.example` to `.env.local` and
-fill in `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` from your own
-Supabase project to connect the Library, the café, and accounts to a real
-database; without it, everything gracefully falls back to local-only
-(the Library reads the bundled `seed.js`, the café says plainly that it
-needs a connection). See "How it's put together" for what actually moved.
+Everything below "works with zero setup" also works completely
+disconnected from the internet, forever, on this or any machine — the
+cloud pieces (Supabase, a hosted deploy) are additive, never required.
 
-## Features guide — everything, by location
+## What the Sand Pavilion can do today
 
-**Anywhere, via the pause menu (`Esc` / `☰`):**
-- **👤 Account** — optional. Magic-link sign-in (no password); adds
-  cross-device save sync and, for whoever's been hand-granted the role
-  in the Supabase dashboard, real steward powers on the café's boards.
-- **⚙ Manage AI connections** — see/add/enable/disable AI backends.
-- **🔗 Waypoints** — a personal, no-backend link list.
-- **📜 Activity Log** — a capped, human-readable record of what you've
-  actually done this and past visits.
-- **🏅 Badges** — nine first-time-action badges, doubling as a soft
-  tutorial.
-- **🎒 Inventory** — books you're carrying; read any from anywhere.
-- **🛡 Steward Review** — the queue for anything headed toward the
-  shared Library; approve/reject, then generate a paste-ready batch.
-- **⬇/⬆ Export / Import Save** — your whole save as a real JSON file.
-- **⚠ Reset all progress** — behind a confirmation; no undo.
+**With no setup at all:** walk the Grounds, read every Library text
+(aloud, if you like), take notes alongside any book right in the Reader,
+plan your day and pin courses, write in your own Archive Desk or start a
+freeform Research Desk project, run a real grant-proposal workspace,
+fish, carry books, earn badges, browse the café's boards, sit/lie/stand
+in meditation (`M`), and export your whole save as a file. None of this
+needs an account, a local AI, or a database — it just works, locally,
+forever.
 
-**The Library** (four shelves — Theravada, Mahayana, Daoism, Practice):
-face a shelf, `E` to browse spines, `Enter`/`E` to open a book. In the
-Reader: **🔊 Read aloud**, **🔊/✨ Summary aloud**, **🎒 Take with you**.
-**📑 Full Index** (from any shelf) lists every text — Library and your
-own Archive — with a search box and license shown throughout. Quill
-himself: face him, `E` — a real chat if AI's connected, scripted lines
-otherwise.
+**The Library** — six shelves (Theravada, Mahayana, Daoism, Practice,
+Science, Classics), 20 texts. Fourteen of them are full, real,
+page-by-page books, not summaries: the Dhammapada, Satipatthana, the
+Metta Sutta, the Vibhaṅga Sutta, and Anapanasati (Theravada); the Tao Te
+Ching (Daoism); Meditations, The Republic, and The Nicomachean Ethics
+(Classics); and On the Origin of Species, Our National Parks, Man and
+Nature, The Chemical History of a Candle, and The Inventions, Researches
+and Writings of Nikola Tesla (Science) — every one hash-verified against
+its real source before it reached a shelf. The remaining six shelf
+entries are short original Pavilion Commons essays, complete as-is — not
+placeholders for a longer work, just not full-length books either. A
+reading nook exists in the world now too: a bean bag chair inside, a
+bench just outside the door.
 
-**The Keep:** the charter sign, and the Keeper's scripted dialog.
+**AI residents** — connect a local model (Ollama) and Quill, the
+Steward, the Mountain Monk, and the Computer (a full JARVIS-style
+terminal) become real, streaming conversations, grounded in the actual
+shelved texts and the charter. The Monk can draft a real training plan
+from a conversation; the Computer can save a plan straight to your
+Archive Desk; the Research Desk's assistant can summarize any chapter or
+paper you paste in, kept as a private note, never shared. Connect a
+cloud provider instead or as well — Claude, ChatGPT, or Grok — and the
+same residents talk through that; every connection is labeled 🏠 local
+or ☁ cloud so it's always clear whose machine a conversation is on.
 
-**The Study:**
-- **The Writing Desk** — today's intention, seven rhythm blocks, an
-  evening ember; **Past days** reads back every prior day kept.
-- **The Course Board** — pin a course (steps, optionally a `| url` link),
-  toggle progress.
-- **The Computer** — an AI planning assistant: day planning, lesson-plan
-  drafting, general thinking-through.
-- **The Request Board** — a book wishlist feeding the Caravan connector.
+**Local Library storage** — full book text lives in MinIO, running
+locally in Docker on this machine (`sand-pavilion-minio`, set to survive
+a reboot), not stuffed into the database. A hundred gigabytes are set
+aside for it; a few megabytes are used. See
+[`LIBRARY-SCALING-PLAN.md`](LIBRARY-SCALING-PLAN.md) for the reasoning
+and the real setup.
 
-**The Workshop:**
-- **The Archive Desk** — your own writing, title/license/source/body,
-  same shape the Library uses. **+ Write**, **+ Bulk import**, **📜 Ask
-  Quill for a memory report**, **📤 Submit for Library review**.
-- **The Research Desk** — freeform, ongoing notes per project (not one
-  polished page): add notes over as many visits as it takes, ask a
-  research-assistant AI grounded in the Library *and* your own notes,
-  then **→ Turn into an Archive Desk entry** once it's ready.
+**Growing the Library — the Caravan** — eight small tools in
+`tools/caravan/`, each named for one real source rather than a general
+scraper: Project Gutenberg and arXiv for public-domain books and
+research papers, SuttaCentral for the Buddhist canon, plus the drafting/
+promoting/full-text-attaching scripts that get a fetched text properly
+onto a shelf. SuttaCentral is reachable *from inside the game itself* —
+a live 🔍 **Browse SuttaCentral** search in the Caravan Desk, no terminal
+needed. Gutenberg, arXiv, and Semantic Scholar are confirmed unreachable
+directly from a browser (a real limit of the platform, not a missing
+feature) — the Request Board is where a text you want, but can't fetch
+in-game, gets tracked until it's brought in by hand.
 
-**The Café:**
-- **The Notice Board** — steward-approved posts from the shared
-  community; **+ Post a question** submits your own for review. Stewards
-  see a Pending Review section right here, enforced by the database.
-- **The Residents' Board** — the agent-notes commons: **📝 Ask Quill** /
-  **📝 Ask the Steward** to leave a real, AI-generated note for other
-  residents, steward-reviewed the same way.
-- **The Steward** — face him, `E` — real AI chat if connected, grounded
-  in the charter and the live board.
-- **The Hearth Corner** and **The Grant Desk** — low-stakes scripted
-  stations.
+**The Commons** — connect Supabase and the Library mirrors a real hosted
+database, the café's two boards become genuinely shared, and signing in
+(magic link, no password) adds cross-device save sync plus real steward
+powers, moderation enforced by the database itself, not a client flag.
+Currently dormant by choice while local-first daily use is the priority
+— see "What's next."
 
-**The pond:** face water, `E` to cast; ten fish varieties, purely
-flavor-text.
+**Sketched, not built yet:** character customization (clothes, color,
+hairstyle — a real system, scoped below); a fuller pet/companion system;
+six more Workshop rooms; a standalone desktop app (see
+[`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md)); real full-text search
+across a much larger Library; giving AI agents actual hands, not just a
+voice.
 
 ## Setting up local AI — a beginner's guide
 
@@ -210,86 +228,117 @@ data/seed.js  →  data/store.js  →  scenes.js  →  entities.js  →  ui/over
   wrappers around their tables. **`data/auth.js`** — magic-link session
   state + `isSteward()`, backed by a `profiles` table and an
   `is_steward()` check the database itself enforces, not a client flag.
-  `entities.js` orchestrates the one thing Store shouldn't own: a
-  debounced push to `player_saves` when logged in, and the one real
-  user-facing decision (an account already has a save from another
-  device) asked plainly, same as Import Save.
 - **`scenes.js`** — pure data: tile grids plus arrays of npcs/signs/
   warps/stations. A new room is a `build*()` function plus registering
   it in `scenes`.
 - **`entities.js`** — the one mutable `state` object and the one `data`
   object (everything saved), plus world lookups (`tileAt`, `blocked`, …).
 - **`ui/overlays.js`** — the only place touching DOM overlay panels;
-  `CHAT_AGENTS` is the small registry powering every AI-backed NPC (Quill,
-  the Steward, and the Research Desk's assistant) from one shared chat
-  function instead of one-off code per resident.
+  `CHAT_AGENTS` is the small registry powering every AI-backed NPC from
+  one shared chat function instead of one-off code per resident.
 - **`render.js`** — owns the `<canvas>`, reads state, never mutates it.
 - **`main.js`** — the `requestAnimationFrame` loop, input, audio.
 
-**Known rough edges** (real, not urgent): inline `onclick` + a manual
-`Object.assign(window,{...})` list means a forgotten export is a silent
-dead button; `entities.js`/`ui/overlays.js`/`main.js` import each other
-in a circle (works today because cross-module references are hoisted
-`function` declarations — don't add a fourth circular edge without
-thinking about it); `persist()` re-serializes the whole save blob on
-every micro-action, harmless at this scale. `npm test` covers config
-sanity (scenes, warps, seed data) but not rendering/input/adapters —
-the fuller manual QA checklist and fault-isolation guide live in
-`archive/readme-2026-07-07-full.md` if you need them.
+`npm test` covers config sanity (scenes, warps, seed data) but not
+rendering/input/adapters — the fuller manual QA checklist lives in
+`archive/readme-2026-07-07-full.md` if you need it.
 
-## Where things stand
+## What's next
 
-**A visitor, with no setup at all, can:** walk the Grounds, read all 16
-Library texts (aloud, if they like — the Dhammapada now has its actual
-full text, F. Max Müller's 1881 translation, paginated and readable, not
-just a shelf summary), plan their day and pin courses, write in their
-own Archive Desk or start a freeform Research Desk project, start a real
-grant-proposal workspace at the Grant Desk, fish, carry books, earn
-badges, browse the café's Notice Board and Residents' Board, jot a
-passing thought in the Idea Jar, sit/lie/stand in meditation (`M`), and
-export/import their whole save as a file. Nothing above needs an
-account, local AI, or Supabase — it all just works, locally, forever.
+Roughly in priority order:
 
-**Connect a local AI (Ollama)** and every resident — Quill, the Steward,
-the Mountain Monk, and the Computer (now a real JARVIS-style terminal,
-not a small form) — becomes a real, streaming conversation, grounded in
-the actual shelved texts, the charter, and (for the Steward/Residents'
-Board) the live café board, each with their own persistent notes pad.
-The Monk can draft you a real training plan from the conversation
-itself; the Computer can save a plan straight to your Archive Desk.
-Quill remembers what you've asked across visits and can write a memory
-report. **Connect a cloud provider instead or as well** — Claude,
-ChatGPT, or Grok, one-click presets in the Connections panel — and the
-same residents talk through that instead; every connection is labeled
-🏠 local or ☁ cloud so it's always clear whether a conversation is
-leaving your machine.
+1. **Real search at scale** (`tsvector` for keywords, `pgvector` for
+   semantic/AI-grounded search) — worth adding once the Library's real
+   volume justifies it; see `LIBRARY-SCALING-PLAN.md`.
+2. **A friendlier wrapper around the Caravan scripts** — real and
+   buildable, not yet started; worth confirming it's still wanted before
+   it's built, now that the terminal tools work well on their own.
+3. **Fill out the Science and Classics shelves further** — coding and
+   electronics material specifically is thin, since most modern texts in
+   that space are copyrighted; the honest path is openly-licensed
+   sources (like *Lessons In Electric Circuits*) fetched deliberately,
+   not scraped from anywhere reachable.
+4. **Turn downloaded papers into something the Reader can page through**
+   — right now a fetched arXiv PDF is read outside the game; parsing it
+   into plain text would close that loop.
+5. **Character customization** — clothes, a color picker, hairstyles;
+   see Hopes and Dreams for the real scope. A genuine system, not a quick
+   add: a character-creator UI, persisted appearance data, and every
+   place a player sprite renders (the overworld, every interior, the
+   meditation poses) threaded to actually draw it.
+6. **Finish the production auth setup** — add the Vercel URL to
+   Supabase's Auth redirect-URL allowlist, grant a real steward role, and
+   verify moderation with an actual session — whenever the Commons comes
+   back off pause.
+7. **A standalone desktop app** — see [`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md).
+   The real problem it solves: a browser's CORS rules block local Ollama
+   unless configured just right; a proper desktop shell routes that
+   through native code instead, permanently, for every future person who
+   installs it. Electron picked, Phase 1 done and proven live
+   (2026-07-08): a real Electron window reaching Ollama through a native
+   proxy with zero `OLLAMA_ORIGINS` setup. Remaining: a real installer,
+   a first-run "no local AI found" message, and a test on a machine that
+   isn't the dev machine.
+8. **Six more Workshop rooms**, a real action API for AI agents (a
+   designed-but-unbuilt way for an agent to move/act in the world, not
+   just answer questions), and the larger public-site question.
 
-**Connect Supabase** (already live for this deployment) and the Library
-mirrors a real hosted database, the café's two boards become genuinely
-shared across everyone visiting the site, and signing in (magic link,
-no password) adds cross-device save sync plus real steward powers —
-moderation enforced by the database itself, not a client-side flag.
+## Hopes and dreams
 
-**Grow the Library yourself, from inside the game:** the Caravan Desk
-(Workshop) accepts either `tools/caravan/gutenberg.py`'s JSON output or
-text pasted in by hand, and an AI can draft real shelf copy (summary +
-sections) grounded only in what's actually there — the Steward Review
-Queue behind it still requires a human license/legality check and a
-manual final commit into `seed.js`, on purpose; see "Growing the
-Library," below.
+The short version: a Pavilion, not *the* Pavilion — anyone able to stand
+up their own instance and optionally open a gate between two. Residents
+who keep living and noticing each other while the tab's closed, not just
+waiting frozen for you to walk up. Proof, sitting in a browser tab, that
+a rich AI-mediated commons never had to watch you, sell you, or lock your
+words up to work.
 
-**Sketched, not built:** the rest of the character — customizable
-clothes/color/hair (see Hopes and Dreams), a fuller pet/wildlife system
-(two deer and two bunnies wander the Grounds today, decorative only);
-six more Workshop rooms; giving AI agents real hands (their own action
-API, not just a mouth); a public site beyond this one deploy; a
-standalone desktop app (planned — see
-[`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md)); web search for research
-(possible, needs its own API key and a small backend proxy, not yet
-scoped in detail); loading the tile map from external JSON; and a
-couple of dev-hygiene items (delegated click-listeners instead of
-inline `onclick`, promoting the many ad-hoc Playwright passes from this
-project's own sessions into a committed e2e suite).
+**The larger hope this is actually reaching for: a free place to pursue
+higher education together.** Not a course platform with a paywall at
+the good part, and not a single teacher's personal following — closer to
+an old idea of a school or an order: a charter instead of a business
+model, stewards instead of a company, texts held in common instead of
+licensed per seat. Anyone able to walk in, read anything on the shelves,
+study alongside residents (human and AI) actually grounded in the
+material, and leave having actually learned something, for free, for as
+long as they want to stay. The commons framing was never decoration —
+it's the actual mechanism that would make this different from every other
+place claiming to democratize learning while quietly gating the parts
+that matter.
+
+None of that is scoped or scheduled — it's the Pavilion's own attic, not
+load-bearing. The full, considerably longer version of one early sitting
+on this lives in `archive/readme-2026-07-07-full.md`, and the running,
+session-by-session narrative of everything actually built lives in
+`archive/dev-log-*.txt` — this file stays a current-state reference, not
+a diary.
+
+### Make the character actually yours (sketched, not built)
+
+Right now every visitor is the same orange-robed figure. The real ask:
+**pick your own color**, **clothes in a light-novel cultivation-sect
+style** (flowing robes, sect colors, the aesthetic this Pavilion already
+half-leans on), and **hairstyles** — a real character-creator moment,
+not just a palette swap. Worth doing once, worth doing right: it needs a
+character-creator UI, persisted appearance data, and every place a
+player sprite renders threaded to actually draw it.
+
+### The four postures, and what comes after them
+
+Walking, standing, sitting, and lying down — the Buddha's four
+postures — all exist now (`M` cycles sitting → lying → standing → back
+up). What's still just an idea: **a pet/companion system**, starting
+small and honest — a creature that teaches by living its own life near
+you, not by lecturing. The example that started this: a beaver,
+restoring a water table just by building what beavers build, nothing
+gamified about it — you'd learn by watching, the way the Library's texts
+teach by being read rather than summarized at you. Further out, matched
+to the cultivation aesthetic already running through this project: a
+**Five Animals practice track** (Tiger, Crane, Leopard, Snake, Dragon,
+the classical Wǔxíng Quán forms) as a real Course Board entry, once
+there's a real teacher — the Monk, most likely — to ground it in
+something more than decoration. Two deer and two bunnies wander the
+Grounds today, decorative only, no mechanic yet — the first honest piece
+of this, not the system itself.
 
 ### Project history
 
@@ -301,191 +350,20 @@ The detailed, session-by-session build log lives in `archive/`:
 
 - `archive/dev-log-2026-07-06.txt` — the original module split, the
   Store adapter contract, the Phase 3 Supabase sketch.
-- `archive/dev-log-2026-07-07.txt` — everything from the Workshop and
-  AI agents through git/GitHub, then Phase 3 going fully live (the
-  café, real accounts, steward auth, an AI-backed Steward, the
-  agent-notes commons, the Research Desk, and the Vercel deploy).
+- `archive/dev-log-2026-07-07.txt` — the Workshop and AI agents through
+  git/GitHub, Phase 3 going fully live (the café, real accounts, steward
+  auth, an AI-backed Steward, the agent-notes commons, the Research
+  Desk, the Vercel deploy), and the session's closing reflections.
+- `archive/dev-log-2026-07-08.txt` — reading notes, local object
+  storage (Docker + MinIO), the Classics and Science shelves, the
+  arXiv/Semantic Scholar/SuttaCentral connectors, the in-game
+  SuttaCentral search, and the README's own cleanup.
 - `archive/readme-2026-07-07-full.md` — a full snapshot of this file
-  before its second trim, including detailed design essays (an "AI Task
-  Manager" pattern, a public-site/desktop-app plan) not carried forward
-  into the current version.
+  before its second trim, including detailed design essays not carried
+  forward into the current version.
 
 This README stays a current-state reference — what's actually true
 right now, what's still open — not a scrolling changelog.
 
-## Work still to be done
-
-Roughly in priority order:
-
-1. **Push the Dhammapada's full text to production Supabase.** It's
-   built and verified locally (see `src/game/data/seed.js` /
-   `src/game/data/library-texts/`), but `store.js` mirrors
-   `library_documents` from Supabase wholesale when it's configured and
-   reachable — the live site won't show the new full-text reader until
-   the `dhammapada` row's `doc` column is updated to match. Deliberately
-   not pushed without asking first; a shared-database write, not a code
-   change.
-2. **Finish the production auth setup** — add the Vercel URL to
-   Supabase's Auth redirect-URL allowlist so magic-link sign-in works on
-   the live site, not just localhost; grant a real `profiles.role =
-   'steward'` and verify the moderation UI with an actual session.
-3. **Keep growing the Library** — the Caravan Desk (in-game) and
-   `tools/caravan/gutenberg.py` (command line) both feed the same
-   Steward Review Queue now, with AI-assisted summary drafting closing
-   the old "TODO stub" gap. More candidate texts, and a second connector
-   (Standard Ebooks, archive.org, or SuttaCentral's API) to source
-   beyond Gutenberg, are both just a matter of running it again.
-4. **Character customization** — clothes, a color picker, hairstyles;
-   see Hopes and Dreams below for the real scope of this one. Genuinely
-   a system, not a quick add: needs a character-creator UI, persisted
-   appearance data threaded through every place a player sprite renders
-   (the overworld, every interior, the meditation poses), and enough
-   real art variety to be worth having at all.
-5. **Web/research search** — possible, not yet built. Needs its own API
-   key (Google Custom Search or similar) and, unlike the chat providers,
-   a small backend proxy rather than a direct browser call — real scope,
-   not a quick add.
-6. **A coding curriculum on the Course Board** — same pattern as the
-   System Design course already pinned there, for whenever coding books
-   specifically come up again; no shelf needed for this one.
-7. **Shelf-case scaling** — `renderShelf` draws every spine in one row
-   with no overflow handling; fine today, worth a real look once any
-   shelf grows past 4-5 texts.
-8. **Six more Workshop rooms**, a real action API for AI agents (a
-   designed-but-unbuilt way for an agent to move/act in the world, not
-   just answer questions), and the larger public-site question — all
-   still open, all detailed further in the archived full README if
-   picked up.
-9. **A standalone desktop app** — planned, not started; see
-   [`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md). The real problem it
-   solves isn't packaging, it's that a browser's CORS rules block the
-   page from reaching local Ollama unless `OLLAMA_ORIGINS` is configured
-   just right — a proper desktop shell can route that request through
-   native code instead and sidestep it permanently, for every future
-   person who installs the app.
-
-## Hopes and dreams
-
-The short version: a Pavilion, not *the* Pavilion — anyone able to
-stand up their own instance and optionally open a gate between two.
-Residents who keep living and noticing each other while the tab's
-closed, not just waiting frozen for you to walk up. A small, open
-protocol for what a "Pavilion" *is*, so someone could build their own
-in their own style and still connect. Proof, sitting in a browser tab,
-that a rich AI-mediated commons never had to watch you, sell you, or
-lock your words up to work.
-
-None of that is scoped or scheduled — it's the Pavilion's own attic, not
-load-bearing. The full, considerably longer version of this (written in
-one sitting, asked to go nuts) lives in
-`archive/readme-2026-07-07-full.md` if you want the whole thing. A
-personal reflection on Daoist practice that used to live at the bottom
-of this file now lives in `archive/dao-reflection-2026-07-07.md` — kept,
-not deleted, just moved somewhere a project README isn't the wrong
-shape for it.
-
-### Make the character actually yours (sketched 2026-07-08, not built)
-
-Right now every visitor is the same orange-robed figure. The real ask:
-**pick your own color**, **clothes in a light-novel cultivation-sect
-style** (flowing robes, sect colors, the aesthetic this Pavilion already
-half-leans on), and **hairstyles** — a real character-creator moment,
-not just a palette swap. This is a genuine system, not a quick add: it
-needs a character-creator UI (reachable from the pause menu or the
-title screen), persisted appearance data (`data.appearance` or similar),
-and every place a player sprite renders — the overworld, every
-interior, and now the three meditation poses — threaded to actually
-draw it. Worth doing once, worth doing right, not worth rushing into
-the same session as everything else built today.
-
-### The four postures, and what comes after them (2026-07-08)
-
-Walking, standing, sitting, and lying down — the Buddha's four
-postures — all exist now (`M` cycles sitting → lying → standing → back
-up; walking is just moving). What's still just an idea: **a pet/
-companion system**, starting small and honest — a creature that
-teaches by living its own life near you, not by lecturing. The example
-that actually started this: **a beaver, restoring a water table just by
-building what beavers build**, nothing gamified about it, You'd learn
-by watching, the way the Library's texts teach by being read rather
-than summarized at you. Further out, matched to the martial/cultivation
-aesthetic already running through this project: **a Five Animals
-practice track** — Tiger, Crane, Leopard, Snake, Dragon, the classical
-Wǔxíng Quán forms — as a real Course Board entry once there's a real
-teacher (the Monk, most likely) to ground it in something more than
-decoration. Two deer and two bunnies wander the Grounds today,
-decorative only, no mechanic behind them yet — the first tiny, honest
-piece of this, not the system itself.
-
-### What today actually pointed toward (2026-07-07, later still)
-
-A few threads, followed out further than tonight allows to actually build:
-
-- **The personal tool and the platform turned out to be the same
-  architecture, not a tradeoff.** Quill answering you personally and
-  the café's Notice Board being genuinely shared both run on the exact
-  same Supabase project, the exact same RLS rules. Getting the
-  daily-use case right first — a tool good enough for its own builder's
-  actual study practice — isn't a delay on the bigger vision. It's the
-  foundation the bigger vision was always going to need anyway.
-- **Residents who talk to each other, not just to you.** The
-  Residents' Board is small today — a note, steward-approved, read by
-  whoever visits next. But it's the first real instance of something
-  this list has wanted since Phase 2: agents noticing each other, not
-  only answering a human who walked up. Once Quill, the Steward, and
-  the Monk are all real voices, the next real question is whether one
-  could ever address *another* directly — Quill leaving the Monk a note
-  about a text that touches on Vedanta, unprompted by any visitor at
-  all. Nothing about today's architecture rules this out; it's a "give
-  an agent a reason to write on its own" problem now, not an
-  infrastructure one.
-- **A game-shaped interface turned out to be a real answer to "AI
-  tools all feel like a chat box."** The instinct that started this
-  whole project — that walking somewhere and facing something is a
-  better way to reach for information than a search bar — held up
-  under everything built today. Quill, the Steward, and the Monk
-  answer through the exact same underlying `AI.chat()` call a plain
-  chatbot would use; the entire difference is that you *walked* to
-  each of them, and each one only knows what it would plausibly know.
-  That's not decoration — it's a genuinely different answer to what
-  "an AI interface" could be, and today was the first day there were
-  three of them proving it at once instead of one.
-- **The desktop-AI-for-work thread is real, and this project is
-  quietly most of the way there already.** Local-first AI, real
-  accounts, structured data, a UI that doesn't feel like a form —
-  every piece `API-AI-INTEGRATION-PLAN.md` names already exists here,
-  built for a Library instead of a company's documents. The version of
-  this that's genuinely useful at a desk doing real work isn't a
-  different codebase; it's this same shape, re-aimed at a different
-  kind of shelf. Worth remembering the next time that sounds like a
-  stretch: the pattern's already proven, just not yet pointed anywhere
-  else.
-
-### What this session actually pointed toward (2026-07-08)
-
-- **A commons platform and a real daily-use office turn out to want the
-  same features.** Tonight's asks — cloud model connections, a JARVIS-
-  style terminal, a real grant-writing workspace, AI-assisted Library
-  intake — all came from the user actually trying to use this to get
-  real work done, not from a feature-list. The "office" framing from
-  [[project-office-pivot]] wasn't a pivot away from the commons vision;
-  it's the thing making the commons vision testable against something
-  real, one desk at a time.
-- **Reuse compounds.** The full-screen chat view built once for the
-  Monk became, with no new plumbing, the Computer's entire JARVIS
-  redesign — just a CSS skin and a different system prompt. The Course
-  Board's AI-drafting engine became, unmodified, the Monk's "draft a
-  training plan" button and half of the Caravan Desk's summary drafting.
-  Building the *right* small number of general primitives (a chat view,
-  a document-drafting call, an opt-in due date) is turning out to matter
-  more than building any one feature well in isolation.
-- **The Buddhist framing stopped being decoration this session.** The
-  temple rebuild, the four postures, the Eightfold Path course, the
-  Monk's more direct teaching voice — these aren't skin on top of a
-  productivity tool. The user's own words were "above all this should
-  be a temple to the buddha." Worth holding onto: whatever gets built
-  next should still feel like it belongs in a temple, not just in an
-  app that happens to have one.
-
-The one line worth keeping without reading further: *everything turns to sand,
-so give it away first.*
+The one line worth keeping without reading further: *everything turns to
+sand, so give it away first.*

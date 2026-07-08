@@ -1,0 +1,143 @@
+dev log — 2026-07-08
+(the day the Library learned to hold real books, and left the browser to go get them)
+
+Full detail lives here so README.md can stay a current-state reference
+instead of a growing changelog. Everything below actually happened and
+was verified — hash-checked, tested in a headless browser, or confirmed
+against a real API — not just planned. See git history for the actual
+diffs.
+
+================================================================
+SESSION 1 — a real reading journal, and the Dhammapada goes live
+================================================================
+
+- Reading notes: a 📝 Your notes panel in the Reader, `data.bookNotes[slug]`,
+  personal to the save, never touching Supabase or the shared shelves.
+  Visible from both the summary and full-text views. Caught and fixed a
+  real contrast bug live (note cards inheriting the Reader's parchment-page
+  dark-ink color, making text unreadable against the card's own dark
+  background).
+- Reader laid out as two columns on wide screens — book on the left,
+  notes on the right — so a thought doesn't require scrolling away from
+  the page to reach the note box.
+- The Dhammapada's full text (F. Max Müller, 1881, Gutenberg #2017) — built
+  in a prior session but never pushed to production — finally landed in
+  Supabase for real: 66,849 characters, hash-verified byte-for-byte before
+  and after. A second Caravan run (a new `tools/caravan/suttacentral.py`
+  connector) sourced the same treatment for Satipatthana, the Metta Sutta,
+  and Anapanasati straight from SuttaCentral's real bilara API — a genuine
+  gotcha found and documented: `keys_order`'s sequence doesn't always match
+  `translation_text`'s own dict order, so document order has to come from
+  walking `keys_order`, never the dict directly.
+
+================================================================
+SESSION 2 — the scaling conversation, and standing up local storage
+================================================================
+
+- A real strategy conversation about what happens once the Library holds
+  thousands of books instead of a handful — landed on: keep Supabase for
+  metadata/search (it already does this well into the millions of rows),
+  add local object storage (MinIO, via Docker) for the actual book text,
+  explicitly reject a second "NoSQL" database as solving a problem that
+  doesn't exist here. Written up in `LIBRARY-SCALING-PLAN.md`.
+- Docker installed, MinIO stood up (`sand-pavilion-minio`, auto-restarting,
+  data on this machine's own disk, bucket `sand-pavilion-library`,
+  anonymous-read only). A real bug caught before it cost anything: Git
+  Bash's MSYS2 runtime silently mangles Docker `-v` bind-mount paths — the
+  first container passed its health check while writing to nowhere at
+  all. Fixed (`MSYS2_ARG_CONV_EXCL="*"`), verified by confirming MinIO's
+  own files actually appeared on the host disk afterward.
+- Migrated all four Theravada full texts out of Supabase's JSONB column
+  and into MinIO objects, hash-verified. The Reader's `openFullText` now
+  tries the inline (zero-setup) copy first, falls back to a MinIO fetch,
+  and fails visibly with a real message if MinIO isn't running — verified
+  both states, including the failure path with MinIO deliberately stopped.
+- `tools/caravan/push-fulltext.py` — attaches a full text to an existing
+  shelf entry in one command (`mc pipe` over Docker, no bind mounts,
+  sidesteps the MSYS2 gotcha entirely). Proved live: James Legge's real
+  1891 Tao Te Ching translation (Gutenberg #216, matching the translator
+  already cited for that shelf entry) attached to the existing Daoism
+  entry. Caught a second real bug in the process: `mc` runs inside its
+  own container, so "localhost" from in there means the container itself,
+  not the host — fixed by rewriting to `host.docker.internal` for that
+  one hop only.
+- Per-page read-aloud added to the full-text reader (previously read-aloud
+  only covered the curated summary) — stops cleanly on page turn instead
+  of overlapping into the next page.
+
+================================================================
+SESSION 3 — Classics and Science shelves, and a real research pipeline
+================================================================
+
+- Renamed the long-unused "Nature" shelf slot (built, wired, never
+  populated) to **Classics** — zero new layout work, just gave an already-
+  physical shelf a real purpose. **Science** already existed the same way.
+- Four new full texts added and hash-verified: Meditations (Marcus
+  Aurelius), The Republic (Plato, tr. Jowett), The Nicomachean Ethics
+  (Aristotle), and On the Origin of Species (Darwin, 1859 first edition) —
+  all sourced from Project Gutenberg, IDs confirmed against the real API
+  before fetching, never guessed from memory.
+- Built `tools/caravan/semanticscholar.py` and `tools/caravan/arxiv.py`.
+  Semantic Scholar's unauthenticated pool turned out to be persistently
+  rate-limited from this machine (confirmed after repeated backoff, not a
+  blip); their API-key form flatly refuses personal email addresses
+  (gmail.com explicitly named in their own error) — a hard rule, not a
+  bug to route around. arXiv needs no signup at all and became the real
+  path forward. Two more real bugs caught: arXiv's certificate chain
+  doesn't verify against this Python install's default trust store
+  (fixed with `certifi`, confirmed Gutenberg's chain verifies fine so it
+  wasn't systemic) and non-ASCII author names were silently mangling in
+  this Windows console's default encoding (fixed by forcing UTF-8 on
+  stdout).
+- Five real papers on AI memory downloaded and verified against arXiv's
+  own API before fetching: Attention Is All You Need (1706.03762), Neural
+  Turing Machines (1410.5401), Memorizing Transformers (2203.08913),
+  Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+  (2005.11401), and MemGPT (2310.08560).
+- A chapter/paper summarizer added to the Research Desk: paste in text you
+  have legitimate access to, your local AI condenses it into study notes,
+  saved as a private project note — never sent to the shared Library. The
+  real boundary that makes this legitimate: personal summaries of your own
+  material, not redistribution of anyone else's copyrighted text.
+
+================================================================
+SESSION 4 — testing what's actually buildable in-game, and building it
+================================================================
+
+- Tested, not assumed: which Caravan sources a browser can reach directly,
+  no backend. Gutenberg's raw-text host, arXiv, and Semantic Scholar are
+  all CORS-blocked for real content (some of their search/metadata
+  endpoints are open, the actual book/paper text isn't). SuttaCentral's
+  full API — search, suttaplex, and the bilara text endpoint — is fully
+  open.
+- Built a live "🔍 Browse SuttaCentral" panel directly into the in-game
+  Caravan Desk: search, preview, and fetch a real sutta's full text
+  straight from the browser, landing in the Steward Review Queue exactly
+  like every other intake path. Ported `suttacentral.py`'s bilara-to-
+  clean-text parser into JS to make this work. Tested live end to end —
+  a real search, a real fetch, real clean text, correct CC0 license.
+- A bean bag chair (Library, a reading nook) and a bench (just outside
+  the Library's door) — new tile types, added to `SOLID`, drawn to match
+  the game's existing visual language, verified with real screenshots.
+- Clarified the project's own "in vs. out" philosophy in the README:
+  do it in the Pavilion where the game genuinely can; step outside,
+  by hand or by script, where it genuinely can't; bring the result back
+  in. The Request Board and `tools/caravan/` already were this — the
+  Request Board's own text said so the whole time.
+- A ledger-style status overview built as a shareable artifact — the
+  first time this project's own state was presented as a polished,
+  standalone page rather than a chat wall of text.
+
+================================================================
+SESSION 5 — README overhaul, and the Sand Pavilion opinions
+================================================================
+
+- Decided, deliberately: Supabase and Vercel stay standing (real,
+  non-reproducible data lives there — 8 of 28 live library texts only
+  exist in Supabase, not the zero-setup fallback) but go quiet for now.
+  Local-first — Docker, MinIO, local Ollama — is where daily use
+  actually happens; the cloud pieces are dormant groundwork for a later
+  multi-user phase, not torn down.
+- README rewritten for a professional, current-state read rather than a
+  running changelog — the detailed narrative of everything built across
+  2026-07-08 moved here, to this file, where it belongs.

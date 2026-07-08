@@ -24,6 +24,12 @@ body { font-family:'Courier New', monospace; touch-action:none; }
   color:#e0a43c; font-size:16px; padding:3px 10px; cursor:pointer; font-family:inherit;
 }
 #ideaBtn:hover { background:#e0a43c; color:#2a2118; }
+#inventoryBtn {
+  position:fixed; top:10px; right:102px; z-index:5;
+  background:rgba(26,19,12,.85); border:2px solid #e0a43c; border-radius:6px;
+  color:#e0a43c; font-size:16px; padding:3px 10px; cursor:pointer; font-family:inherit;
+}
+#inventoryBtn:hover { background:#e0a43c; color:#2a2118; }
 
 #dialog {
   position:fixed; left:50%; bottom:14px; transform:translateX(-50%);
@@ -226,6 +232,27 @@ label { display:block; color:#cbb79a; font-size:12px; margin:12px 0 5px; letter-
 .bookPanel .xbtn { border-color:#8a6423; color:#6b4a1f; }
 .bookPanel .xbtn:hover { background:#8a6423; color:#f3e6c8; }
 .bookPanel .btn { box-shadow:0 3px 0 #6b4a1f; }
+/* Notes cards keep the app's normal dark-on-dark card look (same as the
+   Research Desk's) even inside the book's light-parchment skin — without
+   this, .bookPanel's inherited dark-ink color makes the note text
+   unreadable against the card's own dark background. */
+.bookPanel .card { color:#eadfca; }
+
+/* Reader layout: notes sit beside the text, not below it, so you can write
+   while reading instead of scrolling down and losing your place. Falls
+   back to normal top-to-bottom stacking below the breakpoint (narrow
+   windows / touch devices), where a side column wouldn't have room to
+   breathe. */
+#rdNotesHead { margin-top:22px; }
+@media (min-width:860px) {
+  #readerOv .panel { width:min(1000px, 100%); display:flex; flex-wrap:wrap; column-gap:28px; }
+  #readerOv .panel > .xbtn, #readerOv .panel > h2, #readerOv .panel > .meta { flex:0 0 100%; }
+  #readerOv #rdSummaryView, #readerOv #rdFullTextView { flex:1 1 52%; min-width:320px; }
+  #readerOv #rdNotesView {
+    flex:1 1 280px; max-width:320px; border-left:2px solid #d8c393; padding-left:22px;
+  }
+  #rdNotesHead { margin-top:0; }
+}
 @keyframes bookOpen {
   0% { transform:perspective(900px) rotateY(50deg) scaleX(.55); opacity:0; }
   60% { opacity:1; }

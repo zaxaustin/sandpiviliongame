@@ -16,7 +16,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[] }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[] }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -185,6 +185,10 @@ const FISH=[
 ];
 function rollFish(){ const tot=FISH.reduce((a,f)=>a+f.w,0); let r=Math.random()*tot;
   for(const f of FISH){ if((r-=f.w)<0) return f; } return FISH[0]; }
+// A whimsical stat, not a simulation — every catch gets its own size so the
+// log (Inventory) reads as a real keepsake tally, not just a running count.
+const FISH_LOG_CAP=200;
+function rollSize(){ return Math.round((2.5+Math.random()*19.5)*10)/10; }
 export function startFishing(tile){ state.fishing={phase:'cast',t:0,until:.55,tile}; blip(500,.07); awardBadge('first-cast'); }
 export function updateFishing(dt){
   const f=state.fishing; if(!f) return;
@@ -199,9 +203,12 @@ export function updateFishing(dt){
 export function fishingAction(){
   const f=state.fishing;
   if(f.phase==='bite'){
-    const c=rollFish(); data.fish++; setHud(); persist();
-    logActivity('Caught a '+c.name+' at the pond.');
+    const c=rollFish(); const size=rollSize(); data.fish++;
+    data.fishLog.unshift({name:c.name,size,ts:todayKey()});
+    if(data.fishLog.length>FISH_LOG_CAP) data.fishLog.length=FISH_LOG_CAP;
+    setHud(); persist();
+    logActivity('Caught a '+c.name+' ('+size+'") at the pond.');
     state.fishing=null; jingleCatch();
-    openDialog('CAUGHT: '+c.name+'!',c.flavor);
+    openDialog('CAUGHT: '+c.name+'!',c.flavor+'\n\nAbout '+size+' inches, nose to tail.');
   } else { state.fishing=null; openDialog('…',"You reel in early. The pond forgives you."); }
 }

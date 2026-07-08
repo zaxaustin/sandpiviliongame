@@ -39,6 +39,16 @@ there's more than one person submitting things.
 5. The script moves the finished draft to `library-drafts/done/`
    automatically — this folder stays a staging area, not a second copy
    of the Library.
+6. **Optional: attach the actual full text**, once the raw source is
+   already sitting in `library-sources/` from step 1. Run
+   `python tools/caravan/push-fulltext.py <slug> library-sources/<file>.txt
+   --translator "..." --source-url "..." --license "..."` — uploads the
+   real text to this machine's local Library storage (MinIO) and wires
+   up the Reader's "📖 Read the full text" button, live immediately. See
+   `LIBRARY-SCALING-PLAN.md` for why full text lives in object storage
+   now instead of inline in the shelf entry itself. Same
+   `SUPABASE_SERVICE_ROLE_KEY` requirement as step 4, plus a running
+   local MinIO (`docker ps` should show `sand-pavilion-minio`).
 
 ## Why a `tradition` might not fit yet
 

@@ -261,3 +261,72 @@ and asked to build the café for real, then kept going most of a day.
   window resets. Granting the user's own `profiles.role='steward'` by
   hand, and adding the production Vercel URL to Supabase's Auth
   redirect-URL allowlist, are both still open.
+
+================================================================
+ADDENDUM — reflections moved out of README's Hopes and Dreams
+during the 2026-07-08 cleanup (written 2026-07-07, kept verbatim)
+================================================================
+
+What today actually pointed toward (2026-07-07, later still):
+
+A few threads, followed out further than that night allowed to actually build:
+
+- The personal tool and the platform turned out to be the same
+  architecture, not a tradeoff. Quill answering you personally and the
+  cafe's Notice Board being genuinely shared both run on the exact same
+  Supabase project, the exact same RLS rules. Getting the daily-use case
+  right first -- a tool good enough for its own builder's actual study
+  practice -- isn't a delay on the bigger vision. It's the foundation the
+  bigger vision was always going to need anyway.
+- Residents who talk to each other, not just to you. The Residents'
+  Board is small -- a note, steward-approved, read by whoever visits
+  next. But it's the first real instance of something wanted since Phase
+  2: agents noticing each other, not only answering a human who walked
+  up. Once Quill, the Steward, and the Monk are all real voices, the next
+  real question is whether one could ever address another directly --
+  Quill leaving the Monk a note about a text that touches on Vedanta,
+  unprompted by any visitor at all. Nothing about the architecture rules
+  this out; it's a "give an agent a reason to write on its own" problem,
+  not an infrastructure one.
+- A game-shaped interface turned out to be a real answer to "AI tools
+  all feel like a chat box." The instinct that started this whole
+  project -- that walking somewhere and facing something is a better way
+  to reach for information than a search bar -- held up under everything
+  built that day. Quill, the Steward, and the Monk answer through the
+  exact same underlying AI.chat() call a plain chatbot would use; the
+  entire difference is that you walked to each of them, and each one
+  only knows what it would plausibly know. That's not decoration -- it's
+  a genuinely different answer to what "an AI interface" could be.
+- The desktop-AI-for-work thread is real, and this project is quietly
+  most of the way there already. Local-first AI, real accounts,
+  structured data, a UI that doesn't feel like a form -- every piece
+  API-AI-INTEGRATION-PLAN.md names already existed here, built for a
+  Library instead of a company's documents. The version of this that's
+  genuinely useful at a desk doing real work isn't a different codebase;
+  it's this same shape, re-aimed at a different kind of shelf.
+
+What that session actually pointed toward (2026-07-08 morning, before
+the Library-scaling work began):
+
+- A commons platform and a real daily-use office turn out to want the
+  same features. That day's asks -- cloud model connections, a JARVIS-
+  style terminal, a real grant-writing workspace, AI-assisted Library
+  intake -- all came from the user actually trying to use this to get
+  real work done, not from a feature list. The "office" framing wasn't a
+  pivot away from the commons vision; it's the thing making the commons
+  vision testable against something real, one desk at a time.
+- Reuse compounds. The full-screen chat view built once for the Monk
+  became, with no new plumbing, the Computer's entire JARVIS redesign --
+  just a CSS skin and a different system prompt. The Course Board's
+  AI-drafting engine became, unmodified, the Monk's "draft a training
+  plan" button and half of the Caravan Desk's summary drafting. Building
+  the right small number of general primitives (a chat view, a
+  document-drafting call, an opt-in due date) mattered more than
+  building any one feature well in isolation.
+- The Buddhist framing stopped being decoration. The temple rebuild, the
+  four postures, the Eightfold Path course, the Monk's more direct
+  teaching voice -- these aren't skin on top of a productivity tool. The
+  user's own words were "above all this should be a temple to the
+  buddha." Worth holding onto: whatever gets built next should still
+  feel like it belongs in a temple, not just in an app that happens to
+  have one.

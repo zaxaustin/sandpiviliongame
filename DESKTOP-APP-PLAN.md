@@ -1,9 +1,124 @@
 # Desktop App Plan
 
-Not started. This is the plan, written down so it survives between sessions —
-see README's "Work still to be done" for how this fits the rest of the
-priority list. No drastic moves while things are working well; this gets
-picked up deliberately, not accidentally.
+**Phase 1 done and verified live, 2026-07-08.** Electron picked (see
+"Shell" below — the undecided-on-purpose choice is now made). See "Local
+storage"-style status section near the bottom for the real details.
+
+## Phase 1 — done, 2026-07-08
+
+Electron scaffolded (`electron/main.cjs`, `electron/preload.cjs`), wired
+to the existing Vite app with no changes to `index.html`/`src/game/`
+beyond `src/game/ai/provider.js`. `npm run electron:dev` runs Vite and
+Electron together (`concurrently` + `wait-on`); `npm run electron:build`
+(not yet run for real) would produce a Windows installer via
+`electron-builder`, config already in `package.json`'s `"build"` block.
+
+**The one thing that had to work before anything else — proven, not
+assumed:** launched the real Electron window with a live local Ollama
+running and *no* `OLLAMA_ORIGINS` set at all. The main process's
+`ipcMain.handle('desktop-fetch', ...)` logged a real round trip —
+`GET http://localhost:11434/api/tags -> 200` — meaning the renderer's
+`fetch()` never touched Ollama directly; `src/game/ai/provider.js`'s new
+`localFetch()` helper routed it through `window.desktopBridge` (exposed
+by the preload script via `contextBridge`, `contextIsolation` on,
+`nodeIntegration` off) to the main process, which made the actual
+request with Node's own `fetch` — never a browser context, never subject
+to CORS. This is the permanent fix for the exact failure that silently
+broke the Monk's chat in an earlier browser session.
+
+`localFetch()` only intercepts Ollama's two calls (`/api/tags`,
+`/api/chat`) for now — the OpenAI-compatible and Anthropic providers
+still use a plain `fetch()` unchanged, since those hit public HTTPS APIs
+already designed for direct browser access (Anthropic's own
+`anthropic-dangerous-direct-browser-access` header says as much). The
+bridge only ever proxies to `localhost`/`127.0.0.1` — `main.cjs` checks
+this explicitly — so it can't become a general fetch-anything hole for a
+compromised renderer.
+
+**A real environment gotcha, hit and fixed live:** the sandboxed shell
+used to build this had `ELECTRON_RUN_AS_NODE=1` set, which makes
+Electron's own binary run as plain Node instead of launching a real
+window — `require('electron')` then returns a path string instead of the
+API object, so `ipcMain.handle(...)` throws `Cannot read properties of
+undefined`. Not a code bug; cleared for the one launch
+(`env -u ELECTRON_RUN_AS_NODE npm run electron:dev`) and the real window
+opened immediately. Worth knowing if this ever gets built from a CI
+runner or another sandboxed shell — check for this env var first if
+Electron mysteriously won't open a window.
+
+**Also proven live, same session:** a real chat message (not just the
+`/api/tags` connection check) round-tripped through `POST /api/chat` via
+the same `localFetch()` path — `200` back, real JSON body, real IPC
+round trip with a POST body. And separately, confirmed by hand: talking
+to a resident in the actual running desktop window worked, before the
+window was closed.
+
+## Phase 3 — done, 2026-07-08
+
+First-run experience: when no local AI is reachable, the desktop build
+now shows a clickable "install Ollama" link (`ollama.com`) instead of
+the browser build's "see README" text, which is a dead end in a
+standalone app with no repo on disk. `electron/main.cjs` intercepts
+`target="_blank"` clicks (`setWindowOpenHandler`) and routes them to the
+user's real system browser via `shell.openExternal` — a link inside the
+app window would otherwise just try to navigate the app itself, with no
+address bar or way back.
+
+## Phase 4 — done, 2026-07-08: a real installer exists
+
+`npm run electron:build` produces
+`release/Sand Pavilion Setup 0.0.1.exe` (~100MB, unsigned per the
+v1 audience decision — Windows will show an "Unknown Publisher" warning
+on first run, expected, not a bug).
+
+**A real build-time gotcha, hit and fixed live, worth knowing if this
+ever gets rebuilt:** the first three build attempts all failed with the
+same Windows `EPERM` renaming `release\win-unpacked.tmp` into place.
+Looked at first like leftover Electron windows or antivirus scanning —
+neither was it. The actual cause: **Vite's own dev server was still
+running in the background** (from proving Phase 1 earlier in the same
+session) and its file watcher picked up the newly-extracted installer
+files landing inside `release/`, triggering HMR "page reload" churn on
+them — which held a lock that blocked electron-builder's folder rename.
+Fix: make sure `npm run electron:dev` (or plain `npm run dev`) isn't
+running in the background before `npm run electron:build`.
+
+**Not yet done:** actually running the built installer (only the build
+itself is proven, not the resulting install-and-launch experience), and
+testing on a machine that isn't the dev machine.
+
+## Remaining phases (from the original rollout list)
+
+5. Run `release\Sand Pavilion Setup 0.0.1.exe` for real — confirm it
+   installs, creates a Start Menu shortcut, and the installed app (not
+   just the dev-mode window) can still reach Ollama.
+6. Test on a machine that isn't the dev machine — see "Rough phases"
+   below, step 5.
+
+## A real concern, raised and settled before starting (2026-07-08)
+
+Worth recording, since it's the kind of question that should get asked
+*before* committing effort, not after: **does wrapping this in a desktop
+shell risk losing AI integration — local or cloud — to "a third-party
+app"?** Settled, with real reasoning, not just reassurance:
+
+- **The whole point of this plan is to make local AI more reliable, not
+  less** — see "The real problem this has to solve" below. The one
+  actual fragility today is a browser CORS rule blocking the page from
+  reaching local Ollama; a desktop shell's native-backend proxy fixes
+  that permanently. The risk, if anything, runs the other direction.
+- **Electron/Tauri are build tools, not services.** Whichever gets
+  picked compiles this project into a standalone `.exe` that has zero
+  ongoing connection to Electron's or Tauri's own infrastructure once
+  built — same relationship VS Code or Discord have to Electron. No new
+  runtime dependency gets introduced.
+- **Cloud providers (Claude/ChatGPT/Grok) are unaffected either way** —
+  those are HTTPS calls to their own APIs, identical whether made from a
+  browser tab or a desktop shell's webview.
+
+Conclusion stands: this is, if anything, the more local-first move
+available, not a risk to it — a native shell has strictly more access to
+the user's own machine than a browser tab, never less.
 
 ## The actual goal
 
@@ -29,20 +144,18 @@ environment variable. This is the one requirement that actually matters:
 **whatever shell we pick, local AI has to keep working (or work better)
 than it does in the browser today — not regress.**
 
-## Shell: Electron vs. Tauri — undecided, revisit before starting
+## Shell: Electron — decided, 2026-07-08
 
-- **Electron** (leaning this way) — pure JavaScript, same language as
-  the entire existing codebase. The Ollama-proxy fix is a few lines in
-  Node's main process. Cost: a real installer, ~100–150MB, since it
-  bundles Chromium (same category as VS Code, Slack, Discord).
-- **Tauri** — much smaller install (~10–20MB, uses the OS's built-in
-  WebView instead of bundling one), but the native bridge for the
-  Ollama-proxy fix would be Rust — a second language, learned just for
-  this one problem. Its WebView is still a real browser context, so it
-  needs the same "proxy through native code" trick as Electron, just in
-  an unfamiliar language.
-
-Deferred on purpose — pick this when actually starting the work, not now.
+- **Electron** (chosen) — pure JavaScript, same language as the entire
+  existing codebase. The Ollama-proxy fix was a few lines in Node's main
+  process, exactly as expected — see "Phase 1" above for the real,
+  working result. Cost: a real installer, ~100–150MB, since it bundles
+  Chromium (same category as VS Code, Slack, Discord) — accepted
+  knowingly, not a surprise later.
+- **Tauri** — passed on. Much smaller install (~10–20MB), but the native
+  bridge for the same Ollama-proxy fix would have needed Rust — a second
+  language nothing else in this project uses, for the one thing that had
+  to work first.
 
 ## Audience for v1: just the builder + a few people they know directly
 

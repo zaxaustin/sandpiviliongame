@@ -11,7 +11,7 @@ Go at whatever pace feels right. Skip stages that are already easy. Come
 back to this at any time and ask to pick up where you left off, or to
 have a stage adjusted — this document is meant to change as you do.
 
-## Where you are (updated 2026-07-07)
+## Where you are (updated 2026-07-08)
 
 - [x] **Stage 0** — credit for what you've already done
 - [ ] Stage 1 — the terminal isn't scary, it's just literal
@@ -26,9 +26,11 @@ have a stage adjusted — this document is meant to change as you do.
 - [ ] Stage 9 — web scraping vs. what the Caravan does
 - [ ] Stage 10 — AI integration, the whole spectrum
 - [ ] Stage 11 — AI as a character, not just an API call
-- [ ] Stage 12 — containers: what Docker is and isn't for
+- [~] Stage 12 — containers: what Docker is and isn't for (real hands-on
+  progress 2026-07-08 — see the stage itself for what counts and what doesn't yet)
 - [ ] Stage 13 — databases & Supabase, concretely
 - [x] **Stage 14** — deploying a real app, and debugging one that doesn't work
+- [ ] Stage 15 — actually adding a real book to the Library, start to finish
 
 **Stage 14 is checked for real, hands-on reasons, not just because a lot
 of backend work happened nearby:** you created the Vercel project,
@@ -394,6 +396,49 @@ the internet" idea and immediately ask two separate questions — "can
 this technically be done" and "has the source actually said this kind
 of use is okay" — instead of only asking the first one.
 
+### What actually happened, 2026-07-08 — a third question, tested for real
+
+A third question turned out to matter as much as the two above: **can
+the browser itself even reach this source, or does it need to happen
+outside the game entirely?** This isn't a permissions question, it's a
+browser security rule called **CORS** (Cross-Origin Resource Sharing) —
+a website's server has to explicitly say "yes, JavaScript running on
+some other page is allowed to read my response," or the browser refuses
+to hand the data back, even if the request technically succeeded.
+
+**Tested directly, from inside the running game, not assumed:**
+
+| Source | Reachable from the browser? |
+|---|---|
+| SuttaCentral (search *and* full text) | ✅ yes — fully usable in-game, no backend |
+| Project Gutenberg's *search* (gutendex.com) | ✅ yes |
+| Project Gutenberg's actual book text | ❌ no |
+| arXiv (search and content) | ❌ no |
+| Semantic Scholar (search and content) | ❌ no |
+
+That's why the Caravan Desk's live **🔍 Browse SuttaCentral** feature
+could be built directly into the game, while Gutenberg/arXiv/Semantic
+Scholar still need `tools/caravan/*.py` run from a terminal — not a
+missing feature, a real, tested wall.
+
+**The connector family grew for real this session:** alongside
+`gutenberg.py`, there's now `suttacentral.py` (the Buddhist canon),
+`arxiv.py` (research papers, no signup needed at all), and
+`semanticscholar.py` (research papers, needs a free API key). All four
+follow the same rule Stage 9 already named: one hand-picked, named,
+explicitly-reachable source per script, never "give me a URL."
+
+**A real, concrete gotcha worth knowing about API keys specifically:**
+Semantic Scholar's key-request form flatly refuses personal email
+addresses — `gmail.com` explicitly named in their own rejection message,
+wanting an academic or corporate domain instead. That's a hard rule on
+their end, not a bug to route around, and it's exactly why arXiv (no
+key, no email, no signup, ever) became the actual working path for the
+same kind of research.
+
+**See Stage 15, right after Stage 14, for the actual step-by-step of
+using these tools to get a real text onto a shelf.**
+
 ## Stage 10 — AI integration: the whole spectrum, not just chat
 
 **Why this stage exists:** you asked what's actually possible when you
@@ -609,6 +654,50 @@ vulnerability that was found — and why that doesn't make containers a
 bad idea, just an answer to a different question than the one that was
 asked.
 
+### What actually happened, 2026-07-08 — real progress, honestly scoped
+
+**Docker is genuinely installed and running now, for a real reason:**
+storing the Library's full book text somewhere that isn't the database
+(see `LIBRARY-SCALING-PLAN.md`). You installed Docker Desktop yourself,
+including the restart it needs — that's a real, hands-on system-level
+step, not a reading exercise. `docker run hello-world` and `docker ps`
+both confirmed it works.
+
+**What's still "watched, not yet driven" — the honest line, same as
+Stage 13's:** the actual container commands (running MinIO, setting a
+bucket policy, the two real bugs that got caught) were typed by me, not
+you, so this stage isn't fully checked yet, same reasoning Stage 13
+stays open. Two real things worth knowing happened, though, and they're
+the actual substance of "what Docker is for" beyond the textbook version:
+
+1. **A container can look completely healthy while doing nothing you
+   asked.** The first MinIO container passed its own health check while
+   silently *not* writing to the real folder on disk at all — a bind
+   mount (`-v host_path:container_path`) had been silently mangled by
+   Git Bash's own path-conversion behavior before Docker ever saw it.
+   The lesson, worth carrying into any future Docker work: "the
+   container started" is not proof a mount worked — check the *host's*
+   filesystem directly, don't trust the container's own apparent health.
+2. **"Localhost" means something different depending which side of the
+   container wall you're standing on.** From a script running on this
+   machine, `localhost:9000` correctly reaches MinIO (Docker published
+   that port out). But from *inside a second, throwaway container*
+   trying to reach the first one, `localhost` means that second
+   container's own loopback — nothing at all. Docker Desktop's own
+   `host.docker.internal` address is the fix for that one specific hop.
+   This is the concrete, no-longer-hypothetical version of the exact
+   gotcha this stage already predicted above ("a containerized game can
+   no longer casually reach `localhost:11434`") — it happened for real,
+   just with MinIO instead of Ollama.
+
+**A good next real exercise, when you want to close this stage out
+yourself:** run `docker ps` right now, find `sand-pavilion-minio`, then
+open `http://localhost:9001` in a browser (MinIO's own console — login
+is in `.env.local`, `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`) and browse
+the `sand-pavilion-library` bucket by hand. Seeing the actual files
+sitting there, that you can open and read, is the fastest way to make
+"object storage" stop being an abstract term.
+
 ## Stage 13 — databases & Supabase, concretely
 
 **Why this stage exists:** on 2026-07-07 the Library and the café's
@@ -711,6 +800,65 @@ checkmark is actually for.
 to someone else, why "I added the environment variable" and "the site
 still can't connect" aren't a contradiction — and what you'd check first
 to find out why.
+
+## Stage 15 — actually adding a real book to the Library, start to finish
+
+**Why this stage exists:** everything about *why* the Caravan works the
+way it does is spread across Stages 9 and 12. This stage is just the
+concrete, hands-on-keyboard version — the actual commands, in order,
+for getting one real book from "doesn't exist in the Pavilion yet" to
+"a real, readable shelf entry." Do this once, yourself, start to finish,
+and every future book you add will feel completely routine.
+
+**Step 0 — pick something real.** Not a placeholder. Go to
+[gutenberg.org](https://www.gutenberg.org), search for a public-domain
+book you'd actually want to read, and note its ebook number from the
+URL (`gutenberg.org/ebooks/1080` → `1080`).
+
+**Step 1 — fetch the real text:**
+```
+python tools/caravan/gutenberg.py 1080 --for-library
+```
+This writes a plain-text file into `library-sources/`, with the
+title/author already detected from the book's own header.
+
+**Step 2 — draft the shelf entry:**
+```
+python tools/caravan/library-draft.py library-sources/<the-file>.txt --source "https://www.gutenberg.org/ebooks/1080" --license "Public Domain (Project Gutenberg)"
+```
+This scaffolds a file in `library-drafts/` with the title/license/source
+already filled in — but **not** the summary. Open it and actually write
+a real one, in your own words, the same way every existing shelf entry
+was written. This is the one step that can't be automated away, on
+purpose — see Stage 9 for why.
+
+**Step 3 — put it on the shelf:**
+```
+python tools/caravan/promote-draft.py library-drafts/<the-file>.md
+```
+Needs `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` set first (see the
+script's own `--help`). This inserts the real row — live in the game
+immediately, no rebuild, no redeploy.
+
+**Step 4 (optional) — attach the actual full text**, so the Reader's
+"📖 Read the full text" button appears, instead of just the summary:
+```
+python tools/caravan/push-fulltext.py <slug> library-sources/<the-file>.txt --translator "..." --source-url "https://www.gutenberg.org/ebooks/1080" --license "Public Domain (Project Gutenberg)"
+```
+This needs Docker running and `sand-pavilion-minio` up (`docker ps`
+should show it) — it uploads the real text into local object storage
+and wires up the pointer, all in one command.
+
+**A faster path that skips the terminal for one specific source:** open
+the Caravan Desk (Workshop, in-game) and use **🔍 Browse SuttaCentral** —
+search, fetch, and land straight in the Steward Review Queue, no
+scripts at all. Worth doing once too, since it's a genuinely different
+(and, for that one source, easier) way in.
+
+**You're ready to call this stage done when:** you've done this once,
+for a book you actually chose, and can walk someone else through the
+same four commands from memory — not because you memorized them, but
+because you understand what each one is actually for.
 
 ## Where this goes next
 
