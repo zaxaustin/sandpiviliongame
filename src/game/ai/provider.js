@@ -47,8 +47,29 @@ async function localFetch(url, { method='GET', headers, body, signalMs }={}){
 // reasoning before it starts answering (see below). Drafted documents
 // (a grant section, a full course/lesson plan) need real room to
 // actually finish a thought — callers pass {long:true} for those.
-const REPLY_TOKENS = { short:450, long:1600 };
-const REPLY_TIMEOUT = { short:45000, long:120000 };
+// 'deep' is bigger still, reserved for the Mountain Monk specifically —
+// see bestLocalModel() below: a standing decision that the Monk always
+// gets the best available model and real room to actually think,
+// regardless of what's fastest for everything else.
+const REPLY_TOKENS = { short:450, long:1600, deep:3000 };
+const REPLY_TIMEOUT = { short:45000, long:120000, deep:180000 };
+
+// Picks the largest-parameter model actually installed, reading the
+// "Nb" size Ollama tags conventionally end with (qwen3.5:9b,
+// deepseek-r1:8b, llama3.2:3b) — never guessed, only ever the models
+// isAvailable() already confirmed are real. Falls back to whatever the
+// connection auto-picked if nothing parses, so this never breaks a
+// connection, just fails to improve on it.
+export function bestLocalModel(availableModels, fallback){
+  let best=fallback, bestSize=-1;
+  for(const m of (availableModels||[])){
+    const match=m.match(/(\d+(?:\.\d+)?)\s*b\b/i);
+    if(!match) continue;
+    const size=parseFloat(match[1]);
+    if(size>bestSize){ bestSize=size; best=m; }
+  }
+  return best;
+}
 
 // The two "nothing came back" sentinels below — exported so a caller can
 // notice a soft failure and retry with more room instead of just showing
@@ -95,11 +116,13 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
       } catch(e){ return false; } // not running, wrong port, or OLLAMA_ORIGINS doesn't allow this page
     },
     async chat(messages, opts){
-      const size = (opts && opts.long) ? 'long' : 'short';
+      const size = (opts && opts.deep) ? 'deep' : (opts && opts.long) ? 'long' : 'short';
+      const model = (opts && opts.model) || p.model;
+      const think = (opts && typeof opts.think==='boolean') ? opts.think : false;
       // local models vary wildly in speed; don't hang forever
       const res = await localFetch(url+'/api/chat', {
         method:'POST', headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ model:p.model, messages, stream:false, think:false, options:{ num_predict:REPLY_TOKENS[size] } }),
+        body: JSON.stringify({ model, messages, stream:false, think, options:{ num_predict:REPLY_TOKENS[size] } }),
         signalMs: REPLY_TIMEOUT[size],
       });
       if(!res.ok) throw new Error('Ollama request failed: '+res.status);
@@ -138,12 +161,13 @@ export function makeOpenAICompatProvider(baseUrl, apiKey, name, model){
       } catch(e){ return false; }
     },
     async chat(messages, opts){
-      const size = (opts && opts.long) ? 'long' : 'short';
+      const size = (opts && opts.deep) ? 'deep' : (opts && opts.long) ? 'long' : 'short';
+      const model = (opts && opts.model) || p.model;
       const t = withTimeout(REPLY_TIMEOUT[size]);
       try{
         const res = await fetch(url+'/chat/completions', {
           method:'POST', headers,
-          body: JSON.stringify({ model:p.model, messages, max_tokens:REPLY_TOKENS[size] }),
+          body: JSON.stringify({ model, messages, max_tokens:REPLY_TOKENS[size] }),
           signal:t.signal,
         });
         if(!res.ok) throw new Error('Request failed: '+res.status);
@@ -188,14 +212,15 @@ export function makeAnthropicProvider(baseUrl, apiKey, name, model){
       } catch(e){ return false; }
     },
     async chat(messages, opts){
-      const size = (opts && opts.long) ? 'long' : 'short';
+      const size = (opts && opts.deep) ? 'deep' : (opts && opts.long) ? 'long' : 'short';
+      const model = (opts && opts.model) || p.model;
       const t = withTimeout(REPLY_TIMEOUT[size]);
       try{
         const system = messages.find(m=>m.role==='system')?.content;
         const turns = messages.filter(m=>m.role!=='system');
         const res = await fetch(url+'/messages', {
           method:'POST', headers,
-          body: JSON.stringify({ model:p.model, system, messages:turns, max_tokens:REPLY_TOKENS[size] }),
+          body: JSON.stringify({ model, system, messages:turns, max_tokens:REPLY_TOKENS[size] }),
           signal:t.signal,
         });
         if(!res.ok) throw new Error('Request failed: '+res.status);

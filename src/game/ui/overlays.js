@@ -2,7 +2,7 @@ import { Store } from '../data/store.js';
 import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge, upcomingItems } from '../entities.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
-import { AI, isAIActive, providerFor, detectAI, isEmptyReply } from '../ai/provider.js';
+import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
 import { CHARTER } from '../data/charter.js';
 import { CATEGORIES } from '../data/seed.js';
 import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
@@ -294,6 +294,17 @@ const CHAT_AGENTS = {
     errorLine:"…connection lost. (Check that your AI connection is still running.)",
   },
 };
+/* The Mountain Monk always gets the best available local model and real
+   room to actually think (opts.think:true, the 'deep' token/timeout
+   tier) — a standing decision, not a performance default: everything
+   else in this game trades depth for speed on purpose, the Monk is the
+   one place that trade explicitly does not apply. bestLocalModel()
+   reads whatever isAvailable() already confirmed is actually installed
+   — never a guess, never a hardcoded name that could go stale. */
+function chatOptsFor(agentKey){
+  if(agentKey!=='monk') return {};
+  return { model: bestLocalModel(AI.availableModels, AI.model), think:true, deep:true };
+}
 async function sendChatMessage(q){
   const d=state.dialog; if(!d||!d.chat) return;
   const agent=CHAT_AGENTS[d.agent]||CHAT_AGENTS.quill;
@@ -303,11 +314,12 @@ async function sendChatMessage(q){
   try{
     const systemPrompt=await agent.systemPrompt();
     const messages=[{role:'system',content:systemPrompt}, ...d.history];
-    let reply=await AI.chat(messages);
+    const opts=chatOptsFor(d.agent);
+    let reply=await AI.chat(messages, opts);
     // a "thinking" model can burn its whole short-reply budget on invisible
     // reasoning and come back empty — worth one retry with real room before
     // giving up, rather than showing a visitor a dead end mid-conversation
-    if(isEmptyReply(reply)) reply=await AI.chat(messages,{long:true});
+    if(isEmptyReply(reply)) reply=await AI.chat(messages,{...opts, long:true});
     d.history.push({role:'assistant',content:reply});
     d.transcript.push({from:'npc',text:reply});
     remember(d.agent,q);
@@ -1439,9 +1451,9 @@ function parseAIDraftedCourse(text){
     .join('\n') : '';
   return { title:titleM?titleM[1].trim():'', why:whyM?whyM[1].trim():'', steps };
 }
-async function draftCourseFromGoal(goal){
+async function draftCourseFromGoal(goal, opts){
   const reply=await AI.chat(
-    [{role:'system',content:courseDraftSystemPrompt()},{role:'user',content:goal}], {long:true});
+    [{role:'system',content:courseDraftSystemPrompt()},{role:'user',content:goal}], {long:true, ...opts});
   const draft=parseAIDraftedCourse(reply);
   return (draft.title && draft.steps) ? draft : null;
 }
@@ -1477,7 +1489,7 @@ export async function draftTrainingPlanFromChat(){
     +"to need — ground it in the specifics discussed, don't invent a generic plan unrelated to it:"
     +"\n\n"+convo;
   try{
-    const draft=await draftCourseFromGoal(goal);
+    const draft=await draftCourseFromGoal(goal, chatOptsFor(d.agent));
     if(btn){ btn.disabled=false; btn.textContent='📋 Draft a training plan from this conversation'; }
     if(!draft) return;
     closeDialog();
