@@ -453,6 +453,16 @@ function drawCritter(px,py,ox,oy,species){
     ctx.fillStyle='#f5e9d4'; ctx.beginPath(); ctx.arc(x+S*.34,y+S*.76+bob,S*.05,0,7); ctx.fill(); // tail
   }
 }
+// Same hair-cap + topknot motif as drawRobedFigure, parameterized by head
+// center/radius since sitting/standing meditation frame the head slightly
+// differently — kept in one place so the "disciple" look stays consistent
+// across every pose, not just the walking sprite.
+function drawHairTopknot(cx,cy,r,color){
+  ctx.fillStyle='#2a2118';
+  ctx.beginPath(); ctx.arc(cx,cy-r*.03,r*1.03,Math.PI*1.02,Math.PI*1.98); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy-r*.72,r*.27,0,7); ctx.fill();
+  ctx.fillStyle=color; ctx.fillRect(cx-r*.13,cy-r*.93,r*.26,r*.32);
+}
 function drawMeditating(x,y,color,pose){
   ctx.fillStyle='rgba(0,0,0,.22)';
   ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.88,S*.3,S*.1,0,0,7); ctx.fill();
@@ -463,49 +473,73 @@ function drawMeditating(x,y,color,pose){
     ctx.fillStyle=color;
     ctx.beginPath(); ctx.moveTo(x+S*.22,y+S*.82); ctx.lineTo(x+S*.5,y+S*.62); ctx.lineTo(x+S*.78,y+S*.82); ctx.closePath(); ctx.fill();
     ctx.fillRect(x+S*.32,y+S*.4+breathe,S*.36,S*.44);
+    ctx.fillStyle='#1c1620'; ctx.fillRect(x+S*.34,y+S*.55+breathe,S*.32,S*.05); // sash
     ctx.fillStyle='#f0cfa4'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.32+breathe,S*.17,0,7); ctx.fill();
-    ctx.strokeStyle=color; ctx.lineWidth=S*.06;
-    ctx.beginPath(); ctx.arc(x+S*.5,y+S*.31+breathe,S*.18,Math.PI*.95,Math.PI*2.05); ctx.stroke();
+    drawHairTopknot(x+S*.5,y+S*.32+breathe,S*.17,color);
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.43,y+S*.33+breathe,S*.14,S*.018);
   } else if(pose==='lying'){
     ctx.fillStyle=color; ctx.fillRect(x+S*.14,y+S*.7+breathe*.3,S*.6,S*.18);
     ctx.fillStyle='#f0cfa4'; ctx.beginPath(); ctx.arc(x+S*.8,y+S*.79+breathe*.3,S*.15,0,7); ctx.fill();
+    ctx.fillStyle='#2a2118'; ctx.beginPath(); ctx.arc(x+S*.8,y+S*.79+breathe*.3,S*.15,Math.PI*1.15,Math.PI*1.95); ctx.fill(); // hair, back-of-head side
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.84,y+S*.775+breathe*.3,S*.03,S*.016);
   } else { // standing meditation — the idle pose, hands together, eyes closed, a faint aura
     const g=ctx.createRadialGradient(x+S*.5,y+S*.4,1,x+S*.5,y+S*.4,S*.7);
     g.addColorStop(0,color+'33'); g.addColorStop(1,'transparent');
     ctx.fillStyle=g; ctx.fillRect(x-S*.2,y-S*.3,S*1.4,S*1.4);
     ctx.fillStyle=color; ctx.fillRect(x+S*.28,y+S*.34+breathe,S*.44,S*.5);
+    ctx.fillStyle='#1c1620'; ctx.fillRect(x+S*.32,y+S*.58+breathe,S*.36,S*.055); // sash
     ctx.fillStyle='#f0cfa4'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.28+breathe,S*.19,0,7); ctx.fill();
-    ctx.strokeStyle=color; ctx.lineWidth=S*.07;
-    ctx.beginPath(); ctx.arc(x+S*.5,y+S*.27+breathe,S*.2,Math.PI*.95,Math.PI*2.05); ctx.stroke();
+    drawHairTopknot(x+S*.5,y+S*.28+breathe,S*.19,color);
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.42,y+S*.27+breathe,S*.12,S*.018);
     ctx.fillStyle='#6b4a2f'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.62+breathe,S*.08,0,7); ctx.fill();
   }
+}
+/* A cultivation-sect robe silhouette, not a plain rectangle: shoulders
+   wide, waist gathered at a sash, hem flaring back out; wide sleeves;
+   dark hair with a topknot instead of a bare skin-tone head. Same
+   silhouette function draws every NPC and the player — the sect look
+   is the Pavilion's whole aesthetic, not a player-only skin. */
+function drawRobedFigure(x,y,dir,color,bobb){
+  const top=y+S*.32+bobb, waist=y+S*.58+bobb, hem=y+S*.86+bobb;
+  // wide sleeves, draping down from the shoulder rather than sticking
+  // straight out — drawn first so the torso overlaps their inner edge
+  ctx.fillStyle=color;
+  ctx.beginPath(); ctx.moveTo(x+S*.27,top); ctx.lineTo(x+S*.1,y+S*.6+bobb); ctx.lineTo(x+S*.33,y+S*.58+bobb); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+S*.73,top); ctx.lineTo(x+S*.9,y+S*.6+bobb); ctx.lineTo(x+S*.67,y+S*.58+bobb); ctx.closePath(); ctx.fill();
+  // the robe itself: shoulders -> gathered waist -> flared hem
+  ctx.beginPath();
+  ctx.moveTo(x+S*.28,top); ctx.lineTo(x+S*.72,top);
+  ctx.lineTo(x+S*.62,waist); ctx.lineTo(x+S*.8,hem);
+  ctx.lineTo(x+S*.2,hem); ctx.lineTo(x+S*.38,waist);
+  ctx.closePath(); ctx.fill();
+  // the sash — a contrasting band at the waist, the sect-color marker
+  ctx.fillStyle='#1c1620';
+  ctx.fillRect(x+S*.32,waist-S*.035,S*.36,S*.065);
+  // head
+  ctx.fillStyle='#f0cfa4';
+  ctx.beginPath(); ctx.arc(x+S*.5,y+S*.28+bobb,S*.19,0,7); ctx.fill();
+  // hair, capping the top/back of the head, plus a topknot with a
+  // sect-colored pin — reads as "disciple," not just "hooded figure"
+  drawHairTopknot(x+S*.5,y+S*.28+bobb,S*.19,color);
+  // eyes
+  ctx.fillStyle='#2a2118'; const e=S*.045;
+  if(dir==='down'){ ctx.fillRect(x+S*.42,y+S*.29+bobb,e,e*1.4); ctx.fillRect(x+S*.54,y+S*.29+bobb,e,e*1.4); }
+  else if(dir==='left'){ ctx.fillRect(x+S*.38,y+S*.29+bobb,e,e*1.4); }
+  else if(dir==='right'){ ctx.fillRect(x+S*.58,y+S*.29+bobb,e,e*1.4); }
 }
 function drawPerson(px,py,dir,color,glow,isPlayer,ox,oy){
   const x=(px-ox)*S, y=(py-oy)*S;
   if(isPlayer && state.player.meditate){ drawMeditating(x,y,color,state.player.meditate); return; }
   const bobb=isPlayer&&state.player.moving?Math.sin(state.time*22)*S*.03:0;
   ctx.fillStyle='rgba(0,0,0,.22)';
-  ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.88,S*.26,S*.1,0,0,7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.88,S*.28,S*.1,0,0,7); ctx.fill();
   if(glow&&!isPlayer){
     const g=ctx.createRadialGradient(x+S*.5,y+S*.35,1,x+S*.5,y+S*.35,S*.75);
     g.addColorStop(0,glow+'55'); g.addColorStop(1,'transparent');
     ctx.fillStyle=g; ctx.fillRect(x-S*.3,y-S*.5,S*1.6,S*1.6);
   }
-  ctx.fillStyle=color;
-  ctx.fillRect(x+S*.28,y+S*.34+bobb,S*.44,S*.5);
-  ctx.beginPath(); ctx.moveTo(x+S*.28,y+S*.84+bobb); ctx.lineTo(x+S*.5,y+S*.92+bobb); ctx.lineTo(x+S*.72,y+S*.84+bobb); ctx.fill();
-  ctx.fillStyle='#f0cfa4';
-  ctx.beginPath(); ctx.arc(x+S*.5,y+S*.28+bobb,S*.19,0,7); ctx.fill();
-  ctx.strokeStyle=color; ctx.lineWidth=S*.07;
-  ctx.beginPath(); ctx.arc(x+S*.5,y+S*.27+bobb,S*.2,Math.PI*.95,Math.PI*2.05); ctx.stroke();
-  ctx.fillStyle='#2a2118'; const e=S*.045;
-  if(dir==='down'){ ctx.fillRect(x+S*.42,y+S*.27+bobb,e,e*1.4); ctx.fillRect(x+S*.54,y+S*.27+bobb,e,e*1.4); }
-  else if(dir==='left'){ ctx.fillRect(x+S*.38,y+S*.27+bobb,e,e*1.4); }
-  else if(dir==='right'){ ctx.fillRect(x+S*.58,y+S*.27+bobb,e,e*1.4); }
-  if(isPlayer){ ctx.fillStyle='#6b4a2f'; ctx.fillRect(x+S*.62,y+S*.5+bobb,S*.16,S*.18); }
+  drawRobedFigure(x,y,dir,color,bobb);
+  if(isPlayer){ ctx.fillStyle='#6b4a2f'; ctx.fillRect(x+S*.64,y+S*.52+bobb,S*.15,S*.17); }
 }
 function drawSign(x,y,ox,oy){
   const sx=(x-ox)*S, sy=(y-oy)*S;
@@ -563,7 +597,7 @@ export function render(){
   for(const sg of (s.signs||[])) drawSign(sg.x,sg.y,cx,cy);
   for(const st of (s.stations||[])) drawStation(st,cx,cy);
   const ents=[...s.npcs.map(n=>({y:n.y,draw:()=>n.species?drawCritter(n.x,n.y,cx,cy,n.species):drawPerson(n.x,n.y,n.face||'down',n.color,n.glow,false,cx,cy)})),
-    {y:state.player.py,draw:()=>drawPerson(state.player.px,state.player.py,state.player.dir,'#b3552e',null,true,cx,cy)}];
+    {y:state.player.py,draw:()=>drawPerson(state.player.px,state.player.py,state.player.dir,'#4a2f66',null,true,cx,cy)}];
   ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
   drawFishing(cx,cy);
   drawPrompt(cx,cy);
