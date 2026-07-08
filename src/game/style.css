@@ -9,6 +9,8 @@ body { font-family:'Courier New', monospace; touch-action:none; }
   color:#f5e9d4; padding:6px 12px; font-size:13px; letter-spacing:.5px; pointer-events:none;
 }
 #hud b { color:#e0a43c; }
+#upcomingBadge { pointer-events:auto; color:#e0937a !important; }
+#upcomingBadge:hover { text-decoration:underline; }
 
 #menuBtn {
   position:fixed; top:10px; right:10px; z-index:5;
@@ -16,6 +18,12 @@ body { font-family:'Courier New', monospace; touch-action:none; }
   color:#e0a43c; font-size:16px; padding:3px 12px; cursor:pointer; font-family:inherit;
 }
 #menuBtn:hover { background:#e0a43c; color:#2a2118; }
+#ideaBtn {
+  position:fixed; top:10px; right:56px; z-index:5;
+  background:rgba(26,19,12,.85); border:2px solid #e0a43c; border-radius:6px;
+  color:#e0a43c; font-size:16px; padding:3px 10px; cursor:pointer; font-family:inherit;
+}
+#ideaBtn:hover { background:#e0a43c; color:#2a2118; }
 
 #dialog {
   position:fixed; left:50%; bottom:14px; transform:translateX(-50%);
@@ -41,6 +49,84 @@ body { font-family:'Courier New', monospace; touch-action:none; }
   border:1px solid rgba(224,164,60,.4);
 }
 
+/* ---------- full-screen AI conversation view ----------
+   The character + the transcript are the main event; notes sit
+   alongside; everything else is a slim side rail, not scattered
+   across the screen. */
+#chatOv {
+  position:fixed; inset:0; z-index:8; display:none;
+  background:#1a130c; color:#f5e9d4; font-family:inherit;
+  grid-template-columns:1fr 300px 56px; grid-template-rows:100%;
+}
+#chatOv.open { display:grid; }
+.chatMain { display:flex; flex-direction:column; min-width:0; min-height:0; border-right:2px solid #55432e; padding:18px 20px; }
+.chatHeader { display:flex; align-items:center; gap:14px; flex:none; padding-bottom:14px; border-bottom:2px solid #55432e; margin-bottom:14px; }
+.chatAvatar {
+  width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:26px; flex:none; box-shadow:0 0 0 3px #55432e, 0 0 18px rgba(224,164,60,.35);
+}
+.chatNameWrap { min-width:0; }
+.chatName { color:#e0a43c; font-weight:bold; font-size:16px; letter-spacing:.5px; }
+.chatStatus { color:#9c8b74; font-size:11.5px; margin-top:2px; }
+.chatLog { flex:1; min-height:0; overflow-y:auto; padding-right:6px; display:flex; flex-direction:column; gap:10px; }
+.chatQuickActions { flex:none; padding-top:10px; }
+.chatQuickActions .btn.ghost { font-size:12px; }
+.bubble { max-width:78%; padding:10px 14px; border-radius:10px; font-size:14.5px; line-height:1.55; white-space:pre-wrap; }
+.bubble .who { color:#e0a43c; font-size:11px; font-weight:bold; letter-spacing:.5px; margin-bottom:4px; }
+.bubble.npc { align-self:flex-start; background:#241b12; border:1px solid #55432e; }
+.bubble.user { align-self:flex-end; background:#3a2c1e; border:1px solid #8a6a3a; }
+.bubble.thinking { opacity:.6; font-style:italic; }
+.chatInputRow { display:flex; gap:8px; flex:none; padding-top:14px; border-top:2px solid #55432e; margin-top:14px; }
+.chatInputRow input {
+  flex:1; background:#1b140d; border:2px solid #55432e; border-radius:7px; color:#f5e9d4;
+  font-family:inherit; font-size:14px; padding:10px 12px;
+}
+.chatInputRow input:focus { outline:none; border-color:#e0a43c; }
+.chatNotes { display:flex; flex-direction:column; min-height:0; padding:18px 16px; border-right:2px solid #55432e; }
+.notesHeader { color:#e0a43c; font-weight:bold; font-size:13px; letter-spacing:.5px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:baseline; flex:none; }
+.notesHeader .meta { font-weight:normal; text-transform:none; letter-spacing:0; margin:0; font-size:11px; }
+.chatNotes textarea {
+  flex:1; resize:none; background:#1b140d; border:2px solid #55432e; border-radius:7px;
+  color:#f5e9d4; font-family:inherit; font-size:13.5px; line-height:1.6; padding:12px; min-height:0;
+}
+.chatNotes textarea:focus { outline:none; border-color:#e0a43c; }
+.chatSide { display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px 8px; }
+.chatSide .btn.ghost { width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center; font-size:15px; }
+@media (max-width:820px) {
+  #chatOv.open { grid-template-columns:1fr; grid-template-rows:1fr 190px 44px; }
+  .chatMain { border-right:none; border-bottom:2px solid #55432e; }
+  .chatNotes { border-right:none; border-bottom:2px solid #55432e; }
+  .chatSide { flex-direction:row; justify-content:center; padding:8px; }
+}
+
+/* JARVIS-style terminal skin for the Computer specifically — same exact
+   layout as every resident's chat view, a genuinely different palette so
+   it reads as a machine, not a person you walked up to */
+#chatOv.terminal { background:#050806; color:#8fffc4; }
+#chatOv.terminal .chatMain,
+#chatOv.terminal .chatNotes,
+#chatOv.terminal .chatHeader,
+#chatOv.terminal .chatInputRow { border-color:#1a3a2a; }
+#chatOv.terminal .chatAvatar { border-radius:4px; box-shadow:0 0 0 2px #1a3a2a, 0 0 16px rgba(80,255,160,.35) !important; }
+#chatOv.terminal .chatName { color:#8fffc4; }
+#chatOv.terminal .chatStatus { color:#3f8f6a; }
+#chatOv.terminal .chatName,
+#chatOv.terminal .chatStatus,
+#chatOv.terminal .bubble,
+#chatOv.terminal .chatInputRow input,
+#chatOv.terminal .chatNotes textarea { font-family:'Courier New',monospace; }
+#chatOv.terminal .bubble { border-radius:3px; }
+#chatOv.terminal .bubble .who { color:#8fffc4; }
+#chatOv.terminal .bubble.npc { background:#0a140f; border-color:#1a3a2a; color:#b9ffda; }
+#chatOv.terminal .bubble.user { background:#12201a; border-color:#2a5a3a; color:#e8fff2; }
+#chatOv.terminal .chatInputRow input { background:#0a140f; border-color:#1a3a2a; color:#8fffc4; }
+#chatOv.terminal .chatInputRow input:focus { border-color:#3fdf8a; }
+#chatOv.terminal .notesHeader { color:#8fffc4; }
+#chatOv.terminal .chatNotes textarea { background:#0a140f; border-color:#1a3a2a; color:#b9ffda; }
+#chatOv.terminal .chatNotes textarea:focus { border-color:#3fdf8a; }
+#chatOv.terminal .chatSide .btn.ghost { border-color:#1a3a2a; color:#8fffc4; }
+#chatOv.terminal .chatQuickActions .btn.ghost { border-color:#1a3a2a; color:#8fffc4; }
+
 /* ---------- overlays (reader / shelf / planner / courses) ---------- */
 .overlay {
   position:fixed; inset:0; z-index:9; background:rgba(10,8,14,.74);
@@ -61,6 +147,11 @@ body { font-family:'Courier New', monospace; touch-action:none; }
 .panel h3 { color:#e0a43c; font-size:15px; margin:16px 0 6px; }
 .panel p { line-height:1.7; font-size:14px; margin-bottom:10px; color:#eadfca; }
 .panel .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.fullTextPage {
+  white-space:pre-wrap; line-height:1.75; font-size:14.5px;
+  max-height:56vh; overflow-y:auto; padding-right:6px;
+}
+.bookPanel .fullTextPage { color:#3a2e1c; } /* the reader always opens as a bookPanel — dark ink on parchment, not light-on-dark */
 .xbtn {
   float:right; background:none; border:2px solid #e0a43c; color:#e0a43c;
   border-radius:6px; padding:2px 10px; cursor:pointer; font-family:inherit; font-size:13px;
@@ -189,7 +280,6 @@ body.touchmode .touch { display:block; }
 #title .keys { font-size:12px; color:#9c8b74; }
 #saveMode { font-size:11.5px; color:#7fa36b; }
 #aiMode { font-size:11.5px; color:#7fa9c9; }
-#dChatInput { margin-top:10px; }
 
 /* badge unlock toast */
 #badgeToast {

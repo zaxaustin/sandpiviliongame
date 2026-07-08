@@ -3,10 +3,10 @@ import './style.css';
 import { Store } from './data/store.js';
 import {
   state, data, persist, scene, tileAt, npcAt, signAt, warpAt, stationAt,
-  blocked, facingTile, opposite, MOVE_TIME,
+  blocked, facingTile, opposite, MOVE_TIME, dueSoon, todayKey,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus } from './ui/overlays.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -53,6 +53,7 @@ window.addEventListener('keydown',e=>{
     return;
   }
   if(k==='e'||k===' '||k==='enter') onAction();
+  if(k==='m') toggleMeditate();
 });
 window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 function bindTouch(id,key){
@@ -83,6 +84,12 @@ function setLoc(){ document.getElementById('loc').textContent=scene().name; }
 export function setHud(){
   document.getElementById('fishCount').textContent=data.fish;
   document.getElementById('readCount').textContent=Object.keys(data.read).length;
+  // the only "reminder" this game gives — a quiet, glanceable count of
+  // things you chose to give a due date, never a popup or an alarm
+  const soon=dueSoon(7), badge=document.getElementById('upcomingBadge');
+  const overdue=soon.filter(i=>i.due<todayKey()).length;
+  badge.textContent = soon.length ? '⏰ '+soon.length+(overdue?' (‼ '+overdue+' overdue)':'') : '';
+  badge.style.display = soon.length ? 'inline' : 'none';
 }
 
 /* ================================================================
@@ -125,6 +132,8 @@ function onAction(){
     else if(st.kind==='residents') openResidentsBoard();
     else if(st.kind==='hearth') openHearth();
     else if(st.kind==='grantdesk') openGrantDesk();
+    else if(st.kind==='coffee') openCoffee();
+    else if(st.kind==='review') openReviewQueue();
     return;
   }
   const npc=npcAt(ft.x,ft.y);
@@ -140,8 +149,20 @@ function onAction(){
   if(tileAt(ft.x,ft.y)==='W' && scene().outdoor){ startFishing(ft); return; }
 }
 
+// the four traditional postures — walking is just ordinary movement,
+// standing is the ordinary idle pose; M cycles through the other three
+// meditation forms in place, any real step back out to plain standing
+const MEDITATE_POSES=['sitting','lying','standing'];
+function toggleMeditate(){
+  if(document.getElementById('title').style.display!=='none') return;
+  if(state.ui||state.dialog||state.fishing||state.player.moving) return;
+  const p=state.player;
+  const i=MEDITATE_POSES.indexOf(p.meditate);
+  p.meditate = i<0 ? MEDITATE_POSES[0] : (i<MEDITATE_POSES.length-1 ? MEDITATE_POSES[i+1] : null);
+  blip(p.meditate?440:330,.08,'sine',.03);
+}
 function tryMove(dx,dy,dir){
-  const p=state.player; p.dir=dir;
+  const p=state.player; p.dir=dir; p.meditate=null;
   const nx=p.x+dx, ny=p.y+dy;
   if(blocked(nx,ny)) return;
   p.moving=true; p.tx=nx; p.ty=ny; p.t=0;

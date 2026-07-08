@@ -128,20 +128,79 @@ function drawTile(ch,x,y,sx,sy){
       ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(sx+S*.62,sy,S*.13,S);
       ctx.fillStyle='#e5d6bb'; ctx.fillRect(sx+S*.2,sy,S*.6,S*.12); ctx.fillRect(sx+S*.2,sy+S*.88,S*.6,S*.12);
       break;
-    case 's':{ // a quiet shrine, kept at the Grand Master's own request
+    case 's':{ // the temple's central shrine — rebuilt 2026-07-08 into a
+      // real centerpiece, not a corner curiosity: a golden Buddha figure
+      // that bleeds well above its own tile, a proper offering altar with
+      // two lit candles and a stick of incense actually rising, all inside
+      // a wide, saturated glow. Bleeds only upward/leftward on purpose —
+      // drawTile runs row-major, so those are the only directions already
+      // painted and safe to draw over; right/down would get clobbered by
+      // whatever's drawn next.
       ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S);
-      ctx.fillStyle='rgba(224,164,74,.2)'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.4,S*.42,0,7); ctx.fill();
-      ctx.fillStyle='#8a6a3a'; ctx.fillRect(sx+S*.26,sy+S*.84,S*.48,S*.12);
-      ctx.fillStyle='#c8a04a';
-      for(let i=0;i<3;i++){ ctx.beginPath(); ctx.moveTo(sx+S*(.28+i*.2),sy+S*.84); ctx.lineTo(sx+S*(.38+i*.2),sy+S*.7); ctx.lineTo(sx+S*(.48+i*.2),sy+S*.84); ctx.fill(); }
-      ctx.fillStyle='#a87f3f'; ctx.beginPath(); ctx.moveTo(sx+S*.28,sy+S*.84); ctx.quadraticCurveTo(sx+S*.5,sy+S*.38,sx+S*.72,sy+S*.84); ctx.fill();
-      ctx.fillStyle='#c8a04a'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.34,S*.13,0,7); ctx.fill();
-      ctx.fillStyle='#c8a04a'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.22,S*.05,0,7); ctx.fill();
+      const shrineGlow=ctx.createRadialGradient(sx+S*.5,sy+S*.1,S*.1,sx+S*.5,sy+S*.1,S*.95);
+      shrineGlow.addColorStop(0,'rgba(255,196,90,.5)'); shrineGlow.addColorStop(1,'rgba(255,196,90,0)');
+      ctx.fillStyle=shrineGlow; ctx.fillRect(sx-S*.4,sy-S*1.3,S*1.8,S*2.2);
+      ctx.fillStyle='#5a4529'; ctx.fillRect(sx+S*.1,sy+S*.8,S*.8,S*.2);
+      ctx.strokeStyle='#2a2118'; ctx.lineWidth=Math.max(1,S*.02); ctx.strokeRect(sx+S*.1,sy+S*.8,S*.8,S*.2);
+      const flick=.6+.4*Math.sin(state.time*8);
+      for(const cxo of [sx+S*.22,sx+S*.78]){
+        ctx.fillStyle='#e8dcb8'; ctx.fillRect(cxo-S*.03,sy+S*.68,S*.06,S*.14);
+        ctx.fillStyle=`rgba(255,180,80,${.85*flick})`; ctx.beginPath(); ctx.arc(cxo,sy+S*.65,S*.045,0,7); ctx.fill();
+      }
+      ctx.fillStyle='#8a6a3a'; ctx.fillRect(sx+S*.48,sy+S*.68,S*.03,S*.16);
+      const smoke=(state.time*.3)%1;
+      ctx.strokeStyle=`rgba(220,220,220,${.4*(1-smoke)})`; ctx.lineWidth=Math.max(1,S*.015);
+      ctx.beginPath(); ctx.moveTo(sx+S*.5,sy+S*.68-smoke*S*.1);
+      ctx.quadraticCurveTo(sx+S*.56,sy+S*.5-smoke*S*.4,sx+S*.48,sy+S*.3-smoke*S*.7);
+      ctx.stroke();
+      ctx.fillStyle='#e0a43c'; ctx.strokeStyle='#5a3f18'; ctx.lineWidth=Math.max(1,S*.03);
+      ctx.beginPath(); ctx.moveTo(sx+S*.2,sy+S*.75); ctx.quadraticCurveTo(sx+S*.5,sy-S*.35,sx+S*.8,sy+S*.75); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle='rgba(255,220,140,.9)'; ctx.lineWidth=Math.max(1,S*.035);
+      ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.55,S*.28,0,7); ctx.stroke();
+      ctx.fillStyle='#e0a43c'; ctx.strokeStyle='#5a3f18'; ctx.lineWidth=Math.max(1,S*.025);
+      ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.45,S*.19,0,7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#e0a43c'; ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.68,S*.07,0,7); ctx.fill();
+      break; }
+    case 'i':{ // a smaller votive candle, scattered near the shelves — the
+      // room should feel devotional throughout, not just at one corner shrine
+      ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S);
+      const iflick=.6+.4*Math.sin(state.time*8+x+y);
+      ctx.fillStyle=`rgba(255,180,80,${.3*iflick})`; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.5,S*.4,0,7); ctx.fill();
+      ctx.fillStyle='#5a4529'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.78,S*.18,0,7); ctx.fill();
+      ctx.fillStyle='#e8dcb8'; ctx.fillRect(sx+S*.44,sy+S*.5,S*.12,S*.26);
+      ctx.fillStyle=`rgba(255,180,80,${.9*iflick})`; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.46,S*.07,0,7); ctx.fill();
+      break; }
+    case 't':{ // a café table, two chairs — somewhere to actually sit, not just a station to work at
+      ctx.fillStyle=((x+y)%2===0)?PAL.floor:PAL.floorD; ctx.fillRect(sx,sy,S,S);
+      ctx.fillStyle='#4a3a28'; // chairs, one each side
+      ctx.fillRect(sx+S*.06,sy+S*.4,S*.14,S*.3); ctx.fillRect(sx+S*.8,sy+S*.4,S*.14,S*.3);
+      ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.58,S*.3,S*.12,0,0,7); ctx.fill();
+      ctx.fillStyle='#8a6438'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.5,S*.28,S*.2,0,0,7); ctx.fill(); // tabletop
+      ctx.strokeStyle='#6b4a2f'; ctx.lineWidth=Math.max(1,S*.02); ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.5,S*.28,S*.2,0,0,7); ctx.stroke();
+      ctx.fillStyle='#e8dcb8'; ctx.beginPath(); ctx.arc(sx+S*.5,sy+S*.46,S*.06,0,7); ctx.fill(); // a small cup on top
       break; }
   }
 }
 function drawBuilding(b,ox,oy){
   const x=(b.x-ox)*S, y=(b.y-oy)*S, w=b.w*S, h=b.h*S;
+  if(b.type==='annex'){
+    // an open-sided lean-to, not a fully enclosed building — support posts
+    // and a roof, floor visible underneath, reads as "semi-open" even from
+    // outside. The Study's own second entrance lives here.
+    ctx.fillStyle='#8f6a4e'; ctx.fillRect(x,y+S*.9,w,h-S*.9);
+    ctx.fillStyle='rgba(0,0,0,.1)'; for(let r=0;r<b.h-1;r++) ctx.fillRect(x,y+S*.9+r*S*.75,w,2);
+    ctx.fillStyle='#5e5468'; ctx.beginPath();
+    ctx.moveTo(x-S*.15,y+S*.9); ctx.lineTo(x+w/2,y-S*.15); ctx.lineTo(x+w+S*.15,y+S*.9); ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(x-S*.15,y+S*.8,w+S*.3,S*.12);
+    ctx.fillStyle='#6b4a2f';
+    for(const px of [x+S*.15, x+w-S*.35, x+w/2-S*.85, x+w/2+S*.7]) ctx.fillRect(px,y+S*.9,S*.2,h-S*.9);
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+w/2-S*1.1,y+S*1.4,S*2.2,S*.4);
+    ctx.fillStyle='#e0a43c'; ctx.font=`bold ${Math.floor(S*.2)}px Courier New`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(b.label,x+w/2,y+S*1.6);
+    return;
+  }
   if(b.type==='castle'){
     ctx.fillStyle='#cbb79a'; ctx.fillRect(x,y+S*1.2,w,h-S*1.2);
     ctx.fillStyle='rgba(0,0,0,.08)';
@@ -177,6 +236,18 @@ function drawBuilding(b,ox,oy){
       ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(x+w*.14,y+S*.68,w*.72,S*.1);
       ctx.fillStyle='#c8a04a'; ctx.beginPath(); ctx.arc(x+w/2,y-S*.45,S*.09,0,7); ctx.fill();
       ctx.fillStyle='#c8a04a'; ctx.fillRect(x+w/2-S*.03,y-S*.6,S*.06,S*.25);
+      // prayer-flag bunting, strung between the two roof tiers — the
+      // classic Tibetan five-element colors, a small sway so it never
+      // reads as a static texture
+      const flagCols=['#5a8fc9','#e8dcb8','#c8574a','#7fa36b','#e0a43c'];
+      const sway=Math.sin(state.time*1.4)*S*.05;
+      ctx.strokeStyle='#3a2c1e'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x+w*.16,y+S*.82); ctx.quadraticCurveTo(x+w/2,y+S*.95+sway,x+w*.84,y+S*.82); ctx.stroke();
+      for(let i=0;i<9;i++){
+        const ft=i/8, fx=x+w*.16+(w*.68)*ft, fy=y+S*.82+Math.sin(ft*Math.PI)*(S*.13+sway);
+        ctx.fillStyle=flagCols[i%flagCols.length];
+        ctx.beginPath(); ctx.moveTo(fx-S*.07,fy); ctx.lineTo(fx+S*.07,fy); ctx.lineTo(fx,fy+S*.16); ctx.fill();
+      }
     } else {
       ctx.fillStyle=roof; ctx.beginPath();
       ctx.moveTo(x-S*.2,y+S*1.4); ctx.lineTo(x+w/2,y-S*.3); ctx.lineTo(x+w+S*.2,y+S*1.4); ctx.fill();
@@ -253,6 +324,58 @@ function drawStation(st,ox,oy){
       ctx.strokeStyle='#9c8b74'; ctx.lineWidth=.6; ctx.strokeRect(x+S*nx,y+S*ny,S*.2,S*.18);
       ctx.fillStyle='#2a2118'; ctx.beginPath(); ctx.arc(x+S*(nx+.1),y+S*ny,S*.025,0,7); ctx.fill();
     }
+  } else if(st.kind==='notice'){ // the Notice Board — a blue-toned corkboard, deliberately not the same look as the Request Board
+    ctx.fillStyle='#5a6d7a'; ctx.fillRect(x+S*.04,y+S*.06,S*.92,S*.82);
+    ctx.fillStyle='#7f96a3'; ctx.fillRect(x+S*.1,y+S*.12,S*.8,S*.7);
+    const cards=[['#f5e9d4',.18,.2],['#ffd98a',.5,.24],['#cfe0f0',.3,.5],['#f0c9c9',.58,.5]];
+    for(const [c,nx,ny] of cards){
+      ctx.fillStyle=c; ctx.fillRect(x+S*nx,y+S*ny,S*.2,S*.16);
+      ctx.strokeStyle='#3a4650'; ctx.lineWidth=.6; ctx.strokeRect(x+S*nx,y+S*ny,S*.2,S*.16);
+    }
+  } else if(st.kind==='residents'){ // the Residents' Board — pinned notes tinted with each resident's own color
+    ctx.fillStyle='#5a4a68'; ctx.fillRect(x+S*.04,y+S*.06,S*.92,S*.82);
+    ctx.fillStyle='#7d6a90'; ctx.fillRect(x+S*.1,y+S*.12,S*.8,S*.7);
+    const notes=[['#d9b9ea',.2,.22],['#f2b6a3',.52,.2],['#f2d78a',.32,.5],['#f5e9d4',.6,.52]];
+    for(const [c,nx,ny] of notes){
+      ctx.fillStyle=c; ctx.fillRect(x+S*nx,y+S*ny,S*.2,S*.18);
+      ctx.fillStyle='#2a2118'; ctx.beginPath(); ctx.arc(x+S*(nx+.1),y+S*ny,S*.025,0,7); ctx.fill();
+    }
+  } else if(st.kind==='hearth'){ // a small stone fire pit, flame always lit
+    ctx.fillStyle='#4a4038'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.78,S*.4,S*.16,0,0,7); ctx.fill();
+    ctx.fillStyle='#6b5d4e'; for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; ctx.beginPath(); ctx.arc(x+S*.5+Math.cos(a)*S*.36,y+S*.78+Math.sin(a)*S*.14,S*.055,0,7); ctx.fill(); }
+    ctx.fillStyle='#5a4028'; ctx.fillRect(x+S*.42,y+S*.62,S*.16,S*.18); // crossed logs
+    const flick=.6+.4*Math.sin(state.time*7);
+    ctx.fillStyle=`rgba(224,164,60,${.85*flick})`;
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.36); ctx.quadraticCurveTo(x+S*.34,y+S*.58,x+S*.5,y+S*.68); ctx.quadraticCurveTo(x+S*.66,y+S*.58,x+S*.5,y+S*.36); ctx.fill();
+    ctx.fillStyle=`rgba(255,220,140,${.9*flick})`;
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.46); ctx.quadraticCurveTo(x+S*.42,y+S*.6,x+S*.5,y+S*.66); ctx.quadraticCurveTo(x+S*.58,y+S*.6,x+S*.5,y+S*.46); ctx.fill();
+  } else if(st.kind==='grantdesk'){ // a desk with a real folder, a green banker's lamp — deliberately not the Archive Desk's open-book look
+    ctx.fillStyle='#75542e'; ctx.fillRect(x+S*.08,y+S*.62,S*.1,S*.36); ctx.fillRect(x+S*.82,y+S*.62,S*.1,S*.36);
+    ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.02,y+S*.5,S*.96,S*.18);
+    ctx.fillStyle='#c9a06a'; ctx.fillRect(x+S*.16,y+S*.36,S*.34,S*.2); // folder
+    ctx.strokeStyle='#8a6d4a'; ctx.lineWidth=1; ctx.strokeRect(x+S*.16,y+S*.36,S*.34,S*.2);
+    ctx.fillStyle='#3a5a3a'; ctx.beginPath(); ctx.arc(x+S*.68,y+S*.34,S*.1,Math.PI,0); ctx.fill(); // lamp shade
+    ctx.fillStyle='rgba(140,210,140,.6)'; ctx.beginPath(); ctx.arc(x+S*.68,y+S*.34,S*.14,0,Math.PI); ctx.fill(); // glow
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.66,y+S*.34,S*.04,S*.2); // lamp neck
+  } else if(st.kind==='coffee'){ // the counter — order a coffee, purely for the atmosphere of it
+    ctx.fillStyle='#5a4028'; ctx.fillRect(x,y+S*.5,S,S*.44);
+    ctx.fillStyle='#7a5a38'; ctx.fillRect(x,y+S*.42,S,S*.1);
+    ctx.fillStyle='#e8dcb8'; ctx.fillRect(x+S*.2,y+S*.2,S*.16,S*.22); // mug body
+    ctx.fillStyle='none'; ctx.strokeStyle='#e8dcb8'; ctx.lineWidth=Math.max(1,S*.03);
+    ctx.beginPath(); ctx.arc(x+S*.4,y+S*.31,S*.06,-Math.PI*.5,Math.PI*.5); ctx.stroke(); // handle
+    const steam=.5+.5*Math.sin(state.time*2);
+    ctx.strokeStyle=`rgba(255,255,255,${.35*steam})`; ctx.lineWidth=Math.max(1,S*.02);
+    ctx.beginPath(); ctx.moveTo(x+S*.28,y+S*.18); ctx.quadraticCurveTo(x+S*.22,y+S*.08,x+S*.28,y-S*.02); ctx.stroke();
+  } else if(st.kind==='review'){ // the Caravan Desk — a travel crate with a luggage tag, things arriving from outside the Pavilion
+    ctx.fillStyle='#6b4a2f'; ctx.fillRect(x+S*.08,y+S*.36,S*.84,S*.5);
+    ctx.strokeStyle='#3a2c1e'; ctx.lineWidth=Math.max(1,S*.025);
+    ctx.strokeRect(x+S*.08,y+S*.36,S*.84,S*.5);
+    ctx.beginPath(); ctx.moveTo(x+S*.08,y+S*.61); ctx.lineTo(x+S*.92,y+S*.61); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.36); ctx.lineTo(x+S*.5,y+S*.86); ctx.stroke();
+    ctx.strokeStyle='#8a6d4a'; ctx.lineWidth=Math.max(1,S*.06);
+    ctx.beginPath(); ctx.moveTo(x+S*.22,y+S*.36); ctx.quadraticCurveTo(x+S*.5,y+S*.14,x+S*.78,y+S*.36); ctx.stroke(); // rope handle
+    ctx.fillStyle='#e8dcb8'; ctx.fillRect(x+S*.62,y+S*.44,S*.22,S*.16); // luggage tag
+    ctx.strokeStyle='#2a2118'; ctx.lineWidth=1; ctx.strokeRect(x+S*.62,y+S*.44,S*.22,S*.16);
   } else { // the Archive Desk — an open book, plus a small stack of your own bound volumes
     ctx.fillStyle='#4a3520'; ctx.fillRect(x,y+S*.6,S,S*.34);
     ctx.fillStyle='#f3e6c8';
@@ -263,9 +386,74 @@ function drawStation(st,ox,oy){
     const cols=['#4d7ab3','#b34d4d','#5d9c66'];
     cols.forEach((c,i)=>{ ctx.fillStyle=c; ctx.fillRect(x+S*.68+i*S*.02, y+S*(.38-i*.06), S*.16, S*.055); });
   }
+  // every station gets a small floating label — the indoor equivalent of
+  // the outdoor building labels, so you can tell desks apart from across
+  // the room instead of needing to walk up and press E to find out
+  if(st.name){
+    ctx.font=`bold ${Math.floor(S*.16)}px Courier New`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const w=ctx.measureText(st.name).width+S*.16;
+    ctx.fillStyle='rgba(26,19,12,.82)'; ctx.fillRect(x+S*.5-w/2,y-S*.32,w,S*.22);
+    ctx.strokeStyle='#e0a43c'; ctx.lineWidth=1; ctx.strokeRect(x+S*.5-w/2,y-S*.32,w,S*.22);
+    ctx.fillStyle='#e0a43c'; ctx.fillText(st.name,x+S*.5,y-S*.21);
+  }
+}
+function drawCritter(px,py,ox,oy,species){
+  const x=(px-ox)*S, y=(py-oy)*S;
+  const bob=Math.sin(state.time*3+px*7+py*3)*S*.02; // small idle sway, out of phase per-critter so a pair never moves in lockstep
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.86,S*.22,S*.08,0,0,7); ctx.fill();
+  if(species==='deer'){
+    ctx.fillStyle='#9a6f47';
+    ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.68+bob,S*.24,S*.15,0,0,7); ctx.fill(); // body
+    ctx.fillStyle='#7a5636';
+    for(const lx of [x+S*.36,x+S*.46,x+S*.56,x+S*.64]) ctx.fillRect(lx,y+S*.78+bob,S*.04,S*.14); // legs
+    ctx.fillStyle='#9a6f47'; ctx.beginPath(); ctx.arc(x+S*.72,y+S*.56+bob,S*.13,0,7); ctx.fill(); // head
+    ctx.strokeStyle='#6b4a2f'; ctx.lineWidth=Math.max(1,S*.025);
+    ctx.beginPath(); ctx.moveTo(x+S*.68,y+S*.46+bob); ctx.lineTo(x+S*.64,y+S*.36+bob); ctx.moveTo(x+S*.76,y+S*.46+bob); ctx.lineTo(x+S*.8,y+S*.36+bob); ctx.stroke(); // antlers
+    ctx.fillStyle='#e8dcb8'; ctx.beginPath(); ctx.ellipse(x+S*.28,y+S*.68+bob,S*.06,S*.08,0,0,7); ctx.fill(); // tail spot
+  } else { // bunny
+    ctx.fillStyle='#d8d0c4';
+    ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.74+bob,S*.17,S*.13,0,0,7); ctx.fill(); // body
+    ctx.beginPath(); ctx.arc(x+S*.5,y+S*.58+bob,S*.12,0,7); ctx.fill(); // head
+    ctx.fillStyle='#c8bfae';
+    ctx.beginPath(); ctx.ellipse(x+S*.42,y+S*.38+bob,S*.035,S*.14,-.15,0,7); ctx.fill(); // ear
+    ctx.beginPath(); ctx.ellipse(x+S*.56,y+S*.38+bob,S*.035,S*.14,.15,0,7); ctx.fill(); // ear
+    ctx.fillStyle='#f5e9d4'; ctx.beginPath(); ctx.arc(x+S*.34,y+S*.76+bob,S*.05,0,7); ctx.fill(); // tail
+  }
+}
+function drawMeditating(x,y,color,pose){
+  ctx.fillStyle='rgba(0,0,0,.22)';
+  ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.88,S*.3,S*.1,0,0,7); ctx.fill();
+  const breathe=Math.sin(state.time*1.6)*S*.015; // slow and calm, deliberately not the walking bob
+  if(pose==='sitting'){
+    ctx.fillStyle='#8a4a3a'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.87,S*.34,S*.11,0,0,7); ctx.fill(); // cushion — the clearest "this is sitting, not standing" cue at this scale
+    ctx.fillStyle='#6b3a2c'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.84,S*.34,S*.09,0,0,7); ctx.fill();
+    ctx.fillStyle=color;
+    ctx.beginPath(); ctx.moveTo(x+S*.22,y+S*.82); ctx.lineTo(x+S*.5,y+S*.62); ctx.lineTo(x+S*.78,y+S*.82); ctx.closePath(); ctx.fill();
+    ctx.fillRect(x+S*.32,y+S*.4+breathe,S*.36,S*.44);
+    ctx.fillStyle='#f0cfa4'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.32+breathe,S*.17,0,7); ctx.fill();
+    ctx.strokeStyle=color; ctx.lineWidth=S*.06;
+    ctx.beginPath(); ctx.arc(x+S*.5,y+S*.31+breathe,S*.18,Math.PI*.95,Math.PI*2.05); ctx.stroke();
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.43,y+S*.33+breathe,S*.14,S*.018);
+  } else if(pose==='lying'){
+    ctx.fillStyle=color; ctx.fillRect(x+S*.14,y+S*.7+breathe*.3,S*.6,S*.18);
+    ctx.fillStyle='#f0cfa4'; ctx.beginPath(); ctx.arc(x+S*.8,y+S*.79+breathe*.3,S*.15,0,7); ctx.fill();
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.84,y+S*.775+breathe*.3,S*.03,S*.016);
+  } else { // standing meditation — the idle pose, hands together, eyes closed, a faint aura
+    const g=ctx.createRadialGradient(x+S*.5,y+S*.4,1,x+S*.5,y+S*.4,S*.7);
+    g.addColorStop(0,color+'33'); g.addColorStop(1,'transparent');
+    ctx.fillStyle=g; ctx.fillRect(x-S*.2,y-S*.3,S*1.4,S*1.4);
+    ctx.fillStyle=color; ctx.fillRect(x+S*.28,y+S*.34+breathe,S*.44,S*.5);
+    ctx.fillStyle='#f0cfa4'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.28+breathe,S*.19,0,7); ctx.fill();
+    ctx.strokeStyle=color; ctx.lineWidth=S*.07;
+    ctx.beginPath(); ctx.arc(x+S*.5,y+S*.27+breathe,S*.2,Math.PI*.95,Math.PI*2.05); ctx.stroke();
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.42,y+S*.27+breathe,S*.12,S*.018);
+    ctx.fillStyle='#6b4a2f'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.62+breathe,S*.08,0,7); ctx.fill();
+  }
 }
 function drawPerson(px,py,dir,color,glow,isPlayer,ox,oy){
   const x=(px-ox)*S, y=(py-oy)*S;
+  if(isPlayer && state.player.meditate){ drawMeditating(x,y,color,state.player.meditate); return; }
   const bobb=isPlayer&&state.player.moving?Math.sin(state.time*22)*S*.03:0;
   ctx.fillStyle='rgba(0,0,0,.22)';
   ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.88,S*.26,S*.1,0,0,7); ctx.fill();
@@ -342,7 +530,7 @@ export function render(){
   for(const b of s.buildings) drawBuilding(b,cx,cy);
   for(const sg of (s.signs||[])) drawSign(sg.x,sg.y,cx,cy);
   for(const st of (s.stations||[])) drawStation(st,cx,cy);
-  const ents=[...s.npcs.map(n=>({y:n.y,draw:()=>drawPerson(n.x,n.y,n.face||'down',n.color,n.glow,false,cx,cy)})),
+  const ents=[...s.npcs.map(n=>({y:n.y,draw:()=>n.species?drawCritter(n.x,n.y,cx,cy,n.species):drawPerson(n.x,n.y,n.face||'down',n.color,n.glow,false,cx,cy)})),
     {y:state.player.py,draw:()=>drawPerson(state.player.px,state.player.py,state.player.dir,'#b3552e',null,true,cx,cy)}];
   ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());
   drawFishing(cx,cy);

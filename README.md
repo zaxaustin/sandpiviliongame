@@ -240,18 +240,29 @@ the fuller manual QA checklist and fault-isolation guide live in
 ## Where things stand
 
 **A visitor, with no setup at all, can:** walk the Grounds, read all 16
-Library texts (aloud, if they like), plan their day and pin courses,
-write in their own Archive Desk or start a freeform Research Desk
-project, fish, carry books, earn badges, browse the café's Notice Board
-and Residents' Board, and export/import their whole save as a file.
-Nothing above needs an account, local AI, or Supabase — it all just
-works, locally, forever.
+Library texts (aloud, if they like — the Dhammapada now has its actual
+full text, F. Max Müller's 1881 translation, paginated and readable, not
+just a shelf summary), plan their day and pin courses, write in their
+own Archive Desk or start a freeform Research Desk project, start a real
+grant-proposal workspace at the Grant Desk, fish, carry books, earn
+badges, browse the café's Notice Board and Residents' Board, jot a
+passing thought in the Idea Jar, sit/lie/stand in meditation (`M`), and
+export/import their whole save as a file. Nothing above needs an
+account, local AI, or Supabase — it all just works, locally, forever.
 
-**Connect a local AI (Ollama)** and Quill, the Steward, the Computer,
-and the Research Desk all become real conversations — grounded in the
-actual shelved texts, the charter, and (for the Steward/Residents'
-Board) the live café board — instead of scripted lines. Quill remembers
-what you've asked across visits and can write a memory report.
+**Connect a local AI (Ollama)** and every resident — Quill, the Steward,
+the Mountain Monk, and the Computer (now a real JARVIS-style terminal,
+not a small form) — becomes a real, streaming conversation, grounded in
+the actual shelved texts, the charter, and (for the Steward/Residents'
+Board) the live café board, each with their own persistent notes pad.
+The Monk can draft you a real training plan from the conversation
+itself; the Computer can save a plan straight to your Archive Desk.
+Quill remembers what you've asked across visits and can write a memory
+report. **Connect a cloud provider instead or as well** — Claude,
+ChatGPT, or Grok, one-click presets in the Connections panel — and the
+same residents talk through that instead; every connection is labeled
+🏠 local or ☁ cloud so it's always clear whether a conversation is
+leaving your machine.
 
 **Connect Supabase** (already live for this deployment) and the Library
 mirrors a real hosted database, the café's two boards become genuinely
@@ -259,22 +270,26 @@ shared across everyone visiting the site, and signing in (magic link,
 no password) adds cross-device save sync plus real steward powers —
 moderation enforced by the database itself, not a client-side flag.
 
-**Grow the Library yourself:** `tools/caravan/gutenberg.py` fetches a
-public-domain book from Project Gutenberg and formats it for bulk
-import into your own Archive Desk. Getting something onto the *shared*
-shelves is a deliberate, always-manual second step — see "Growing the
+**Grow the Library yourself, from inside the game:** the Caravan Desk
+(Workshop) accepts either `tools/caravan/gutenberg.py`'s JSON output or
+text pasted in by hand, and an AI can draft real shelf copy (summary +
+sections) grounded only in what's actually there — the Steward Review
+Queue behind it still requires a human license/legality check and a
+manual final commit into `seed.js`, on purpose; see "Growing the
 Library," below.
 
-**Sketched, not built:** six more Workshop rooms, giving AI agents real
-hands (their own action API, not just a mouth), a public site beyond
-this one deploy / a desktop app, loading the tile map from external
-JSON, and a couple of dev-hygiene items (delegated click-listeners
-instead of inline `onclick`, promoting a few ad-hoc Playwright passes
-into a committed e2e suite). Full detail on all of these — including a
-much larger, deliberately-speculative "AI Task Manager" design and a
-three-tier public-site/desktop-app plan — lives in
-`archive/readme-2026-07-07-full.md`, kept out of this file so it stays
-readable.
+**Sketched, not built:** the rest of the character — customizable
+clothes/color/hair (see Hopes and Dreams), a fuller pet/wildlife system
+(two deer and two bunnies wander the Grounds today, decorative only);
+six more Workshop rooms; giving AI agents real hands (their own action
+API, not just a mouth); a public site beyond this one deploy; a
+standalone desktop app (planned — see
+[`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md)); web search for research
+(possible, needs its own API key and a small backend proxy, not yet
+scoped in detail); loading the tile map from external JSON; and a
+couple of dev-hygiene items (delegated click-listeners instead of
+inline `onclick`, promoting the many ad-hoc Playwright passes from this
+project's own sessions into a committed e2e suite).
 
 ### Project history
 
@@ -302,27 +317,52 @@ right now, what's still open — not a scrolling changelog.
 
 Roughly in priority order:
 
-1. **Finish the production auth setup** — add the Vercel URL to
+1. **Push the Dhammapada's full text to production Supabase.** It's
+   built and verified locally (see `src/game/data/seed.js` /
+   `src/game/data/library-texts/`), but `store.js` mirrors
+   `library_documents` from Supabase wholesale when it's configured and
+   reachable — the live site won't show the new full-text reader until
+   the `dhammapada` row's `doc` column is updated to match. Deliberately
+   not pushed without asking first; a shared-database write, not a code
+   change.
+2. **Finish the production auth setup** — add the Vercel URL to
    Supabase's Auth redirect-URL allowlist so magic-link sign-in works on
    the live site, not just localhost; grant a real `profiles.role =
    'steward'` and verify the moderation UI with an actual session.
-2. **Keep growing the Library** — the Caravan pipeline is closed now
-   (`gutenberg.py --for-library` → `library-draft.py` →
-   `promote-draft.py`, all real, all verified against Gutenberg's real
-   catalog). More candidate texts, and a second connector (Standard
-   Ebooks, archive.org, or SuttaCentral's API) to source beyond
-   Gutenberg, are both just a matter of running it again.
-3. **A coding curriculum on the Course Board** — same pattern as the
+3. **Keep growing the Library** — the Caravan Desk (in-game) and
+   `tools/caravan/gutenberg.py` (command line) both feed the same
+   Steward Review Queue now, with AI-assisted summary drafting closing
+   the old "TODO stub" gap. More candidate texts, and a second connector
+   (Standard Ebooks, archive.org, or SuttaCentral's API) to source
+   beyond Gutenberg, are both just a matter of running it again.
+4. **Character customization** — clothes, a color picker, hairstyles;
+   see Hopes and Dreams below for the real scope of this one. Genuinely
+   a system, not a quick add: needs a character-creator UI, persisted
+   appearance data threaded through every place a player sprite renders
+   (the overworld, every interior, the meditation poses), and enough
+   real art variety to be worth having at all.
+5. **Web/research search** — possible, not yet built. Needs its own API
+   key (Google Custom Search or similar) and, unlike the chat providers,
+   a small backend proxy rather than a direct browser call — real scope,
+   not a quick add.
+6. **A coding curriculum on the Course Board** — same pattern as the
    System Design course already pinned there, for whenever coding books
    specifically come up again; no shelf needed for this one.
-4. **Shelf-case scaling** — `renderShelf` draws every spine in one row
+7. **Shelf-case scaling** — `renderShelf` draws every spine in one row
    with no overflow handling; fine today, worth a real look once any
    shelf grows past 4-5 texts.
-5. **Six more Workshop rooms**, a real action API for AI agents (a
+8. **Six more Workshop rooms**, a real action API for AI agents (a
    designed-but-unbuilt way for an agent to move/act in the world, not
-   just answer questions), and the larger public-site/desktop-app
-   question — all still open, all detailed further in the archived
-   full README if picked up.
+   just answer questions), and the larger public-site question — all
+   still open, all detailed further in the archived full README if
+   picked up.
+9. **A standalone desktop app** — planned, not started; see
+   [`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md). The real problem it
+   solves isn't packaging, it's that a browser's CORS rules block the
+   page from reaching local Ollama unless `OLLAMA_ORIGINS` is configured
+   just right — a proper desktop shell can route that request through
+   native code instead and sidestep it permanently, for every future
+   person who installs the app.
 
 ## Hopes and dreams
 
@@ -338,7 +378,44 @@ lock your words up to work.
 None of that is scoped or scheduled — it's the Pavilion's own attic, not
 load-bearing. The full, considerably longer version of this (written in
 one sitting, asked to go nuts) lives in
-`archive/readme-2026-07-07-full.md` if you want the whole thing.
+`archive/readme-2026-07-07-full.md` if you want the whole thing. A
+personal reflection on Daoist practice that used to live at the bottom
+of this file now lives in `archive/dao-reflection-2026-07-07.md` — kept,
+not deleted, just moved somewhere a project README isn't the wrong
+shape for it.
+
+### Make the character actually yours (sketched 2026-07-08, not built)
+
+Right now every visitor is the same orange-robed figure. The real ask:
+**pick your own color**, **clothes in a light-novel cultivation-sect
+style** (flowing robes, sect colors, the aesthetic this Pavilion already
+half-leans on), and **hairstyles** — a real character-creator moment,
+not just a palette swap. This is a genuine system, not a quick add: it
+needs a character-creator UI (reachable from the pause menu or the
+title screen), persisted appearance data (`data.appearance` or similar),
+and every place a player sprite renders — the overworld, every
+interior, and now the three meditation poses — threaded to actually
+draw it. Worth doing once, worth doing right, not worth rushing into
+the same session as everything else built today.
+
+### The four postures, and what comes after them (2026-07-08)
+
+Walking, standing, sitting, and lying down — the Buddha's four
+postures — all exist now (`M` cycles sitting → lying → standing → back
+up; walking is just moving). What's still just an idea: **a pet/
+companion system**, starting small and honest — a creature that
+teaches by living its own life near you, not by lecturing. The example
+that actually started this: **a beaver, restoring a water table just by
+building what beavers build**, nothing gamified about it, You'd learn
+by watching, the way the Library's texts teach by being read rather
+than summarized at you. Further out, matched to the martial/cultivation
+aesthetic already running through this project: **a Five Animals
+practice track** — Tiger, Crane, Leopard, Snake, Dragon, the classical
+Wǔxíng Quán forms — as a real Course Board entry once there's a real
+teacher (the Monk, most likely) to ground it in something more than
+decoration. Two deer and two bunnies wander the Grounds today,
+decorative only, no mechanic behind them yet — the first tiny, honest
+piece of this, not the system itself.
 
 ### What today actually pointed toward (2026-07-07, later still)
 
@@ -383,6 +460,32 @@ A few threads, followed out further than tonight allows to actually build:
   kind of shelf. Worth remembering the next time that sounds like a
   stretch: the pattern's already proven, just not yet pointed anywhere
   else.
+
+### What this session actually pointed toward (2026-07-08)
+
+- **A commons platform and a real daily-use office turn out to want the
+  same features.** Tonight's asks — cloud model connections, a JARVIS-
+  style terminal, a real grant-writing workspace, AI-assisted Library
+  intake — all came from the user actually trying to use this to get
+  real work done, not from a feature-list. The "office" framing from
+  [[project-office-pivot]] wasn't a pivot away from the commons vision;
+  it's the thing making the commons vision testable against something
+  real, one desk at a time.
+- **Reuse compounds.** The full-screen chat view built once for the
+  Monk became, with no new plumbing, the Computer's entire JARVIS
+  redesign — just a CSS skin and a different system prompt. The Course
+  Board's AI-drafting engine became, unmodified, the Monk's "draft a
+  training plan" button and half of the Caravan Desk's summary drafting.
+  Building the *right* small number of general primitives (a chat view,
+  a document-drafting call, an opt-in due date) is turning out to matter
+  more than building any one feature well in isolation.
+- **The Buddhist framing stopped being decoration this session.** The
+  temple rebuild, the four postures, the Eightfold Path course, the
+  Monk's more direct teaching voice — these aren't skin on top of a
+  productivity tool. The user's own words were "above all this should
+  be a temple to the buddha." Worth holding onto: whatever gets built
+  next should still feel like it belongs in a temple, not just in an
+  app that happens to have one.
 
 The one line worth keeping without reading further: *everything turns to sand,
 so give it away first.*

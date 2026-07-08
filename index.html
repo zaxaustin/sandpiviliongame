@@ -8,16 +8,47 @@
 <body>
 <canvas id="game"></canvas>
 
-<div id="hud">📍 <b id="loc">Pavilion Grounds</b> &nbsp; 🎣 <b id="fishCount">0</b> &nbsp; 📖 <b id="readCount">0</b></div>
+<div id="hud">📍 <b id="loc">Pavilion Grounds</b> &nbsp; 🎣 <b id="fishCount">0</b> &nbsp; 📖 <b id="readCount">0</b>
+  <b id="upcomingBadge" onclick="openUpcoming()" title="Things you gave a due date — click to see them" style="display:none;cursor:pointer;margin-left:8px"></b></div>
 <button id="menuBtn" title="Menu (Esc)">☰</button>
-<div id="hint">Arrows / WASD move · E interact · Esc opens the menu / closes panels</div>
+<button id="ideaBtn" title="Got an idea? Jot it down — one click, back to what you were doing" onclick="openIdeaCapture()">💡</button>
+<div id="hint">Arrows / WASD move · E interact · M meditate (sit / lie / stand) · Esc opens the menu / closes panels</div>
 
 <div id="dialog">
   <div class="name" id="dName"></div>
   <div class="text" id="dText"></div>
-  <input type="text" id="dChatInput" placeholder="Ask Quill anything… (Enter to send)" style="display:none">
   <button id="dSpeak" title="Read this line aloud" onclick="toggleDialogSpeak()">🔊</button>
   <div class="more" id="dMore">▼ E</div>
+</div>
+
+<!-- Full-screen AI conversation view — Quill, the Steward, the Mountain Monk.
+     The character + the transcript are the main event; notes sit alongside;
+     everything else (speak, connections, leave) is a slim side rail. -->
+<div id="chatOv">
+  <div class="chatMain">
+    <div class="chatHeader">
+      <div class="chatAvatar" id="chatAvatar"></div>
+      <div class="chatNameWrap">
+        <div class="chatName" id="chatName"></div>
+        <div class="chatStatus" id="chatStatus"></div>
+      </div>
+    </div>
+    <div class="chatLog" id="chatLog" onclick="skipChatTyping()" title="Click to skip the reply revealing"></div>
+    <div class="chatQuickActions" id="chatQuickActions" style="display:none"></div>
+    <div class="chatInputRow">
+      <input type="text" id="chatInput" placeholder="Ask anything… (Enter to send)">
+      <button class="btn" onclick="sendCurrentChatMessage()">Ask</button>
+    </div>
+  </div>
+  <div class="chatNotes">
+    <div class="notesHeader">📝 Notes <span class="meta" id="notesSaved"></span></div>
+    <textarea id="chatNotesArea" placeholder="Jot down anything worth keeping from this conversation — kept on this device, per resident, across visits."></textarea>
+  </div>
+  <div class="chatSide">
+    <button class="btn ghost" id="chatSpeakBtn" title="Read the last reply aloud" onclick="toggleChatSpeak()">🔊</button>
+    <button class="btn ghost" onclick="openConnections()" title="Manage AI connections">⚙</button>
+    <button class="btn ghost" title="Leave (Esc)" onclick="closeDialog()">✕</button>
+  </div>
 </div>
 
 <!-- Shelf browser -->
@@ -33,15 +64,28 @@
   <button class="xbtn" onclick="closeUI()">Esc ✕</button>
   <h2 id="rdTitle"></h2>
   <div class="meta" id="rdMeta"></div>
-  <div id="rdBody"></div>
-  <div class="row" style="margin-top:18px">
-    <button class="btn" id="rdMark" onclick="markRead()">Mark as read</button>
-    <button class="btn ghost" id="rdReadBtn" onclick="toggleReadAloud()">🔊 Read aloud</button>
-    <button class="btn ghost" id="rdSummaryBtn" onclick="toggleSpokenSummary()">🔊 Summary aloud</button>
-    <button class="btn ghost" id="rdCarryBtn" onclick="toggleInventory(currentDocSlug())">🎒 Take with you</button>
-    <button class="btn ghost" onclick="backToShelf()">← Back to shelf</button>
+  <div id="rdSummaryView">
+    <div id="rdBody"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn" id="rdMark" onclick="markRead()">Mark as read</button>
+      <button class="btn ghost" id="rdFullTextBtn" onclick="openFullText(currentDocSlug())" style="display:none">📖 Read the full text</button>
+      <button class="btn ghost" id="rdReadBtn" onclick="toggleReadAloud()">🔊 Read aloud</button>
+      <button class="btn ghost" id="rdSummaryBtn" onclick="toggleSpokenSummary()">🔊 Summary aloud</button>
+      <button class="btn ghost" id="rdCarryBtn" onclick="toggleInventory(currentDocSlug())">🎒 Take with you</button>
+      <button class="btn ghost" onclick="backToShelf()">← Back to shelf</button>
+    </div>
+    <div class="meta" id="rdSpokenNote"></div>
   </div>
-  <div class="meta" id="rdSpokenNote"></div>
+  <div id="rdFullTextView" style="display:none">
+    <div class="meta" id="rdFullTextMeta"></div>
+    <div id="rdFullTextBody" class="fullTextPage"></div>
+    <div class="row" style="margin-top:18px;align-items:center">
+      <button class="btn ghost" onclick="fullTextPrevPage()">← Prev</button>
+      <span class="meta" id="rdFullTextPageNum" style="margin:0"></span>
+      <button class="btn ghost" onclick="fullTextNextPage()">Next →</button>
+      <button class="btn ghost" onclick="backToSummary()">← Back to the summary</button>
+    </div>
+  </div>
 </div></div>
 
 <!-- Planner -->
@@ -49,6 +93,7 @@
   <button class="xbtn" onclick="closeUI()">Esc ✕</button>
   <h2>The Writing Desk</h2>
   <div class="meta" id="planDate"></div>
+  <div id="planUpcoming"></div>
   <label>Today's flame — one intention</label>
   <input type="text" id="planIntent" maxlength="140" placeholder="What is today for?">
   <label>Rhythm blocks — tap to cycle: waiting → tended → rested</label>
@@ -91,9 +136,6 @@
 <!-- Library Index (categories, across the Library and your own Archive) -->
 <div class="overlay" id="indexOv"><div class="panel" id="indexPanel"></div></div>
 
-<!-- The Computer (AI planning assistant, in the Study) -->
-<div class="overlay" id="computerOv"><div class="panel" id="computerPanel"></div></div>
-
 <!-- The Request Board (book wishlist feeding the Caravan) -->
 <div class="overlay" id="requestsOv"><div class="panel" id="requestsPanel"></div></div>
 
@@ -115,6 +157,15 @@
 <!-- The Research Desk (the Workshop — freeform notes + a research-assistant AI) -->
 <div class="overlay" id="researchOv"><div class="panel" id="researchPanel"></div></div>
 
+<!-- The Grant Desk (the café — real project workspace: documents + a grant-writing AI) -->
+<div class="overlay" id="grantOv"><div class="panel" id="grantPanel"></div></div>
+
+<!-- Upcoming — only things you chose to give a due date; never pops up on its own -->
+<div class="overlay" id="upcomingOv"><div class="panel" id="upcomingPanel"></div></div>
+
+<!-- The Idea Jar — one click to jot a thought down, one click back to what you were doing -->
+<div class="overlay" id="ideaOv"><div class="panel" id="ideaPanel"></div></div>
+
 <!-- Badge unlock toast -->
 <div id="badgeToast"></div>
 
@@ -130,7 +181,7 @@
 <div id="title">
   <h1>THE SAND PAVILION</h1>
   <p>The Library now holds real texts — face a shelf and press E to browse the spines, then step into a book to read it. Behind its east door is the Study: a writing desk for planning your day, and a course board for building your own paths of practice. The Workshop's doors are open too, now — an Archive Desk inside for keeping your own writing, the same way the Library keeps everyone else's. A Café stands between the Library and the Workshop now, too — a notice board for looking outward, a hearth, and a grant desk.</p>
-  <p class="keys">Move: Arrows / WASD · Interact & fish: E · Close menus: Esc · Pause menu: Esc, or ☰ in the corner</p>
+  <p class="keys">Move: Arrows / WASD · Interact & fish: E · Meditate: M (sit / lie / stand) · Close menus: Esc · Pause menu: Esc, or ☰ in the corner</p>
   <p id="saveMode"></p>
   <p id="aiMode"></p>
   <button class="btn" id="startBtn" style="font-size:16px;padding:12px 34px">Enter the Grounds</button>

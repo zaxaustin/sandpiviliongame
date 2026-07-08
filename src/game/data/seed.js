@@ -3,6 +3,8 @@
    library_documents table; `doc` becomes the JSONB column.
    License + source are first-class fields, never buried in the blob.
    ================================================================ */
+import { dhammapadaFullText } from './library-texts/dhammapada.js';
+
 export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice','Science','Nature'];
 /* Categories are a second, orthogonal axis to tradition — "what kind of
    text is this" rather than "which lineage." Every seed text today is
@@ -31,7 +33,14 @@ const RAW_SEED_LIBRARY = [
      sections:[
        {heading:'What it is', body:'Four hundred twenty-three verses arranged by theme: the mind, heedfulness, anger, the self, the path. Each verse stands alone; together they form the most portable summary of the teaching that exists.'},
        {heading:'How to read it', body:'Slowly, and in small amounts. One chapter a sitting is plenty. The verses are designed to be carried through a day and tested against experience, not consumed.'},
-       {heading:'A practice note', body:'Many practitioners keep a single verse as a companion for a week. When the week ends, the verse usually looks different than when it began. That difference is the practice.'}]}},
+       {heading:'A practice note', body:'Many practitioners keep a single verse as a companion for a week. When the week ends, the verse usually looks different than when it began. That difference is the practice.'}],
+     // the summary/sections above stay grounded in the SuttaCentral CC0 shelf
+     // record; the full text is a different, independently-licensed edition —
+     // F. Max Müller's own 1881 translation, straight off Project Gutenberg,
+     // kept as its own honestly-sourced object rather than blended into the
+     // citation above.
+     fullText:{ text:dhammapadaFullText, translator:'F. Max Müller (1881), from The Sacred Books of the East, Vol. X',
+       source_url:'https://www.gutenberg.org/ebooks/2017', license:'Public Domain (Project Gutenberg)' }}},
  { slug:'satipatthana', tradition:'Theravada', title:'Satipatthana — Foundations of Mindfulness',
    license:'CC0 1.0', source_url:'https://suttacentral.net/mn10', attribution:'SuttaCentral',
    doc:{ summary:'The Buddha’s core instruction manual for mindfulness practice: four fields of attention, one method.',

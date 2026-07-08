@@ -16,7 +16,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, workshop:{docs:[],research:[]}, waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[] }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, read:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[] }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -109,6 +109,26 @@ export const MOVE_TIME=0.17;
 export function todayKey(){
   const d=new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function dateKeyPlusDays(key,n){
+  const d=new Date(key+'T00:00:00');
+  d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+/* ----- Optional due dates — courses and grant projects can carry one,
+   never required. This is the whole "reminders" surface by design: no
+   popups, no alarms, just something you can glance at (the HUD badge)
+   or go looking for (the Upcoming panel) if you choose to set a date at
+   all. Nothing here interrupts anyone who never touches a due date. */
+export function upcomingItems(){
+  const items=[];
+  for(const c of data.courses) if(c.due) items.push({kind:'course',id:c.id,title:c.title,due:c.due});
+  for(const p of data.grantProjects) if(p.due) items.push({kind:'grant',id:p.id,title:p.title,due:p.due});
+  return items.sort((a,b)=>a.due<b.due?-1:a.due>b.due?1:0);
+}
+export function dueSoon(days=7){
+  const horizon=dateKeyPlusDays(todayKey(),days);
+  return upcomingItems().filter(i=>i.due<=horizon);
 }
 
 /* ---------- helpers ---------- */

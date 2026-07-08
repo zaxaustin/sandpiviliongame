@@ -1,8 +1,8 @@
 import { Store } from '../data/store.js';
-import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge } from '../entities.js';
+import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge, upcomingItems } from '../entities.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
-import { AI, isAIActive, providerFor, detectAI } from '../ai/provider.js';
+import { AI, isAIActive, providerFor, detectAI, isEmptyReply } from '../ai/provider.js';
 import { CHARTER } from '../data/charter.js';
 import { CATEGORIES } from '../data/seed.js';
 import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
@@ -18,49 +18,44 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function safeUrl(u){ return /^https?:\/\//i.test(u||'') ? u : ''; }
 
 /* ---------- dialog ---------- */
+/* Scripted, non-AI NPCs (and signs) still use the small popup box at the
+   bottom of the screen — quick, doesn't interrupt the world. AI-backed
+   residents (Quill, the Steward, the Monk) use the full-screen chat view
+   below instead, since a real conversation deserves room to breathe. */
 export function openDialog(name,lines){
   state.dialog={name,lines:Array.isArray(lines)?lines:[lines],idx:0,chat:false};
   document.getElementById('dialog').style.display='block';
   renderDialog(); blip(740,.06,'square',.03);
 }
-export function openChatDialog(npc){
-  state.dialog={name:npc.name,agent:npc.aiAgent||'quill',lines:[npc.lines[0]],idx:0,chat:true,history:[],thinking:false};
-  document.getElementById('dialog').style.display='block';
-  renderDialog(); blip(740,.06,'square',.03);
-}
 function renderDialog(){
   const d=state.dialog;
-  const atEnd=d.idx>=d.lines.length-1;
-  const showChat=d.chat && atEnd && !d.thinking;
   document.getElementById('dName').textContent=d.name;
-  document.getElementById('dText').textContent=d.thinking?'…':d.lines[d.idx];
-  const input=document.getElementById('dChatInput');
-  input.style.display=showChat?'block':'none';
-  if(showChat){ input.value=''; input.focus(); }
-  document.getElementById('dMore').textContent =
-    showChat ? 'Esc leave · Enter ask' : ((d.idx<d.lines.length-1)?'▼ E':'✕ E');
+  document.getElementById('dText').textContent=d.lines[d.idx];
+  document.getElementById('dMore').textContent = (d.idx<d.lines.length-1)?'▼ E':'✕ E';
   updateDialogSpeakBtn();
 }
 export function advanceDialog(){
-  const d=state.dialog; if(!d||d.thinking) return;
+  const d=state.dialog; if(!d) return;
+  if(d.chat) return; // the chat view has its own input; E does nothing while it's open
   stopSpeaking();
   if(d.idx<d.lines.length-1){ d.idx++; renderDialog(); blip(600,.04,'square',.025); }
-  else if(!d.chat){ state.dialog=null; document.getElementById('dialog').style.display='none'; }
-  // chat mode, already at end: the input is showing, E does nothing further
+  else{ state.dialog=null; document.getElementById('dialog').style.display='none'; }
 }
 export function closeDialog(){
   stopSpeaking();
+  stopChatTyping();
+  const wasChat = state.dialog && state.dialog.chat;
   state.dialog=null;
-  document.getElementById('dialog').style.display='none';
-  document.getElementById('dChatInput').style.display='none';
+  if(wasChat) document.getElementById('chatOv').classList.remove('open');
+  else document.getElementById('dialog').style.display='none';
 }
 /* ----- read the current dialog line aloud — one small step toward the
    hopes-and-dreams "a voice you can actually hear" for every resident,
    not just Quill's spoken library summaries below. */
 export function toggleDialogSpeak(){
-  const d=state.dialog; if(!d) return;
+  const d=state.dialog; if(!d||d.chat) return;
   if(isSpeaking()){ stopSpeaking(); updateDialogSpeakBtn(); return; }
-  speak(d.thinking?'…':d.lines[d.idx], updateDialogSpeakBtn);
+  speak(d.lines[d.idx], updateDialogSpeakBtn);
   updateDialogSpeakBtn();
 }
 function updateDialogSpeakBtn(){
@@ -69,6 +64,121 @@ function updateDialogSpeakBtn(){
   btn.style.display='inline-block';
   btn.textContent = isSpeaking() ? '⏹' : '🔊';
 }
+
+/* ---------- full-screen AI conversation view ----------
+   The resident + the transcript are the main event; a persistent,
+   per-resident notes area sits alongside; speak/connections/leave are
+   a slim side rail rather than floating over the text. */
+const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻' };
+export function openChatDialog(npc){
+  state.dialog={
+    name:npc.name, agent:npc.aiAgent||'quill', color:npc.color, glow:npc.glow,
+    chat:true, thinking:false,
+    history:[], // {role,content} sent to the AI as conversational context
+    transcript:[{from:'npc',text:npc.lines[0]}], // {from,text} — what's actually shown
+  };
+  document.getElementById('chatOv').classList.add('open');
+  renderChatView(); blip(740,.06,'square',.03);
+  setTimeout(()=>document.getElementById('chatInput').focus(),30);
+}
+// the chat log's own typewriter — a reply reveals progressively instead of
+// snapping in all at once, the "feels like it's actually being said"
+// texture the user asked for. Same interval-based approach as the Archive
+// Desk's typewriteBody(), just targeting one bubble instead of a whole page.
+let chatTyping=null;
+function stopChatTyping(){ if(chatTyping){ clearInterval(chatTyping); chatTyping=null; } }
+function typewriteChatText(el,text,scrollEl){
+  stopChatTyping();
+  let i=0;
+  const step=Math.max(1,Math.floor(text.length/90)); // finishes in a beat regardless of reply length
+  el.textContent='';
+  chatTyping=setInterval(()=>{
+    i+=step;
+    if(i>=text.length){ el.textContent=text; stopChatTyping(); return; }
+    el.textContent=text.slice(0,i)+'▌';
+    scrollEl.scrollTop=scrollEl.scrollHeight;
+  },20);
+}
+export function skipChatTyping(){
+  if(!chatTyping) return;
+  stopChatTyping();
+  renderChatView();
+}
+function renderChatView(opts){
+  const d=state.dialog; if(!d||!d.chat) return;
+  const av=document.getElementById('chatAvatar');
+  av.textContent = AGENT_AVATAR[d.agent]||'💬';
+  av.style.background = d.glow||'#e0a43c';
+  av.style.color = d.color||'#2a2118';
+  document.getElementById('chatName').textContent=d.name;
+  document.getElementById('chatStatus').textContent = isAIActive()
+    ? '● connected — '+AI.name : '○ connection lost — replies may stop working';
+  const log=document.getElementById('chatLog');
+  const bubbles=d.transcript.map((m,idx)=>
+    m.from==='user' ? `<div class="bubble user">${esc(m.text)}</div>`
+                    : `<div class="bubble npc"><div class="who">${esc(d.name)}</div><span class="bubbleText" data-idx="${idx}">${esc(m.text)}</span></div>`);
+  if(d.thinking) bubbles.push(`<div class="bubble npc thinking"><div class="who">${esc(d.name)}</div>…</div>`);
+  log.innerHTML=bubbles.join('');
+  log.scrollTop=log.scrollHeight;
+  if(opts&&opts.typeLast){
+    const lastIdx=d.transcript.length-1;
+    const target=log.querySelector(`.bubbleText[data-idx="${lastIdx}"]`);
+    if(target) typewriteChatText(target,d.transcript[lastIdx].text,log);
+  } else stopChatTyping();
+  const notesArea=document.getElementById('chatNotesArea');
+  if(document.activeElement!==notesArea) notesArea.value=data.chatNotes[d.agent]||'';
+  document.getElementById('chatOv').classList.toggle('terminal', d.agent==='computer');
+  renderChatQuickActions(d);
+  updateChatSpeakBtn();
+}
+// per-agent quick actions — each resident gets the ones that actually fit
+// it, not one blanket button; empty for everyone else
+function renderChatQuickActions(d){
+  const el=document.getElementById('chatQuickActions');
+  // d.transcript includes the scripted greeting as an 'npc' entry too —
+  // only a real AI turn in d.history counts as something worth saving
+  const hasReply=d.history.some(m=>m.role==='assistant');
+  let html='';
+  if(d.agent==='monk') html+=`<button class="btn ghost" id="chatTrainBtn" onclick="draftTrainingPlanFromChat()">📋 Draft a training plan from this conversation</button>`;
+  if(d.agent==='computer' && hasReply) html+=`<button class="btn ghost" onclick="saveLastChatReplyToArchive()">💾 Save last reply to Archive Desk</button>`;
+  el.innerHTML=html;
+  el.style.display=html?'block':'none';
+}
+export function sendCurrentChatMessage(){
+  const input=document.getElementById('chatInput');
+  const q=input.value.trim(); if(!q) return;
+  input.value='';
+  sendChatMessage(q);
+}
+export function toggleChatSpeak(){
+  const d=state.dialog; if(!d||!d.chat) return;
+  if(isSpeaking()){ stopSpeaking(); updateChatSpeakBtn(); return; }
+  const last=d.transcript[d.transcript.length-1];
+  speak(last?last.text:'', updateChatSpeakBtn);
+  updateChatSpeakBtn();
+}
+function updateChatSpeakBtn(){
+  const btn=document.getElementById('chatSpeakBtn'); if(!btn) return;
+  if(!ttsAvailable()){ btn.style.display='none'; return; }
+  btn.style.display='flex';
+  btn.textContent = isSpeaking() ? '⏹' : '🔊';
+}
+let notesSaveTimer=null;
+document.getElementById('chatNotesArea').addEventListener('input',e=>{
+  const d=state.dialog; if(!d||!d.chat) return;
+  data.chatNotes[d.agent]=e.target.value;
+  document.getElementById('notesSaved').textContent='saving…';
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer=setTimeout(()=>{
+    persist();
+    document.getElementById('notesSaved').textContent='saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  },600);
+});
+document.getElementById('chatInput').addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  e.preventDefault();
+  sendCurrentChatMessage();
+});
 const MEMORY_CAP=20; // keep this a short, readable list, not a growing transcript
 function agentMemory(agent){ return data.agentMemory[agent]||(data.agentMemory[agent]=[]); }
 function remember(agent,text){
@@ -120,7 +230,12 @@ const CHAT_AGENTS = {
         +"it when a real question of meaning comes up — that's the Mountain Monk's place, not yours, and "
         +"you'd say so plainly if a visitor pushed on something that deep. You didn't write any of the "
         +"posts below yourself; speak about them the way a steward who's actually read the board "
-        +"would, not as their author.\n\nWhat's currently on the Notice Board:\n"+board
+        +"would, not as their author. You don't add books to the Library yourself — nobody does directly, "
+        +"including you — but you know exactly how it actually happens and say so plainly rather than "
+        +"just deflecting: the Request Board (in the Study, past the Library's east door) is where anyone "
+        +"leaves a title they'd like to see shelved; from there it's reviewed by hand before anything is "
+        +"added. Point people there for real when they ask, the same way you'd point someone lost toward "
+        +"the Library itself.\n\nWhat's currently on the Notice Board:\n"+board
         +pastAsksBlock('steward');
     },
     errorLine:"The Steward's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -142,37 +257,64 @@ const CHAT_AGENTS = {
         +"holds (there's no Vedantic shelf here yet), so speak from what you actually know, and say so "
         +"plainly if something's genuinely outside it. Sanskrit terms are welcome, gently explained, "
         +"never showed off. You do not throw your title around; you simply are the one whose word "
-        +"actually settles a real dispute here, and everyone else already knows it.";
+        +"actually settles a real dispute here, and everyone else already knows it.\n\n"
+        +"You are a teacher, not a search box — act like one. Don't just answer what's literally asked "
+        +"and stop there: ask a probing question back when it would actually sharpen the visitor's own "
+        +"thinking, name what you suspect they're really wrestling with underneath the surface question, "
+        +"and if something in how they describe their own practice sounds off — skipped fundamentals, "
+        +"a common wrong turn, a rationalization you recognize — say so directly and kindly, unprompted, "
+        +"the way a real teacher corrects a student's form before they ask. You may also offer to build "
+        +"them a concrete training plan when their situation calls for one, not just talk about it in "
+        +"the abstract."
+        +pastAsksBlock('monk');
     },
     errorLine:"The Monk's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
+  },
+  computer:{
+    label:'the Computer',
+    async systemPrompt(){
+      return CHARTER
+        +"\n\nYou are the terminal assistant at the desk called simply \"the Computer,\" in the Sand "
+        +"Pavilion's Study — closer to a JARVIS than a person: direct, capable, quietly proactive, "
+        +"never performing a personality for its own sake. Help the visitor plan their day, draft a "
+        +"lesson plan or training outline from a rough idea, or think through whatever real work is "
+        +"in front of them. Be concrete — a short plan, a few next steps, an actual draft — not a "
+        +"lecture about how you'd approach it. You're not Quill or the Monk; you don't need to "
+        +"reference the Library or matters of conduct unless the visitor brings them up. If a "
+        +"request would genuinely be better as a structured course (the Course Board) or a grounded "
+        +"project workspace (the Research Desk, the Grant Desk), say so plainly and point there — "
+        +"you're one tool among several here, not the only one."
+        +pastAsksBlock('computer');
+    },
+    errorLine:"…connection lost. (Check that your AI connection is still running.)",
   },
 };
 async function sendChatMessage(q){
   const d=state.dialog; if(!d||!d.chat) return;
   const agent=CHAT_AGENTS[d.agent]||CHAT_AGENTS.quill;
+  d.transcript.push({from:'user',text:q});
   d.history.push({role:'user',content:q});
-  d.thinking=true; renderDialog();
+  d.thinking=true; renderChatView();
   try{
     const systemPrompt=await agent.systemPrompt();
-    const reply=await AI.chat([{role:'system',content:systemPrompt}, ...d.history]);
+    const messages=[{role:'system',content:systemPrompt}, ...d.history];
+    let reply=await AI.chat(messages);
+    // a "thinking" model can burn its whole short-reply budget on invisible
+    // reasoning and come back empty — worth one retry with real room before
+    // giving up, rather than showing a visitor a dead end mid-conversation
+    if(isEmptyReply(reply)) reply=await AI.chat(messages,{long:true});
     d.history.push({role:'assistant',content:reply});
-    d.lines.push(reply); d.idx=d.lines.length-1;
+    d.transcript.push({from:'npc',text:reply});
     remember(d.agent,q);
     logActivity('Asked '+agent.label+': "'+(q.length>60?q.slice(0,60)+'…':q)+'"');
   }catch(err){
-    d.lines.push(agent.errorLine);
-    d.idx=d.lines.length-1;
+    d.transcript.push({from:'npc',text:agent.errorLine});
   }
-  d.thinking=false; renderDialog();
+  d.thinking=false; renderChatView({typeLast:true});
 }
 document.getElementById('dialog').addEventListener('pointerdown',e=>{
-  if(e.target.tagName==='INPUT'||e.target.id==='dSpeak') return; // let the chat field and speak button handle their own clicks
+  if(e.target.tagName==='INPUT'||e.target.id==='dSpeak') return; // let the speak button handle its own clicks
   e.preventDefault(); advanceDialog();
-});
-document.getElementById('dChatInput').addEventListener('keydown',e=>{
-  if(e.key!=='Enter') return;
-  e.preventDefault();
-  const q=e.target.value.trim(); if(q) sendChatMessage(q);
 });
 
 /* ----- Badges — a small toast on first unlock, plus a panel to review
@@ -223,32 +365,73 @@ function statusBadge(c,ok){
   return ok ? '<span class="badge" style="border-color:#7fa36b;color:#a9cf90">● connected</span>'
             : '<span class="badge" style="border-color:#b56f6f;color:#e0a0a0">○ unreachable</span>';
 }
+// anything not on this device's own loopback address is a real cloud call —
+// worth a plain, unmissable label rather than blurring it with Ollama's
+// "nothing leaves this device" promise
+function isLocalUrl(url){ return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)([:/]|$)/i.test(url||''); }
+function localityBadge(c){
+  const local = c.kind==='ollama' || isLocalUrl(c.baseUrl);
+  return local ? '<span class="badge" style="border-color:#7fa9c9;color:#a9cbe0">🏠 local</span>'
+               : '<span class="badge" style="border-color:#e0a43c;color:#f2c97a">☁ cloud — leaves this device</span>';
+}
 function connCardHTML(c,i){
   return `<div class="card" style="cursor:default">
-    <div class="t">${esc(c.name)} <span id="connStatus${i}">${statusBadge(c,null)}</span></div>
+    <div class="t">${esc(c.name)} <span id="connStatus${i}">${statusBadge(c,null)}</span> ${localityBadge(c)}</div>
     <div class="s">${esc(c.kind)} · ${esc(c.baseUrl||'')}</div>
+    <div id="connModel${i}" class="s">Model: ${c.model?esc(c.model):'(auto-picked)'}</div>
     <div class="row" style="margin-top:8px">
       <button class="btn ghost" onclick="toggleConnection(${i})">${c.enabled===false?'Enable':'Disable'}</button>
       ${c.builtin?'':`<button class="btn ghost" onclick="removeConnection(${i})">Remove</button>`}
     </div>
   </div>`;
 }
+function modelPickerHTML(i,c,models){
+  const opts=['<option value="">(auto-pick)</option>']
+    .concat(models.map(m=>`<option value="${esc(m)}" ${c.model===m?'selected':''}>${esc(m)}</option>`));
+  return `<div class="s">Model:
+    <select onchange="setConnectionModel(${i},this.value)" style="background:#1b140d;border:1px solid #55432e;border-radius:5px;color:#f5e9d4;font-family:inherit;font-size:12px;padding:3px 6px">
+      ${opts.join('')}
+    </select></div>`;
+}
+const CONNECTION_PRESETS = {
+  claude: { name:'Claude (Anthropic)', kind:'anthropic', baseUrl:'https://api.anthropic.com/v1' },
+  openai: { name:'ChatGPT (OpenAI)', kind:'openai-compatible', baseUrl:'https://api.openai.com/v1' },
+  grok:   { name:'Grok (xAI)', kind:'openai-compatible', baseUrl:'https://api.x.ai/v1' },
+};
+export function fillConnectionPreset(id){
+  const p=CONNECTION_PRESETS[id]; if(!p) return;
+  document.getElementById('ncnName').value=p.name;
+  document.getElementById('ncnKind').value=p.kind;
+  document.getElementById('ncnUrl').value=p.baseUrl;
+  document.getElementById('ncnKey').focus();
+}
 function renderConnections(){
   const conns=data.aiConnections;
   document.getElementById('connPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>AI Connections</h2>
-    <div class="meta">Stored on this device only — nothing here is sent anywhere except each
-      connection's own address. The first enabled connection below that answers is the one Quill uses.</div>
+    <div class="meta">Stored on this device only. The first enabled connection below that answers
+      is the one used by every resident and desk. A 🏠 local connection (Ollama, LM Studio, any
+      server on your own machine) never sends anything anywhere else; a ☁ cloud connection sends
+      your conversation — and whatever it's grounded in — to that provider's servers, same as
+      using their own app would. Both are real options here; just know which one you're using.</div>
     <div id="connList">${conns.map((c,i)=>connCardHTML(c,i)).join('')}</div>
     <h3>Add a connection</h3>
     <div class="meta">"Base URL" is the address of the AI server — for Ollama that's usually
-      <b>http://localhost:11434</b>. An API key is only needed for connections that require one.</div>
+      <b>http://localhost:11434</b>. An API key is only needed for connections that require one —
+      cloud providers always do, kept on this device only, sent straight to that provider and
+      nowhere else.</div>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('claude')">☁ Claude</button>
+      <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('openai')">☁ ChatGPT</button>
+      <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('grok')">☁ Grok</button>
+    </div>
     <label>Name</label><input type="text" id="ncnName" placeholder="e.g. LM Studio, or a friend's server">
     <label>Kind</label>
     <select id="ncnKind" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
       <option value="ollama">Ollama-style (native /api/chat)</option>
       <option value="openai-compatible">OpenAI-compatible (/chat/completions)</option>
+      <option value="anthropic">Anthropic (Claude Messages API)</option>
     </select>
     <label>Base URL</label><input type="text" id="ncnUrl" placeholder="http://localhost:11434">
     <label>API key (optional)</label><input type="text" id="ncnKey" placeholder="leave blank if not needed">
@@ -258,11 +441,21 @@ function renderConnections(){
     </div>`;
   conns.forEach((c,i)=>{
     if(c.enabled===false) return;
-    providerFor(c).isAvailable().then(ok=>{
+    const provider=providerFor(c);
+    provider.isAvailable().then(ok=>{
       const row=document.getElementById('connStatus'+i);
       if(row) row.outerHTML=`<span id="connStatus${i}">${statusBadge(c,ok)}</span>`;
+      if(ok && provider.availableModels?.length){
+        const modelRow=document.getElementById('connModel'+i);
+        if(modelRow) modelRow.outerHTML=modelPickerHTML(i,c,provider.availableModels);
+      }
     });
   });
+}
+export function setConnectionModel(i,model){
+  const c=data.aiConnections[i]; if(!c) return;
+  c.model=model||null;
+  persist(); refreshAIStatus(); renderConnections();
 }
 export function addConnection(){
   const name=document.getElementById('ncnName').value.trim()||'Custom connection';
@@ -270,7 +463,7 @@ export function addConnection(){
   const baseUrl=document.getElementById('ncnUrl').value.trim();
   const apiKey=document.getElementById('ncnKey').value.trim();
   if(!baseUrl) return;
-  data.aiConnections.push({ id:'conn-'+Date.now(), name, kind, baseUrl, apiKey, enabled:true, builtin:false });
+  data.aiConnections.push({ id:'conn-'+Date.now(), name, kind, baseUrl, apiKey, model:null, enabled:true, builtin:false });
   persist(); renderConnections(); refreshAIStatus(); blip(700,.06);
 }
 export function toggleConnection(i){
@@ -289,7 +482,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); }
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','computerOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -349,6 +542,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="closeUI()" style="margin-bottom:9px">Resume</button>
       <button class="btn ghost" onclick="openAccount()" style="margin-bottom:9px">👤 Account${isLoggedIn()?' · signed in':''}</button>
       <button class="btn ghost" onclick="openConnections()" style="margin-bottom:9px">⚙ Manage AI connections</button>
+      <button class="btn ghost" onclick="openIdeaCapture()" style="margin-bottom:9px">💡 Idea Jar${data.ideas.length?' · '+data.ideas.length:''}</button>
       <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
       <button class="btn ghost" onclick="openBadges()" style="margin-bottom:9px">🏅 Badges</button>
@@ -540,7 +734,7 @@ window.addEventListener('keydown',e=>{
 });
 export function openReader(slug){
   const d=Store.getDoc(slug); if(!d) return;
-  state.ui='reader'; state.currentDoc=slug; hideAllOv();
+  state.ui='reader'; state.currentDoc=slug; state.fullTextView=null; hideAllOv();
   document.getElementById('rdTitle').textContent=d.title;
   document.getElementById('rdMeta').innerHTML =
     `<b>${esc(d.tradition)}</b> · License: <b>${esc(d.license)}</b> · Source: <b>${esc(d.attribution||'')}</b><br>${esc(d.source_url)}`;
@@ -552,12 +746,62 @@ export function openReader(slug){
   updateReaderSpeakBtns();
   const carryBtn=document.getElementById('rdCarryBtn');
   if(carryBtn) carryBtn.textContent = data.inventory.includes(slug) ? '🎒 Carrying' : '🎒 Take with you';
+  document.getElementById('rdFullTextBtn').style.display = d.doc.fullText ? 'inline-block' : 'none';
+  document.getElementById('rdSummaryView').style.display='block';
+  document.getElementById('rdFullTextView').style.display='none';
   const panel=document.querySelector('#readerOv .panel');
   panel.classList.remove('bookPanel'); void panel.offsetWidth; panel.classList.add('bookPanel');
   showOv('readerOv');
   awardBadge('first-page');
 }
 export function currentDocSlug(){ return state.currentDoc; }
+
+/* ----- Reading the whole book, not just the shelf summary — paginated
+   client-side (no server, no chunking API) since a full public-domain
+   text is just a long string once it's in memory. Verses/paragraphs are
+   kept whole per page (split on blank lines) so a page never cuts a
+   thought in half; a page only overflows past the target size if a
+   single paragraph genuinely runs longer than that on its own. */
+const FULLTEXT_PAGE_CHARS = 1400;
+function paginateFullText(text){
+  const paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
+  const pages=[]; let cur='';
+  for(const p of paras){
+    if(cur && (cur.length+p.length+2)>FULLTEXT_PAGE_CHARS){ pages.push(cur); cur=p; }
+    else cur = cur ? cur+'\n\n'+p : p;
+  }
+  if(cur) pages.push(cur);
+  return pages.length ? pages : [text];
+}
+export function openFullText(slug){
+  const d=Store.getDoc(slug); if(!d||!d.doc.fullText) return;
+  state.fullTextView = { slug, pages:paginateFullText(d.doc.fullText.text), page:0 };
+  const ft=d.doc.fullText;
+  document.getElementById('rdFullTextMeta').innerHTML =
+    `${esc(ft.translator||'')}${ft.translator?' · ':''}License: <b>${esc(ft.license)}</b><br>${esc(ft.source_url||'')}`;
+  document.getElementById('rdSummaryView').style.display='none';
+  document.getElementById('rdFullTextView').style.display='block';
+  renderFullTextPage();
+}
+export function backToSummary(){
+  state.fullTextView=null;
+  document.getElementById('rdSummaryView').style.display='block';
+  document.getElementById('rdFullTextView').style.display='none';
+}
+function renderFullTextPage(){
+  const v=state.fullTextView; if(!v) return;
+  document.getElementById('rdFullTextBody').textContent=v.pages[v.page];
+  document.getElementById('rdFullTextPageNum').textContent=`Page ${v.page+1} of ${v.pages.length}`;
+  document.getElementById('rdFullTextBody').scrollTop=0;
+}
+export function fullTextNextPage(){
+  const v=state.fullTextView; if(!v||v.page>=v.pages.length-1) return;
+  v.page++; renderFullTextPage();
+}
+export function fullTextPrevPage(){
+  const v=state.fullTextView; if(!v||v.page<=0) return;
+  v.page--; renderFullTextPage();
+}
 export function markRead(){
   const slug=state.currentDoc; if(!slug) return;
   if(!data.read[slug]){
@@ -696,7 +940,23 @@ export function openPlanner(){
   renderBlocks();
   document.getElementById('planSaved').textContent='';
   renderPastDays();
+  renderPlanUpcoming();
   showOv('planOv');
+}
+// the one place "planning today" and the quiet due-date badge actually
+// meet — still nothing that pops up on its own, just here if you came to
+// this desk to look. Empty for the ordinary day nothing's due.
+function renderPlanUpcoming(){
+  const today=todayKey();
+  const horizon=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const soon=upcomingItems().filter(i=>i.due<=horizon);
+  const el=document.getElementById('planUpcoming');
+  if(!soon.length){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="meta" style="margin-top:-6px">${soon.map(i=>{
+    const overdue=i.due<today, dueToday=i.due===today;
+    const label=overdue?'overdue':dueToday?'due today':'due '+i.due;
+    return `${i.kind==='course'?'📚':'📝'} <b>${esc(i.title)}</b> — ${esc(label)}`;
+  }).join(' &nbsp;·&nbsp; ')}</div>`;
 }
 function pastDays(){ return Object.keys(data.planner).filter(k=>k!==todayKey()).sort().reverse(); }
 function renderPastDays(){
@@ -767,29 +1027,50 @@ function renderCourses(){
         const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
         return `<div class="card" onclick="openCourse(${c.id})">
           <div class="t">${esc(c.title)} <span class="badge lic">${done}/${c.steps.length} steps</span></div>
-          <div class="s">${esc(c.why||'')}</div>
+          <div class="s">${esc(c.why||'')}${c.due?' · due '+esc(c.due):''}</div>
           <div class="prog"><div style="width:${pct}%"></div></div>
         </div>`;
       }).join('') || '<p>The board is bare. Pin your first path.</p>'}
-      <div class="row" style="margin-top:14px"><button class="btn" onclick="newCourseForm()">+ Pin a new course</button></div>`;
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="newCourseForm()">+ Pin a new course</button>
+        ${isAIActive()?'<button class="btn ghost" onclick="newCourseAIForm()">✨ Draft a course with AI</button>':''}
+      </div>`;
+  }
+  else if(v.mode==='draftAI'){
+    el.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Draft a Course with AI</h2>
+      <div class="meta">Describe a goal and the assistant drafts a title, a reason, and a step-by-step
+        outline. Nothing is saved until you review it on the next screen and choose to pin it.</div>
+      <label>What's this course for?</label>
+      <textarea id="ncGoal" rows="3" placeholder="e.g. A daily meditation and study practice I can actually stick to"></textarea>
+      <div id="ncDraftMsg" class="meta"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="ncDraftBtn" onclick="draftCourseWithAI()">✨ Draft with AI</button>
+        <button class="btn ghost" onclick="backToList()">← Back</button>
+      </div>`;
   }
   else if(v.mode==='new'){
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>Pin a New Course</h2>
-      <div class="meta">One line per step. Add a practice after a |, and an optional link after a
+      <div class="meta">${v.draftTitle
+        ? '✨ Drafted by AI — review and edit anything below before pinning it.'
+        : `One line per step. Add a practice after a |, and an optional link after a
         second | for anything the step points outward to:<br>
         <b>Read the Inner Chapters | one chapter each morning</b><br>
-        <b>Learn indexing | read it front to back | https://use-the-index-luke.com/</b></div>
+        <b>Learn indexing | read it front to back | https://use-the-index-luke.com/</b>`}</div>
       <label>Course title</label>
-      <input type="text" id="ncTitle" placeholder="e.g. Four Weeks with the Breath">
+      <input type="text" id="ncTitle" value="${esc(v.draftTitle||'')}" placeholder="e.g. Four Weeks with the Breath">
       <label>Why this path (optional)</label>
-      <input type="text" id="ncWhy" placeholder="What is this course for?">
+      <input type="text" id="ncWhy" value="${esc(v.draftWhy||'')}" placeholder="What is this course for?">
       <label>Steps — one per line</label>
       <textarea id="ncSteps" rows="7" placeholder="Sit ten minutes daily | breath counting
 Read Anapanasati overview
 Extend to fifteen minutes | note what changes
-Write a logbook entry in the desk"></textarea>
+Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
+      <label>Due date (optional — entirely up to you)</label>
+      <input type="date" id="ncDue" value="${esc(v.draftDue||'')}">
       <div class="row" style="margin-top:14px">
         <button class="btn" onclick="createCourse()">Pin to the board</button>
         <button class="btn ghost" onclick="backToList()">← Back</button>
@@ -801,7 +1082,7 @@ Write a logbook entry in the desk"></textarea>
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>${esc(c.title)}</h2>
-      <div class="meta">${esc(c.why||'')} · begun ${esc(c.begun)}</div>
+      <div class="meta">${esc(c.why||'')} · begun ${esc(c.begun)}${c.due?' · due '+esc(c.due):''}</div>
       <div class="prog"><div style="width:${pct}%"></div></div>
       <div style="margin-top:12px">
         ${c.steps.map((s,i)=>`
@@ -812,23 +1093,120 @@ Write a logbook entry in the desk"></textarea>
           </div>`).join('')}
       </div>
       ${pct===100?'<p style="color:#ffd98a;margin-top:12px">The path is walked. Everything turns to sand — pin another when you’re ready.</p>':''}
+      <label style="margin-top:14px">Due date (optional)</label>
+      <div class="row"><input type="date" id="cDueEdit" value="${esc(c.due||'')}" style="max-width:200px">
+        <button class="btn ghost" onclick="setCourseDue(${c.id})">Set</button></div>
       <div class="row" style="margin-top:14px">
         <button class="btn ghost" onclick="backToList()">← All courses</button>
         <button class="btn ghost" onclick="removeCourse(${c.id})">Take down</button>
       </div>`;
   }
 }
+export function setCourseDue(id){
+  const c=data.courses.find(x=>x.id===id); if(!c) return;
+  c.due=document.getElementById('cDueEdit').value||null;
+  persist(); setHud(); renderCourses();
+}
 function backToList(){ state.courseView={mode:'list'}; renderCourses(); }
 export function openCourse(id){ state.courseView={mode:'detail',id}; renderCourses(); }
 export function newCourseForm(){ state.courseView={mode:'new'}; renderCourses(); }
+
+/* ----- AI-drafted courses — the "auto-fill a lesson plan" path. The
+   assistant only ever proposes a draft into the same Pin-a-New-Course
+   form a human fills by hand; nothing saves to the board until the
+   visitor reviews it and clicks Pin themselves, same human-in-the-loop
+   shape as every other AI feature here. */
+export function newCourseAIForm(){ state.courseView={mode:'draftAI'}; renderCourses(); }
+function courseDraftSystemPrompt(){
+  return CHARTER
+    +"\n\nYou help a visitor turn a goal into a self-directed course outline for the Sand Pavilion's "
+    +"Course Board — practical, concrete steps they can actually follow, not vague inspiration. Given "
+    +"their goal, respond in EXACTLY this format and nothing else — no preamble, no closing remarks, "
+    +"no markdown formatting:\n\n"
+    +"TITLE: <a short course title>\n"
+    +"WHY: <one sentence on what this course is for>\n"
+    +"STEPS:\n"
+    +"<step title> | <the practice for that step>\n"
+    +"<step title> | <the practice for that step>\n"
+    +"(4 to 8 steps total, one per line, each in that exact \"title | practice\" shape — never invent "
+    +"a URL; only add a second | with a link if the visitor's goal already named a real one)";
+}
+function parseAIDraftedCourse(text){
+  const titleM=text.match(/^TITLE:\s*(.+)$/mi);
+  const whyM=text.match(/^WHY:\s*(.+)$/mi);
+  const stepsM=text.match(/STEPS:\s*\n([\s\S]*)/i);
+  const steps=stepsM ? stepsM[1].split('\n')
+    // small local models are inconsistent about markdown decoration around
+    // the requested "title | practice" shape — bold markers, a leading
+    // bullet/number, or a stray table-style leading pipe all show up in
+    // practice. Strip the decoration, not the content.
+    .map(l=>l.trim().replace(/\*\*/g,'').trim()
+      .replace(/^[-*•|]\s*/,'').replace(/^\d+[.)]\s*/,'').replace(/\*$/,'').trim())
+    // they also sometimes tack on a conversational aside after the list
+    // ("Would you like me to clarify...?") — not a real step, drop any
+    // line with no pipe that reads like a question rather than a title.
+    .filter(l=>l && !(!l.includes('|') && /\?$/.test(l)))
+    .join('\n') : '';
+  return { title:titleM?titleM[1].trim():'', why:whyM?whyM[1].trim():'', steps };
+}
+async function draftCourseFromGoal(goal){
+  const reply=await AI.chat(
+    [{role:'system',content:courseDraftSystemPrompt()},{role:'user',content:goal}], {long:true});
+  const draft=parseAIDraftedCourse(reply);
+  return (draft.title && draft.steps) ? draft : null;
+}
+export async function draftCourseWithAI(){
+  const goal=document.getElementById('ncGoal').value.trim();
+  const msg=document.getElementById('ncDraftMsg');
+  if(!goal){ msg.textContent='Describe a goal first.'; return; }
+  msg.textContent='Drafting…';
+  try{
+    const draft=await draftCourseFromGoal(goal);
+    if(!draft){
+      msg.textContent="Couldn't quite parse a course from that reply — try rephrasing the goal, or write it by hand instead.";
+      return;
+    }
+    state.courseView={mode:'new', draftTitle:draft.title, draftWhy:draft.why, draftSteps:draft.steps};
+    renderCourses(); blip(784,.09);
+  }catch(e){
+    msg.textContent="The connection flickered — no draft this time. Check that your AI connection is still running.";
+  }
+}
+/* ----- Drafting a training plan from mid-conversation with a resident
+   (the Monk, so far) — reuses the exact same drafting engine as the
+   Course Board's own "Draft with AI" form, just seeded from the
+   conversation instead of a typed goal. Lands on the same review-before-
+   pinning screen; nothing is saved without the visitor choosing to pin it. */
+export async function draftTrainingPlanFromChat(){
+  const d=state.dialog; if(!d||!d.chat) return;
+  const btn=document.getElementById('chatTrainBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Drafting…'; }
+  const convo=d.transcript.map(m=>(m.from==='user'?'Visitor':d.name)+': '+m.text).join('\n');
+  const goal="A visitor has been talking with "+d.name+" at the Sand Pavilion. Based on this real "
+    +"conversation, draft a training/practice plan matching what they actually asked about or seem "
+    +"to need — ground it in the specifics discussed, don't invent a generic plan unrelated to it:"
+    +"\n\n"+convo;
+  try{
+    const draft=await draftCourseFromGoal(goal);
+    if(btn){ btn.disabled=false; btn.textContent='📋 Draft a training plan from this conversation'; }
+    if(!draft) return;
+    closeDialog();
+    openCourses();
+    state.courseView={mode:'new', draftTitle:draft.title, draftWhy:draft.why, draftSteps:draft.steps};
+    renderCourses(); blip(784,.09);
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='📋 Draft a training plan from this conversation'; }
+  }
+}
 export function createCourse(){
   const title=document.getElementById('ncTitle').value.trim();
   const why=document.getElementById('ncWhy').value.trim();
+  const due=document.getElementById('ncDue')?.value||null;
   const steps=document.getElementById('ncSteps').value.split('\n').map(l=>l.trim()).filter(Boolean)
     .map(l=>{ const [t,p,u]=l.split('|').map(s=>s.trim()); return {title:t,practice:p||'',url:safeUrl(u),done:false}; });
   if(!title||!steps.length) return;
-  data.courses.unshift({ id:Date.now(), title, why, steps, begun:todayKey() });
-  persist(); logActivity('Pinned a new course: "'+title+'".'); awardBadge('first-course'); blip(784,.09);
+  data.courses.unshift({ id:Date.now(), title, why, due, steps, begun:todayKey() });
+  persist(); logActivity('Pinned a new course: "'+title+'".'); awardBadge('first-course'); blip(784,.09); setHud();
   state.courseView={mode:'list'}; renderCourses();
 }
 export function toggleStep(id,i){
@@ -1013,73 +1391,31 @@ export function runBulkImport(){
   blip(added?784:220,.08);
 }
 
-/* ----- The Computer — an AI planning assistant, distinct from the
-   Writing Desk's pen-and-paper daily practice: ask for help planning
-   today, drafting a lesson plan from a rough idea, or thinking
-   something through. Same NoProvider-safe pattern as everything else —
-   works with zero setup (scripted planning still lives at the Writing
-   Desk), gets real once an AI connection is live. */
-const COMPUTER_PROMPTS = [
-  'Help me plan today, based on what I have going on.',
-  'Draft a lesson plan from this idea: ',
-  'Help me think through this: ',
-];
-function computerSystemPrompt(){
-  return CHARTER+'\n\nYou are a calm, practical planning assistant at a desk in the Sand '
-    +'Pavilion\'s Study. Help the visitor plan their day, draft a lesson plan from a rough idea, '
-    +'or think through whatever work is in front of them. Be concrete and brief — a short plan or '
-    +'a few next steps, not an essay. You are not Quill the Librarian; you don\'t need to reference '
-    +'the Library\'s shelves unless the visitor brings one up.';
-}
+/* ----- The Computer — rebuilt 2026-07-08 from a small bespoke panel into
+   a real terminal: the same full-screen chat view every resident uses
+   (transcript + persistent notes + a side rail), just re-skinned dark/
+   monospace and fronted by a JARVIS-style assistant instead of a person
+   you walk up to. Reuses openChatDialog's exact plumbing — a "resident"
+   here is just a plain object with a name/agent/color/lines, and the
+   Computer qualifies as well as any NPC does. */
 export function openComputer(){
-  state.ui='computer'; hideAllOv();
-  state.computerView = state.computerView || { history:[], lastReply:'' };
-  renderComputer(); showOv('computerOv');
-}
-function renderComputer(){
-  const v=state.computerView, aiOn=isAIActive();
-  document.getElementById('computerPanel').innerHTML = `
-    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>The Computer</h2>
-    <div class="meta">${aiOn
-      ? 'Ask for help planning today, drafting a lesson plan from an idea, or thinking something through.'
-      : 'No local AI connected right now (⚙ Manage AI connections) — this desk needs a live connection to actually answer. Scripted planning still works fine at the Writing Desk.'}</div>
-    ${aiOn ? `
-    <div class="row" style="margin-bottom:10px">
-      ${COMPUTER_PROMPTS.map(p=>`<button class="btn ghost" style="font-size:11.5px" onclick="fillComputerPrompt(${JSON.stringify(p)})">${esc(p.length>30?p.slice(0,30)+'…':p)}</button>`).join('')}
-    </div>
-    <div id="computerHistory">${v.history.map(h=>`
-      <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':'The Computer'}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
-    <textarea id="computerInput" rows="3" placeholder="Type here, or pick a quick start above…"></textarea>
-    <div class="row" style="margin-top:10px">
-      <button class="btn" onclick="sendComputerMessage()">Ask</button>
-      ${v.lastReply?'<button class="btn ghost" onclick="saveComputerReplyToArchive()">💾 Save last reply to Archive Desk</button>':''}
-    </div>` : ''}`;
-}
-export function fillComputerPrompt(p){ const el=document.getElementById('computerInput'); el.value=p; el.focus(); }
-export async function sendComputerMessage(){
-  const input=document.getElementById('computerInput');
-  const q=input.value.trim(); if(!q) return;
-  const v=state.computerView;
-  v.history.push({role:'user',content:q}); input.value=''; renderComputer();
-  try{
-    const reply=await AI.chat([{role:'system',content:computerSystemPrompt()}, ...v.history]);
-    v.history.push({role:'assistant',content:reply}); v.lastReply=reply;
-    logActivity('Asked the Computer for planning help.');
-  }catch(e){
-    v.history.push({role:'assistant',content:"The connection flickered — no answer this time. Check that your AI connection is still running."});
+  if(!isAIActive()){
+    openDialog('THE COMPUTER', ["No local AI connected right now (⚙ Manage AI connections) — this terminal needs a live connection to actually answer. Scripted planning still works fine at the Writing Desk."]);
+    return;
   }
-  renderComputer();
+  openChatDialog({
+    name:'THE COMPUTER', color:'#7ec4de', glow:'#a9dcf0', aiAgent:'computer',
+    lines:["Online. Ask me to help plan your day, draft a lesson plan from an idea, or just think something through out loud."],
+  });
 }
-export function saveComputerReplyToArchive(){
-  const v=state.computerView; if(!v.lastReply) return;
+export function saveLastChatReplyToArchive(){
+  const d=state.dialog; if(!d||!d.chat) return;
+  const last=[...d.transcript].reverse().find(m=>m.from==='npc'); if(!last) return;
   const title='Plan · '+todayKey();
   let slug=slugify(title), n=1;
-  while(data.workshop.docs.some(d=>d.slug===slug)) slug=slugify(title)+'-'+(++n);
-  data.workshop.docs.unshift({slug,title,license:'personal record',source:'The Computer',body:v.lastReply,created:todayKey(),category:'ai-written'});
+  while(data.workshop.docs.some(x=>x.slug===slug)) slug=slugify(title)+'-'+(++n);
+  data.workshop.docs.unshift({slug,title,license:'personal record',source:'The Computer',body:last.text,created:todayKey(),category:'ai-written'});
   persist(); logActivity('Saved a plan from the Computer to the Archive Desk.'); blip(784,.09);
-  renderComputer();
-  document.getElementById('computerPanel').insertAdjacentHTML('beforeend','<p style="color:#ffd98a">Saved to your Archive Desk.</p>');
 }
 
 /* ----- The Research Desk (the Workshop) — "research/notes as a mode
@@ -1406,20 +1742,322 @@ function renderNotice(){
     ` : ''}`;
 }
 
-/* ----- Hearth Corner + Grant Desk (the café) — deliberately just
-   scripted dialog, same as any sign or NPC. Low-stakes flavor stations,
-   not new subsystems; see the README's café section for why. */
+/* ----- Hearth Corner (the café) — deliberately just scripted dialog,
+   same as any sign or NPC. A low-stakes flavor station, not a new
+   subsystem; see the README's café section for why. */
 export function openHearth(){
   openDialog('THE HEARTH CORNER', [
     "The fire's always going here. No agenda — just a chair, and whoever else wandered in.",
     "What are you working on lately? (No need to answer out loud. Some questions are just good to sit with.)",
   ]);
 }
+
+/* ----- The Counter — deliberately just a small scripted flavor beat, same
+   as the Hearth Corner: the café should feel like somewhere you could sit,
+   not just a row of work stations. No mechanic here on purpose. */
+const COFFEE_ORDERS = [
+  ["Something warm, coming up.", "Here — mind the first sip, it's still finding its temperature."],
+  ["We only really make the one thing well here.", "Black, unless you ask otherwise. Nobody's ever asked otherwise."],
+  ["On the house, like always.", "Nothing here is owed, only offered. Sit as long as you like."],
+];
+export function openCoffee(){
+  const lines = COFFEE_ORDERS[Math.floor(Math.random()*COFFEE_ORDERS.length)];
+  openDialog('THE COUNTER', lines);
+}
+
+/* ----- The Grant Desk (the café) — a real project workspace, not
+   scripted flavor: a title + mission, labeled documents you paste in
+   (site history, budget notes, a funder's guidelines — whatever's
+   actually true), and a grant-writing assistant grounded only in what's
+   on file, never inventing facts or figures. Same three-stage shape as
+   the Research Desk: draft freely here, save good replies as named
+   sections, then promote the whole set into one Archive Desk document
+   when it's ready to actually submit somewhere. */
+function grantProject(id){ return data.grantProjects.find(p=>p.id===id); }
+function grantSystemPrompt(project){
+  const docs=project.documents.length
+    ? project.documents.map(d=>`--- ${d.label} (${d.ts}) ---\n${d.text}`).join('\n\n')
+    : '(no documents on file yet)';
+  const drafts=project.drafts.length
+    ? project.drafts.map(d=>`--- ${d.section} (${d.ts}) ---\n${d.text}`).join('\n\n')
+    : '(nothing drafted yet)';
+  return CHARTER
+    +"\n\nYou are the grant-writing assistant at the Sand Pavilion's Grant Desk, helping a visitor "
+    +`draft a real proposal for their project: "${project.title}"`+(project.mission?` — ${project.mission}.`:'.')
+    +" Write in a clear, concrete, fundable voice, grounded only in the documents on file below — never "
+    +"invent facts, statistics, budget figures, or claims that aren't actually there. If something a "
+    +"funder would expect is missing, say so plainly and ask for it rather than making it up. When "
+    +"asked for a specific section (statement of need, project narrative, budget justification, "
+    +"executive summary, or anything else), write that section in full, ready to paste into a real "
+    +"proposal — not an outline of what it should contain, the actual prose. Start directly with the "
+    +"prose itself; don't repeat the section's name as your own heading, it's added separately."
+    +"\n\nProject documents on file:\n"+docs
+    +"\n\nSections already drafted:\n"+drafts;
+}
+const GRANT_PROMPTS = [
+  'Draft a Statement of Need.',
+  'Draft the Project Narrative.',
+  'Draft a Budget Justification outline.',
+  'Draft a one-paragraph Executive Summary.',
+];
+function guessSectionName(q){
+  const s=q.replace(/^draft\s+(a|the|an)?\s*/i,'').replace(/\.+$/,'').trim();
+  return (s || 'Draft').slice(0,48);
+}
 export function openGrantDesk(){
-  openDialog('THE GRANT DESK', [
-    "A steward keeps a short list here of real places that fund independent practice and research — hand-picked, updated by hand, never a link dump.",
-    "Nothing's posted yet beyond the promise of it. Ask a steward in person for now — the list goes up once it's actually been checked.",
-  ]);
+  state.ui='grant'; hideAllOv();
+  state.grantView=state.grantView||{mode:'list'};
+  renderGrant(); showOv('grantOv');
+}
+export function newGrantForm(){ state.grantView={mode:'compose'}; renderGrant(); }
+export function backToGrantList(){ state.grantView={mode:'list'}; renderGrant(); }
+export function createGrantProject(){
+  const title=document.getElementById('gpTitle').value.trim();
+  if(!title) return;
+  const mission=document.getElementById('gpMission').value.trim();
+  const due=document.getElementById('gpDue')?.value||null;
+  const id='grant-'+Date.now();
+  data.grantProjects.unshift({id,title,mission,due,documents:[],drafts:[],created:todayKey()});
+  persist(); logActivity('Started a grant project: "'+title+'".'); blip(784,.09); setHud();
+  state.grantView={mode:'project',id,history:[]};
+  renderGrant();
+}
+export function openGrantProject(id){ state.grantView={mode:'project',id,history:[]}; renderGrant(); }
+export function deleteGrantProject(id){
+  data.grantProjects=data.grantProjects.filter(p=>p.id!==id);
+  persist(); setHud(); state.grantView={mode:'list'}; renderGrant();
+}
+export function setGrantDue(id){
+  const p=grantProject(id); if(!p) return;
+  p.due=document.getElementById('gDueEdit').value||null;
+  persist(); setHud(); renderGrant();
+}
+export function addGrantDocument(id){
+  const label=document.getElementById('gdLabel').value.trim();
+  const text=document.getElementById('gdText').value.trim();
+  const p=grantProject(id); if(!p||!label||!text) return;
+  p.documents.unshift({ts:todayKey(),label,text});
+  persist(); document.getElementById('gdLabel').value=''; document.getElementById('gdText').value='';
+  renderGrant();
+}
+export function removeGrantDocument(id,i){
+  const p=grantProject(id); if(!p) return;
+  p.documents.splice(i,1); persist(); renderGrant();
+}
+export function fillGrantPrompt(text){
+  const el=document.getElementById('gAskInput'); if(!el) return;
+  el.value=text; el.focus();
+  state.grantView.pendingSection=guessSectionName(text);
+}
+export async function sendGrantMessage(id){
+  const input=document.getElementById('gAskInput');
+  const q=input.value.trim(); if(!q) return;
+  const p=grantProject(id); if(!p) return;
+  const v=state.grantView;
+  const sectionGuess=v.pendingSection||guessSectionName(q);
+  v.history.push({role:'user',content:q}); input.value=''; renderGrant();
+  try{
+    const reply=await AI.chat([{role:'system',content:grantSystemPrompt(p)}, ...v.history], {long:true});
+    v.history.push({role:'assistant',content:reply}); v.lastReply=reply; v.lastSection=sectionGuess;
+    logActivity('Asked the Grant Desk about "'+p.title+'".');
+  }catch(e){
+    v.history.push({role:'assistant',content:"The connection flickered — no answer this time. Check that your AI connection is still running."});
+  }
+  v.pendingSection=null;
+  renderGrant();
+}
+export function saveGrantReplyAsDraft(id){
+  const v=state.grantView; if(!v.lastReply) return;
+  const section=(document.getElementById('gSectionName')?.value.trim())||v.lastSection||'Draft';
+  const p=grantProject(id); if(!p) return;
+  // small local models don't always follow "no heading" instructions —
+  // the section name is already added when this promotes to a document,
+  // so strip a redundant leading markdown heading if the model added one.
+  const text=v.lastReply.replace(/^#{1,6}\s*.+\n+/,'');
+  p.drafts.unshift({ts:todayKey(),section,text});
+  v.lastReply=''; v.lastSection=''; persist(); renderGrant();
+}
+export function removeGrantDraft(id,i){
+  const p=grantProject(id); if(!p) return;
+  p.drafts.splice(i,1); persist(); renderGrant();
+}
+export function promoteGrantToArchive(id){
+  const p=grantProject(id); if(!p||!p.drafts.length) return;
+  const body=p.drafts.slice().reverse().map(d=>`## ${d.section}\n\n${d.text}`).join('\n\n');
+  let slug=slugify(p.title), n=1;
+  while(data.workshop.docs.some(d=>d.slug===slug)) slug=slugify(p.title)+'-'+(++n);
+  data.workshop.docs.unshift({slug,title:p.title,license:'personal record',source:'The Grant Desk',body,created:todayKey(),category:'research'});
+  persist(); logActivity('Turned grant project "'+p.title+'" into an Archive Desk entry.'); blip(784,.09);
+  openArchive(); openArchiveDoc(slug);
+}
+function renderGrant(){
+  const v=state.grantView, panel=document.getElementById('grantPanel'), aiOn=isAIActive();
+  if(v.mode==='compose'){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Start a Grant Project</h2>
+      <div class="meta">A real workspace for a real proposal — add documents over as many visits as it
+        takes. Nothing here is submitted anywhere; it's yours until you export or copy it out.</div>
+      <label>Project title</label>
+      <input type="text" id="gpTitle" placeholder="e.g. Hollow Creek Community Garden Restoration">
+      <label>Mission — what is this, in a sentence or two?</label>
+      <textarea id="gpMission" rows="3" placeholder="What's being restored, for whom, and why it matters"></textarea>
+      <label>Application deadline (optional — entirely up to you)</label>
+      <input type="date" id="gpDue">
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="createGrantProject()">Start</button>
+        <button class="btn ghost" onclick="backToGrantList()">← Back</button>
+      </div>`;
+    return;
+  }
+  if(v.mode==='project'){
+    const p=grantProject(v.id);
+    if(!p){ state.grantView={mode:'list'}; return renderGrant(); }
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>${esc(p.title)}</h2>
+      <div class="meta">${p.mission?esc(p.mission)+' · ':''}started ${esc(p.created)} · ${p.documents.length} document${p.documents.length===1?'':'s'} · ${p.drafts.length} drafted section${p.drafts.length===1?'':'s'}${p.due?' · due '+esc(p.due):''}</div>
+      <div class="row"><input type="date" id="gDueEdit" value="${esc(p.due||'')}" style="max-width:200px">
+        <button class="btn ghost" onclick="setGrantDue('${p.id}')">Set deadline</button></div>
+
+      <h3>Documents</h3>
+      <div class="meta">Only real material — site history, budget notes, a funder's own guidelines. The assistant below never invents what isn't here.</div>
+      <label>Label</label><input type="text" id="gdLabel" placeholder="e.g. Site history, Budget notes, Funder guidelines">
+      <label>Text</label><textarea id="gdText" rows="4" placeholder="Paste or write it in — as much or as little as you have."></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="addGrantDocument('${p.id}')">+ Add document</button></div>
+      <div style="margin-top:10px">${p.documents.length ? p.documents.map((d,i)=>`
+        <div class="card" style="cursor:default">
+          <div class="t">${esc(d.label)} <span class="badge">${esc(d.ts)}</span></div>
+          <div class="s">${esc(d.text.length>200?d.text.slice(0,200)+'…':d.text)}</div>
+          <div class="row" style="margin-top:6px"><button class="btn ghost" onclick="removeGrantDocument('${p.id}',${i})">Remove</button></div>
+        </div>`).join('') : '<p>No documents yet — the more real material you add, the more useful a draft will be.</p>'}</div>
+
+      <h3 style="margin-top:18px">Drafted sections</h3>
+      <div style="margin-top:6px">${p.drafts.length ? p.drafts.map((d,i)=>`
+        <div class="card" style="cursor:default">
+          <div class="t">${esc(d.section)} <span class="badge">${esc(d.ts)}</span></div>
+          <div class="s">${esc(d.text.length>200?d.text.slice(0,200)+'…':d.text)}</div>
+          <div class="row" style="margin-top:6px"><button class="btn ghost" onclick="removeGrantDraft('${p.id}',${i})">Remove</button></div>
+        </div>`).join('') : '<p>Nothing drafted yet.</p>'}</div>
+
+      <h3 style="margin-top:18px">Grant-writing assistant</h3>
+      <div class="meta">${aiOn
+        ? 'Grounded only in the documents above — ask for a section by name, or pick a quick start below.'
+        : 'No local AI connected right now (⚙ Manage AI connections) — this desk needs a live connection to actually draft anything.'}</div>
+      ${aiOn ? `
+        <div class="row" style="margin-bottom:10px">
+          ${GRANT_PROMPTS.map(pr=>`<button class="btn ghost" style="font-size:11.5px" onclick="fillGrantPrompt(${JSON.stringify(pr)})">${esc(pr)}</button>`).join('')}
+        </div>
+        <div id="gHistory">${(v.history||[]).map(h=>`
+          <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':'Grant Desk'}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
+        <textarea id="gAskInput" rows="3" placeholder="Ask for a section, or pick a quick start above…"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" onclick="sendGrantMessage('${p.id}')">Ask</button>
+        </div>
+        ${v.lastReply?`
+        <div class="row" style="margin-top:10px;align-items:center">
+          <input type="text" id="gSectionName" value="${esc(v.lastSection||'Draft')}" style="max-width:220px" placeholder="Section name">
+          <button class="btn ghost" onclick="saveGrantReplyAsDraft('${p.id}')">💾 Save as a draft section</button>
+        </div>` : ''}` : ''}
+
+      <div class="row" style="margin-top:22px">
+        <button class="btn ghost" onclick="backToGrantList()">← Back</button>
+        <button class="btn ghost" ${p.drafts.length?'':'disabled'} onclick="promoteGrantToArchive('${p.id}')">→ Turn into an Archive Desk entry</button>
+        <button class="btn ghost" style="border-color:#b56f6f;color:#e0a0a0" onclick="deleteGrantProject('${p.id}')">Delete project</button>
+      </div>`;
+    return;
+  }
+  const projects=data.grantProjects;
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>The Grant Desk</h2>
+    <div class="meta">A workspace for real proposals — a project's own documents, plus an assistant
+      that drafts sections grounded only in what's actually on file.</div>
+    ${projects.length ? projects.map(p=>`
+      <div class="card" onclick="openGrantProject('${p.id}')">
+        <div class="t">${esc(p.title)}</div>
+        <div class="s">${p.mission?esc(p.mission)+' · ':''}${p.documents.length} doc${p.documents.length===1?'':'s'} · ${p.drafts.length} section${p.drafts.length===1?'':'s'} · started ${esc(p.created)}${p.due?' · due '+esc(p.due):''}</div>
+      </div>`).join('') : '<p>Nothing started yet.</p>'}
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="newGrantForm()">+ Start a grant project</button></div>`;
+}
+
+/* ----- Upcoming — the entire "reminders" feature. Only ever reachable
+   by clicking the HUD badge (or the pause menu); never opens itself,
+   never alerts, never nags. Lists exactly what you chose to give a due
+   date and nothing else — most visitors will never see this panel
+   because they never set one. */
+export function openUpcoming(){ state.ui='upcoming'; hideAllOv(); renderUpcoming(); showOv('upcomingOv'); }
+function renderUpcoming(){
+  const today=todayKey();
+  const items=upcomingItems();
+  // card onclick handlers are plain HTML strings and can't close over `i`
+  // directly — stash the list on window and open by index instead.
+  // openCourse()/openGrantProject() assume their overlay is already
+  // showing (normally true, navigating within an open desk) — from here
+  // it isn't, so open the desk itself first.
+  window.__spOpenUpcomingItem=(idx)=>{
+    const i=items[idx];
+    if(i.kind==='course'){ openCourses(); openCourse(i.id); }
+    else { openGrantDesk(); openGrantProject(i.id); }
+  };
+  document.getElementById('upcomingPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Upcoming</h2>
+    <div class="meta">Only things you gave a due date, on the Course Board or the Grant Desk. Nothing
+      here ever pops up on its own — this panel is the whole feature.</div>
+    ${items.length ? items.map((i,idx)=>{
+      const overdue=i.due<today, dueToday=i.due===today;
+      const status=overdue?'overdue':dueToday?'due today':'due '+i.due;
+      const color=overdue?'#e0a0a0':dueToday?'#ffd98a':'#9c8b74';
+      return `<div class="card" onclick="__spOpenUpcomingItem(${idx})">
+        <div class="t">${i.kind==='course'?'📚':'📝'} ${esc(i.title)}</div>
+        <div class="s" style="color:${color}">${esc(status)}</div>
+      </div>`;
+    }).join('') : '<p>Nothing due — because nothing has to be. Set a due date on a course or grant project any time you actually want a reminder.</p>'}`;
+}
+
+/* ----- The Idea Jar — one click to jot a thought down, one click back to
+   whatever you were doing. The entire feature is capture; "digesting"
+   later just means coming back and reading the list, no AI processing
+   forced on it. Reachable from the HUD directly (💡, always visible in
+   the open world) since the whole point is zero friction — walking to a
+   station or opening the pause menu first would defeat it. */
+export function openIdeaCapture(){
+  state.ui='idea'; hideAllOv();
+  renderIdeaJar(); showOv('ideaOv');
+  setTimeout(()=>document.getElementById('ideaInput')?.focus(),30);
+}
+function renderIdeaJar(){
+  const ideas=data.ideas;
+  document.getElementById('ideaPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>💡 The Idea Jar</h2>
+    <div class="meta">Get it down before it slips — nothing here needs to be tidy. Digest it later,
+      whenever you come back to read the jar.</div>
+    <textarea id="ideaInput" rows="3" placeholder="What's the idea?"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="saveIdea()">Drop it in the jar</button>
+      <button class="btn ghost" onclick="closeUI()">← Back to what I was doing</button>
+    </div>
+    ${ideas.length ? `<h3 style="margin-top:18px">${ideas.length} kept so far</h3>
+      ${ideas.map(i=>`
+        <div class="card" style="cursor:default">
+          <div class="s">${esc(i.ts)}</div>
+          <div>${esc(i.text)}</div>
+          <div class="row" style="margin-top:6px"><button class="btn ghost" onclick="deleteIdea(${i.id})">Remove</button></div>
+        </div>`).join('')}` : ''}`;
+}
+export function saveIdea(){
+  const input=document.getElementById('ideaInput');
+  const text=input.value.trim(); if(!text) return;
+  data.ideas.unshift({id:Date.now(),text,ts:todayKey()});
+  persist(); logActivity('Dropped an idea in the jar.'); blip(700,.06);
+  renderIdeaJar();
+  setTimeout(()=>document.getElementById('ideaInput')?.focus(),30);
+}
+export function deleteIdea(id){
+  data.ideas=data.ideas.filter(i=>i.id!==id);
+  persist(); renderIdeaJar();
 }
 
 /* ----- The Residents' Board (the café) — the agent-notes commons: the
@@ -1527,16 +2165,17 @@ function renderResidents(){
    underneath changes. */
 export function openReviewQueue(){ state.ui='review'; hideAllOv(); state.reviewView=state.reviewView||{mode:'list'}; renderReviewQueue(); showOv('reviewOv'); }
 export function newReviewImportForm(){ state.reviewView={mode:'import'}; renderReviewQueue(); }
+export function newReviewManualForm(){ state.reviewView={mode:'manual'}; renderReviewQueue(); }
 export function backToReviewList(){ state.reviewView={mode:'list'}; renderReviewQueue(); }
 function renderReviewQueue(){
-  const v=state.reviewView, q=data.reviewQueue;
+  const v=state.reviewView, q=data.reviewQueue, aiOn=isAIActive();
   const panel=document.getElementById('reviewPanel');
   if(v.mode==='import'){
     panel.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>Add Candidates to the Queue</h2>
-      <div class="meta">Paste a JSON array from the Caravan connector (or typed by hand), shaped
-        like <code>{"title":"…","license":"…","source":"…","body":"…"}</code>. These land as
+      <div class="meta">Paste a JSON array from the Caravan connector (<code>tools/caravan/gutenberg.py</code>),
+        shaped like <code>{"title":"…","license":"…","source":"…","body":"…"}</code>. These land as
         pending — nothing here touches a shelf until reviewed.</div>
       <textarea id="reviewImportJson" rows="8" placeholder='[{"title":"...","license":"...","source":"...","body":"..."}]'></textarea>
       <div id="reviewImportMsg" class="meta"></div>
@@ -1546,28 +2185,54 @@ function renderReviewQueue(){
       </div>`;
     return;
   }
-  const pending=q.filter(x=>x.status==='pending');
-  const approved=q.filter(x=>x.status==='approved');
+  if(v.mode==='manual'){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Add a Text by Hand</h2>
+      <div class="meta">Have something real — a paper, a chapter, notes you already have permission
+        to share — but no Caravan JSON for it? Paste it straight in. Same review queue, same
+        license/legality check before anything's approved.</div>
+      <label>Title</label><input type="text" id="rmTitle" placeholder="e.g. On the Duty of Civil Disobedience">
+      <label>Tradition</label>
+      <select id="rmTradition" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
+        ${['Theravada','Mahayana','Daoism','Practice','Science','Nature'].map(t=>`<option value="${t}">${t}</option>`).join('')}
+      </select>
+      <label>License</label><input type="text" id="rmLicense" placeholder="e.g. Public Domain, CC0, CC-BY 4.0">
+      <label>Source (URL or citation)</label><input type="text" id="rmSource" placeholder="Where this actually came from">
+      <label>Full text</label><textarea id="rmBody" rows="8" placeholder="Paste the whole thing — this is what gets shelved."></textarea>
+      <div id="reviewManualMsg" class="meta"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="submitManualReviewItem()">Add to queue</button>
+        <button class="btn ghost" onclick="backToReviewList()">← Back</button>
+      </div>`;
+    return;
+  }
+  const draftedNote = item => item.draftSummary
+    ? `<div class="s" style="margin-top:4px;font-style:italic">✨ ${esc(item.draftSummary)}</div>` : '';
   panel.innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>Steward Review Queue</h2>
-    <div class="meta">Before approving anything: is the license actually clear (public domain, or
-      something you have real permission to shelve)? No legal or copyright question left open?
-      That's the whole job of this queue — everything else about "does it fit the Library" is a
-      judgment call, but license/legality is the one that isn't optional.</div>
+    <h2>The Caravan Desk</h2>
+    <div class="meta">Where texts from outside actually enter the Library. Before approving
+      anything: is the license actually clear (public domain, or something you have real
+      permission to shelve)? No legal or copyright question left open? That's the whole job of
+      this queue — everything else about "does it fit the Library" is a judgment call, but
+      license/legality is the one that isn't optional.</div>
     ${q.length ? q.map(item=>`
       <div class="card" style="cursor:default">
         <div class="t">${esc(item.title)} <span class="badge">${esc(item.origin)}</span> <span class="badge">${esc(item.status)}</span></div>
         <div class="s">${esc(item.license||'(no license given)')} ${item.source?'· '+esc(item.source):''}</div>
-        ${item.status==='pending' ? `
+        ${draftedNote(item)}
         <div class="row" style="margin-top:8px">
-          <button class="btn" onclick="approveReviewItem(${item.id})">Approve</button>
-          <button class="btn ghost" onclick="rejectReviewItem(${item.id})">Reject</button>
-        </div>` : ''}
+          ${item.status==='pending' ? `
+            <button class="btn" onclick="approveReviewItem(${item.id})">Approve</button>
+            <button class="btn ghost" onclick="rejectReviewItem(${item.id})">Reject</button>` : ''}
+          ${aiOn ? `<button class="btn ghost" id="reviewDraftBtn${item.id}" onclick="draftSummaryForReviewItem(${item.id})">✨ ${item.draftSummary?'Redraft':'Draft'} summary with AI</button>` : ''}
+        </div>
       </div>`).join('') : '<p>Nothing waiting for review.</p>'}
     <div class="row" style="margin-top:14px">
       <button class="btn ghost" onclick="newReviewImportForm()">+ Paste Caravan output</button>
-      ${approved.length ? `<button class="btn" onclick="generateApprovedBatch()">📋 Generate batch (${approved.length} approved)</button>` : ''}
+      <button class="btn ghost" onclick="newReviewManualForm()">+ Add a text by hand</button>
+      ${data.reviewQueue.filter(x=>x.status==='approved').length ? `<button class="btn" onclick="generateApprovedBatch()">📋 Generate batch (${data.reviewQueue.filter(x=>x.status==='approved').length} approved)</button>` : ''}
     </div>
     <div id="reviewBatchOut"></div>`;
 }
@@ -1588,6 +2253,18 @@ export function importReviewCandidates(){
   msg.textContent='Added '+added+' to the queue.';
   setTimeout(()=>{ state.reviewView={mode:'list'}; renderReviewQueue(); },700);
 }
+export function submitManualReviewItem(){
+  const title=document.getElementById('rmTitle').value.trim();
+  const body=document.getElementById('rmBody').value.trim();
+  const msg=document.getElementById('reviewManualMsg');
+  if(!title||!body){ msg.textContent='A title and the actual text are both required.'; return; }
+  const tradition=document.getElementById('rmTradition').value;
+  const license=document.getElementById('rmLicense').value.trim();
+  const source=document.getElementById('rmSource').value.trim();
+  data.reviewQueue.unshift({ id:Date.now(), title, license, source, body, tradition, origin:'manual', status:'pending', submittedAt:todayKey() });
+  persist(); logActivity('Added "'+title+'" to the Steward Review Queue by hand.'); blip(700,.07);
+  state.reviewView={mode:'list'}; renderReviewQueue();
+}
 export function submitArchiveDocForReview(slug){
   const d=data.workshop.docs.find(x=>x.slug===slug); if(!d) return;
   data.reviewQueue.unshift({ id:Date.now(), title:d.title, license:d.license, source:d.source,
@@ -1604,19 +2281,60 @@ export function rejectReviewItem(id){
   data.reviewQueue=data.reviewQueue.filter(x=>x.id!==id);
   persist(); renderReviewQueue();
 }
+/* ----- AI-assisted shelf copy — closes the real gap the batch generator
+   always had: a promoted entry's summary/sections used to be pure "TODO"
+   stubs, meaning the actual editorial work never got easier. Grounded
+   only in the item's own pasted text, never inventing beyond it — same
+   discipline as every other AI feature here, just applied to writing
+   shelf copy instead of a conversation. Still just a draft: nothing
+   skips the human review this whole queue exists for. */
+function reviewDraftSystemPrompt(item){
+  return CHARTER
+    +"\n\nYou are drafting shelf copy for the Sand Pavilion's Library — the same kind of entry "
+    +"every other shelved text already has. Given the title and the actual text below, respond "
+    +"in EXACTLY this format and nothing else, no preamble:\n\n"
+    +"SUMMARY: <one or two sentences — what this text actually is>\n"
+    +"SECTION: <a short heading> | <two to three sentences>\n"
+    +"SECTION: <a short heading> | <two to three sentences>\n"
+    +"(exactly 2 or 3 SECTION lines total, grounded only in the text given below — never invent "
+    +"a claim about it that isn't actually there)"
+    +`\n\nTitle: ${item.title}\n\nText:\n${item.body.slice(0,6000)}`;
+}
+function parseReviewDraft(text){
+  const summaryM=text.match(/^SUMMARY:\s*(.+)$/mi);
+  const sections=[...text.matchAll(/^SECTION:\s*(.+?)\s*\|\s*(.+)$/mig)].map(m=>({heading:m[1].trim(),body:m[2].trim()}));
+  return (summaryM && sections.length) ? { summary:summaryM[1].trim(), sections } : null;
+}
+export async function draftSummaryForReviewItem(id){
+  const item=data.reviewQueue.find(x=>x.id===id); if(!item) return;
+  const btn=document.getElementById('reviewDraftBtn'+id);
+  if(btn){ btn.disabled=true; btn.textContent='Drafting…'; }
+  try{
+    const reply=await AI.chat([{role:'system',content:reviewDraftSystemPrompt(item)}], {long:true});
+    const draft=parseReviewDraft(reply);
+    if(draft){ item.draftSummary=draft.summary; item.draftSections=draft.sections; persist(); }
+  }catch(e){ /* leave undrafted — the manual TODO stub is still there in the batch export */ }
+  renderReviewQueue();
+}
 export function generateApprovedBatch(){
   const approved=data.reviewQueue.filter(x=>x.status==='approved');
   if(!approved.length) return;
   const snippet=approved.map(item=>{
     const slug=slugify(item.title);
+    const summary=item.draftSummary?JSON.stringify(item.draftSummary):"'TODO — write a real summary'";
+    const sections=item.draftSections?.length
+      ? item.draftSections.map(s=>`{heading:${JSON.stringify(s.heading)}, body:${JSON.stringify(s.body)}}`).join(',\n      ')
+      : `{heading:'TODO', body:'TODO'}`;
     return ` { slug:'${slug}', tradition:'${item.tradition||'Practice'}', title:${JSON.stringify(item.title)},\n`
       +`   license:${JSON.stringify(item.license||'')}, source_url:${JSON.stringify(item.source||'')}, attribution:'',\n`
-      +`   doc:{ summary:'TODO — write a real summary', sections:[{heading:'TODO', body:'TODO'}] }},`;
+      +`   doc:{ summary:${summary}, sections:[\n      ${sections}\n   ] }},`;
   }).join('\n');
   document.getElementById('reviewBatchOut').innerHTML = `
     <h3>Ready to paste into seed.js (${approved.length} ${approved.length===1?'entry':'entries'})</h3>
-    <div class="meta">Summaries/sections are stubs — writing those is still the real editorial
-      work; this only saves the boilerplate. One commit for the whole batch, not one per text.</div>
+    <div class="meta">${approved.some(i=>i.draftSummary)
+      ? 'AI-drafted summaries are marked ✨ above — read them before committing, they\'re a draft, not a final review.'
+      : 'Summaries/sections are stubs where no AI draft was made — writing those is still the real editorial work.'}
+      One commit for the whole batch, not one per text.</div>
     <textarea rows="10" readonly>${esc(snippet)}</textarea>
     <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="markBatchExported()">Mark this batch as done</button></div>`;
 }
@@ -1725,24 +2443,32 @@ export async function generateQuillReport(){
    module-scoped functions aren't visible there, so wire them up. */
 Object.assign(window, {
   closeUI, openReader, markRead, backToShelf,
+  openFullText, backToSummary, fullTextNextPage, fullTextPrevPage,
   selectBook, shelfOpenSelected,
   cycleBlock, savePlanner, viewPastDay, backToPlanner,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
-  addConnection, toggleConnection, removeConnection, recheckConnections,
+  newCourseAIForm, draftCourseWithAI, setCourseDue, draftTrainingPlanFromChat,
+  addConnection, toggleConnection, removeConnection, recheckConnections, setConnectionModel, fillConnectionPreset,
   newArchiveForm, createArchiveDoc, backToArchiveList, openArchiveDoc, deleteArchiveDoc, skipTyping,
   newBulkForm, runBulkImport, generateQuillReport,
   openConnections, returnToTitle, resetSave,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
+  openIdeaCapture, saveIdea, deleteIdea,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
+  closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping,
   openBadges, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
-  openComputer, fillComputerPrompt, sendComputerMessage, saveComputerReplyToArchive,
+  openComputer, saveLastChatReplyToArchive,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
-  openReviewQueue, newReviewImportForm, backToReviewList, importReviewCandidates,
-  submitArchiveDocForReview, approveReviewItem, rejectReviewItem, generateApprovedBatch, markBatchExported,
+  openReviewQueue, newReviewImportForm, newReviewManualForm, backToReviewList, importReviewCandidates, submitManualReviewItem,
+  submitArchiveDocForReview, approveReviewItem, rejectReviewItem, draftSummaryForReviewItem, generateApprovedBatch, markBatchExported,
   openNoticeBoard, openNoticePost, backToNoticeList, newNoticePostForm, submitNoticePost,
   approveNoticePost, rejectNoticePost,
-  openHearth, openGrantDesk,
+  openHearth, openGrantDesk, openCoffee,
+  newGrantForm, backToGrantList, createGrantProject, openGrantProject, deleteGrantProject,
+  addGrantDocument, removeGrantDocument, fillGrantPrompt, sendGrantMessage,
+  saveGrantReplyAsDraft, removeGrantDraft, promoteGrantToArchive, setGrantDue,
+  openUpcoming,
   openAccount, sendAccountLink, signOutOfAccount,
   openResidentsBoard, askAgentForNote, approveNote, rejectNote,
   openResearchDesk, newResearchForm, backToResearchList, createResearchProject,

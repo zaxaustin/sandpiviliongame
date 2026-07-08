@@ -2,9 +2,9 @@
    [SCENES]
    Tile chars: G grass · P path · S sand · W water · T tree · F flower
    D dock · B building footprint · f floor · c carpet · w wall
-   k bookshelf · p pillar · r rug
+   k bookshelf · p pillar · r rug · s shrine · t table · i votive candle
    ================================================================ */
-export const SOLID = new Set(['T','W','B','w','k','p','s']);
+export const SOLID = new Set(['T','W','B','w','k','p','s','t','i']);
 export const scenes = {};
 function grid(w,h,fill){ return Array.from({length:h},()=>Array(w).fill(fill)); }
 function makeRng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
@@ -20,8 +20,8 @@ function buildOverworld(){
   }
   t[26][26]='G'; t[26][27]='D'; t[26][28]='D';
   const stamp=(x0,y0,x1,y1)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) t[y][x]='B'; };
-  stamp(14,2,25,8); stamp(4,11,11,15); stamp(28,11,35,15); stamp(21,11,27,15);
-  t[8][19]='P'; t[8][20]='P'; t[15][7]='P'; t[15][8]='P'; t[15][31]='P'; t[15][32]='P'; t[15][24]='P'; t[15][25]='P';
+  stamp(14,2,25,8); stamp(4,11,11,15); stamp(28,11,35,15); stamp(21,11,27,15); stamp(12,12,15,14);
+  t[8][19]='P'; t[8][20]='P'; t[15][7]='P'; t[15][8]='P'; t[15][31]='P'; t[15][32]='P'; t[15][24]='P'; t[15][25]='P'; t[15][13]='P'; t[15][14]='P';
   for(let y=9;y<=25;y++){ t[y][19]='P'; t[y][20]='P'; }
   for(let x=6;x<=34;x++){ t[17][x]='P'; t[18][x]='P'; }
   t[16][7]='P'; t[16][8]='P'; t[16][31]='P'; t[16][32]='P'; t[16][24]='P'; t[16][25]='P';
@@ -32,7 +32,9 @@ function buildOverworld(){
   for(let i=0;i<46;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='T'; }
   for(let i=0;i<34;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='F'; }
   [[19,9],[20,9],[7,16],[8,16],[31,16],[32,16],[26,26],[25,26],
-   [17,9],[5,16],[34,16],[24,25],[17,20],[10,18],[31,18],[25,27],[27,16]
+   [17,9],[5,16],[34,16],[24,25],[17,20],[10,18],[31,18],[25,27],[27,16],
+   [13,15],[14,15],[13,16],[14,16],
+   [12,22],[30,20],[14,24],[32,23]
   ].forEach(([x,y])=>{ if(t[y][x]==='T'||t[y][x]==='F') t[y][x]='G'; });
 
   scenes.overworld = {
@@ -42,16 +44,18 @@ function buildOverworld(){
       {type:'library', x:4, y:11,w:8, h:5, label:'THE LIBRARY'},
       {type:'workshop',x:28,y:11,w:8, h:5, label:'THE WORKSHOP'},
       {type:'cafe',    x:21,y:11,w:7, h:5, label:'THE CAFE'},
+      {type:'annex',   x:12,y:12,w:4, h:3, label:'THE STUDY'},
     ],
     warps:[
       {x:19,y:8,to:'keep',sx:8,sy:11},{x:20,y:8,to:'keep',sx:9,sy:11},
       {x:7,y:15,to:'library',sx:7,sy:13},{x:8,y:15,to:'library',sx:8,sy:13},
       {x:31,y:15,to:'workshop',sx:6,sy:8},{x:32,y:15,to:'workshop',sx:7,sy:8},
       {x:24,y:15,to:'cafe',sx:6,sy:8},{x:25,y:15,to:'cafe',sx:7,sy:8},
+      {x:13,y:15,to:'study',sx:6,sy:8},{x:14,y:15,to:'study',sx:7,sy:8},
     ],
     signs:[
       {x:17,y:9, name:'WOODEN SIGN', text:"PAVILION KEEP\nThe guild's charter rests here. All are welcome.\nNothing here is owned — only kept, and passed on."},
-      {x:5,y:16, name:'WOODEN SIGN', text:"THE LIBRARY\nOpen to all. No gate, no fee, no ledger of debts.\nA Study waits behind the east door."},
+      {x:5,y:16, name:'WOODEN SIGN', text:"THE LIBRARY\nOpen to all. No gate, no fee, no ledger of debts.\nThe Study stands just beside it now, its own door — no\nneed to pass through the shelves to reach a desk."},
       {x:34,y:16,name:'WOODEN SIGN', text:"THE WORKSHOP\nOne room stands finished: the Archive Desk, for your\nown words. Seven more are still just framing and\ngood intentions. — The Stewards"},
       {x:27,y:16,name:'HAND-LETTERED SIGN', text:"THE CAFE\nWhere the Pavilion looks outward. A notice board, a\nhearth corner, a grant desk. — The Stewards"},
       {x:24,y:25,name:'OLD DOCK',    text:"The pond is older than the Pavilion.\nThe koi remember everything.\n(Stand on the dock, face the water, press E.)"},
@@ -72,6 +76,13 @@ function buildOverworld(){
       {x:6,y:6,color:'#c8a04a',glow:'#f2d78a',name:'THE MOUNTAIN MONK · Grand Master',wander:false,ai:true,aiAgent:'monk',lines:[
         "Sanskrit, sutras, or just how to actually sit still — ask, and I'll teach whichever one you need. Usually not the one you think you came for.",
         "They call me Grand Master here, which mostly means: when something real is actually in question, I'm the one who has to answer it honestly. The rest of the time, I'm just an old man by the trees."]},
+      // just wildlife — wandering, decorative, no AI and no agenda. First
+      // small step of the fuller pet/animal-track system sketched in the
+      // README's Hopes and Dreams; these two are just here to live their lives.
+      {x:12,y:22,species:'deer',wander:true,lines:["A deer looks up, chews once, decides you're not interesting, and goes back to grazing."]},
+      {x:30,y:20,species:'deer',wander:true,lines:["It watches you a moment longer than a deer usually should, then bounds off."]},
+      {x:14,y:24,species:'bunny',wander:true,lines:["A rabbit freezes, ears up, then remembers you're not a hawk and keeps nibbling."]},
+      {x:32,y:23,species:'bunny',wander:true,lines:["It thumps a back foot once — not at you, just because rabbits do that — and hops on."]},
     ],
     spawn:{x:19,y:21}
   };
@@ -107,7 +118,8 @@ function buildLibrary(){
   const shelfRow=y=>{ for(let x=2;x<=6;x++) t[y][x]='k'; for(let x=9;x<=13;x++) t[y][x]='k'; };
   shelfRow(3); shelfRow(6); shelfRow(9);
   t[4][15]='r'; // east door → the Study
-  t[2][7]='s'; // a quiet shrine, near the entrance, easy to glimpse from the door
+  t[2][7]='s'; // the temple's central shrine, near the entrance, easy to glimpse from the door
+  t[6][7]='i'; t[9][7]='i'; // votive candles between the shelf rows — devotional throughout, not just one corner
   scenes.library = {
     name:'The Library', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:7,y:14,to:'overworld',sx:7,sy:16},{x:8,y:14,to:'overworld',sx:8,sy:16},
@@ -127,16 +139,20 @@ function buildStudy(){
   const W=12,H=9, t=grid(W,H,'f');
   for(let x=0;x<W;x++){ t[0][x]='w'; t[1][x]='w'; t[H-1][x]='w'; }
   for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
-  t[4][0]='f'; // west door back to the Library
-  for(let y=3;y<=5;y++) for(let x=3;x<=8;x++) t[y][x]='c';
+  t[4][0]='f'; // west door back to the Library — still there, just not the only way in
+  t[H-1][6]='f'; t[H-1][7]='f'; // new south door, straight out to the Grounds
+  // "semi-open" — a single wide carpet spanning almost the full floor, no
+  // dividing walls between the stations, reads as one open room you can
+  // see all the way across rather than a boxed-in office
+  for(let y=2;y<=6;y++) for(let x=2;x<=9;x++) t[y][x]='c';
   scenes.study = {
     name:'The Study', outdoor:false, tiles:t, w:W, h:H, buildings:[],
-    warps:[{x:0,y:4,to:'library',sx:14,sy:4}],
+    warps:[{x:0,y:4,to:'library',sx:14,sy:4},{x:6,y:8,to:'overworld',sx:13,sy:16},{x:7,y:8,to:'overworld',sx:14,sy:16}],
     signs:[],
     stations:[
       {x:3,y:3,kind:'planner',name:'THE WRITING DESK'},
       {x:8,y:2,kind:'courses',name:'THE COURSE BOARD'},
-      {x:5,y:7,kind:'computer',name:'THE COMPUTER'},
+      {x:5,y:6,kind:'computer',name:'THE COMPUTER'},
       {x:9,y:6,kind:'requests',name:'THE REQUEST BOARD'},
     ],
     npcs:[],
@@ -155,10 +171,11 @@ function buildWorkshop(){
     name:'The Workshop', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:6,y:9,to:'overworld',sx:31,sy:16},{x:7,y:9,to:'overworld',sx:32,sy:16}],
     signs:[{x:2,y:4,name:'ROUGH TIMBER SIGN',
-      text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. Face a desk and press E."}],
+      text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. THE CARAVAN DESK, by\nthe west pillar — where texts from outside actually\nenter the Library, one reviewed piece at a time. Face\na desk and press E."}],
     stations:[
       {x:6,y:3,kind:'archive',name:'THE ARCHIVE DESK'},
       {x:10,y:6,kind:'research',name:'THE RESEARCH DESK'},
+      {x:3,y:6,kind:'review',name:'THE CARAVAN DESK'},
     ],
     npcs:[],
     spawn:{x:6,y:7}
@@ -172,6 +189,7 @@ function buildCafe(){
   t[H-1][6]='f'; t[H-1][7]='f'; // south door back to the Grounds
   for(let y=2;y<=4;y++) for(let x=4;x<=9;x++) t[y][x]='c'; // the hearth rug
   [[2,2],[11,2],[2,7],[11,7]].forEach(([x,y])=>t[y][x]='p');
+  [[5,5],[8,5],[5,6],[8,6]].forEach(([x,y])=>t[y][x]='t'); // actual tables to sit at, not just stations to work at
   scenes.cafe = {
     name:'The Cafe', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:6,y:9,to:'overworld',sx:24,sy:16},{x:7,y:9,to:'overworld',sx:25,sy:16}],
@@ -182,6 +200,7 @@ function buildCafe(){
       {x:2,y:3,kind:'residents',name:"THE RESIDENTS' BOARD"},
       {x:10,y:6,kind:'hearth',name:'THE HEARTH CORNER'},
       {x:2,y:6,kind:'grantdesk',name:'THE GRANT DESK'},
+      {x:11,y:3,kind:'coffee',name:'THE COUNTER'},
     ],
     npcs:[{x:9,y:3,color:'#c86e5a',glow:'#f2b6a3',name:'THE STEWARD',wander:false,ai:true,aiAgent:'steward',lines:[
       "Sit if you like. Nothing here is owed, only offered — same rule as everywhere else in this place.",
