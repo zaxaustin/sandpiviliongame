@@ -114,13 +114,33 @@ door.
 **AI residents** — connect a local model (Ollama) and Quill, the
 Steward, the Mountain Monk, and the Computer (a full JARVIS-style
 terminal) become real, streaming conversations, grounded in the actual
-shelved texts and the charter. The Monk can draft a real training plan
-from a conversation; the Computer can save a plan straight to your
-Archive Desk; the Research Desk's assistant can summarize any chapter or
+shelved texts and the charter. The Monk keeps his own quarters in the
+Pavilion Keep now, north of the Grounds, for conduct/meaning/practice
+specifically — daily-life help is the Steward's place, including a real
+"Ask the Steward" at the Writing Desk that helps plan your actual day,
+grounded in what's due soon and how recent days went. The Computer can
+save a plan straight to your Archive Desk; the Research Desk's
+assistant helps with real projects, not just research topics — turning
+an idea into concrete next steps — and can summarize any chapter or
 paper you paste in, kept as a private note, never shared. Connect a
 cloud provider instead or as well — Claude, ChatGPT, or Grok — and the
 same residents talk through that; every connection is labeled 🏠 local
 or ☁ cloud so it's always clear whose machine a conversation is on.
+
+**A real desktop app** — Electron-based, wraps the same game in its own
+window with its own native process that proxies local Ollama requests
+directly, permanently fixing the browser CORS wall that requires
+`OLLAMA_ORIGINS` to be configured just right. `npm run electron:dev` for
+the live dev version (or double-click a desktop shortcut, if you've made
+one), `npm run electron:build` for a real Windows installer. See
+[`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md).
+
+**Real search** — the Index panel (every text in one place) uses
+Postgres full-text search when Supabase is configured: word-stemmed,
+ranked by relevance (a title match always outranks an incidental
+mention), not just literal substring matching. Falls back to the
+existing local search instantly if Supabase isn't configured or a query
+errors, so the search box never just goes dead.
 
 **Local Library storage** — full book text lives in MinIO, running
 locally in Docker on this machine (`sand-pavilion-minio`, set to survive
@@ -259,49 +279,59 @@ rendering/input/adapters — the fuller manual QA checklist lives in
 
 ## What's next
 
-Roughly in priority order:
+**The actual north star, stated directly by the user (2026-07-08): "I
+want my day to be at ease where this place can help me find direction
+and the tools needed to make use of the knowledge provided — this
+should be the key of the sand pavilion."** Ease, direction, and turning
+knowledge into use — not feature count — is the tie-breaker for what
+gets built next. The list below is ordered against that, not just by
+what's technically easiest.
 
-1. **Real search at scale** (`tsvector` for keywords, `pgvector` for
-   semantic/AI-grounded search) — worth adding once the Library's real
-   volume justifies it; see `LIBRARY-SCALING-PLAN.md`.
-2. **A friendlier wrapper around the Caravan scripts** — real and
-   buildable, not yet started; worth confirming it's still wanted before
-   it's built, now that the terminal tools work well on their own.
-3. **Grow the Library toward a much bigger real dataset** — see
-   [`LIBRARY-GROWTH-PLAN.md`](LIBRARY-GROWTH-PLAN.md) for the actual
-   plan: a curated list of legitimately free/open sources by category,
-   why hand-picked connectors stay the approach instead of a general
-   scraper, and which new connectors (Standard Ebooks, OpenStax,
-   Internet Archive) are worth building next. Coding/electronics
-   material specifically is thin today, since most modern texts in that
-   space are copyrighted — openly-licensed sources fetched deliberately,
-   not scraped from anywhere reachable, same rule as everything else.
-4. **Turn downloaded papers into something the Reader can page through**
+1. **Close the loop between reading and doing — not started, the
+   current top priority.** Right now a book's reading notes
+   (`bookNotes`, written in the Reader) just sit there — nothing carries
+   an idea from "I just read this" into today's intention, a Research
+   Desk project, or a course. Held against the north star above, this
+   is higher-leverage than any new feature: a "bring this to today's
+   plan" action in the Reader, or letting the Writing Desk's AI
+   assistant see recent book notes the same way it already sees due
+   items and past embers, would make the Library and daily planning
+   feel like one place instead of two.
+2. **Grow the Library toward a much bigger real dataset** — actively in
+   progress, 25 texts and growing; see
+   [`LIBRARY-GROWTH-PLAN.md`](LIBRARY-GROWTH-PLAN.md) for the curated
+   source list, why hand-picked connectors stay the approach instead of
+   a general scraper, and which connectors (Standard Ebooks, OpenStax,
+   Internet Archive) are worth building next. More knowledge only
+   serves the north star once it's actually reachable — this stays
+   paired with #1, not a replacement for it.
+3. **Giving AI residents actual bodies, not just voices** — see
+   [`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md): a bounded
+   first version (one resident, one real action, like Quill reading a
+   shelved book during an idle tick) before any general action API.
+   Direct service to "find direction" — a resident who's actually doing
+   something, not just answering when spoken to.
+4. **A friendlier wrapper around the Caravan scripts** — worth
+   confirming it's still wanted before it's built, now that the
+   terminal tools work well on their own and `library-inbox/` covers
+   manual sourcing.
+5. **Turn downloaded papers into something the Reader can page through**
    — right now a fetched arXiv PDF is read outside the game; parsing it
-   into plain text would close that loop.
-5. **Character customization** — clothes, a color picker, hairstyles;
+   into plain text would close that specific loop too.
+6. **Finish testing the desktop app** — Phases 1-4 done and proven live
+   (2026-07-08): the native Ollama proxy, real search, and the whole
+   day-to-day loop all beta-tested successfully by the user themselves
+   in the actual dev build. Remaining: run the packaged installer itself
+   (`release/Sand Pavilion Setup 0.0.1.exe`) rather than just dev mode,
+   and a test on a machine that isn't the dev machine.
+7. **Character customization** — clothes, a color picker, hairstyles;
    see Hopes and Dreams for the real scope. A genuine system, not a quick
-   add: a character-creator UI, persisted appearance data, and every
-   place a player sprite renders (the overworld, every interior, the
-   meditation poses) threaded to actually draw it.
-6. **Finish the production auth setup** — add the Vercel URL to
+   add. Lower priority against the north star specifically — real, but
+   not about ease/direction/knowledge-to-action.
+8. **Finish the production auth setup** — add the Vercel URL to
    Supabase's Auth redirect-URL allowlist, grant a real steward role, and
    verify moderation with an actual session — whenever the Commons comes
    back off pause.
-7. **A standalone desktop app** — mostly done, see
-   [`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md). Electron picked, and
-   Phases 1-4 proven live (2026-07-08): the native Ollama proxy works
-   with zero `OLLAMA_ORIGINS` setup, a first-run "install Ollama" link
-   for when none is found, and a real Windows installer
-   (`release/Sand Pavilion Setup 0.0.1.exe`). Remaining: an actual
-   run-the-installer test, and a test on a machine that isn't the dev
-   machine.
-8. **Giving AI residents actual bodies, not just voices** — see
-   [`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md) for the real
-   plan: a bounded first version (one resident, one real action) before
-   any general action API, and an honest look at why "acts while you're
-   playing" and "keeps living while the tab's closed" are two very
-   different-sized projects, not one.
 9. **Six more Workshop rooms** and the larger public-site question.
 
 ## Hopes and dreams
