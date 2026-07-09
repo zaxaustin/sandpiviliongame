@@ -95,18 +95,24 @@ in meditation (`M`), and export your whole save as a file. None of this
 needs an account, a local AI, or a database — it just works, locally,
 forever.
 
-**The Library** — six shelves (Theravada, Mahayana, Daoism, Practice,
-Science, Classics), 25 texts. Nineteen of them are full, real,
-page-by-page books, not summaries: the Dhammapada, Satipatthana, the
-Metta Sutta, Anapanasati, the Vibhaṅga Sutta, and the Buddha's first and
-second sermons and the Mangala Sutta (Theravada); the Tao Te Ching
-(Daoism); Meditations, The Republic, The Nicomachean Ethics, Epictetus's
-Enchiridion, and Plato's Apology/Crito/Phaedo (Classics); and On the
-Origin of Species, Our National Parks, Man and Nature, The Chemical
-History of a Candle, and The Inventions, Researches and Writings of
-Nikola Tesla (Science) — every one hash-verified against its real source
-before it reached a shelf. The remaining six shelf entries are short
-original Pavilion Commons essays, complete as-is — not placeholders for
+**The Library** — seven shelves (Theravada, Mahayana, Daoism, Practice,
+Science, Classics, and Native American — added 2026-07-09 for Charles
+Eastman's own writing, not a secondhand ethnographic account), 35 texts.
+Twenty-nine of them are full, real, page-by-page books, not summaries:
+the Dhammapada, Satipatthana, the Metta Sutta, Anapanasati, the Vibhaṅga
+Sutta, and the Buddha's first and second sermons and the Mangala Sutta
+(Theravada); the Tao Te Ching (Daoism); the Diamond Sutra (Mahayana);
+Meditations, The Republic, The Nicomachean Ethics, Epictetus's
+Enchiridion and Discourses, Plato's Apology/Crito/Phaedo, and The Wealth
+of Nations (Classics); On the Origin of Species, The Voyage of the
+Beagle, Our National Parks, Man and Nature, The Chemical History of a
+Candle, The Inventions, Researches and Writings of Nikola Tesla, and A
+Survey on Large Language Model Based Autonomous Agents — the Library's
+first research paper (Science); Walden, Sailing Alone Around the World,
+and Ten Acres Enough (Practice); and The Soul of the Indian and Wigwam
+Evenings (Native American) — every one hash-verified against its real
+source before it reached a shelf. The remaining six shelf entries are
+short original Pavilion Commons essays, complete as-is — not placeholders for
 a longer work, just not full-length books either. A reading nook exists
 in the world now too: a bean bag chair inside, a bench just outside the
 door.
@@ -163,12 +169,16 @@ and the real setup.
 
 **Growing the Library — the Caravan** — eight small tools in
 `tools/caravan/`, each named for one real source rather than a general
-scraper: Project Gutenberg and arXiv for public-domain books and
-research papers, SuttaCentral for the Buddhist canon, plus the drafting/
-promoting/full-text-attaching scripts that get a fetched text properly
-onto a shelf. SuttaCentral is reachable *from inside the game itself* —
-a live 🔍 **Browse SuttaCentral** search in the Caravan Desk, no terminal
-needed. Gutenberg, arXiv, and Semantic Scholar are confirmed unreachable
+scraper: Project Gutenberg, arXiv, Semantic Scholar, and OpenAlex for
+public-domain books and research papers, SuttaCentral for the Buddhist
+canon, Standard Ebooks for meticulously re-typeset classics (via
+GitHub's own API, since Standard Ebooks' own catalog needs a Patrons
+Circle membership), `pdf-to-text.py` to turn a fetched PDF into real
+shelf-ready text, plus the drafting/promoting/full-text-attaching
+scripts that get a fetched text properly onto a shelf. SuttaCentral is
+reachable *from inside the game itself* — a live 🔍 **Browse
+SuttaCentral** search in the Caravan Desk, no terminal needed.
+Gutenberg, arXiv, and Semantic Scholar are confirmed unreachable
 directly from a browser (a real limit of the platform, not a missing
 feature) — the Request Board is where a text you want, but can't fetch
 in-game, gets tracked until it's brought in by hand.
@@ -310,21 +320,39 @@ silhouette (sash, draping sleeves, hair/topknot); and a standing rule
 that the Monk always gets the best available local model with real
 room to think, never traded for speed the way everything else may be.
 
-1. **Turn research papers into real shelf entries — named the current
-   top priority by the user, 2026-07-08.** Not a sourcing problem
-   (arXiv and Semantic Scholar are already connected, and
-   `LIBRARY-GROWTH-PLAN.md` lists real candidates for more) — a PDF
-   never gets past "fetched," because nothing in the Caravan turns a
-   PDF into plain text yet. See `LIBRARY-GROWTH-PLAN.md`'s "Turning a
-   paper into something the Reader can actually page through" for the
-   actual plan: one new script, `tools/caravan/pdf-to-text.py`, is the
-   whole gap — everything downstream (draft → summary → promote →
-   attach) already works unchanged once there's plain text to feed it.
+**Done since then (2026-07-09):** the research-papers gap actually
+closed — `tools/caravan/pdf-to-text.py` turns a fetched PDF into real
+shelf-ready text, verified live against a real arXiv paper; two new
+Caravan connectors, `openalex.py` (searches across publishers for the
+legal open-access copy of a paper, no key needed) and
+`standardebooks.py` (worked around their OPDS catalog needing a Patrons
+Circle membership by using GitHub's own public API plus the books'
+real EPUB3 semantic markup instead); `promote-draft.py` fixed to
+actually support the `research` category instead of hardcoding
+`classical`; a new **Native American** shelf added for Charles Eastman's
+own writing rather than a secondhand ethnographic account; 10 more real
+texts fetched, drafted, and promoted live — research papers, Mahayana,
+Stoic philosophy, economics, sailing, homesteading, Native American
+tradition (see `LIBRARY-GROWTH-PLAN.md` for the full list) — taking the
+Library from 25 to **35 texts**, all with real full text attached in
+MinIO the same day they were shelved. The Caravan is now 8 connector
+scripts, not 4.
+
+1. **Close the reading→doing loop for real, not just for books** — see
+   [`READING-TO-DOING-PLAN.md`](READING-TO-DOING-PLAN.md), written
+   2026-07-09 after actually beta-testing the Pavilion as a real office.
+   The book-note bridge works; Research Desk and Grant Desk notes —
+   arguably the more office-relevant two — don't reach the daily
+   planner at all yet, and even a bridged note that goes unacted just
+   quietly disappears at the end of the day. Direct instruction from
+   the same conversation: no AI book-digesting, ever — the shelf
+   summary is enough to get the gist, and reading itself should stay
+   slow and human.
 2. **Grow the Library toward a much bigger real dataset** — actively in
-   progress, 25 texts and growing; see
+   progress, 35 live texts across 7 shelves; see
    [`LIBRARY-GROWTH-PLAN.md`](LIBRARY-GROWTH-PLAN.md) for the curated
-   source list and which connectors (OpenAlex, Standard Ebooks,
-   OpenStax, Internet Archive) are worth building next.
+   source list and which connectors (Wikisource, OpenStax, Internet
+   Archive) are worth building next.
 3. **Giving AI residents actual bodies, not just voices** — see
    [`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md): a bounded
    first version (one resident, one real action, like Quill reading a

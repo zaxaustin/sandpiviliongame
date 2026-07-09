@@ -108,14 +108,39 @@ copyrighted modern introduction, for instance).
 - [Project Gutenberg](https://www.gutenberg.org) — 75,000+ public-domain
   ebooks, clean plain-text editions, exactly what `gutenberg.py` targets.
 
+**Classic literature / general public domain — has a Caravan connector already, added 2026-07-08:**
+- [Standard Ebooks](https://standardebooks.org) — `standardebooks.py`.
+  **Real gotcha found, not assumed:** their own OPDS catalog (the
+  structured feed built for exactly this) needs a Patrons Circle
+  membership or a project contribution, confirmed by actually requesting
+  it and getting a 401 — a free account alone doesn't unlock it. Used
+  two other real, structured, non-scraping sources instead: GitHub's own
+  public API to list/search their ~1,500 book repos (each with a
+  `description` and `homepage` already filled in — this is GitHub's API,
+  not scraping standardebooks.org), and the book's own "single page"
+  reading view (checked against robots.txt first: not disallowed, unlike
+  the actual epub/kindle download files), parsed by its real EPUB3
+  `epub:type` semantic markup (`bodymatter`/`frontmatter`/`backmatter` —
+  a stable standard, not guessed layout). Verified against both a
+  continuous work (Marcus Aurelius's *Meditations*) and a short-story
+  collection (*The Adventures of Sherlock Holmes*, which uses `<article>`
+  instead of `<section>` for each story — the extractor needed a real
+  fix to handle both). GitHub's API allows 60 unauthenticated
+  requests/hour; a free GitHub account + personal access token
+  (no scopes needed) raises that to 5,000/hour — set as `GITHUB_TOKEN`.
+
 **Classic literature / general public domain — no connector yet, real candidates:**
 - [Internet Archive Texts](https://archive.org/details/texts) — huge
   public-domain and open-access scanned/OCR'd collection; check each
   item's own rights statement, since it also hosts in-copyright loans.
-- [Standard Ebooks](https://standardebooks.org) — public-domain texts,
-  meticulously re-typeset and proofread, explicitly public-domain-dedicated.
 - [Wikisource](https://wikisource.org) — crowd-transcribed public-domain
-  and CC-licensed primary sources, very clean plain text.
+  and CC-licensed primary sources; its MediaWiki API (`action=parse`,
+  no key, no auth) is genuinely open and was test-fetched successfully,
+  but many longer works are split across multiple linked subpages (one
+  wiki page per chapter, chained via a `{{header}}` template's
+  previous/next fields) — a real second problem beyond wikitext-to-text
+  conversion, scoped as its own connector rather than folded into this
+  session's work.
 - [HathiTrust](https://www.hathitrust.org) — public-domain portion only
   (most of the catalog is access-restricted); check the rights flag per item.
 
@@ -163,12 +188,15 @@ list):**
 - [PLOS](https://plos.org) — Public Library of Science; every article
   in every PLOS journal is CC-BY, no exceptions, no per-article
   license-checking needed — about as clean a source as exists here.
-- [OpenAlex](https://openalex.org) — a fully open scholarly index (a
-  free, modern replacement for the old Microsoft Academic Graph), one
-  API, and it links straight to open-access full text when one exists
-  — a strong candidate for the *next* connector specifically because it
-  can point at the right OA copy across many publishers in one lookup
-  instead of searching each source separately.
+- [OpenAlex](https://openalex.org) — `openalex.py`, added 2026-07-08. No
+  key, no signup; one API that points at the legal open-access copy of a
+  paper across many publishers in one lookup instead of searching each
+  source separately, plus a reconstructed plain-text abstract (OpenAlex
+  stores these as a word-position index, not a string, for copyright
+  reasons — the connector reassembles it) and, when the source declares
+  one, the paper's real license. Verified live end-to-end: searched,
+  fetched a CC-BY paper's metadata and PDF, ran it straight through
+  `pdf-to-text.py` — the exact pairing this connector was scoped for.
 - [Unpaywall](https://unpaywall.org) — not a source of papers itself,
   but an API that finds the legal open-access version of a paper given
   its DOI; genuinely useful paired with OpenAlex or Semantic Scholar's
@@ -198,21 +226,26 @@ readable text out of one is a real, separate problem the existing
 pipeline has never had to solve.
 
 **The actual fix — one new step, not a new pipeline:**
-1. **Fetch the PDF** — `arxiv.py` mostly already does this (or would,
-   with the same one-connector-per-source discipline extended slightly).
-2. **Extract plain text from it** — a new small script,
-   `tools/caravan/pdf-to-text.py`, doing exactly one job: take a PDF,
-   hand back clean paragraph text. Needs one real dependency
-   (`pypdf` or `pdfplumber` — pure-Python, no system-level install,
-   `pip install pypdf`) since this is the one place in the whole
-   Caravan toolkit that genuinely can't stay stdlib-only; every other
-   connector's "no dependencies" rule was about avoiding scraping
-   frameworks, not avoiding PDF parsing specifically.
+1. **Fetch the PDF** — `arxiv.py` and `semanticscholar.py`'s
+   `download-pdf` commands already do this.
+2. **Extract plain text from it** — **done, 2026-07-08:**
+   `tools/caravan/pdf-to-text.py`, one job only: take a PDF, hand back
+   clean paragraph text in the same `library-sources/<slug>.txt` shape
+   `library-draft.py` already expects (Title:/Author: header, same as
+   `gutenberg.py --for-library`). Needed the one real dependency this
+   plan called out (`pypdf`, pure-Python, `pip install pypdf` — the one
+   Caravan script that isn't stdlib-only, for exactly the reason named
+   here). Verified live against a real fetched arXiv paper (a 66-page,
+   equation-dense tutorial): full run end-to-end, readable straight
+   through, math notation the expected rough edge — matches the "gets
+   you 90%, still needs a human pass" trust model below exactly, not a
+   surprise found after the fact.
 3. **From there, the existing pipeline already works unchanged** —
    `library-draft.py` → write the real summary by hand → `promote-draft.py`
    → `push-fulltext.py`. A paper becomes a shelf entry exactly the way
-   a book does today; nothing downstream needs to know the source was
-   ever a PDF.
+   a book does today, on the existing **Science** shelf (already in
+   `TRADITIONS`, no new shelf/layout work needed); nothing downstream
+   needs to know the source was ever a PDF.
 
 **Known, real risk, worth naming honestly:** academic PDF layout is
 messy — two-column text, footnotes, figure captions, references — and
@@ -262,24 +295,80 @@ proven by hand a few times, then scripted, the same way `gutenberg.py`
 and `suttacentral.py` already exist. This turns "which connector should
 we build next" from a guess into an observation.
 
+## The wishlist — real, verified candidates, added 2026-07-09
+
+Asked for directly: a running list of specific titles to fetch one by
+one in future sessions, not a fetch-everything-now instruction. Every
+Gutenberg ID below was actually looked up (via Gutendex, the unofficial
+Gutenberg metadata API) before being written down here — nothing
+guessed. Verify the license/edition again at fetch time regardless,
+same rule as everywhere else in this document.
+
+**Spiritual texts — filling gaps the current seven shelves don't cover:**
+- *The Analects* — Confucius, tr. James Legge (Gutenberg #3330). A
+  natural sibling to the existing Daoism shelf — Confucianism is the
+  other great current of classical Chinese thought, deliberately not
+  the same one.
+- *The Song Celestial* (the Bhagavad Gita) — tr. Sir Edwin Arnold
+  (Gutenberg #2388). The best-known public-domain English verse
+  translation; Hindu/Vedantic thought has no shelf at all yet, same
+  situation Native American texts were in before 2026-07-09.
+- *The Upanishads* (Gutenberg #3283) — pairs with the Gita as the
+  older philosophical core it draws from.
+- *The Imitation of Christ* — Thomas à Kempis (Gutenberg #1653). The
+  most-read Christian contemplative text after the Bible itself;
+  Christian mysticism/contemplative practice has no shelf yet either.
+- Rumi (Sufi poetry) — real gap, not yet closed: no clean public-domain
+  English edition of the Masnavi turned up on Gutenberg directly (unlike
+  everything else on this list). Worth a dedicated look at Internet
+  Archive or a named public-domain translator (R.A. Nicholson's is the
+  classic one) rather than assuming Gutenberg has it.
+
+**Cookbooks — Mrs. Beeton (2026-07-09) already shelved; more real candidates:**
+- *The Boston Cooking-School Cook Book* — Fannie Merritt Farmer, 1896
+  (Gutenberg #65061). The foundational modern American cookbook —
+  standardized measurements are largely her doing — same "practical
+  reference, not just recipes" spirit as Beeton.
+- *The Physiology of Taste* — Brillat-Savarin (Gutenberg #5434). Less a
+  cookbook than food philosophy/essays; a different, complementary
+  angle from Beeton's and Farmer's practical manuals.
+
+**Classic literature — named directly, Moby Dick and neighbors:**
+- *Moby-Dick* — Herman Melville (Gutenberg #2701). Named directly.
+- Other real, obvious Classics-shelf-fiction candidates once fiction
+  as a category actually gets used: *Pride and Prejudice* (Austen),
+  *Crime and Punishment* (Dostoevsky, tr. Constance Garnett), *Don
+  Quixote* (Cervantes, tr. John Ormsby), *Frankenstein* (Shelley),
+  *The Adventures of Huckleberry Finn* (Twain) — all confirmed
+  public domain, not yet individually ID-checked the way the titles
+  above were, since this list is already long enough to act on first.
+
+**Known gap, not forgotten:** Euclid's *Elements* (Gutenberg #21076) —
+same problem as Einstein's *Relativity* before it: geometry-heavy
+texts often ship as HTML/EPUB only, no plain-text mirror. Worth a
+real HTML-to-text extractor eventually (same shape as
+`standardebooks.py`'s `bodymatter`-only extraction, or reusing
+`pdf-to-text.py`'s cleanup logic against Gutenberg's HTML edition
+instead of a PDF) rather than skipped forever — old mathematics and
+science textbooks will keep hitting this same wall.
+
 ## Roadmap — in rough order
 
-1. **`tools/caravan/pdf-to-text.py`, 2026-07-08's named priority** — see
-   "Turning a paper into something the Reader can actually page
-   through" above. This is the one piece actually blocking research
-   papers from being real shelf entries instead of external downloads;
-   everything else in this document is sourcing more raw material,
-   which doesn't matter yet if what's already fetchable (arXiv) still
-   can't make it onto a shelf.
-2. **An OpenAlex connector** — pairs naturally with the PDF extractor:
-   OpenAlex finds the legal open-access copy of a paper across many
-   publishers in one lookup, `pdf-to-text.py` turns what it finds into
-   something shelvable. Also directly addresses the README's known
-   Science-shelf gap once papers can actually be read in-game.
-3. **A `gutenberg-like` connector for Standard Ebooks and Wikisource** —
-   both structured enough for a clean stdlib connector, both fill real
-   gaps (better-typeset classics; primary-source documents Gutenberg
-   doesn't have).
+1. **`tools/caravan/pdf-to-text.py` — done, 2026-07-08.** See "Turning a
+   paper into something the Reader can actually page through" above.
+   This was the one piece actually blocking research papers from being
+   real shelf entries instead of external downloads; a fetched arXiv or
+   Semantic Scholar PDF can now go through the exact same
+   fetch → extract → draft → write summary → promote → attach-fulltext
+   pipeline as any other source, landing on the Science shelf.
+2. **An OpenAlex connector — done, 2026-07-08.** `tools/caravan/openalex.py`.
+   See the Research papers list above for what it verified.
+3. **A Standard Ebooks connector — done, 2026-07-08.**
+   `tools/caravan/standardebooks.py`. See the Classic literature list
+   above for the real OPDS-auth gotcha found and worked around.
+   **Wikisource still open** — same rough shape (search, fetch, convert
+   to text) but needs its own multi-page/chapter-chain handling first;
+   real candidate for the next session in this vein.
 4. **An OpenStax connector** — the textbook-specific version of the
    same Science-shelf gap, real current professionally-written
    textbooks rather than 19th-century public domain science writing.

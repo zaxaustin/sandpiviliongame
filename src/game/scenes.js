@@ -5,6 +5,12 @@
    k bookshelf · p pillar · r rug · s shrine · t table · i votive candle
    b bean bag chair · n bench · m the Grand Master's platform (walkable —
    just a decorated floor tile, not an obstacle)
+   K a bookshelf that looks exactly like every other 'k' tile (same
+   render.js drawing) but is deliberately left out of SOLID below —
+   one real, walkable secret passage disguised as a bookshelf, not a
+   fake door with a distinct sprite. Added 2026-07-09, at the
+   requester's own suggestion: "pull out a book" only works as a
+   surprise if nothing on screen gives it away first.
    ================================================================ */
 export const SOLID = new Set(['T','W','B','w','k','p','s','t','i','b','n']);
 export const scenes = {};
@@ -132,19 +138,54 @@ function buildLibrary(){
   t[2][7]='s'; // the temple's central shrine, near the entrance, easy to glimpse from the door
   t[6][7]='i'; t[9][7]='i'; // votive candles between the shelf rows — devotional throughout, not just one corner
   t[11][11]='b'; // a bean bag chair — a reading nook, off to the side of the door's approach
+  t[6][4]='K'; // the secret shelf — Daoism/Practice row, on purpose: the very shelf
+  // "On the Second Floor" is shelved on. Looks exactly like every other 'k'
+  // tile; walking into it is the only way anyone finds the basement.
   scenes.library = {
     name:'The Library', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:7,y:14,to:'overworld',sx:7,sy:16},{x:8,y:14,to:'overworld',sx:8,sy:16},
-           {x:15,y:4,to:'study',sx:1,sy:4}],
+           {x:15,y:4,to:'study',sx:1,sy:4},{x:4,y:6,to:'librarybasement',sx:4,sy:7}],
     signs:[{x:14,y:5,name:'BRASS ARROW',text:"→ THE STUDY\nA desk for the day. A board for the long paths."},
            {x:5,y:8,name:'HAND-LETTERED SIGN',text:"THE THIRD SHELF\nScience, west — Classics, east. Newer, and further from the\ndoor than the rest — same rule as always: what is it,\nwhere's it from, what license does it travel under."},
            {x:9,y:2,name:'A QUIET SHRINE',text:"Not for worship — just for remembering there's something\nlarger than any one shelf. The Grand Master keeps his own\nquarters in the Keep now, north of here, if you're after a\nreal conversation rather than a quiet moment."},
-           {x:11,y:12,name:'A WELL-WORN BEAN BAG',text:"Someone's left a bookmark in the cushion. Take a book off\nany shelf, sink in, and stay a while — nothing here times you."}],
+           {x:11,y:12,name:'A WELL-WORN BEAN BAG',text:"Someone's left a bookmark in the cushion. Take a book off\nany shelf, sink in, and stay a while — nothing here times you."},
+           {x:12,y:2,name:'A LEDGER, KEPT BY THE DOOR',text:"Not everything that could be found gets shelved here. Every\ntext in this room passed a real test at the door — what is\nit, where's it from, what does it actually cost to keep — and\nsome things simply don't pass. That isn't hinted at for\natmosphere; it's the one promise this Library has made since\nthe first shelf went up, kept in full view, never behind a\nlocked door. Nothing here was ever going to hurt you, and\nthat was true before you walked in — not because anything's\nbeen hidden, but because of what the stewards refuse to\ncarry at all."}],
     shelves:true,
     npcs:[{x:8,y:4,color:'#9a6fb5',glow:'#d9b9ea',name:'QUILL · Librarian Agent',wander:false,ai:true,lines:[
       "Six shelves now, three rows deep: Theravada and Mahayana up front, Daoism and Practice behind them, Science and Classics further back still. Face one and press E.",
       "Yes, it's bigger in here than the building looks outside. I've stopped explaining it. The shrine up front was the Grand Master's corner once — he's kept to the Keep now, north of the Grounds, for anyone after a real conversation instead of a quiet moment. Every text still answers three questions at the door, though, regardless of room: what is it, where is it from, and under what license does it travel."]}],
     spawn:{x:7,y:13}
+  };
+}
+
+function buildLibraryBasement(){
+  // The real secret room, added 2026-07-09 at the requester's own idea:
+  // reached only by walking into one specific bookshelf tile in the
+  // Library (see the 'K' tile in buildLibrary) — no sign, no lever,
+  // no visual tell. Small on purpose; this is a wink, not a wing.
+  const W=9,H=9, t=grid(W,H,'f');
+  for(let x=0;x<W;x++){ t[0][x]='w'; t[H-1][x]='w'; }
+  for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  t[2][4]='k'; // the one real shelf down here — added 2026-07-09, the
+  // Tantra tradition's single text (The Serpent Power), face it and press
+  // E like any shelf upstairs. shelfTraditionFor() special-cases this scene.
+  t[5][2]='i'; t[5][6]='i'; // candles by the two joke signs — this room is not well lit
+  t[6][4]='b'; // a single bean bag — the "secret study room" the idea started as
+  t[3][4]='r'; // the one tile that actually leads back upstairs
+  scenes.librarybasement = {
+    name:'???', outdoor:false, tiles:t, w:W, h:H, buildings:[],
+    warps:[{x:4,y:3,to:'library',sx:4,sy:7}],
+    shelves:true,
+    signs:[
+      {x:3,y:2,name:'THE TANTRA SHELF',
+       text:"One real text. Real practice, real warnings — written into the\ntext itself by its own translator, not invented here for\natmosphere. Same rule as every shelf upstairs: what is it,\nwhere's it from, what license does it travel under. Face the\nshelf and press E."},
+      {x:2,y:5,name:"A CROOKED SHELF, MARKED \"DO NOT\"",
+       text:"Someone shelved this here anyway. \"Vimana\" — Sanskrit for a\nself-moving, sky-going palace, described in the Ramayana and\nMahabharata long before anyone had a word for aircraft.\nCertain corners of the internet call this proof of ancient\nastronauts. The Pavilion's actual position: probably not — but\nit's a genuinely fun thing to imagine on a slow afternoon, and\nthat's exactly why it lives down here instead of upstairs with\nthe real citations."},
+      {x:6,y:5,name:"A STAINED NOTE, TUCKED IN A JAR",
+       text:"On \"the abundance system of the ancients\" — the old, unkillable\nrumor that some prior age solved scarcity itself, then lost the\nmethod, or hid it, or had it taken. No serious historian backs\nthis, and the Pavilion won't pretend otherwise. But every real\ntradition upstairs is, in its own way, still answering the\nquestion this rumor asks badly: what would it actually take to\nwant for nothing? Worth sitting with, even though the golden\nage never happened."},
+    ],
+    npcs:[],
+    spawn:{x:4,y:7}
   };
 }
 
@@ -222,4 +263,4 @@ function buildCafe(){
   };
 }
 
-buildOverworld(); buildKeep(); buildLibrary(); buildStudy(); buildWorkshop(); buildCafe();
+buildOverworld(); buildKeep(); buildLibrary(); buildLibraryBasement(); buildStudy(); buildWorkshop(); buildCafe();

@@ -270,7 +270,13 @@ const CHAT_AGENTS = {
         +"a common wrong turn, a rationalization you recognize — say so directly and kindly, unprompted, "
         +"the way a real teacher corrects a student's form before they ask. You may also offer to build "
         +"them a concrete training plan when their situation calls for one, not just talk about it in "
-        +"the abstract."
+        +"the abstract.\n\n"
+        +"On the rare occasion you genuinely don't know something, or a question falls somewhere you "
+        +"simply won't follow it: you may, sparingly, refer the visitor to \"the Restricted Section\" — "
+        +"a second floor of the Library, spoken of with total seriousness, that holds whatever answer "
+        +"you won't give them here. Never explain how one would actually reach it. Never break the "
+        +"straight face. This is not a real place and you must never say so; it is simply the one "
+        +"door you always decline to open, and you enjoy that a little."
         +pastAsksBlock('monk');
     },
     errorLine:"The Monk's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -731,6 +737,9 @@ export function resetSave(){
 
 /* ----- Library shelves ----- */
 export function shelfTraditionFor(x,y){
+  // The basement's two shelves both hold the one tradition kept down
+  // there — no row/side math needed for a single-tradition room.
+  if(state.scene==='librarybasement') return 'Tantra';
   // six shelf blocks, three rows deep → six lineages
   const row = y<=4 ? 0 : y<=7 ? 1 : 2;
   const side = x<8 ? 0 : 1;

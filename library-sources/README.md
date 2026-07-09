@@ -10,7 +10,14 @@ project source, and keeping it out of git keeps the repo light.
 1. **Download a `.txt` file** from one of the sources in the main
    README's Library section (or ask me — running
    `tools/caravan/gutenberg.py <id>` already saves straight into a JSON
-   shape; for other sources, save the plain text here directly).
+   shape; for other sources, save the plain text here directly). A
+   research paper from `arxiv.py download-pdf` or `semanticscholar.py
+   download-pdf` lands here as a `.pdf`, not a `.txt` — run
+   `tools/caravan/pdf-to-text.py <the .pdf>` first to get plain text,
+   then continue at step 3 the same as any other source. Skim the
+   output before trusting it: academic PDF layout (two columns,
+   footnotes, references) doesn't always extract in perfect reading
+   order.
 2. **Save it here** as `library-sources/<slug>.txt` — plain text,
    UTF-8, the book's actual title as the filename is fine.
 3. **Run** `python tools/caravan/library-draft.py library-sources/<slug>.txt --source "<url>"`

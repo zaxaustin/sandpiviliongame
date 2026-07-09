@@ -111,7 +111,8 @@ function drawTile(ch,x,y,sx,sy){
       ctx.fillStyle=PAL.wallTop; ctx.fillRect(sx,sy,S,S*.25);
       ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.strokeRect(sx,sy+S*.25,S,S*.75);
       break;
-    case 'k':{
+    case 'k': case 'K':{ // 'K' is the secret passage — must render pixel-identical
+      // to a normal shelf, or it stops being a secret. See scenes.js's tile legend.
       ctx.fillStyle=PAL.shelfD; ctx.fillRect(sx,sy,S,S);
       ctx.fillStyle=PAL.shelf; ctx.fillRect(sx+S*.06,sy+S*.06,S*.88,S*.88);
       const cols=['#b34d4d','#4d7ab3','#b3934d','#5d9c66','#8a5db3'];

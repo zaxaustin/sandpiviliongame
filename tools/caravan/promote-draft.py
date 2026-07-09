@@ -63,6 +63,11 @@ def parse_draft(text):
     license_ = field(text, "License")
     source_url = field(text, "Source URL")
     attribution = field(text, "Attribution")
+    # Optional — matches CATEGORIES in src/game/data/seed.js (classical,
+    # non-fiction, fiction, research, ai-written, personal). Not validated
+    # against that list here on purpose: same trust model as tradition/
+    # license, the steward's word is the check, not a hardcoded enum.
+    category = field(text, "Category") or "classical"
 
     for label, value in [("Tradition", tradition), ("License", license_)]:
         if not value or "TODO" in value:
@@ -90,7 +95,7 @@ def parse_draft(text):
         "license": license_,
         "source_url": source_url or None,
         "attribution": attribution or None,
-        "category": "classical",
+        "category": category,
         "doc": {"summary": summary, "sections": sections},
     }
 

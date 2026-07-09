@@ -4,6 +4,8 @@ release/
 *.log
 .DS_Store
 .claude/settings.local.json
+.claude/skills/
+.agents/
 library-sources/
 library-inbox/*
 !library-inbox/README.md

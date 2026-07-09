@@ -4,6 +4,7 @@
 **License:** e.g. "Public Domain", "CC0 1.0", "Public Domain (Project Gutenberg)"
 **Source URL:** where the real, full text actually lives
 **Attribution:** author/translator, and source site if relevant (e.g. "tr. Herbert Giles · Project Gutenberg")
+**Category:** optional — classical | non-fiction | fiction | research | ai-written | personal (see CATEGORIES in src/game/data/seed.js); leave out entirely and it defaults to classical
 
 ## Summary
 
