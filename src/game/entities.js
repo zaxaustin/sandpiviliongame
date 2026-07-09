@@ -4,6 +4,7 @@ import { openDialog, showBadgeToast } from './ui/overlays.js';
 import { jingleCatch, jingleMiss, blip, setHud } from './main.js';
 import { BADGES } from './data/badges.js';
 import { onAuthChange, isLoggedIn, getAuthState } from './data/auth.js';
+import { setTTSSettings } from './tts.js';
 
 /* ================================================================
    [GAME] state + persistence
@@ -16,12 +17,14 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[] }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], ttsSettings:{voiceURI:null,rate:0.98} }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
 // wholesale, silently dropping the new `research` field. Patch it back in.
 if(!data.workshop.research) data.workshop.research=[];
+if(!data.ttsSettings) data.ttsSettings={voiceURI:null,rate:0.98}; // older saves predate this field
+setTTSSettings(data.ttsSettings);
 let saveWarned=false; // only interrupt the visitor once per session, not on every failed micro-save
 export function persist(){
   data.pos = { scene:state.scene, x:state.player.x, y:state.player.y };

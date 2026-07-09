@@ -282,6 +282,13 @@ disable/remove connections. Everything here stays on this device.
 - **"Connection refused" in `curl` too** → Ollama isn't running.
 - **Generally slow** → try a smaller model (`ollama pull llama3.2:1b`).
 
+** urgent**
+
+the last chat window was disconturned with mcp ser authentican issues
+
+i lost my last chat
+ it was a bucn of beta testing things
+
 ## How it's put together
 
 ```
@@ -324,6 +331,12 @@ should be the key of the sand pavilion."** Ease, direction, and turning
 knowledge into use — not feature count — is the tie-breaker for what
 gets built next. The list below is ordered against that, not just by
 what's technically easiest.
+
+**Real bugs and rough edges found by actually beta-testing, not just
+imagined** — a settings-navigation bug with a known cause, a
+reasoning-model display gap, TTS voice/speed controls, and more — live
+in [`BETA-TESTING-FEEDBACK.md`](BETA-TESTING-FEEDBACK.md), a running log that gets
+appended to each testing round rather than folded into this list.
 
 **Done since this list was last written (2026-07-08, same day):**
 closing the reading→doing loop (every book note can become a "spark" on

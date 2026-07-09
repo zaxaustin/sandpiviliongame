@@ -8,7 +8,7 @@ import { CATEGORIES } from '../data/seed.js';
 import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
 import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
 import { isLoggedIn, isSteward, userEmail, sendMagicLink, signOut, onAuthChange } from '../data/auth.js';
-import { speak, stopSpeaking, isSpeaking, ttsAvailable } from '../tts.js';
+import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings } from '../tts.js';
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 /* escaping text is not the same as a safe link — a `javascript:` URL
@@ -422,6 +422,62 @@ export function openConnections(){
   renderConnections();
   showOv('connOv');
 }
+/* ----- Voice settings (BETA-FEEDBACK.md #6) — a real voice + rate
+   picker for read-aloud, persisted at data.ttsSettings. getVoices()
+   can come back empty on first call in some browsers until the
+   'voiceschanged' event actually fires; re-render when it does rather
+   than assume the first call already has the full list. */
+if(ttsAvailable()) window.speechSynthesis.onvoiceschanged = () => { if(state.ui==='voice') renderVoiceSettings(); };
+export function openVoiceSettings(){
+  state.ui='voice'; hideAllOv();
+  renderVoiceSettings();
+  showOv('voiceOv');
+}
+export function setTTSVoice(voiceURI){
+  data.ttsSettings.voiceURI = voiceURI || null;
+  setTTSSettings(data.ttsSettings);
+  persist();
+}
+export function setTTSRate(rate){
+  data.ttsSettings.rate = Number(rate);
+  setTTSSettings(data.ttsSettings);
+  persist();
+  const label=document.getElementById('voiceRateLabel');
+  if(label) label.textContent = Number(rate).toFixed(2)+'×';
+}
+export function previewTTSVoice(){
+  speak("This is what reading aloud sounds like, at this speed.", null);
+}
+function renderVoiceSettings(){
+  const panel=document.getElementById('voicePanel');
+  if(!ttsAvailable()){
+    panel.innerHTML = `<button class="xbtn" onclick="openMenu()">← Back to menu</button>
+      <h2>Voice Settings</h2>
+      <div class="meta">This browser doesn't support read-aloud (the Web Speech API isn't
+        available) — nothing to configure here.</div>`;
+    return;
+  }
+  const voices = ttsVoices();
+  const cur = getTTSSettings();
+  panel.innerHTML = `
+    <button class="xbtn" onclick="openMenu()">← Back to menu</button>
+    <h2>Voice Settings</h2>
+    <div class="meta">Applies to every "read aloud" button in the Pavilion — the Reader, a
+      resident's spoken replies, all of it. Free, local, and built into your browser; nothing
+      here is sent anywhere.</div>
+    <label>Voice</label>
+    <select id="voiceSelect" onchange="setTTSVoice(this.value)" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
+      <option value="">System default</option>
+      ${voices.map(v=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===cur.voiceURI?'selected':''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}
+    </select>
+    ${voices.length ? '' : '<div class="meta">No voices listed yet — some browsers load these a moment after the page opens; check back if the dropdown above is empty.</div>'}
+    <label style="margin-top:12px">Speed — <span id="voiceRateLabel">${cur.rate.toFixed(2)}×</span></label>
+    <input type="range" id="voiceRateSlider" min="0.5" max="1.75" step="0.05" value="${cur.rate}"
+      oninput="setTTSRate(this.value)" style="width:100%">
+    <div class="row" style="margin-top:14px">
+      <button class="btn ghost" onclick="previewTTSVoice()">▶ Preview this voice</button>
+    </div>`;
+}
 function statusBadge(c,ok){
   if(c.enabled===false) return '<span class="badge">off</span>';
   if(ok===null) return '<span class="badge">checking…</span>';
@@ -471,7 +527,7 @@ export function fillConnectionPreset(id){
 function renderConnections(){
   const conns=data.aiConnections;
   document.getElementById('connPanel').innerHTML = `
-    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <button class="xbtn" onclick="openMenu()">← Back to menu</button>
     <h2>AI Connections</h2>
     <div class="meta">Stored on this device only. The first enabled connection below that answers
       is the one used by every resident and desk. A 🏠 local connection (Ollama, LM Studio, any
@@ -545,7 +601,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -605,6 +661,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="closeUI()" style="margin-bottom:9px">Resume</button>
       <button class="btn ghost" onclick="openAccount()" style="margin-bottom:9px">👤 Account${isLoggedIn()?' · signed in':''}</button>
       <button class="btn ghost" onclick="openConnections()" style="margin-bottom:9px">⚙ Manage AI connections</button>
+      <button class="btn ghost" onclick="openVoiceSettings()" style="margin-bottom:9px">🔊 Voice settings</button>
       <button class="btn ghost" onclick="openIdeaCapture()" style="margin-bottom:9px">💡 Idea Jar${data.ideas.length?' · '+data.ideas.length:''}</button>
       <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
@@ -2963,7 +3020,8 @@ Object.assign(window, {
   addConnection, toggleConnection, removeConnection, recheckConnections, setConnectionModel, fillConnectionPreset,
   newArchiveForm, createArchiveDoc, backToArchiveList, openArchiveDoc, deleteArchiveDoc, skipTyping,
   newBulkForm, runBulkImport, generateQuillReport,
-  openConnections, returnToTitle, resetSave,
+  openConnections, openMenu, returnToTitle, resetSave,
+  openVoiceSettings, setTTSVoice, setTTSRate, previewTTSVoice,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   openIdeaCapture, saveIdea, deleteIdea,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
