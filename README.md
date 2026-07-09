@@ -687,6 +687,14 @@ The detailed, session-by-session build log lives in `archive/`:
   storage (Docker + MinIO), the Classics and Science shelves, the
   arXiv/Semantic Scholar/SuttaCentral connectors, the in-game
   SuttaCentral search, and the README's own cleanup.
+- `archive/dev-log-2026-07-09.txt` — the Keep's Ganesha statue and the
+  Native American shelf, sparks/Your-Data closing out, a dropped
+  session's raw notes triaged for real, the Monk/Quill role split, the
+  Writing Desk rebuilt with a real "My Notes" filing cabinet, a local-AI
+  monitoring plan, and every plan doc moved into `plans/`. See
+  [`CLAUDE.md`](CLAUDE.md), written the same day, for the two standing
+  decisions that came out of it: the desktop app is the main focus now,
+  and new work gets built here first, not bolted on from a third party.
 - `archive/readme-2026-07-07-full.md` — a full snapshot of this file
   before its second trim, including detailed design essays not carried
   forward into the current version.

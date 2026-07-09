@@ -1,0 +1,153 @@
+dev log — 2026-07-09
+(the day the desk got fixed, the Monk got his own lane, and a Ganesha
+essay quietly became this project's own opening ritual)
+
+Full detail lives here so README.md can stay a current-state reference
+instead of a growing changelog. Everything below actually happened and
+was verified — live in a browser, a real build/test pass, or a curled
+API — not just planned. See git history for the actual diffs.
+
+================================================================
+SESSION 1 (earlier today, before this conversation) — the temple,
+the Native American shelf, and a real security fix
+================================================================
+
+Summarized here from README's own "Done since" trail, not re-derived —
+see README.md's history section and git log around this date for the
+full detail:
+
+- A Ganesha statue built in the Keep, mirrored across the aisle from
+  the Buddha shrine — real legs, a slowly-swaying trunk, own iconography.
+  A real z-order bug found live (newer body geometry painting over the
+  altar's own candles/offerings) and fixed for both statues at once.
+- A new Native American shelf: Charles Eastman's own writing, not a
+  secondhand ethnographic account. Three more Hindu texts shelved,
+  including Wilkins' *Hindu Mythology* and an original steward's telling
+  of why Ganesha is invoked before any undertaking — kept beside the
+  statue as its own practice, not just a myth (this is the file this
+  session's CLAUDE.md now points every future session to, first thing).
+- READING-TO-DOING-PLAN.md step 1: the same "bring to today's plan"
+  bridge already working for book notes extended to Research Desk notes
+  and Grant Desk documents.
+- A real security gap found and closed: MinIO's container ports were
+  bound to 0.0.0.0 (reachable from anywhere on the local network)
+  despite LIBRARY-SCALING-PLAN.md always claiming localhost-only —
+  confirmed via `docker inspect`, fixed by recreating bound to
+  127.0.0.1, verified with `netstat` and that existing book data
+  survived untouched.
+- Library grew 35 → 44 texts across the day.
+
+================================================================
+SESSION 2 (this conversation) — sparks close out, Your Data ships,
+a raw beta-notes dump gets triaged for real
+================================================================
+
+- Opened by walking the whole project and reading it back to the user
+  — first real "outside eyes" pass on the Pavilion in a while.
+- READING-TO-DOING-PLAN.md steps 2-4, closed: every spark now carries a
+  `done` flag (checkbox, toggleable from wherever it's shown — today's
+  list, a past day, the new panel below); an opt-in "carry forward
+  what's still open" toggle on the Writing Desk surfaces earlier days'
+  open sparks inline without duplicating data; a new pause-menu
+  "📋 Still Open" panel lists every not-done spark across all three
+  sources, oldest first — `openSparks()` in entities.js, no new data
+  shape needed since a spark already carried its `source` label.
+- USER-DATA-MANAGEMENT-PLAN.md steps 1-3, closed: a "📊 Your Data" panel
+  (real save size via Blob, counts across planner days/notes/projects/
+  courses/badges/activity) plus "clear old planner days before a date."
+  Per-project removal turned out to already exist (Delete button on
+  each Research/Grant Desk project's own page) — pointed there instead
+  of duplicating it. Step 3 (does an old/partial save import gracefully)
+  was genuine verification, not new code: built a synthetic old save
+  missing half its fields plus a legacy spark with no `done` field,
+  imported it through the real Import Save button in an actual browser,
+  confirmed every missing field fell back to `freshData()`'s default —
+  the existing `Object.assign(freshData(), loaded)` merge order already
+  handled it correctly.
+- A second session's worth of raw beta-test notes — jotted straight
+  into the bottom of README.md after a local wifi drop cut a prior
+  session short (confirmed: local infrastructure, not a code bug) —
+  triaged properly into `plans/BETA-TESTING-FEEDBACK.md`'s "Round 2":
+  11 real items, each checked against the actual code, not guessed.
+  The raw dump came out of README once it was properly homed.
+- `plans/AGENT-EMBODIMENT-PLAN.md` gained back a real idea that had been
+  lost with that dropped session: an embodied resident actually playing
+  the Pavilion's own minigames (fishing, meditation) as a fourth action
+  alongside reading/moving/writing — real interaction data, a Quill-
+  report-style "what I did this week" artifact, and genuinely fun for
+  the model being run, not just a metric.
+- A real library request (inner fire / Milarepa, Tibetan Buddhism)
+  turned into two real, checked candidates in
+  `plans/LIBRARY-GROWTH-PLAN.md`'s wishlist — Evans-Wentz's 1928
+  *Tibet's Great Yogī Milarepa* (genuinely US public domain by
+  publication date) and *Sixty Songs of Milarepa* — both waiting on the
+  not-yet-built Internet Archive connector.
+
+================================================================
+SESSION 3 (same conversation, after a context compaction) — the Monk
+gets a lane, the Writing Desk gets rebuilt, the docs get a home
+================================================================
+
+- The Mountain Monk's actual role, corrected by direct instruction:
+  chat-only now — spiritual counsel, text recommendations, helping
+  visitors find their own intentions, holding people to a higher moral
+  standard, Native American tradition held as close to his own path as
+  Buddhism/Vedanta rather than a third subject. The "📋 Draft a plan
+  from this conversation" button that used to live on him moved to
+  Quill, whose role now explicitly covers turning a conversation into a
+  saved course/study/practice plan alongside the library help she
+  already gives (`CHAT_AGENTS.quill`/`CHAT_AGENTS.monk` in
+  `overlays.js`).
+- `plans/WRITING-DESK-PLAN.md` written (current-state breakdown of the
+  Desk's eight stacked sections, a real 4-step fix) and then actually
+  built the same day, not left as a plan: the page
+  (`#planIntent`/`#planEmber`) is the desk now, rendered first, auto-
+  saving the same way `chatNotes` already did elsewhere. Rhythm blocks,
+  sparks, Ask the Steward, and past days all moved into a real
+  collapsible toolbox (`state.plannerTool`, one shared `#planToolPanel`),
+  closed by default; due-soon items stayed outside it since they
+  already followed the passive/glanceable pattern correctly.
+- Asked for directly, alongside the redesign: "🗂 My Notes," a real
+  filing cabinet in the toolbox — `data.notes`, freeform/named/dated,
+  kept across days, separate from today's page, with its own create/
+  edit/delete flow and the same auto-save pattern. Deliberately *not*
+  the bigger cross-app file-tree idea (unifying Research Desk/Grant
+  Desk/book notes into one browsable structure) — that stays its own,
+  separate, bigger question, confirmed and kept out of scope on purpose.
+- All of the above verified live in a real Playwright-driven browser
+  session, not just built: every toolbox panel opens and renders
+  correctly, the page auto-saves (saving… → saved HH:MM), and a filed
+  note survives an actual full page reload — real localStorage
+  persistence confirmed, not assumed.
+- `plans/LOCAL-AI-MONITORING-PLAN.md` written (not built, on purpose —
+  "let's not get ahead of ourselves," direct instruction): what
+  Ollama's own `/api/ps` already gives for free today (loaded models,
+  memory footprint, GPU residency) versus what real CPU/GPU tracking
+  would actually need (a new dependency in Electron's main process,
+  desktop-only). Verified against this machine's real running Ollama
+  instance — `/api/ps` and `/api/tags` both actually curled, not
+  assumed. Paired with a new `LEARNING-PATH.md` Stage 16 teaching the
+  underlying concepts (loaded vs. on-disk, VRAM vs. RAM, `expires_at`),
+  with a real hands-on `curl` exercise.
+- Docs cleanup, asked for directly at the very end of the session: all
+  eleven plan/tracking docs (every `*-PLAN.md` plus
+  `BETA-TESTING-FEEDBACK.md`) moved into a new `plans/` folder,
+  decluttering the repo root down to `README.md`, `LEARNING-PATH.md`,
+  and `API-AI-INTEGRATION-PLAN.md`. Every link and cross-reference to a
+  moved file checked and fixed across the whole repo — README,
+  LEARNING-PATH, the library-inbox/library-drafts READMEs, even a
+  comment in `electron/main.cjs` — not just the obvious ones.
+- `CLAUDE.md` written for the first time — a real orientation file for
+  whichever agent picks this project up next: where to actually look
+  (README, the latest dev-log, `plans/`), and two standing decisions
+  stated plainly so they don't have to be re-derived or re-argued next
+  time: **the desktop app is the main focus going forward**, and **when
+  something new is needed, build it ourselves before reaching for a
+  third party — the long path is the shortest path.** Also points, as
+  an optional-but-recommended opening, to the same Ganesha essay this
+  session's earlier work shelved — asked for directly, so the project
+  keeps being built with the mindset it actually asks for, not just
+  functionality.
+
+Everything in this log is committed — see commit 73c3f2d and the
+session's earlier commits for the exact diffs.
