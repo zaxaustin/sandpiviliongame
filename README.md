@@ -74,6 +74,26 @@ npm run preview    # serve that build locally to sanity-check it
 npm test           # config sanity check — scenes, warps, seed data (no browser needed)
 ```
 
+### Playing it as a real desktop app, not a browser tab
+
+Same `npm install` first, then:
+
+```
+npm run electron:dev     # a real native window, live — the fastest way to just try it
+npm run electron:build   # produces an actual Windows installer (.exe) in release/
+```
+
+`electron:dev` is the quickest path if you just want to see it running
+as its own window right now, no install step. `electron:build` is the
+one worth running if you want a real, permanent desktop app — install
+it once, get a Start Menu shortcut, and never open a terminal again
+afterward to play. The installer is unsigned on purpose (see
+[`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md) for why) — Windows will
+show an "unknown publisher" warning the first time; that's expected for
+a personal/small project, not a sign anything's wrong. Same local-AI
+setup applies either way — see below if you want Quill, the Steward,
+or the Monk to actually talk back.
+
 **It's live:** [sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app)
 — deployed via Vercel's GitHub integration, auto-deploys on every push to
 `main`. Local AI still works after deployment, since the game always
@@ -350,23 +370,29 @@ practice, not just a myth. Library: **35 → 44 texts.**
 exist and work; the real gaps are visibility (no way to see what's in
 your save) and granularity (all-or-nothing, no selective pruning).
 
-1. **Close the reading→doing loop for real, not just for books** — see
-   [`READING-TO-DOING-PLAN.md`](READING-TO-DOING-PLAN.md), written
-   2026-07-09 after actually beta-testing the Pavilion as a real office.
-   The book-note bridge works; Research Desk and Grant Desk notes —
-   arguably the more office-relevant two — don't reach the daily
-   planner at all yet, and even a bridged note that goes unacted just
-   quietly disappears at the end of the day. Direct instruction from
-   the same conversation: no AI book-digesting, ever — the shelf
-   summary is enough to get the gist, and reading itself should stay
-   slow and human.
+**Done since then (also 2026-07-09):** `READING-TO-DOING-PLAN.md` step 1
+— the same "bring to today's plan" bridge that already worked for book
+notes now works for Research Desk notes and Grant Desk documents too,
+reusing the exact same `sparks` data, same UI pattern. A real security
+gap found and closed the same day: the MinIO container's ports were
+bound to `0.0.0.0` (reachable from anywhere on the local network, not
+just this machine) despite `LIBRARY-SCALING-PLAN.md` always claiming
+localhost-only — confirmed via `docker inspect`, not assumed, then
+fixed by recreating the container bound to `127.0.0.1` only, verified
+after with `netstat` and by confirming existing book data survived the
+recreate untouched.
+
+1. **Finish `READING-TO-DOING-PLAN.md`** — step 1 (the spark bridge) is
+   done; steps 2-4 remain: a done/not-done flag on sparks instead of
+   just delete, opt-in carry-forward for anything left undone, and one
+   glanceable "still open" view across all three sources.
 2. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 44 live texts across 9 shelves; see
    [`LIBRARY-GROWTH-PLAN.md`](LIBRARY-GROWTH-PLAN.md) for the curated
    source list and which connectors (Wikisource, OpenStax, Internet
    Archive) are worth building next.
 3. **Work through `USER-DATA-MANAGEMENT-PLAN.md`** — a save-visibility
-   panel and selective pruning, once the reading→doing loop is closed.
+   panel and selective pruning.
 4. **Giving AI residents actual bodies, not just voices** — see
    [`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md): a bounded
    first version (one resident, one real action, like Quill reading a
@@ -392,6 +418,40 @@ your save) and granularity (all-or-nothing, no selective pruning).
    verify moderation with an actual session — whenever the Commons comes
    back off pause.
 9. **Six more Workshop rooms** and the larger public-site question.
+   Real ideas sketched 2026-07-09, none committed, each tied to
+   something already here rather than invented from nothing:
+   - **The Ledger** — a real budget-tracking room, the direct answer to
+     actually beta-testing this as an office; pairs with Wealth of
+     Nations and Ten Acres Enough's "real numbers, not general
+     encouragement" already on the shelves.
+   - **The Maker's Bench** — a home for real-world physical projects
+     (a build, a repair, a garden), distinct from the Grant Desk's
+     funding focus and the Research Desk's thinking-through focus;
+     matches The Boy Mechanic and the homesteading texts already added.
+   - **The Greenhouse** — something that visibly grows over real
+     calendar time, not game-time — the same patience the four
+     postures and the Daoist shelf already teach, made literal; a
+     natural home for the sketched beaver/companion idea ("a creature
+     that teaches by living its own life near you").
+   - **The Records Hall** — a walkable version of what already exists
+     only as files (`archive/dev-log-*.txt`, the reflections) — the
+     Pavilion's own memory, made explorable instead of just committed.
+   - **The Round Table** — a real co-study room for the "free place to
+     pursue higher education together" hope; the already-sketched Five
+     Animals practice track is the obvious first real occupant.
+   - **The Mailroom** — a home for the `Waypoints` feature (external
+     links), which already exists in the pause menu with nowhere in
+     the world that's actually *about* it.
+10. **A drag-and-drop book intake at the Caravan Desk** — see
+    [`BOOK-DRAG-DROP-PLAN.md`](BOOK-DRAG-DROP-PLAN.md), written
+    2026-07-09. Pick a source website, drop the file, the Pavilion
+    fills in the rest of the existing manual-entry form instead of
+    retyping it by hand; an unrecognized source routes to personal
+    notes instead of the shared queue. The real constraint found while
+    planning it: a browser can read a dropped file, but can't write it
+    to disk or run a Python script — so this starts client-side-only
+    (`.txt` first), with real Electron filesystem integration a
+    later, separate phase, not assumed to be the same amount of work.
 
 ## Hopes and dreams
 
@@ -400,7 +460,12 @@ up their own instance and optionally open a gate between two. Residents
 who keep living and noticing each other while the tab's closed, not just
 waiting frozen for you to walk up. Proof, sitting in a browser tab, that
 a rich AI-mediated commons never had to watch you, sell you, or lock your
-words up to work.
+words up to work. Checked directly, not assumed, 2026-07-09: this is
+already true today, not just aspirational — see `DESKTOP-APP-PLAN.md`'s
+"Could someone else clone this and build their own?" for the real
+verification (MIT license, a git history confirmed clean of any
+secret, ever, and a zero-config fallback that already builds a working
+desktop app off the seed Library with no Supabase project required).
 
 **The larger hope this is actually reaching for: a free place to pursue
 higher education together.** Not a course platform with a paywall at

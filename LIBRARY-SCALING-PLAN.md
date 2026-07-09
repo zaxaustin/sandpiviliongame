@@ -144,7 +144,16 @@ as proof a bind mount worked; check the host filesystem directly.
   not something to ever commit or sync into the repo.
 - **Ports:** `9000` (S3-compatible API, what the game's `fetch()` calls
   hit) and `9001` (MinIO's own web console, `http://localhost:9001`, for
-  browsing the bucket by hand if useful).
+  browsing the bucket by hand if useful). **Real gotcha found and fixed,
+  2026-07-09:** the container's original port mapping (`-p 9000:9000 -p
+  9001:9001`) bound to `0.0.0.0` — reachable from anywhere on the local
+  network, not just this machine, confirmed via `docker inspect`, not
+  assumed. The "reachable only from this machine" claim above was true
+  in intent but not in the actual bind. Fixed by recreating the
+  container with `-p 127.0.0.1:9000:9000 -p 127.0.0.1:9001:9001`;
+  verified afterward with `netstat` that only `127.0.0.1` listens now,
+  and that existing bucket contents survived the recreate (the bind
+  mount is the real data, the container itself is disposable).
 - **Bucket:** `sand-pavilion-library`, anonymous-**read** only (`mc
   anonymous set download`) — the game can fetch a book's text with a
   plain unauthenticated `fetch()`, but can't write; writes only happen

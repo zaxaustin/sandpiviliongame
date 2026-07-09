@@ -210,3 +210,61 @@ This changes real decisions, not just tone:
 - Does the Supabase-backed cross-device sync still make sense once
   there's a "real" desktop install, or does local-only become the
   primary mode for the desktop build specifically?
+
+## Could someone else clone this and build their own? — checked, 2026-07-09
+
+Asked directly, not answered from assumption. Checked before saying yes:
+
+- **License:** `LICENSE` is real MIT, already in the repo. Legally
+  clear to fork/redistribute/build from, today, no change needed.
+- **No secrets leak with the repo.** `.env.local` (the only file
+  holding this project's actual Supabase/MinIO credentials) has
+  **never once been committed** — confirmed with `git log --all
+  --full-history -- .env.local`, empty result, not just trusted to
+  `.gitignore`. A repo-wide grep for real-looking API keys or a
+  hardcoded service-role key turned up nothing — every match was
+  documentation showing the *name* of an env var, never a real value.
+  `.env.example` is the actual template a cloner would copy, and it
+  ships with every value blank.
+- **The zero-config fallback already does the real work here.** A
+  fresh clone with an empty (or missing) `.env.local` doesn't error —
+  the Library reads from the bundled `src/game/data/seed.js`, full
+  text falls back to the inline copy, search falls back to local
+  substring matching, and saves are `localStorage`-only. This was
+  built for a different reason (graceful degradation if Supabase/MinIO
+  aren't running) but it's the exact same mechanism that makes a
+  stranger's clone work at all: `npm install` → `npm run
+  electron:build` gets them a real, working desktop app off the seed
+  Library, no account, no Supabase project, no MinIO, nothing of
+  this project's own infrastructure required.
+
+**What a cloner does *not* get for free, on purpose:** this project's
+own 44-text grown Library, or the Commons (shared accounts, café
+boards) — those live in this specific Supabase project. Someone
+wanting the full experience would set up their own Supabase project
+and MinIO instance and follow the same setup docs already written
+(`README.md`'s setup section, `LIBRARY-SCALING-PLAN.md`) — real work,
+but nothing currently undocumented or held back.
+
+**Also checked, not assumed:** the *entire* git history, not just
+current file contents — every commit message, and every diff ever
+made against `.env`/`.env.local`/`*.pem`/`*.key`, plus a pattern scan
+for real-looking `MINIO_ROOT_PASSWORD`/`SUPABASE_SERVICE_ROLE_KEY`
+values across all commits. Clean. Nothing sensitive has ever entered
+this repo's history, at any point, not just in the current tree.
+
+**Real open items before actually flipping the repo to public,** none
+of them blockers, all worth a pass first: whether the desktop app's
+unsigned-installer status (see "Explicitly out of scope" above) needs
+a clearer warning for a stranger installing it, versus a friend who
+already trusts the source; and whether `library-sources/`/
+`library-inbox/` being gitignored (so a cloner's own Caravan runs
+start from zero raw material) is worth a line explaining explicitly,
+rather than a newcomer wondering where the "raw sources" folder they
+read about went.
+
+**The actual answer to "can someone download this and build their own
+desktop app": yes, today, as-is, with no changes needed.** The MIT
+license, the clean history, and the zero-config fallback were already
+enough — this session's check was verifying that claim, not making it
+true.
