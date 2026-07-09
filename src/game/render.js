@@ -154,14 +154,76 @@ function drawTile(ch,x,y,sx,sy){
       ctx.beginPath(); ctx.moveTo(sx+S*.5,sy+S*.68-smoke*S*.1);
       ctx.quadraticCurveTo(sx+S*.56,sy+S*.5-smoke*S*.4,sx+S*.48,sy+S*.3-smoke*S*.7);
       ctx.stroke();
+      // a lotus base (padmasana) — added 2026-07-09 so the figure is
+      // actually seated on something, not floating directly off the altar
+      ctx.fillStyle='#e8b8c2';
+      for(const pxo of [-.28,-.14,0,.14,.28]){
+        ctx.beginPath(); ctx.ellipse(sx+S*(.5+pxo),sy+S*.78,S*.1,S*.06,pxo*.6,0,7); ctx.fill();
+      }
+      // the seated body — two knee bumps at the base (the actual tell for
+      // "cross-legged," a plain triangle reads as a tent/cone instead) then
+      // a flatter-shouldered torso rising between them, replacing the first
+      // pass's single smooth curve that turned out to look like a bell.
       ctx.fillStyle='#e0a43c'; ctx.strokeStyle='#5a3f18'; ctx.lineWidth=Math.max(1,S*.03);
-      ctx.beginPath(); ctx.moveTo(sx+S*.2,sy+S*.75); ctx.quadraticCurveTo(sx+S*.5,sy-S*.35,sx+S*.8,sy+S*.75); ctx.closePath();
-      ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(sx+S*.24,sy+S*.68,S*.16,S*.11,.15,0,7); ctx.fill(); ctx.stroke(); // left knee
+      ctx.beginPath(); ctx.ellipse(sx+S*.76,sy+S*.68,S*.16,S*.11,-.15,0,7); ctx.fill(); ctx.stroke(); // right knee
+      ctx.beginPath();
+      ctx.moveTo(sx+S*.28,sy+S*.66);
+      ctx.quadraticCurveTo(sx+S*.3,sy+S*.1,sx+S*.5,sy+S*.02);
+      ctx.quadraticCurveTo(sx+S*.7,sy+S*.1,sx+S*.72,sy+S*.66);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      // a robe fold, breaking up the flat silhouette
+      ctx.strokeStyle='rgba(90,63,24,.4)'; ctx.lineWidth=Math.max(1,S*.015);
+      ctx.beginPath(); ctx.moveTo(sx+S*.4,sy+S*.2); ctx.quadraticCurveTo(sx+S*.5,sy+S*.4,sx+S*.42,sy+S*.6); ctx.stroke();
+      // hands resting in the lap (dhyana mudra), between the two knees
+      ctx.fillStyle='#c98a2e'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.6,S*.11,S*.06,0,0,7); ctx.fill();
       ctx.strokeStyle='rgba(255,220,140,.9)'; ctx.lineWidth=Math.max(1,S*.035);
       ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.55,S*.28,0,7); ctx.stroke();
       ctx.fillStyle='#e0a43c'; ctx.strokeStyle='#5a3f18'; ctx.lineWidth=Math.max(1,S*.025);
       ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.45,S*.19,0,7); ctx.fill(); ctx.stroke();
-      ctx.fillStyle='#e0a43c'; ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.68,S*.07,0,7); ctx.fill();
+      ctx.fillStyle='#e0a43c'; ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.68,S*.07,0,7); ctx.fill(); // ushnisha
+      ctx.fillStyle='rgba(90,63,24,.8)'; ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.46,S*.02,0,7); ctx.fill(); // urna
+      break; }
+    case 'g':{ // the Ganesha statue — added 2026-07-09, same "bleed above the
+      // tile" technique as the Buddha shrine ('s'), deliberately distinct
+      // iconography and glow color rather than a recolored copy: broad
+      // seated body, two ears, curved trunk, a small crown, an offering
+      // bowl of modaks instead of the shrine's incense.
+      ctx.fillStyle=((x+y)%2===0)?PAL.rug:PAL.rugD; ctx.fillRect(sx,sy,S,S);
+      const ganeshaGlow=ctx.createRadialGradient(sx+S*.5,sy+S*.1,S*.1,sx+S*.5,sy+S*.1,S*.95);
+      ganeshaGlow.addColorStop(0,'rgba(224,90,50,.5)'); ganeshaGlow.addColorStop(1,'rgba(224,90,50,0)');
+      ctx.fillStyle=ganeshaGlow; ctx.fillRect(sx-S*.4,sy-S*1.3,S*1.8,S*2.2);
+      // altar base, same shape as the Buddha shrine's for visual rhyme
+      ctx.fillStyle='#5a4529'; ctx.fillRect(sx+S*.1,sy+S*.8,S*.8,S*.2);
+      ctx.strokeStyle='#2a2118'; ctx.lineWidth=Math.max(1,S*.02); ctx.strokeRect(sx+S*.1,sy+S*.8,S*.8,S*.2);
+      // two small oil lamps (diyas), phase offset from the shrine's candles
+      // so a room with both never flickers in lockstep
+      const gflick=.6+.4*Math.sin(state.time*8+2.1);
+      for(const cxo of [sx+S*.22,sx+S*.78]){
+        ctx.fillStyle='#7a4a22'; ctx.beginPath(); ctx.ellipse(cxo,sy+S*.75,S*.07,S*.035,0,0,7); ctx.fill();
+        ctx.fillStyle=`rgba(255,150,60,${.85*gflick})`; ctx.beginPath(); ctx.arc(cxo,sy+S*.68,S*.045,0,7); ctx.fill();
+      }
+      // an offering bowl of modaks, centered, in place of the shrine's incense stick
+      ctx.fillStyle='#8a6a3a'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.74,S*.09,S*.04,0,0,7); ctx.fill();
+      ctx.fillStyle='#e8c874';
+      for(const mxo of [-.05,0,.05]){ ctx.beginPath(); ctx.arc(sx+S*(.5+mxo),sy+S*.7,S*.03,0,7); ctx.fill(); }
+      // body — broad, seated, rounded (the traditional big-bellied silhouette)
+      ctx.fillStyle='#c9772a'; ctx.strokeStyle='#5a2f10'; ctx.lineWidth=Math.max(1,S*.03);
+      ctx.beginPath(); ctx.moveTo(sx+S*.16,sy+S*.78); ctx.quadraticCurveTo(sx+S*.5,sy+S*.1,sx+S*.84,sy+S*.78); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,.1)'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.5,S*.16,S*.2,0,0,7); ctx.fill(); // belly highlight
+      // ears — two rounded flaps, drawn before the head so the head sits in front of them
+      ctx.fillStyle='#d68a3a'; ctx.strokeStyle='#5a2f10'; ctx.lineWidth=Math.max(1,S*.02);
+      ctx.beginPath(); ctx.ellipse(sx+S*.26,sy-S*.3,S*.17,S*.22,-.35,0,7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(sx+S*.74,sy-S*.3,S*.17,S*.22,.35,0,7); ctx.fill(); ctx.stroke();
+      // head
+      ctx.fillStyle='#d68a3a'; ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.4,S*.21,0,7); ctx.fill();
+      ctx.strokeStyle='#5a2f10'; ctx.lineWidth=Math.max(1,S*.025); ctx.stroke();
+      // trunk, curving down and slightly aside — the single most identifying line
+      ctx.strokeStyle='#c9772a'; ctx.lineWidth=Math.max(1,S*.08); ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(sx+S*.5,sy-S*.26); ctx.quadraticCurveTo(sx+S*.63,sy-S*.02,sx+S*.5,sy+S*.16); ctx.stroke();
+      // a small crown
+      ctx.fillStyle='#e0a43c'; ctx.beginPath(); ctx.arc(sx+S*.5,sy-S*.6,S*.06,0,7); ctx.fill();
       break; }
     case 'i':{ // a smaller votive candle, scattered near the shelves — the
       // room should feel devotional throughout, not just at one corner shrine

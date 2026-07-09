@@ -11,8 +11,11 @@
    fake door with a distinct sprite. Added 2026-07-09, at the
    requester's own suggestion: "pull out a book" only works as a
    surprise if nothing on screen gives it away first.
+   g a Ganesha statue — added 2026-07-09, mirrored across the Keep's
+   aisle from the Buddha shrine ('s') on purpose: same devotional
+   weight, same "bleed above the tile" technique, distinct iconography.
    ================================================================ */
-export const SOLID = new Set(['T','W','B','w','k','p','s','t','i','b','n']);
+export const SOLID = new Set(['T','W','B','w','k','p','s','t','i','b','n','g']);
 export const scenes = {};
 function grid(w,h,fill){ return Array.from({length:h},()=>Array(w).fill(fill)); }
 function makeRng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
@@ -105,6 +108,9 @@ function buildKeep(){
   t[2][8]='k'; t[2][9]='k';
   t[3][6]='s'; // the Buddha shrine — the Keep is the charter's
   // home, not just the Library's; worth the same devotional weight, not borrowed
+  t[3][11]='g'; // Ganesha, mirrored across the aisle from the Buddha shrine —
+  // added 2026-07-09, at the requester's own insistence: a temple missing him
+  // was the actual thing feeling wrong about this room, not a small omission.
   t[4][7]='m'; // the Grand Master's own platform, right by the shrine — moved in
   // from the Library on purpose: a quieter room, off the Grounds' main paths,
   // for anyone who wants to actually sit and talk with him one on one
@@ -114,6 +120,7 @@ function buildKeep(){
     signs:[{x:8,y:2,name:'THE CHARTER',text:"Everything turns to sand — so give it away first.\nAsk no repayment. Only that it be passed forward.\nThe long path is the shortest path."},
            {x:9,y:2,name:'THE CHARTER',text:"Everything turns to sand — so give it away first.\nAsk no repayment. Only that it be passed forward.\nThe long path is the shortest path."},
            {x:6,y:4,name:'A STONE BUDDHA',text:"Older than the scaffolding around it, somehow. No one\nremembers who carried it in, only that the Keep was built\naround it rather than the other way around."},
+           {x:11,y:4,name:'GANESHA, REMOVER OF OBSTACLES',text:"Before any undertaking, Shiva himself once set out on a\ncampaign and met one delay after another before the first\nbattle was even fought. He realized he had not knelt to his\nson and asked for safe passage. He did — praising Ganesha's\nbrilliance, and the bond between them — and the rest of the\ncampaign went smoothly, start to finish. Kneel here the same\nway, whenever the road ahead feels uneasy, before you ever\nfind out whether it needed to be hard."},
            {x:7,y:5,name:'A QUIET CORNER',text:"The Grand Master keeps his own quarters here now — apart\nfrom the Library's foot traffic, so a real conversation\ndoesn't have to compete with the shelves. Face him and press E."}],
     npcs:[{x:12,y:6,color:'#c8862e',glow:'#ffd27a',name:'THE KEEPER',wander:false,lines:[
       "No throne in this keep — just the charter and a good roof. Leadership here is a chore we take turns carrying.",

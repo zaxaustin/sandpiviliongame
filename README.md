@@ -95,26 +95,22 @@ in meditation (`M`), and export your whole save as a file. None of this
 needs an account, a local AI, or a database — it just works, locally,
 forever.
 
-**The Library** — seven shelves (Theravada, Mahayana, Daoism, Practice,
-Science, Classics, and Native American — added 2026-07-09 for Charles
-Eastman's own writing, not a secondhand ethnographic account), 35 texts.
-Twenty-nine of them are full, real, page-by-page books, not summaries:
-the Dhammapada, Satipatthana, the Metta Sutta, Anapanasati, the Vibhaṅga
-Sutta, and the Buddha's first and second sermons and the Mangala Sutta
-(Theravada); the Tao Te Ching (Daoism); the Diamond Sutra (Mahayana);
-Meditations, The Republic, The Nicomachean Ethics, Epictetus's
-Enchiridion and Discourses, Plato's Apology/Crito/Phaedo, and The Wealth
-of Nations (Classics); On the Origin of Species, The Voyage of the
-Beagle, Our National Parks, Man and Nature, The Chemical History of a
-Candle, The Inventions, Researches and Writings of Nikola Tesla, and A
-Survey on Large Language Model Based Autonomous Agents — the Library's
-first research paper (Science); Walden, Sailing Alone Around the World,
-and Ten Acres Enough (Practice); and The Soul of the Indian and Wigwam
-Evenings (Native American) — every one hash-verified against its real
-source before it reached a shelf. The remaining six shelf entries are
-short original Pavilion Commons essays, complete as-is — not placeholders for
-a longer work, just not full-length books either. A reading nook exists
-in the world now too: a bean bag chair inside, a bench just outside the
+**The Library** — nine shelves (Theravada, Mahayana, Daoism, Practice,
+Science, Classics, Native American, Hindu, and Tantra — the last three
+all added 2026-07-09), 44 texts, most of them full, real, page-by-page
+books, not summaries: the Theravada canon, the Tao Te Ching, the
+Diamond Sutra, Meditations/Republic/Nicomachean Ethics/Discourses/
+Wealth of Nations, Darwin's Origin of Species and Beagle journal plus
+the Library's first research paper, Walden/Sailing Alone/Ten Acres
+Enough, Charles Eastman's own Native American writing, the Bhagavad-
+Gita/Upanishads/Ramayana-Mahabharata and Wilkins' *Hindu Mythology*,
+and — kept deliberately separate, its own real warnings intact — a
+genuine 1922 Tantra text, Arthur Avalon's *The Serpent Power*. Every
+one hash-verified against its real source before it reached a shelf.
+A handful of shelf entries are short original Pavilion Commons essays
+instead — complete as-is, not placeholders for a longer work. A
+reading nook exists in the world now too: a bean bag chair inside, a
+bench just outside the
 door.
 
 **AI residents** — connect a local model (Ollama) and Quill, the
@@ -338,6 +334,22 @@ Library from 25 to **35 texts**, all with real full text attached in
 MinIO the same day they were shelved. The Caravan is now 8 connector
 scripts, not 4.
 
+**Done since then (also 2026-07-09):** the Keep's temple was missing
+something real — a Ganesha statue now stands mirrored across the aisle
+from the Buddha shrine, same devotional weight, own iconography and
+glow, verified by an actual screenshot pass (twice — the first attempt
+read as a blob, not an elephant, before it was fixed). The Buddha
+statue itself got a real second pass too: a lotus base, a seated
+cross-legged silhouette instead of a shape that read as a plain cone,
+hands in dhyana mudra. Three more Hindu texts shelved — Wilkins'
+*Hindu Mythology, Vedic and Puranic* (1900, real chapters on both Shiva
+and Ganesha) and an original steward's telling of why Ganesha is
+invoked before any undertaking, kept beside the statue as its own
+practice, not just a myth. Library: **35 → 44 texts.**
+`USER-DATA-MANAGEMENT-PLAN.md` written — export/import/reset already
+exist and work; the real gaps are visibility (no way to see what's in
+your save) and granularity (all-or-nothing, no selective pruning).
+
 1. **Close the reading→doing loop for real, not just for books** — see
    [`READING-TO-DOING-PLAN.md`](READING-TO-DOING-PLAN.md), written
    2026-07-09 after actually beta-testing the Pavilion as a real office.
@@ -349,35 +361,37 @@ scripts, not 4.
    summary is enough to get the gist, and reading itself should stay
    slow and human.
 2. **Grow the Library toward a much bigger real dataset** — actively in
-   progress, 35 live texts across 7 shelves; see
+   progress, 44 live texts across 9 shelves; see
    [`LIBRARY-GROWTH-PLAN.md`](LIBRARY-GROWTH-PLAN.md) for the curated
    source list and which connectors (Wikisource, OpenStax, Internet
    Archive) are worth building next.
-3. **Giving AI residents actual bodies, not just voices** — see
+3. **Work through `USER-DATA-MANAGEMENT-PLAN.md`** — a save-visibility
+   panel and selective pruning, once the reading→doing loop is closed.
+4. **Giving AI residents actual bodies, not just voices** — see
    [`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md): a bounded
    first version (one resident, one real action, like Quill reading a
    shelved book during an idle tick) before any general action API.
    Direct service to "find direction" — a resident who's actually doing
    something, not just answering when spoken to.
-4. **A real color/appearance picker** — see
+5. **A real color/appearance picker** — see
    [`CHARACTER-CUSTOMIZATION-PLAN.md`](CHARACTER-CUSTOMIZATION-PLAN.md),
    written down 2026-07-08 after the sprite redesign made it a real
    foundation instead of a placeholder. A genuine system (persisted
    data, threaded through every render site), not a quick add.
-5. **A friendlier wrapper around the Caravan scripts** — worth
+6. **A friendlier wrapper around the Caravan scripts** — worth
    confirming it's still wanted before it's built, now that the
    terminal tools work well on their own and `library-inbox/` covers
    manual sourcing.
-6. **A machine-that-isn't-the-dev-machine test for the desktop app** —
+7. **A machine-that-isn't-the-dev-machine test for the desktop app** —
    Phases 1-4 done and proven live (2026-07-08), including actually
    running the packaged installer itself (not just dev mode) for the
    first time. The one thing still genuinely unverified: a clean
    install on hardware that was never used to build it.
-7. **Finish the production auth setup** — add the Vercel URL to
+8. **Finish the production auth setup** — add the Vercel URL to
    Supabase's Auth redirect-URL allowlist, grant a real steward role, and
    verify moderation with an actual session — whenever the Commons comes
    back off pause.
-8. **Six more Workshop rooms** and the larger public-site question.
+9. **Six more Workshop rooms** and the larger public-site question.
 
 ## Hopes and dreams
 
