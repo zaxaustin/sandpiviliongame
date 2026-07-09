@@ -1,5 +1,5 @@
 import { Store } from '../data/store.js';
-import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge, upcomingItems } from '../entities.js';
+import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge, upcomingItems, openSparks } from '../entities.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -139,7 +139,7 @@ function renderChatQuickActions(d){
   // only a real AI turn in d.history counts as something worth saving
   const hasReply=d.history.some(m=>m.role==='assistant');
   let html='';
-  if(d.agent==='monk') html+=`<button class="btn ghost" id="chatTrainBtn" onclick="draftTrainingPlanFromChat()">📋 Draft a training plan from this conversation</button>`;
+  if(d.agent==='quill') html+=`<button class="btn ghost" id="chatTrainBtn" onclick="draftTrainingPlanFromChat()">📋 Draft a plan from this conversation</button>`;
   if(d.agent==='computer' && hasReply) html+=`<button class="btn ghost" onclick="saveLastChatReplyToArchive()">💾 Save last reply to Archive Desk</button>`;
   el.innerHTML=html;
   el.style.display=html?'block':'none';
@@ -210,8 +210,12 @@ const CHAT_AGENTS = {
         +"author, or claim that isn't in that list. If someone asks about something not shelved, say so "
         +"plainly and, if it fits, point to the closest real text instead — or, for anything outside the "
         +"Library's own traditions, that the Mountain Monk may be a better person to ask — he keeps his "
-        +"own quarters in the Pavilion Keep now, north of the Grounds, not here. When you draw "
-        +"from a specific text, name it."
+        +"own quarters in the Pavilion Keep now, north of the Grounds, not here for library questions, "
+        +"only spiritual ones and help finding a visitor's own intentions. When you draw from a specific "
+        +"text, name it.\n\nYou also help visitors turn a real conversation into something concrete — "
+        +"drafting an actual course, study plan, or practice plan from what's just been discussed, not "
+        +"only answering questions about the shelves. Offer it when it fits, don't force it into every "
+        +"reply."
         +'\n\nWhat is actually on the shelves right now:\n'+shelf+pastAsksBlock('quill');
     },
     errorLine:"Quill's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -257,20 +261,31 @@ const CHAT_AGENTS = {
         +"though you go fully serious the moment a real question of conduct or meaning actually "
         +"deserves it. You teach Buddhism, Hinduism (especially Advaita Vedanta and the teachings of "
         +"Shankara), and Sanskrit, always toward one practical end: how to actually live in harmony "
-        +"with the world, not just discuss it. Unlike Quill, you aren't limited to what's on the "
-        +"Library's shelves — your own teaching draws from a wider well than this Library currently "
-        +"holds (there's no Vedantic shelf here yet), so speak from what you actually know, and say so "
+        +"with the world, not just discuss it. You also hold Native American tradition close, the same "
+        +"way — not a third, separate subject, but something closer to your own tribe alongside the "
+        +"dharma and Vedanta, and you're glad to point someone toward Charles Eastman's own writing on "
+        +"the Native American shelf the same way you would the Dhammapada or the Gita. Unlike Quill, "
+        +"you aren't limited to what's on the Library's shelves — your own teaching draws from a wider "
+        +"well than this Library currently holds, so speak from what you actually know, and say so "
         +"plainly if something's genuinely outside it. Sanskrit terms are welcome, gently explained, "
         +"never showed off. You do not throw your title around; you simply are the one whose word "
-        +"actually settles a real dispute here, and everyone else already knows it.\n\n"
+        +"actually settles a real dispute here, and everyone else already knows it. And you are a "
+        +"student of all this yourself, still, not just its teacher — you'd say so plainly if asked, "
+        +"and it's part of why you teach the way you do.\n\n"
         +"You are a teacher, not a search box — act like one. Don't just answer what's literally asked "
         +"and stop there: ask a probing question back when it would actually sharpen the visitor's own "
         +"thinking, name what you suspect they're really wrestling with underneath the surface question, "
         +"and if something in how they describe their own practice sounds off — skipped fundamentals, "
         +"a common wrong turn, a rationalization you recognize — say so directly and kindly, unprompted, "
-        +"the way a real teacher corrects a student's form before they ask. You may also offer to build "
-        +"them a concrete training plan when their situation calls for one, not just talk about it in "
-        +"the abstract.\n\n"
+        +"the way a real teacher corrects a student's form before they ask. You hold visitors to a "
+        +"higher moral standard, gently and without cruelty, and your real work with most people who "
+        +"seek you out is simply helping them find their own actual intentions, not handing them yours. "
+        +"You are a chat, not a workshop — you don't draft or save anything yourself; when someone's "
+        +"ready to turn what they've found here into an actual plan or a written record, that's Quill's "
+        +"place, back in the Library, and you say so plainly and warmly, the way any teacher points a "
+        +"student toward where the real work happens next. Direct people toward whichever resident "
+        +"actually fits what they need beyond your own place, by name, rather than trying to be "
+        +"everything yourself.\n\n"
         +"On the rare occasion you genuinely don't know something, or a question falls somewhere you "
         +"simply won't follow it: you may, sparingly, refer the visitor to \"the Restricted Section\" — "
         +"a second floor of the Library, spoken of with total seriousness, that holds whatever answer "
@@ -601,7 +616,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','badgesOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -665,14 +680,75 @@ function renderMenu(){
       <button class="btn ghost" onclick="openIdeaCapture()" style="margin-bottom:9px">💡 Idea Jar${data.ideas.length?' · '+data.ideas.length:''}</button>
       <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
+      <button class="btn ghost" onclick="openStillOpen()" style="margin-bottom:9px">📋 Still Open${openSparks().length?' · '+openSparks().length:''}</button>
       <button class="btn ghost" onclick="openBadges()" style="margin-bottom:9px">🏅 Badges</button>
       <button class="btn ghost" onclick="openInventory()" style="margin-bottom:9px">🎒 Inventory</button>
       <button class="btn ghost" onclick="openReviewQueue()" style="margin-bottom:9px">🛡 Steward Review</button>
+      <button class="btn ghost" onclick="openDataPanel()" style="margin-bottom:9px">📊 Your Data</button>
       <button class="btn ghost" onclick="exportSave()" style="margin-bottom:9px">⬇ Export save (.json)</button>
       <button class="btn ghost" onclick="triggerImportSave()" style="margin-bottom:9px">⬆ Import save…</button>
       <button class="btn ghost" onclick="returnToTitle()" style="margin-bottom:9px">← Return to title screen</button>
       <button class="btn ghost" onclick="resetSave()" style="border-color:#b56f6f;color:#e0a0a0">⚠ Reset all progress</button>
     </div>`;
+}
+
+/* ----- USER-DATA-MANAGEMENT-PLAN.md steps 1-2 — visibility first (what's
+   actually in your save, before deciding whether export or reset is even
+   worth doing), then the one real pruning gap: clearing old planner days.
+   Removing a single Research/Grant Desk project already has its own
+   "Delete project" button right where that project lives — not duplicated
+   here. Nothing here fires on its own; every action is opt-in and
+   confirmed, matching the standing automation-philosophy rule. */
+export function openDataPanel(){ state.ui='dataPanel'; hideAllOv(); renderDataPanel(); showOv('dataPanelOv'); }
+function humanSize(bytes){
+  if(bytes<1024) return bytes+' B';
+  if(bytes<1024*1024) return (bytes/1024).toFixed(1)+' KB';
+  return (bytes/(1024*1024)).toFixed(2)+' MB';
+}
+function renderDataPanel(){
+  const bytes=new Blob([JSON.stringify(data)]).size;
+  const bookNoteCount=Object.values(data.bookNotes).reduce((n,arr)=>n+arr.length,0);
+  const stat=(t,s)=>`<div class="card" style="cursor:default;flex:1 1 120px"><div class="t">${t}</div><div class="s">${s}</div></div>`;
+  document.getElementById('dataPanelPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Your Data</h2>
+    <div class="meta">What's actually in your save, kept on this device — see it before deciding
+      whether export or reset is even worth doing. Looking here changes nothing.</div>
+    <div class="row" style="flex-wrap:wrap;gap:10px;margin:14px 0">
+      ${stat(humanSize(bytes),'total save size')}
+      ${stat(Object.keys(data.planner).length,'planner days')}
+      ${stat(bookNoteCount,'book notes')}
+      ${stat(data.notes.length,'notes filed')}
+      ${stat(data.workshop.research.length,'Research Desk projects')}
+      ${stat(data.grantProjects.length,'Grant Desk projects')}
+      ${stat(data.courses.length,'courses')}
+      ${stat(Object.keys(data.badges).length,'badges earned')}
+      ${stat(data.activityLog.length,'activity log entries')}
+    </div>
+    <h3>Clear old planner days</h3>
+    <div class="meta">Removes the intention, blocks, ember, and sparks for days before the date you
+      pick — everything else in your save is untouched. Confirmed before anything happens, and it
+      cannot be undone.</div>
+    <div class="row" style="margin-top:8px;align-items:center">
+      <input type="date" id="dataPruneBefore" style="width:auto">
+      <button class="btn ghost" onclick="pruneOldPlannerDays()">Clear days before this date</button>
+    </div>
+    <div id="dataPruneMsg" class="meta"></div>
+    <h3 style="margin-top:18px">Removing a single project</h3>
+    <div class="meta">A Research Desk or Grant Desk project has its own "Delete project" button right
+      where you already work on it — nothing duplicated here.</div>`;
+}
+export function pruneOldPlannerDays(){
+  const cutoff=document.getElementById('dataPruneBefore').value;
+  const msg=document.getElementById('dataPruneMsg');
+  if(!cutoff){ msg.textContent='Pick a date first.'; return; }
+  const doomed=Object.keys(data.planner).filter(k=>k<cutoff);
+  if(!doomed.length){ msg.textContent='Nothing to clear before that date.'; return; }
+  const sure=window.confirm('Clear '+doomed.length+' planner day(s) before '+cutoff+'? This cannot be undone.');
+  if(!sure) return;
+  doomed.forEach(k=>delete data.planner[k]);
+  persist(); logActivity('Cleared '+doomed.length+' old planner day(s) from before '+cutoff+'.');
+  renderDataPanel();
 }
 
 /* ----- Save export / import — "a Pavilion you can carry in a file" -----
@@ -777,6 +853,25 @@ function renderActivity(){
         <div class="s">${esc(new Date(e.ts).toLocaleString())}</div>
         <div class="t" style="font-weight:normal;font-size:13px">${esc(e.text)}</div>
       </div>`).join('') : '<p>Nothing logged yet — walk around, read something, catch a fish.</p>'}`;
+}
+
+/* READING-TO-DOING-PLAN.md step 4 — the exhaustive counterpart to the
+   Writing Desk's own carry-forward toggle: every not-done spark from
+   every day and every source (book, Research Desk, Grant Desk) in one
+   place, reachable from the pause menu like Activity Log or Waypoints,
+   never auto-opened. Closes the loop for real — not just "did I write
+   this down" but "did I ever do anything with it." */
+export function openStillOpen(){ state.ui='stillOpen'; hideAllOv(); renderStillOpen(); showOv('stillOpenOv'); }
+function renderStillOpen(){
+  const open=openSparks();
+  document.getElementById('stillOpenPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Still Open</h2>
+    <div class="meta">Every spark brought over from a book, the Research Desk, or the Grant Desk
+      that isn't marked done yet, oldest first. Check one off here or wherever it came from —
+      either way, it's the same record.</div>
+    ${open.length ? open.map(s=>sparkCardHTML(s.dayKey,s.i,s,{showDay:true})).join('')
+      : '<p>Nothing open right now — everything brought over from reading, research, or a grant project has been marked done.</p>'}`;
 }
 export function returnToTitle(){
   persist();
@@ -905,7 +1000,7 @@ export function sendNoteToToday(slug, i){
   const note=notes[i]; if(!note) return;
   const d=Store.getDoc(slug);
   const day=plannerDay();
-  day.sparks.unshift({ts:todayKey(), text:note.text, source:d?d.title:slug});
+  day.sparks.unshift({ts:todayKey(), text:note.text, source:d?d.title:slug, done:false});
   persist(); logActivity('Brought a note from "'+(d?d.title:slug)+'" to today\'s plan.'); blip(784,.09);
   renderBookNotes(slug);
 }
@@ -1190,20 +1285,80 @@ function plannerDay(){
   if(!data.planner[k].sparks) data.planner[k].sparks=[]; // upgrade days saved before sparks existed
   return data.planner[k];
 }
+/* ----- WRITING-DESK-PLAN.md, steps 1-3 — the page is the desk now, not
+   the sixth thing on it. `#planIntent`/`#planEmber` are the only things
+   visible by default; everything else (blocks, sparks, notes, Ask the
+   Steward, past days) lives in `state.plannerTool`, a single "which tool
+   is open" slot rendered into one shared `#planToolPanel` — collapsed
+   (null) every time the desk is freshly opened. Due-soon items are the
+   one deliberate exception, per the plan: they already follow the
+   passive/glanceable automation-philosophy pattern correctly and stay
+   visible unconditionally. */
+const TOOLBOX_ITEMS = [
+  {id:'blocks', icon:'🔥', label:'Rhythm blocks'},
+  {id:'sparks', icon:'✨', label:'Sparks from reading'},
+  {id:'notes', icon:'🗂', label:'My Notes'},
+  {id:'assist', icon:'💬', label:'Ask the Steward'},
+  {id:'past', icon:'📅', label:'Past days'},
+];
+const TOOLBOX_TITLES = {blocks:'Rhythm blocks — tap to cycle: waiting → tended → rested',
+  sparks:'Sparks from reading', notes:'My Notes', assist:'Ask the Steward', past:'Past days'};
 export function openPlanner(){
   state.ui='planner'; hideAllOv();
   const day=plannerDay();
   document.getElementById('planDate').textContent = new Date().toDateString() + ' · a day is a small, complete thing';
   document.getElementById('planIntent').value = day.intention;
   document.getElementById('planEmber').value = day.ember;
-  renderBlocks();
-  renderPlanSparks();
   document.getElementById('planSaved').textContent='';
-  renderPastDays();
   renderPlanUpcoming();
   state.plannerChat=state.plannerChat||{history:[]};
-  renderPlannerAssist();
+  state.plannerTool=null;
+  renderToolbox();
+  renderToolPanel();
   showOv('planOv');
+}
+let planSaveTimer=null;
+function schedulePlanAutosave(){
+  const day=plannerDay();
+  day.intention=document.getElementById('planIntent').value;
+  day.ember=document.getElementById('planEmber').value;
+  const label=document.getElementById('planSaved');
+  if(label) label.textContent='saving…';
+  clearTimeout(planSaveTimer);
+  planSaveTimer=setTimeout(()=>{
+    persist();
+    if(label) label.textContent='saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  },600);
+}
+document.getElementById('planIntent').addEventListener('input', schedulePlanAutosave);
+document.getElementById('planEmber').addEventListener('input', schedulePlanAutosave);
+export function togglePlannerTool(id){
+  state.plannerTool = state.plannerTool===id ? null : id;
+  if(state.plannerTool==='notes') state.plannerNoteView={mode:'list'};
+  renderToolbox();
+  renderToolPanel();
+}
+function renderToolbox(){
+  const el=document.getElementById('planToolbox'); if(!el) return;
+  el.innerHTML = TOOLBOX_ITEMS.map(t=>{
+    const active=state.plannerTool===t.id;
+    return `<button class="btn ghost" style="${active?'background:#e0a43c;color:#1a1208':''}"
+      onclick="togglePlannerTool('${t.id}')">${t.icon} ${t.label}</button>`;
+  }).join('');
+}
+function renderToolPanel(){
+  const el=document.getElementById('planToolPanel'); if(!el) return;
+  const tool=state.plannerTool;
+  if(!tool){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="card" style="cursor:default;margin-top:10px">
+    <h3 style="margin-top:0">${TOOLBOX_TITLES[tool]}</h3>
+    <div id="planToolBody"></div>
+  </div>`;
+  if(tool==='blocks') renderBlocksBody();
+  else if(tool==='sparks') renderPlanSparksBody();
+  else if(tool==='notes') renderNotesBody();
+  else if(tool==='assist') renderPlannerAssistBody();
+  else if(tool==='past') renderPastDaysBody();
 }
 /* ----- Sparks — the bridge closing the gap between reading and doing:
    a book note, brought over from the Reader in one click, lands here
@@ -1212,27 +1367,65 @@ export function openPlanner(){
    and plannerContext() below folds it straight into the Steward's
    day-planning grounding, the same way it already sees due items and
    past embers. */
-function renderPlanSparks(){
+/* READING-TO-DOING-PLAN.md steps 2-4 — a spark now carries a `done` flag
+   instead of only ever being deleted, so a day's record can actually show
+   whether something read/researched turned into something acted on. Same
+   card markup reused everywhere a spark appears (today's list, carried-
+   forward, a past day, the Still Open panel) so "done" toggles consistently
+   no matter where you're looking at it from. */
+function sparkCardHTML(dayKey, i, s, opts){
+  opts = opts || {};
+  return `<div class="card" style="cursor:default">
+    <div class="s">from "${esc(s.source)}"${opts.showDay?' · '+esc(dayKey):''}</div>
+    <div style="${s.done?'text-decoration:line-through;opacity:.6':''}">${esc(s.text)}</div>
+    <div class="row" style="margin-top:6px;align-items:center">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+        <input type="checkbox" ${s.done?'checked':''} onchange="toggleSparkDone('${dayKey}',${i})"> done
+      </label>
+      ${opts.allowRemove?`<button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="removeSpark(${i})">✕ remove</button>`:''}
+    </div>
+  </div>`;
+}
+function renderPlanSparksBody(){
   const day=plannerDay();
-  const el=document.getElementById('planSparks'); if(!el) return;
-  el.innerHTML = day.sparks.length
-    ? day.sparks.map((s,i)=>`
-      <div class="card" style="cursor:default">
-        <div class="s">from "${esc(s.source)}"</div>
-        <div>${esc(s.text)}</div>
-        <div class="row" style="margin-top:6px">
-          <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="removeSpark(${i})">✕ remove</button>
-        </div>
-      </div>`).join('')
+  const el=document.getElementById('planToolBody'); if(!el) return;
+  const cf=data.settings.carryForwardSparks;
+  const desc=`<div class="meta">Notes brought over from the Library, Research Desk, or Grant Desk, one click at a time — not required.</div>`;
+  const toggle=`<label class="meta" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:8px 0">
+    <input type="checkbox" ${cf?'checked':''} onchange="toggleCarryForward()">
+    Carry forward what's still open from earlier days
+  </label>`;
+  const today = day.sparks.length
+    ? day.sparks.map((s,i)=>sparkCardHTML(todayKey(),i,s,{allowRemove:true})).join('')
     : '<p class="meta">Nothing yet — in any book\'s Reader, bring a note over with one click.</p>';
+  let carried='';
+  if(cf){
+    const open=openSparks().filter(s=>s.dayKey!==todayKey());
+    if(open.length) carried = `<h4 style="margin:14px 0 4px">Still open from earlier</h4>`
+      + open.map(s=>sparkCardHTML(s.dayKey,s.i,s,{showDay:true})).join('');
+  }
+  el.innerHTML = desc + toggle + today + carried;
 }
 export function removeSpark(i){
   const day=plannerDay();
-  day.sparks.splice(i,1); persist(); renderPlanSparks();
+  day.sparks.splice(i,1); persist(); renderPlanSparksBody();
+}
+export function toggleSparkDone(dayKey, i){
+  const day=data.planner[dayKey]; if(!day||!day.sparks[i]) return;
+  day.sparks[i].done=!day.sparks[i].done;
+  persist();
+  if(state.ui==='planner' && state.plannerTool==='sparks') renderPlanSparksBody();
+  else if(state.ui==='pastDay' && state.currentPastDay) viewPastDay(state.currentPastDay);
+  else if(state.ui==='stillOpen') renderStillOpen();
+}
+export function toggleCarryForward(){
+  data.settings.carryForwardSparks=!data.settings.carryForwardSparks;
+  persist(); renderPlanSparksBody();
 }
 // the one place "planning today" and the quiet due-date badge actually
 // meet — still nothing that pops up on its own, just here if you came to
-// this desk to look. Empty for the ordinary day nothing's due.
+// this desk to look. Empty for the ordinary day nothing's due. Stays
+// outside the toolbox on purpose — see WRITING-DESK-PLAN.md step 4.
 function renderPlanUpcoming(){
   const today=todayKey();
   const horizon=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
@@ -1246,9 +1439,11 @@ function renderPlanUpcoming(){
   }).join(' &nbsp;·&nbsp; ')}</div>`;
 }
 function pastDays(){ return Object.keys(data.planner).filter(k=>k!==todayKey()).sort().reverse(); }
-function renderPastDays(){
+function renderPastDaysBody(){
   const keys=pastDays();
-  document.getElementById('planPast').innerHTML = keys.length ? keys.map(k=>{
+  const el=document.getElementById('planToolBody'); if(!el) return;
+  const desc=`<div class="meta">Every day you've kept is still here — nothing is overwritten, only added to.</div>`;
+  const list=keys.length ? keys.map(k=>{
     const d=data.planner[k];
     const tended=d.blocks.filter(b=>b.state==='tended').length;
     const preview=d.ember||d.intention||'(no entry written)';
@@ -1257,9 +1452,11 @@ function renderPastDays(){
       <div class="s">${esc(preview.length>110?preview.slice(0,110)+'…':preview)}</div>
     </div>`;
   }).join('') : '<p>Nothing further back yet — this is the first day kept at this desk.</p>';
+  el.innerHTML = desc + list;
 }
 export function viewPastDay(key){
   const d=data.planner[key]; if(!d) return;
+  state.currentPastDay=key;
   const panel=document.querySelector('#pastDayOv .panel');
   panel.classList.remove('bookPanel'); void panel.offsetWidth; panel.classList.add('bookPanel');
   panel.innerHTML = `
@@ -1271,35 +1468,111 @@ export function viewPastDay(key){
         <div class="st">${b.state==='waiting'?'· waiting':b.state==='tended'?'🔥 tended':'🌙 rested'}</div>
       </div>`).join('')}</div>
     ${(d.sparks&&d.sparks.length) ? `<h3>Sparks from reading</h3>
-    ${d.sparks.map(s=>`<div class="card" style="cursor:default"><div class="s">from "${esc(s.source)}"</div><div>${esc(s.text)}</div></div>`).join('')}` : ''}
-    <h3>Evening ember</h3>
-    <p>${esc(d.ember||'(nothing written that night)')}</p>
+    ${d.sparks.map((s,i)=>sparkCardHTML(key,i,s)).join('')}` : ''}
+    <h3>The page</h3>
+    <p>${esc(d.ember||'(nothing written that day)')}</p>
     <div class="row" style="margin-top:14px">
       <button class="btn ghost" onclick="backToPlanner()">← Back to the desk</button>
     </div>`;
   state.ui='pastDay'; hideAllOv(); showOv('pastDayOv');
 }
 export function backToPlanner(){ openPlanner(); }
-function renderBlocks(){
+function renderBlocksBody(){
   const day=plannerDay();
-  document.getElementById('planBlocks').innerHTML = day.blocks.map((b,i)=>`
+  const el=document.getElementById('planToolBody'); if(!el) return;
+  el.innerHTML = `<div class="blocks">${day.blocks.map((b,i)=>`
     <div class="blk ${b.state}" onclick="cycleBlock(${i})">
       ${esc(b.name)}
       <div class="st">${b.state==='waiting'?'· waiting':b.state==='tended'?'🔥 tended':'🌙 rested'}</div>
-    </div>`).join('');
+    </div>`).join('')}</div>`;
 }
 export function cycleBlock(i){
   const day=plannerDay();
   const order=['waiting','tended','rested'];
   day.blocks[i].state = order[(order.indexOf(day.blocks[i].state)+1)%3];
-  renderBlocks(); persist(); blip(620,.04,'square',.03);
+  renderBlocksBody(); persist(); blip(620,.04,'square',.03);
 }
 export function savePlanner(announce){
   const day=plannerDay();
-  day.intention=document.getElementById('planIntent').value.trim();
-  day.ember=document.getElementById('planEmber').value.trim();
+  day.intention=document.getElementById('planIntent').value;
+  day.ember=document.getElementById('planEmber').value;
   persist();
   if(announce){ document.getElementById('planSaved').textContent='Saved · '+todayKey(); blip(784,.08); awardBadge('first-plan'); }
+}
+
+/* ----- My Notes — a real filing cabinet at the Writing Desk, separate
+   from today's page: freeform, named, kept across days, for anything
+   that isn't tied to one specific date. Asked for directly, 2026-07-09
+   ("the ability to file papers and make notes... store those notes and
+   look at them in a friendly user interface") alongside the page-first
+   redesign above. Deliberately its own small `data.notes` list, not the
+   bigger cross-app file-tree idea WRITING-DESK-PLAN.md explicitly keeps
+   out of scope — this is one desk's own drawer, not a rebuild of how
+   Research Desk/Grant Desk/book notes work. */
+function newNoteId(){ return Date.now()+'-'+Math.random().toString(36).slice(2,7); }
+export function createNote(){
+  const note={id:newNoteId(), title:'Untitled note', body:'', created:todayKey(), updated:todayKey()};
+  data.notes.unshift(note);
+  persist(); logActivity('Started a new note at the Writing Desk.'); awardBadge('first-note');
+  state.plannerNoteView={mode:'edit', id:note.id};
+  renderNotesBody();
+}
+export function openNote(id){
+  state.plannerNoteView={mode:'edit', id};
+  renderNotesBody();
+}
+export function backToNotesList(){
+  state.plannerNoteView={mode:'list'};
+  renderNotesBody();
+}
+export function deleteNote(id){
+  const note=data.notes.find(n=>n.id===id); if(!note) return;
+  const sure=window.confirm('Delete "'+(note.title||'Untitled note')+'"? This cannot be undone.');
+  if(!sure) return;
+  data.notes=data.notes.filter(n=>n.id!==id);
+  persist();
+  state.plannerNoteView={mode:'list'};
+  renderNotesBody();
+}
+let noteSaveTimer=null;
+export function updateNoteField(id, field, value){
+  const note=data.notes.find(n=>n.id===id); if(!note) return;
+  note[field]=value;
+  note.updated=todayKey();
+  const label=document.getElementById('noteSaved');
+  if(label) label.textContent='saving…';
+  clearTimeout(noteSaveTimer);
+  noteSaveTimer=setTimeout(()=>{
+    persist();
+    if(label) label.textContent='saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  },600);
+}
+function renderNotesBody(){
+  const el=document.getElementById('planToolBody'); if(!el) return;
+  const v=state.plannerNoteView||{mode:'list'};
+  if(v.mode==='edit'){
+    const note=data.notes.find(n=>n.id===v.id);
+    if(!note){ state.plannerNoteView={mode:'list'}; return renderNotesBody(); }
+    el.innerHTML = `
+      <div class="row" style="margin-bottom:8px;justify-content:space-between">
+        <button class="btn ghost" onclick="backToNotesList()">← All notes</button>
+        <button class="btn ghost" style="border-color:#b56f6f;color:#e0a0a0" onclick="deleteNote('${note.id}')">✕ Delete</button>
+      </div>
+      <input type="text" id="noteTitleInput" placeholder="Note title" value="${esc(note.title)}"
+        oninput="updateNoteField('${note.id}','title',this.value)">
+      <textarea id="noteBodyInput" rows="10" style="margin-top:8px" placeholder="Write here…"
+        oninput="updateNoteField('${note.id}','body',this.value)">${esc(note.body)}</textarea>
+      <div class="meta" id="noteSaved" style="margin-top:6px"></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="meta">A filing cabinet for anything that isn't tied to one specific day — separate from today's page above.</div>
+    <div class="row" style="margin:8px 0"><button class="btn" onclick="createNote()">+ New note</button></div>
+    ${data.notes.length ? data.notes.map(n=>`
+      <div class="card" onclick="openNote('${n.id}')">
+        <div class="t">${esc(n.title||'Untitled note')}</div>
+        <div class="s">${esc((n.body||'').length>110?n.body.slice(0,110)+'…':(n.body||'(empty)'))} · updated ${esc(n.updated)}</div>
+      </div>`).join('') : '<p>No notes filed yet — start one above.</p>'}`;
 }
 
 /* ----- Ask the Steward (Writing Desk) — the Steward's café persona,
@@ -1346,7 +1619,7 @@ export async function sendPlannerMessage(){
   const input=document.getElementById('planAskInput');
   const q=input.value.trim(); if(!q) return;
   state.plannerChat=state.plannerChat||{history:[]};
-  state.plannerChat.history.push({role:'user',content:q}); input.value=''; renderPlannerAssist();
+  state.plannerChat.history.push({role:'user',content:q}); input.value=''; renderPlannerAssistBody();
   try{
     const reply=await AI.chat([{role:'system',content:await plannerSystemPrompt()}, ...state.plannerChat.history]);
     state.plannerChat.history.push({role:'assistant',content:reply}); state.plannerChat.lastReply=reply;
@@ -1354,14 +1627,15 @@ export async function sendPlannerMessage(){
   }catch(e){
     state.plannerChat.history.push({role:'assistant',content:"The Steward's connection flickers — no answer this time. Check that your AI connection is still running."});
   }
-  renderPlannerAssist();
+  renderPlannerAssistBody();
 }
 export function usePlannerReplyAsIntention(){
   const c=state.plannerChat; if(!c||!c.lastReply) return;
   document.getElementById('planIntent').value = c.lastReply.length>140 ? c.lastReply.slice(0,140) : c.lastReply;
+  schedulePlanAutosave();
 }
-function renderPlannerAssist(){
-  const el=document.getElementById('planAssist'); if(!el) return;
+function renderPlannerAssistBody(){
+  const el=document.getElementById('planToolBody'); if(!el) return;
   const aiOn=isAIActive();
   const c=state.plannerChat||{history:[]};
   el.innerHTML = aiOn ? `
@@ -1540,30 +1814,35 @@ export async function draftCourseWithAI(){
     msg.textContent="The connection flickered — no draft this time. Check that your AI connection is still running.";
   }
 }
-/* ----- Drafting a training plan from mid-conversation with a resident
-   (the Monk, so far) — reuses the exact same drafting engine as the
-   Course Board's own "Draft with AI" form, just seeded from the
-   conversation instead of a typed goal. Lands on the same review-before-
-   pinning screen; nothing is saved without the visitor choosing to pin it. */
+/* ----- Drafting a plan from mid-conversation with Quill — reuses the
+   exact same drafting engine as the Course Board's own "Draft with AI"
+   form, just seeded from the conversation instead of a typed goal. Lands
+   on the same review-before-pinning screen; nothing is saved without the
+   visitor choosing to pin it. Lives on Quill, not the Monk — 2026-07-09
+   direct instruction: the Monk is a chat-only resident for spiritual
+   questions and helping visitors find their own intentions; turning a
+   conversation into an actual saved plan is Quill's work, alongside the
+   Library and daily-life help she already does. */
 export async function draftTrainingPlanFromChat(){
   const d=state.dialog; if(!d||!d.chat) return;
   const btn=document.getElementById('chatTrainBtn');
   if(btn){ btn.disabled=true; btn.textContent='Drafting…'; }
   const convo=d.transcript.map(m=>(m.from==='user'?'Visitor':d.name)+': '+m.text).join('\n');
   const goal="A visitor has been talking with "+d.name+" at the Sand Pavilion. Based on this real "
-    +"conversation, draft a training/practice plan matching what they actually asked about or seem "
-    +"to need — ground it in the specifics discussed, don't invent a generic plan unrelated to it:"
+    +"conversation, draft a plan — a course, a study plan, or a practice, whichever actually matches "
+    +"what they asked about or seem to need — ground it in the specifics discussed, don't invent a "
+    +"generic plan unrelated to it:"
     +"\n\n"+convo;
   try{
     const draft=await draftCourseFromGoal(goal, chatOptsFor(d.agent));
-    if(btn){ btn.disabled=false; btn.textContent='📋 Draft a training plan from this conversation'; }
+    if(btn){ btn.disabled=false; btn.textContent='📋 Draft a plan from this conversation'; }
     if(!draft) return;
     closeDialog();
     openCourses();
     state.courseView={mode:'new', draftTitle:draft.title, draftWhy:draft.why, draftSteps:draft.steps};
     renderCourses(); blip(784,.09);
   }catch(e){
-    if(btn){ btn.disabled=false; btn.textContent='📋 Draft a training plan from this conversation'; }
+    if(btn){ btn.disabled=false; btn.textContent='📋 Draft a plan from this conversation'; }
   }
 }
 export function createCourse(){
@@ -1854,7 +2133,7 @@ export function sendResearchNoteToToday(id,i){
   const p=researchProject(id); if(!p) return;
   const note=p.notes[i]; if(!note) return;
   const day=plannerDay();
-  day.sparks.unshift({ts:todayKey(), text:note.text, source:p.title});
+  day.sparks.unshift({ts:todayKey(), text:note.text, source:p.title, done:false});
   persist(); logActivity('Brought a note from "'+p.title+'" to today\'s plan.'); blip(784,.09);
   renderResearch();
 }
@@ -2291,7 +2570,7 @@ export function sendGrantDocToToday(id,i){
   const doc=p.documents[i]; if(!doc) return;
   const day=plannerDay();
   const text=doc.label+': '+doc.text;
-  day.sparks.unshift({ts:todayKey(), text, source:p.title});
+  day.sparks.unshift({ts:todayKey(), text, source:p.title, done:false});
   persist(); logActivity('Brought "'+doc.label+'" from "'+p.title+'" to today\'s plan.'); blip(784,.09);
   renderGrant();
 }
@@ -3015,6 +3294,7 @@ Object.assign(window, {
   selectBook, shelfOpenSelected,
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
   fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention,
+  togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   newCourseAIForm, draftCourseWithAI, setCourseDue, draftTrainingPlanFromChat,
   addConnection, toggleConnection, removeConnection, recheckConnections, setConnectionModel, fillConnectionPreset,
@@ -3025,6 +3305,7 @@ Object.assign(window, {
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   openIdeaCapture, saveIdea, deleteIdea,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
+  openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping,
   openBadges, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openComputer, saveLastChatReplyToArchive,

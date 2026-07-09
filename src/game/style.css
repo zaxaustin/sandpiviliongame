@@ -189,6 +189,17 @@ input[type=text], textarea {
 input[type=text]:focus, textarea:focus { outline:none; border-color:#e0a43c; }
 label { display:block; color:#cbb79a; font-size:12px; margin:12px 0 5px; letter-spacing:.5px; }
 
+/* The Writing Desk's page — meant to read as actual paper, not one more
+   form field among many. Bigger, warmer, and the first thing your eye
+   lands on. */
+.pageTitle { font-size:16px; font-weight:bold; border:none; border-bottom:2px solid #55432e;
+  border-radius:0; background:none; padding:6px 2px; margin-bottom:2px; }
+.pageTitle:focus { border-bottom-color:#e0a43c; }
+.pagePaper { background:#f5ecd8; color:#2a2016; border-color:#8a6423; font-size:14.5px;
+  line-height:1.7; padding:16px 18px; resize:vertical; min-height:260px; }
+.pagePaper::placeholder { color:#8a7860; }
+.pagePaper:focus { border-color:#e0a43c; }
+
 /* shelf — book-spine carousel */
 .shelfCase { display:flex; gap:8px; align-items:flex-end; padding:16px 4px 28px; overflow-x:auto; }
 .spine {

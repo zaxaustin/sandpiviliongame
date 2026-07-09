@@ -17,13 +17,15 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], ttsSettings:{voiceURI:null,rate:0.98} }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false} }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
 // wholesale, silently dropping the new `research` field. Patch it back in.
 if(!data.workshop.research) data.workshop.research=[];
 if(!data.ttsSettings) data.ttsSettings={voiceURI:null,rate:0.98}; // older saves predate this field
+if(!data.settings) data.settings={carryForwardSparks:false}; // older saves predate this field
+if(!data.notes) data.notes=[]; // older saves predate My Notes at the Writing Desk
 setTTSSettings(data.ttsSettings);
 let saveWarned=false; // only interrupt the visitor once per session, not on every failed micro-save
 export function persist(){
@@ -132,6 +134,21 @@ export function upcomingItems(){
 export function dueSoon(days=7){
   const horizon=dateKeyPlusDays(todayKey(),days);
   return upcomingItems().filter(i=>i.due<=horizon);
+}
+
+/* ----- Sparks left not-done — READING-TO-DOING-PLAN.md steps 2-4.
+   A spark already carries a `source` label whether it came from a book,
+   the Research Desk, or the Grant Desk, so "across every source" is just
+   this one query over data.planner, not a new data shape. Oldest day
+   first, matching how pastDays() elsewhere already reads "recent" as a
+   sort direction rather than a stored field. */
+export function openSparks(){
+  const out=[];
+  for(const k of Object.keys(data.planner).sort()){
+    const day=data.planner[k];
+    (day.sparks||[]).forEach((s,i)=>{ if(!s.done) out.push({dayKey:k, i, ...s}); });
+  }
+  return out;
 }
 
 /* ---------- helpers ---------- */

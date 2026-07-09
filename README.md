@@ -88,7 +88,7 @@ as its own window right now, no install step. `electron:build` is the
 one worth running if you want a real, permanent desktop app — install
 it once, get a Start Menu shortcut, and never open a terminal again
 afterward to play. The installer is unsigned on purpose (see
-[`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md) for why) — Windows will
+[`DESKTOP-APP-PLAN.md`](plans/DESKTOP-APP-PLAN.md) for why) — Windows will
 show an "unknown publisher" warning the first time; that's expected for
 a personal/small project, not a sign anything's wrong. Same local-AI
 setup applies either way — see below if you want Quill, the Steward,
@@ -167,7 +167,7 @@ directly, permanently fixing the browser CORS wall that requires
 `OLLAMA_ORIGINS` to be configured just right. `npm run electron:dev` for
 the live dev version (or double-click a desktop shortcut, if you've made
 one), `npm run electron:build` for a real Windows installer. See
-[`DESKTOP-APP-PLAN.md`](DESKTOP-APP-PLAN.md).
+[`DESKTOP-APP-PLAN.md`](plans/DESKTOP-APP-PLAN.md).
 
 **Real search** — the Index panel (every text in one place) uses
 Postgres full-text search when Supabase is configured: word-stemmed,
@@ -180,7 +180,7 @@ errors, so the search box never just goes dead.
 locally in Docker on this machine (`sand-pavilion-minio`, set to survive
 a reboot), not stuffed into the database. A hundred gigabytes are set
 aside for it; a few megabytes are used. See
-[`LIBRARY-SCALING-PLAN.md`](LIBRARY-SCALING-PLAN.md) for the reasoning
+[`LIBRARY-SCALING-PLAN.md`](plans/LIBRARY-SCALING-PLAN.md) for the reasoning
 and the real setup.
 
 **Growing the Library — the Caravan** — eight small tools in
@@ -223,7 +223,7 @@ Currently dormant by choice while local-first daily use is the priority
 hairstyle — a real system, scoped below); a fuller pet/companion system;
 six more Workshop rooms; real full-text search across a much larger
 Library; giving AI agents actual hands, not just a voice — see
-[`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md) for the real plan.
+[`AGENT-EMBODIMENT-PLAN.md`](plans/AGENT-EMBODIMENT-PLAN.md) for the real plan.
 
 ## Setting up local AI — a beginner's guide
 
@@ -335,7 +335,7 @@ what's technically easiest.
 **Real bugs and rough edges found by actually beta-testing, not just
 imagined** — a settings-navigation bug with a known cause, a
 reasoning-model display gap, TTS voice/speed controls, and more — live
-in [`BETA-TESTING-FEEDBACK.md`](BETA-TESTING-FEEDBACK.md), a running log that gets
+in [`BETA-TESTING-FEEDBACK.md`](plans/BETA-TESTING-FEEDBACK.md), a running log that gets
 appended to each testing round rather than folded into this list.
 
 **Done since this list was last written (2026-07-08, same day):**
@@ -395,42 +395,99 @@ fixed by recreating the container bound to `127.0.0.1` only, verified
 after with `netstat` and by confirming existing book data survived the
 recreate untouched.
 
-1. **Finish `READING-TO-DOING-PLAN.md`** — step 1 (the spark bridge) is
-   done; steps 2-4 remain: a done/not-done flag on sparks instead of
-   just delete, opt-in carry-forward for anything left undone, and one
-   glanceable "still open" view across all three sources.
-2. **Grow the Library toward a much bigger real dataset** — actively in
+**Done since then (also 2026-07-09):** `READING-TO-DOING-PLAN.md` closed
+out — steps 2-4 (a `done` flag on every spark, an opt-in "carry forward
+what's still open" toggle on the Writing Desk, and a new "📋 Still Open"
+pause-menu panel showing every not-done spark across all three sources,
+oldest first) shipped together. `USER-DATA-MANAGEMENT-PLAN.md` closed out
+too — a "📊 Your Data" pause-menu panel (real save size, counts across
+planner days/notes/projects/badges/activity) plus "clear old planner days
+before a date," the one real pruning gap; per-project removal turned out
+to already exist (each Research/Grant Desk project already has its own
+"Delete project" button) so nothing needed duplicating there. All of it
+verified live, not just read: a synthetic old save missing half its
+fields (predating `settings`, `activityLog`, `badges`, and more) imported
+clean through the real Import Save button in an actual browser, every
+missing field fell back to its default, and a legacy spark with no `done`
+field at all correctly showed up as open — then toggling it done and
+pruning old days both worked and updated the Data panel's counts live.
+
+**Done since then (also 2026-07-09):** a second session's worth of raw
+feedback — jotted straight into this file after a local wifi drop cut
+that session short — triaged into `BETA-TESTING-FEEDBACK.md`'s "Round 2"
+properly, 11 real items, each checked against the actual code. The
+Mountain Monk's actual role, corrected the same day: he's chat-only now
+— spiritual counsel, text recommendations, helping visitors find their
+own intentions, holding people to a higher moral standard, Native
+American tradition held close alongside Buddhism and Vedanta as
+something nearer his own path than a third subject — and the "draft a
+plan from this conversation" button that used to live on him moved to
+Quill, whose own role now explicitly includes turning a conversation
+into an actual saved course/study/practice plan, alongside the Library
+help she already gives. Two new plans written from that same triage:
+`WRITING-DESK-PLAN.md` (the actual current-state breakdown of the
+Writing Desk's eight stacked sections, plus a real 4-step fix — since
+built, see below) and `LOCAL-AI-MONITORING-PLAN.md` (what Ollama's
+`/api/ps` already gives for free today versus what real CPU/GPU tracking
+would actually need — still plan-only, on purpose), paired with a new
+`LEARNING-PATH.md` Stage 16 teaching the concepts behind the second one.
+
+**Done since then (also 2026-07-09):** `WRITING-DESK-PLAN.md` built, not
+just planned — the page (`#planIntent`/`#planEmber`) is the desk now,
+auto-saving the same way `chatNotes` already did elsewhere, with blocks/
+sparks/Ask the Steward/past days moved into a real collapsible toolbox
+and due-soon items left visible outside it, as the plan called for.
+**Asked for directly alongside the redesign:** "🗂 My Notes," a real
+filing cabinet in the toolbox — freeform, named, dated notes kept across
+days, separate from today's page, with its own create/edit/delete flow
+and the same auto-save pattern; a smaller, Writing-Desk-scoped answer to
+"file papers and make notes," not the bigger cross-app file-tree idea,
+which stays out of scope on purpose (see `WRITING-DESK-PLAN.md`).
+Verified live in a real browser, not just built: every toolbox panel
+opens correctly, the page auto-saves, and a filed note survives an
+actual page reload. The repo's own plan/tracking docs (eleven files —
+every `*-PLAN.md` plus `BETA-TESTING-FEEDBACK.md`) moved into a new
+`plans/` folder the same day, decluttering the root down to `README.md`,
+`LEARNING-PATH.md`, and `API-AI-INTEGRATION-PLAN.md` — every link and
+cross-reference to a moved file updated to match, checked directly, not
+assumed.
+
+1. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 44 live texts across 9 shelves; see
-   [`LIBRARY-GROWTH-PLAN.md`](LIBRARY-GROWTH-PLAN.md) for the curated
+   [`LIBRARY-GROWTH-PLAN.md`](plans/LIBRARY-GROWTH-PLAN.md) for the curated
    source list and which connectors (Wikisource, OpenStax, Internet
    Archive) are worth building next.
-3. **Work through `USER-DATA-MANAGEMENT-PLAN.md`** — a save-visibility
-   panel and selective pruning.
-4. **Giving AI residents actual bodies, not just voices** — see
-   [`AGENT-EMBODIMENT-PLAN.md`](AGENT-EMBODIMENT-PLAN.md): a bounded
+2. **Giving AI residents actual bodies, not just voices** — see
+   [`AGENT-EMBODIMENT-PLAN.md`](plans/AGENT-EMBODIMENT-PLAN.md): a bounded
    first version (one resident, one real action, like Quill reading a
    shelved book during an idle tick) before any general action API.
    Direct service to "find direction" — a resident who's actually doing
    something, not just answering when spoken to.
-5. **A real color/appearance picker** — see
-   [`CHARACTER-CUSTOMIZATION-PLAN.md`](CHARACTER-CUSTOMIZATION-PLAN.md),
+3. **A "Local AI" panel** — plan's written (`LOCAL-AI-MONITORING-PLAN.md`),
+   not the code yet: Ollama's own `/api/ps` endpoint already reports
+   every currently-loaded model's memory footprint and GPU residency for
+   free, no new dependency — real CPU/GPU percentage is a separate,
+   later, desktop-only step needing a new package in Electron's main
+   process.
+4. **A real color/appearance picker** — see
+   [`CHARACTER-CUSTOMIZATION-PLAN.md`](plans/CHARACTER-CUSTOMIZATION-PLAN.md),
    written down 2026-07-08 after the sprite redesign made it a real
    foundation instead of a placeholder. A genuine system (persisted
    data, threaded through every render site), not a quick add.
-6. **A friendlier wrapper around the Caravan scripts** — worth
+5. **A friendlier wrapper around the Caravan scripts** — worth
    confirming it's still wanted before it's built, now that the
    terminal tools work well on their own and `library-inbox/` covers
    manual sourcing.
-7. **A machine-that-isn't-the-dev-machine test for the desktop app** —
+6. **A machine-that-isn't-the-dev-machine test for the desktop app** —
    Phases 1-4 done and proven live (2026-07-08), including actually
    running the packaged installer itself (not just dev mode) for the
    first time. The one thing still genuinely unverified: a clean
    install on hardware that was never used to build it.
-8. **Finish the production auth setup** — add the Vercel URL to
+7. **Finish the production auth setup** — add the Vercel URL to
    Supabase's Auth redirect-URL allowlist, grant a real steward role, and
    verify moderation with an actual session — whenever the Commons comes
    back off pause.
-9. **Six more Workshop rooms** and the larger public-site question.
+8. **Six more Workshop rooms** and the larger public-site question.
    Real ideas sketched 2026-07-09, none committed, each tied to
    something already here rather than invented from nothing:
    - **The Ledger** — a real budget-tracking room, the direct answer to
@@ -455,8 +512,8 @@ recreate untouched.
    - **The Mailroom** — a home for the `Waypoints` feature (external
      links), which already exists in the pause menu with nowhere in
      the world that's actually *about* it.
-10. **A drag-and-drop book intake at the Caravan Desk** — see
-    [`BOOK-DRAG-DROP-PLAN.md`](BOOK-DRAG-DROP-PLAN.md), written
+9. **A drag-and-drop book intake at the Caravan Desk** — see
+    [`BOOK-DRAG-DROP-PLAN.md`](plans/BOOK-DRAG-DROP-PLAN.md), written
     2026-07-09. Pick a source website, drop the file, the Pavilion
     fills in the rest of the existing manual-entry form instead of
     retyping it by hand; an unrecognized source routes to personal
@@ -509,7 +566,7 @@ robe is purple and black). Still just one fixed look, though. The real
 ask, and the actual reason the redesign happened first: **pick your own
 robe color**, and eventually a **hairstyle** — a real character-creator
 moment, not just a palette swap. See
-[`CHARACTER-CUSTOMIZATION-PLAN.md`](CHARACTER-CUSTOMIZATION-PLAN.md)
+[`CHARACTER-CUSTOMIZATION-PLAN.md`](plans/CHARACTER-CUSTOMIZATION-PLAN.md)
 for the real scope: a character-creator UI, persisted appearance data,
 and every place a player sprite renders (the overworld, every interior,
 all three meditation poses) threaded to actually draw it.

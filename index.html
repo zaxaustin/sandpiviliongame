@@ -107,24 +107,14 @@
   <h2>The Writing Desk</h2>
   <div class="meta" id="planDate"></div>
   <div id="planUpcoming"></div>
-  <label>Today's flame — one intention</label>
-  <input type="text" id="planIntent" maxlength="140" placeholder="What is today for?">
-  <label>Rhythm blocks — tap to cycle: waiting → tended → rested</label>
-  <div class="blocks" id="planBlocks"></div>
-  <h3 style="margin-top:18px">Sparks from reading</h3>
-  <div class="meta">Notes brought over from the Library, one click at a time — not required.</div>
-  <div id="planSparks"></div>
-  <label>Evening ember — the day, in your own words</label>
-  <textarea id="planEmber" rows="4" placeholder="What actually happened today?"></textarea>
-  <div class="row" style="margin-top:14px">
-    <button class="btn" onclick="savePlanner(true)">Save the day</button>
+  <input type="text" id="planIntent" maxlength="140" placeholder="What is today for?" class="pageTitle">
+  <textarea id="planEmber" class="pagePaper" rows="14" placeholder="Just paper — write whatever today actually is. It saves itself."></textarea>
+  <div class="row" style="margin-top:8px;justify-content:space-between;align-items:center">
     <span class="meta" id="planSaved" style="margin:0"></span>
+    <button class="btn ghost" onclick="savePlanner(true)">✓ Mark today reviewed</button>
   </div>
-  <h3 style="margin-top:18px">Ask the Steward</h3>
-  <div id="planAssist"></div>
-  <h3>Past days</h3>
-  <div class="meta">Every day you've kept is still here — nothing is overwritten, only added to.</div>
-  <div id="planPast"></div>
+  <div class="row" id="planToolbox" style="margin-top:20px"></div>
+  <div id="planToolPanel"></div>
 </div></div>
 
 <!-- A single past day, read back -->
@@ -150,6 +140,12 @@
 
 <!-- Activity Log -->
 <div class="overlay" id="activityOv"><div class="panel" id="activityPanel"></div></div>
+
+<!-- Still Open (every not-done spark, across every day and source) -->
+<div class="overlay" id="stillOpenOv"><div class="panel" id="stillOpenPanel"></div></div>
+
+<!-- Your Data (save size/counts + selective pruning) -->
+<div class="overlay" id="dataPanelOv"><div class="panel" id="dataPanelPanel"></div></div>
 
 <!-- Badges -->
 <div class="overlay" id="badgesOv"><div class="panel" id="badgesPanel"></div></div>

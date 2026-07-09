@@ -1,9 +1,8 @@
 # User Data Management Plan
 
-Not started as code — this is the written plan first, same as
-`LIBRARY-GROWTH-PLAN.md` and `READING-TO-DOING-PLAN.md` were written
-down before anything got built. See README's "What's next" for how
-this fits the rest of the priority list.
+**Status, 2026-07-09: steps 1-3 done.** Step 4 (cloud-side management)
+stays deferred on purpose, per its own reasoning below. See README's
+"What's next" for the current state of the rest of the list.
 
 ## What already exists — checked directly, not assumed
 
@@ -36,26 +35,31 @@ why that's sequenced last on purpose).
 
 ## The plan — in order, each step small and shippable alone
 
-1. **A "Data" panel, read-only first.** Reachable from the pause menu,
-   next to the existing export/import/reset buttons. Shows: total save
-   size (bytes, from the same JSON export already generates), and
-   counts — planner days, book notes, research/grant projects, courses,
-   badges earned, activity log entries. Answers "is this getting big"
-   before it's ever a real problem, costs almost nothing to build since
-   the export function already walks the whole `data` object.
-2. **Selective pruning, opt-in, confirmed each time — never automatic.**
-   The most likely real need: "clear planner days before a date" (the
-   `data.planner` object is already keyed by day, so this is a filter,
-   not a rewrite) and "remove one research/grant project" (both already
-   have per-item IDs). Matches the existing automation philosophy
-   exactly — nothing fires on its own, everything requires the user to
-   ask, same as the due-date badge already does.
-3. **Confirm import handles partial/older saves gracefully.** Worth an
-   explicit check (not assumed) once the Library and planner schemas
-   keep growing: does importing an older export correctly fall back to
-   `freshData()` defaults for fields that didn't exist yet, the same
-   way a fresh install already does? If this already works, this step
-   is verification, not new code — check before building anything here.
+1. **[x] A "Data" panel, read-only first.** "📊 Your Data" in the pause
+   menu, next to export/import/reset. Shows total save size (a real
+   `Blob` byte count, not an estimate) and counts — planner days, book
+   notes, Research Desk projects, Grant Desk projects, courses, badges
+   earned, activity log entries.
+2. **[x] Selective pruning, opt-in, confirmed each time — never
+   automatic.** "Clear old planner days" (a date input + confirm,
+   `pruneOldPlannerDays()` in `overlays.js`) is the one piece that was
+   actually missing. **Turned out already built, checked before writing
+   anything:** "remove one research/grant project" already has a real
+   "Delete project" button on each project's own page
+   (`deleteResearchProject()` / `deleteGrantProject()`) — the Data panel
+   points there instead of duplicating it.
+3. **[x] Confirm import handles partial/older saves gracefully —
+   verified live, not just read.** Built a synthetic old-shaped save
+   (missing `settings`, `ttsSettings`, `activityLog`, `badges`,
+   `workshop.research`, `grantProjects`, and more; a spark with no
+   `done` field at all) and ran it through the actual Import Save button
+   in a real browser. Confirmed: no errors, every missing field fell
+   back to its `freshData()` default (the existing `Object.assign(freshData(), loaded)`
+   merge order already does this correctly for any wholly-absent key —
+   only a key that's *present but incomplete*, like the old `workshop`
+   shape, ever needed an explicit patch, and those already existed).
+   This step really was verification, not new code, exactly as
+   predicted.
 4. **Deferred, on purpose: real account-linked data management** — view/
    export/delete a cloud-synced save, once `player_saves`/`profiles`
    actually have real rows in them. Building this now, against zero

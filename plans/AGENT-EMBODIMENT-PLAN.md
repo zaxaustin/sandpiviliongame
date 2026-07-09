@@ -90,6 +90,49 @@ This mirrors how every other AI feature in this project actually got
 built — Quill's chat, then the Steward's, then the Monk's, each proven
 before the next, never all four AI residents redesigned in one pass.
 
+## Idea worth keeping: an embodied resident actually playing the Pavilion's own minigames
+
+Restored 2026-07-09, asked for directly — this had come up in an earlier
+session that got cut short by a local connection drop, so it's written
+down properly now instead of relying on memory of that conversation.
+
+Once a resident has any real action space at all (`moveTo`, `readBook`,
+and whatever else the bounded first version above proves out), the same
+menu is a natural fit for the game's own existing minigames, not just
+reading — **fishing** and the **four postures / meditation** are already
+real, scored, state-changing mechanics with nothing AI-driven touching
+them yet. The case for actually building this, stated plainly:
+
+- **Real interaction data, not synthetic.** An agent choosing when to
+  fish, how long to sit in meditation, or which book to read next — logged
+  the same way `activityLog` already logs a player's — is a genuine,
+  naturally-occurring dataset about how a model behaves inside a small,
+  bounded world with real state and real choices. That's a different, more
+  interesting kind of signal than a one-off benchmark prompt.
+- **A real report worth reading.** The same shape as Quill's own memory
+  report (`quillReportBody()` in `overlays.js`, which already turns raw
+  logged questions into a short first-person summary) could turn a
+  resident's own logged actions into "what I actually did this week" — a
+  concrete artifact showing whether a model's autonomous behavior is
+  sensible, repetitive, or strange, useful for comparing local models
+  against each other on more than just chat quality.
+- **Genuinely fun for the model being run, and for whoever's watching.**
+  Not a metric to optimize — closer to the spirit of the four postures and
+  the fishing pond already existing as unhurried, low-stakes things to do
+  rather than tasks to complete. An agent choosing to go fish for a while
+  is a good sign the Pavilion feels like a place, not a workstation.
+
+**Scope note, so this doesn't quietly balloon the bounded-first-version
+plan above:** this is a *fourth* action to eventually add to the same
+action-space work already planned (`readBook`, `moveTo`, `writeNote`,
+now `fish`/`meditate`), not a separate system — build it after the
+one-resident-one-action proof (step 1-2 above) actually ships and holds
+up, the same "prove it small first" discipline the rest of this plan
+already commits to. Fine-tuning on any of this logged data is further out
+still and its own real decision (what data, whose model, what it's even
+for) — worth having explicitly, not assumed just because the data would
+exist.
+
 ## Open questions for whoever picks this up
 
 - Does an autonomous action get its own `AI.chat()` call with a

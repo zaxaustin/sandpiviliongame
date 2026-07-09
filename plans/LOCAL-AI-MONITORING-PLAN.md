@@ -1,0 +1,93 @@
+# Local AI Monitoring Plan
+
+Not started as code — this is the written plan first, same as every
+other `*-PLAN.md` in this repo. See `BETA-TESTING-FEEDBACK.md` #15 for
+the original raw ask this is built from, and
+`LEARNING-PATH.md` for the companion module written alongside this plan,
+teaching the concepts a beginner needs to actually understand what this
+feature would show them.
+
+## The actual goal
+
+Asked for directly, 2026-07-09, in two parts: see CPU usage from the
+local AI models, and how many can run at once — both as a real beta-
+testing tool (is a given action actually expensive?) and as a genuine
+shipped feature ("a cool developer feature for this app"). **Explicitly
+holding off on building this now** — this document is the plan, written
+so it's ready to pick up, not a promise it's next in line.
+
+## What exists today, precisely — checked directly, not assumed
+
+- `src/game/ai/provider.js`'s `makeOllamaProvider()` already calls
+  Ollama's `/api/tags` endpoint (via the same `localFetch()` helper
+  every local call uses) to detect what's installed and pick a model —
+  this is presence/detection, not usage.
+- The title screen and pause menu already show a live connection status
+  line ("● Connected to Ollama · llama3.2" / "○ No local AI detected") —
+  this is the entire "resource visibility" surface that exists right now.
+- **Nothing tracks memory, VRAM, concurrency, or timing for any AI call
+  anywhere in the codebase today.**
+
+## The real constraint, found before promising anything
+
+A browser (and Electron's renderer process, which is just Chromium) has
+**no API that reaches real system CPU/GPU utilization at all** — that's
+not a gap in this project, it's a hard platform wall, the same category
+of "confirmed, not assumed" limit the README already documents for
+directly fetching Gutenberg/arXiv from inside the game. True CPU/GPU
+percentage would need Electron's *main* process (real Node, real OS
+access) and a new dependency (`systeminformation` is the standard
+package for this) — genuinely possible since this is mainly a desktop
+app now, but a real, separate, harder step, not part of a first version.
+
+## What's actually free — real, available data today
+
+**Ollama's own `/api/ps` endpoint** — same shape and same `localFetch()`
+pattern as the existing `/api/tags` call, zero new dependency. It
+reports, for every currently *loaded* model: its name, total `size`,
+`size_vram` (how much is actually resident on GPU vs. spilled to system
+RAM — the honest, real "is this using my GPU" answer), and `expires_at`
+(when Ollama will unload it if idle). This alone answers "how many can
+run at once" (however many `/api/ps` lists) and "is this one on the
+GPU" (`size_vram > 0`) — real signal, not a placeholder.
+
+**Per-action timing** — every `AI.chat()` call already has a clear start
+and end in the code calling it (`overlays.js`, every resident's
+send-message function). Wrapping each with `Date.now()` before/after and
+logging the elapsed milliseconds costs nothing new to build and answers
+"what effect did this specific action have" in the one way that's
+actually measurable without system access: how long it took.
+
+## The plan — in order, each step small and shippable alone
+
+1. **A small "Local AI" panel** — reachable from the pause menu, same
+   pattern as the existing "📊 Your Data" and "📋 Still Open" panels.
+   Polls `/api/ps` **only while the panel is actually open** (not a
+   background timer — this project has already hit real cost from an
+   always-running check once, see `AGENT-EMBODIMENT-PLAN.md`'s own
+   warning about tick rate and inference cost), lists every currently
+   loaded model with its size and GPU/CPU residency.
+2. **Per-action elapsed time**, logged the same lightweight way
+   `activityLog` already logs everything else — "Quill replied in 2.3s"
+   sitting next to "Asked Quill about the Dhammapada" rather than a
+   separate system.
+3. **A running "how many replies, how long, from which model" summary**
+   for the current session — the actual answer to "what kind of effect
+   does each action have," built entirely from data step 2 already
+   collects, no new instrumentation.
+4. **Deferred, on purpose: real CPU/GPU percentage.** Needs
+   `systeminformation` (or equivalent) in Electron's main process, a new
+   IPC bridge through `preload.cjs` the same shape `USER-DATA` panel's
+   planned save-dialog work would add, and doesn't exist at all for the
+   web build (`sandpiviliongame.vercel.app`) — a real, later, desktop-
+   only step, not promised alongside steps 1-3.
+
+## What this deliberately does not include
+
+No always-on polling loop — every number here is pulled fresh only when
+the panel is actually open, the same discipline the rest of this
+project already holds itself to around local-AI cost. No fine-tuning or
+training pipeline of any kind; that's a much later, separate decision
+(what data, whose model, what it's actually for) explicitly flagged as
+out of scope in `AGENT-EMBODIMENT-PLAN.md` too, not assumed just because
+usage data would exist once this ships.

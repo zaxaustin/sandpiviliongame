@@ -1,9 +1,12 @@
 # Reading-to-Doing Plan
 
-Not started as code — this is the written plan first, same as
-`LIBRARY-GROWTH-PLAN.md` and `DESKTOP-APP-PLAN.md` were written down
-before anything got built. See README's "What's next" for how this fits
-the rest of the priority list.
+**Status, 2026-07-09: all four steps done.** Step 1 (the spark bridge
+itself) shipped first; steps 2-4 below — the `done` flag, opt-in carry-
+forward, and the cross-source Still Open panel — shipped together in one
+pass, verified live: a synthetic old save with a legacy spark (no `done`
+field at all, predating this feature) imported clean, showed up correctly
+as open, and toggling it done live-updated the Still Open panel. See
+README's "What's next" for the current state of the rest of the list.
 
 ## The actual goal
 
@@ -64,25 +67,25 @@ resurface on their own.
    places, not building something new. Lowest-effort, highest-leverage
    step, and the most direct answer to "help me use the Pavilion as a
    real office."
-2. **A lightweight "done" state on sparks, not just remove.** Right now
-   a spark has exactly two fates: sit on today's list, or get deleted.
-   Adding a `done` flag (a checkbox, not a popup) means a day's record
-   actually shows whether something read/researched turned into
-   something acted on — the difference between a journal and a to-do
-   list that lies about its own history.
-3. **Carry forward what's still open, opt-in.** A spark left `not done`
-   at the end of a day currently vanishes into `pastDays` and has to be
-   dug up by hand. Matching the existing due-date pattern exactly (see
-   `feedback_automation_philosophy`): unacted sparks *can* roll into
-   today's list if the user has opted into that, surfaced passively
-   the same way the "⏰ N" badge already is — never a popup, never
-   default-on.
-4. **One glanceable "still open" view across every source.** Once
-   sparks can come from three places and carry a done/not-done state,
-   a single small panel — reachable the same way the Upcoming panel
-   is, not auto-opened — showing everything not yet marked done, oldest
-   first, closes the loop for real: not just "did I write this down"
-   but "did I ever do anything with it."
+2. **[x] A lightweight "done" state on sparks, not just remove.** Every
+   spark now carries `done:false` at creation (all three sources); a
+   checkbox on each spark card toggles it, no popup. Legacy sparks from
+   before this shipped have no `done` field at all — treated as open by
+   default (`!s.done`), the honest reading since nothing was ever marked
+   done on them.
+3. **[x] Carry forward what's still open, opt-in.** A checkbox at the
+   top of the Writing Desk's sparks section ("Carry forward what's still
+   open from earlier days," `data.settings.carryForwardSparks`, default
+   off) surfaces not-done sparks from earlier days inline, each still
+   tied to its original day's record — nothing is copied or duplicated,
+   just displayed. Matches the due-date badge's own opt-in, never-a-
+   popup shape exactly.
+4. **[x] One glanceable "still open" view across every source.** A new
+   "📋 Still Open" pause-menu panel (next to Activity Log, badge count
+   included in the button label) lists every not-done spark from every
+   day and every source, oldest first — `openSparks()` in `entities.js`.
+   Since a spark already carried a `source` label for all three origins
+   from step 1, this needed no new data shape, just the query.
 
 Each step stands alone and ships independently — this isn't a big-bang
 rewrite, it's four small extensions of a bridge that already works for

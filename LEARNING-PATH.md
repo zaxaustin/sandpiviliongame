@@ -31,6 +31,7 @@ have a stage adjusted — this document is meant to change as you do.
 - [ ] Stage 13 — databases & Supabase, concretely
 - [x] **Stage 14** — deploying a real app, and debugging one that doesn't work
 - [ ] Stage 15 — actually adding a real book to the Library, start to finish
+- [ ] Stage 16 — what a local AI model actually costs to run
 
 **Stage 14 is checked for real, hands-on reasons, not just because a lot
 of backend work happened nearby:** you created the Vercel project,
@@ -104,8 +105,8 @@ text or color and correctly guess which of the two files above it lives in.
 of themselves to each other. Tracing one action end-to-end is the fastest
 way to make that click.
 
-**Try this:** Pick the "Save the day" button on the Writing Desk and
-trace it by hand:
+**Try this:** Pick the "✓ Mark today reviewed" button on the Writing Desk
+and trace it by hand:
 1. `index.html` — find `onclick="savePlanner(true)"`.
 2. `src/game/ui/overlays.js` — find `export function savePlanner`.
 3. Read what it actually does: reads two input fields, calls `persist()`.
@@ -658,7 +659,7 @@ asked.
 
 **Docker is genuinely installed and running now, for a real reason:**
 storing the Library's full book text somewhere that isn't the database
-(see `LIBRARY-SCALING-PLAN.md`). You installed Docker Desktop yourself,
+(see `plans/LIBRARY-SCALING-PLAN.md`). You installed Docker Desktop yourself,
 including the restart it needs — that's a real, hands-on system-level
 step, not a reading exercise. `docker run hello-world` and `docker ps`
 both confirmed it works.
@@ -859,6 +860,65 @@ scripts at all. Worth doing once too, since it's a genuinely different
 for a book you actually chose, and can walk someone else through the
 same four commands from memory — not because you memorized them, but
 because you understand what each one is actually for.
+
+## Stage 16 — what a local AI model actually costs to run
+
+**Why this stage exists:** you asked, directly, whether it's possible to
+see CPU usage from the local AI models and how many can run at once —
+both as a beta-testing tool and as a real feature (see
+`plans/LOCAL-AI-MONITORING-PLAN.md` for the actual build plan, not built yet
+on purpose). Before that gets built, the underlying concepts are worth
+having, the same way Stage 8 built the vocabulary before the Monk/report
+work leaned on it.
+
+**Concept: a "model" is a file, and "running" it means loading that file
+into memory.** `ollama pull llama3.2` downloaded a real file (several
+gigabytes) to your disk. It does nothing sitting there. The moment you
+actually ask it something, Ollama reads that file into memory — either
+your GPU's own memory (**VRAM** — fast, limited, expensive) or your
+regular system RAM (slower, usually far more of it) — and *that's* what
+"running" a model means. Ollama doesn't keep it loaded forever, either:
+by default it unloads an idle model after a few minutes, which is why
+the very first message to Quill after a while away is often slower than
+the second — you're not just waiting for an answer, you're waiting for
+the whole file to load first.
+
+**Concept: "how many can run at once" is really "how many fit."** There's
+no artificial limit on running more than one model — the actual ceiling
+is memory. Two 4GB models both loaded at once need roughly 8GB somewhere
+(VRAM, RAM, or split across both); if that doesn't fit, either something
+gets evicted to make room, or things get very slow as the system spills
+over into disk-backed virtual memory. This is the actual, physical
+reason "run more local AI at once" is a real question with a real
+resource answer, not a software toggle.
+
+**Concept: CPU vs. GPU isn't a preference, it's forced by what fits.**
+A GPU does the matrix math models are built from dramatically faster
+than a CPU — that's the whole reason "does this model fit on your GPU"
+matters so much. If it fits in VRAM, Ollama runs it there and replies
+feel fast. If it doesn't fit, Ollama either splits the model (part GPU,
+part CPU — genuinely slower, since the two halves have to keep talking
+to each other) or falls back to CPU entirely, which is why the exact
+same model can feel instant on one machine and painfully slow on
+another with less GPU memory, even at the same clock speed.
+
+**Try this:** with Ollama running, open a terminal and run:
+```
+curl http://localhost:11434/api/ps
+```
+This is the real, live answer to "what's actually loaded right now" —
+the exact endpoint `plans/LOCAL-AI-MONITORING-PLAN.md` plans to build a real
+panel around. Read the JSON it prints: `size` is the model's total
+memory footprint, `size_vram` is how much of that is actually sitting on
+your GPU right now (if that number is `0`, that model is running on CPU
+only). Then chat with a resident in the game and immediately re-run the
+same `curl` command — watch `expires_at` change, proof Ollama is
+tracking exactly when it plans to unload that model if you go quiet.
+
+**You're ready to call this stage done when:** you can look at a slow
+reply from a local model and correctly guess *why* — cold load from
+disk, spilled out of VRAM into RAM, or genuinely just a big model doing
+real work — instead of it just feeling like unexplained lag.
 
 ## Where this goes next
 

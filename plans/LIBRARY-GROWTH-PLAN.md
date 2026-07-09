@@ -324,6 +324,27 @@ same rule as everywhere else in this document.
   Archive or a named public-domain translator (R.A. Nicholson's is the
   classic one) rather than assuming Gutenberg has it.
 
+**Tibetan Buddhism — requested directly, 2026-07-09 ("books on inner fire
+and Milarepa"):** no clean Gutenberg match found (checked via Gutendex,
+same as everything else on this list) — this one needs the Internet
+Archive connector this document already flags as worth building next, or
+a manual `library-inbox/` drop, not a guessed ID.
+- *Tibet's Great Yogī Milarepa* — W. Y. Evans-Wentz's translation of
+  Kazi Dawa-Samdup's rendering of *The Life of Milarepa*, first published
+  1928 — pre-1929, so genuinely US public domain despite still being
+  in print from Oxford today; confirm the specific scanned edition's
+  own rights on Internet Archive before fetching, same rule as always.
+  The direct source for "inner fire" — Milarepa's own practice of
+  *tummo* (yogic heat) runs through this biography.
+- *Sixty Songs of Milarepa* — a full text already up on Archive.org
+  (`archive.org/stream/SixtySongsOfMilarepa`); translator and rights
+  need checking at fetch time, not assumed from it being posted there.
+- **84000** (already listed above) remains the deeper, more complete
+  source for Tibetan canon generally, but its CC-BY-NC-ND license needs
+  that explicit steward decision first — these two Evans-Wentz-adjacent
+  texts are the closer-to-hand, likely-public-domain answer to this
+  specific request in the meantime.
+
 **Cookbooks — Mrs. Beeton (2026-07-09) already shelved; more real candidates:**
 - *The Boston Cooking-School Cook Book* — Fannie Merritt Farmer, 1896
   (Gutenberg #65061). The foundational modern American cookbook —

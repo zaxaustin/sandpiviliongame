@@ -2,11 +2,11 @@
 
 Drop books here by hand, sorted into the folder for whichever website
 you got them from. This is the manual half of the pipeline described in
-`LIBRARY-GROWTH-PLAN.md` — the automated half is `tools/caravan/`.
+`plans/LIBRARY-GROWTH-PLAN.md` — the automated half is `tools/caravan/`.
 
 ## The workflow
 
-1. **Download from one of the sites in `LIBRARY-GROWTH-PLAN.md`'s
+1. **Download from one of the sites in `plans/LIBRARY-GROWTH-PLAN.md`'s
    source list**, plain text if the site offers it (most public-domain
    sites do — Gutenberg, Wikisource, Standard Ebooks, Archive.org's
    "Full Text" view). A PDF is fine too if that's all that's offered;
@@ -29,7 +29,7 @@ you got them from. This is the manual half of the pipeline described in
 **This folder doubles as a signal for what to build next.** Once a
 subfolder has real volume — a handful of manual drops from the same
 site — that's the sign a real named Caravan connector for that site is
-worth writing (same reasoning as `LIBRARY-GROWTH-PLAN.md`'s "why
+worth writing (same reasoning as `plans/LIBRARY-GROWTH-PLAN.md`'s "why
 hand-picked connectors" section): a pattern proven by hand a few times
 becomes a script, the same way `gutenberg.py` and `suttacentral.py`
 already did. Sorted-by-source from the start means that graduation is
