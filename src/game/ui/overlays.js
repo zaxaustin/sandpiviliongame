@@ -1790,6 +1790,17 @@ export function addResearchNote(id){
   p.notes.unshift({ts:todayKey(),text});
   persist(); input.value=''; renderResearch();
 }
+/* READING-TO-DOING-PLAN.md step 1 — the same spark bridge that already
+   works for book notes (sendNoteToToday), extended to Research Desk
+   notes. Reuses day.sparks verbatim; no new save shape. */
+export function sendResearchNoteToToday(id,i){
+  const p=researchProject(id); if(!p) return;
+  const note=p.notes[i]; if(!note) return;
+  const day=plannerDay();
+  day.sparks.unshift({ts:todayKey(), text:note.text, source:p.title});
+  persist(); logActivity('Brought a note from "'+p.title+'" to today\'s plan.'); blip(784,.09);
+  renderResearch();
+}
 export function fillResearchPrompt(text){ const el=document.getElementById('resAskInput'); if(el){ el.value=text; el.focus(); } }
 export async function sendResearchMessage(id){
   const input=document.getElementById('resAskInput');
@@ -1884,8 +1895,16 @@ function renderResearch(){
       <h3>Notes</h3>
       <textarea id="resNoteInput" rows="3" placeholder="Write a note — an idea, a finding, a question to chase down."></textarea>
       <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="addResearchNote('${p.id}')">+ Add note</button></div>
-      <div style="margin-top:10px">${p.notes.length ? p.notes.map(n=>`
-        <div class="card" style="cursor:default"><div class="s">${esc(n.ts)}</div><div>${esc(n.text)}</div></div>`).join('')
+      <div style="margin-top:10px">${p.notes.length ? p.notes.map((n,i)=>{
+        const alreadySent=plannerDay().sparks.some(s=>s.text===n.text);
+        return `<div class="card" style="cursor:default">
+          <div class="s">${esc(n.ts)}</div><div>${esc(n.text)}</div>
+          <div class="row" style="margin-top:6px">
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px" ${alreadySent?'disabled':''}
+              onclick="sendResearchNoteToToday('${p.id}',${i})">${alreadySent?'✓ In today\'s plan':'→ Bring to today\'s plan'}</button>
+          </div>
+        </div>`;
+      }).join('')
         : '<p>No notes yet — start with whatever\'s in your head, it doesn\'t need to be tidy.</p>'}</div>
 
       <h3 style="margin-top:18px">📄 Summarize a chapter or paper</h3>
@@ -2207,6 +2226,18 @@ export function removeGrantDocument(id,i){
   const p=grantProject(id); if(!p) return;
   p.documents.splice(i,1); persist(); renderGrant();
 }
+/* READING-TO-DOING-PLAN.md step 1 — same spark bridge as book notes and
+   Research Desk notes, applied to the Grant Desk's own closest analog
+   to a note: a document (real material the user actually wrote in). */
+export function sendGrantDocToToday(id,i){
+  const p=grantProject(id); if(!p) return;
+  const doc=p.documents[i]; if(!doc) return;
+  const day=plannerDay();
+  const text=doc.label+': '+doc.text;
+  day.sparks.unshift({ts:todayKey(), text, source:p.title});
+  persist(); logActivity('Brought "'+doc.label+'" from "'+p.title+'" to today\'s plan.'); blip(784,.09);
+  renderGrant();
+}
 export function fillGrantPrompt(text){
   const el=document.getElementById('gAskInput'); if(!el) return;
   el.value=text; el.focus();
@@ -2288,12 +2319,18 @@ function renderGrant(){
       <label>Label</label><input type="text" id="gdLabel" placeholder="e.g. Site history, Budget notes, Funder guidelines">
       <label>Text</label><textarea id="gdText" rows="4" placeholder="Paste or write it in — as much or as little as you have."></textarea>
       <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="addGrantDocument('${p.id}')">+ Add document</button></div>
-      <div style="margin-top:10px">${p.documents.length ? p.documents.map((d,i)=>`
-        <div class="card" style="cursor:default">
+      <div style="margin-top:10px">${p.documents.length ? p.documents.map((d,i)=>{
+        const alreadySent=plannerDay().sparks.some(s=>s.text===(d.label+': '+d.text));
+        return `<div class="card" style="cursor:default">
           <div class="t">${esc(d.label)} <span class="badge">${esc(d.ts)}</span></div>
           <div class="s">${esc(d.text.length>200?d.text.slice(0,200)+'…':d.text)}</div>
-          <div class="row" style="margin-top:6px"><button class="btn ghost" onclick="removeGrantDocument('${p.id}',${i})">Remove</button></div>
-        </div>`).join('') : '<p>No documents yet — the more real material you add, the more useful a draft will be.</p>'}</div>
+          <div class="row" style="margin-top:6px">
+            <button class="btn ghost" onclick="removeGrantDocument('${p.id}',${i})">Remove</button>
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px" ${alreadySent?'disabled':''}
+              onclick="sendGrantDocToToday('${p.id}',${i})">${alreadySent?'✓ In today\'s plan':'→ Bring to today\'s plan'}</button>
+          </div>
+        </div>`;
+      }).join('') : '<p>No documents yet — the more real material you add, the more useful a draft will be.</p>'}</div>
 
       <h3 style="margin-top:18px">Drafted sections</h3>
       <div style="margin-top:6px">${p.drafts.length ? p.drafts.map((d,i)=>`
@@ -2942,13 +2979,13 @@ Object.assign(window, {
   approveNoticePost, rejectNoticePost,
   openHearth, openGrantDesk, openCoffee,
   newGrantForm, backToGrantList, createGrantProject, openGrantProject, deleteGrantProject,
-  addGrantDocument, removeGrantDocument, fillGrantPrompt, sendGrantMessage,
+  addGrantDocument, removeGrantDocument, fillGrantPrompt, sendGrantMessage, sendGrantDocToToday,
   saveGrantReplyAsDraft, removeGrantDraft, promoteGrantToArchive, setGrantDue,
   openUpcoming,
   openAccount, sendAccountLink, signOutOfAccount,
   openResidentsBoard, askAgentForNote, approveNote, rejectNote,
   openResearchDesk, newResearchForm, backToResearchList, createResearchProject,
-  openResearchProject, deleteResearchProject, addResearchNote, fillResearchPrompt,
+  openResearchProject, deleteResearchProject, addResearchNote, sendResearchNoteToToday, fillResearchPrompt,
   sendResearchMessage, saveResearchReplyAsNote, promoteResearchToArchive,
   summarizeResearchText,
 });
