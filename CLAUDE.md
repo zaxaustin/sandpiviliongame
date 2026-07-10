@@ -42,7 +42,7 @@ yet) and update `README.md`'s "What's next" section to match reality —
 future sessions (yours or anyone else's) depend on both staying honest,
 not aspirational.
 
-## Two standing decisions, stated plainly so they don't have to be re-derived
+## Three standing decisions, stated plainly so they don't have to be re-derived
 
 **The desktop app is the main focus going forward.** This project runs
 mainly as a real Electron app on the user's own machine now, not a
@@ -64,3 +64,15 @@ time, rather than fast now and rebuilt later. Reach for a third party
 only when the alternative is genuinely not buildable in reasonable time
 (a browser truly cannot do X), and say so plainly when that's the case,
 the same honesty already applied to the Gutenberg/arXiv fetch wall.
+
+**The low-res look is a resource choice, not a budget one — the sleeper
+car, stated directly 2026-07-10.** Plain pixel art costs almost nothing
+in CPU/GPU/RAM on purpose, so the machine's real resources stay free for
+a local AI actually running, a much bigger Library actually indexed, and
+real background work, all at once — see `plans/LIBRARY-GROWTH-PLAN.md`'s
+"Why this can afford to be big" for the fuller version. Looks plain and
+simple, deliberately not impressive, and is a real beast under the hood
+once you look — that gap is the whole design, not a limitation to
+apologize for. The actual tie-breaker anywhere a future choice seems to
+trade "looks more impressive" against "does more, uses less": this
+project already knows which side of that trade it's on.

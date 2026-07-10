@@ -16,6 +16,35 @@ is the means; a Library big enough to *play with* — to see what a real
 commons of knowledge from many different sources actually feels like —
 is the end.
 
+## Why this can afford to be big: the sleeper car, not the budget
+
+Stated directly, 2026-07-10, because it changes how "grow the Library" should
+actually be read: **the low-res, pixel-art look was never just the easy
+thing to build.** It's a deliberate resource choice — a simple 2D canvas
+costs almost nothing in CPU, GPU, or RAM, on purpose, so that the majority
+of *this* machine's actual resources stay free for the things that
+genuinely need them: a local AI model actually running, a much bigger
+Library actually indexed and searchable, real background work, all at
+once, on hardware that was never asked to also render a 3D world.
+
+**The sleeper car, the actual image to hold onto:** looks plain and
+simple from the outside — visually fine, deliberately not impressive —
+and is a real beast under the hood once you actually look. A pixel-art
+game that also happens to hold a genuine library, residents who give
+real advice and can draft a real lesson plan, and a full calendar/day
+planner running on a real voice AI, is not what anyone expects walking
+in. That gap between what it looks like and what it actually does is
+not an accident to apologize for — it's the whole design.
+
+**What this means in practice for growing the Library specifically:**
+the visual budget was never competing with the content budget the way it
+would in almost any other game — there's no ceiling on how big and real
+this Library can get that comes from "the engine can't handle it,"
+because the engine was built cheap on purpose to make room for exactly
+this. Worth carrying forward as the actual tie-breaker anywhere a future
+choice seems to trade "looks more impressive" against "does more" — this
+project already knows which side of that trade it's on.
+
 ## The one rule everything else follows: license first, always
 
 This isn't new — every existing shelf entry already answers three
