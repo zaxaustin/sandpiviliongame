@@ -313,7 +313,7 @@ page 2's filtered view ("No notes on this page yet"), the toggle
 correctly listed both notes with their real page numbers once switched
 to "show all," and returning to page 1 kept the chosen filter state.
 
-### 11. Grant Desk's AI should draft real proposal text, not just organize
+### 11. [x] Grant Desk's AI should draft real proposal text, not just organize
 
 **What's there today:** the Grant Desk assistant already helps structure
 a project (mission, sections, due dates) and chats about it, grounded in
@@ -324,6 +324,27 @@ should go in one. A real scope question before building: does this reuse
 the exact same drafting engine `draftCourseFromGoal()` already uses for
 courses and training plans (same shape: goal in, structured draft out),
 retargeted at a proposal section instead of a course outline?
+
+**Turned out this was already fully built — and a real, live bug was
+the actual blocker, not a missing feature.** `grantSystemPrompt()`
+already instructs the model to "write that section in full, ready to
+paste into a real proposal — not an outline," and `saveGrantReplyAsDraft()`
+already saves the reply as a real section. Reusing `draftCourseFromGoal()`
+turned out to be the wrong question — that engine returns a *structured*
+course object, not free prose, so the Grant Desk's own plain-chat shape
+was already the right one. **The real bug, found only by actually
+clicking the quick-start buttons, not by reading the code:** every
+`GRANT_PROMPTS` button (`onclick="fillGrantPrompt(${JSON.stringify(pr)})"`)
+had its JSON-stringified argument's own double quotes colliding with the
+`onclick="..."` attribute's own double-quote delimiters — genuinely
+broken HTML, throwing a real "Unexpected end of input" JS error on
+click, confirmed via a live Playwright run before being fixed. **Fixed**
+by switching the attribute to single quotes. Verified live end to end
+after the fix, against this machine's real Ollama instance: clicking
+"Draft a Statement of Need" correctly filled the prompt, and the model's
+reply was real, grounded, fundable-voice prose citing the actual
+document on file (a library-closure survey), not a conversation about
+what a Statement of Need should contain.
 
 ### 12. [x] Export Save should let you choose where it goes, not just Downloads
 

@@ -2837,7 +2837,7 @@ function renderGrant(){
         : 'No local AI connected right now (⚙ Manage AI connections) — this desk needs a live connection to actually draft anything.'}</div>
       ${aiOn ? `
         <div class="row" style="margin-bottom:10px">
-          ${GRANT_PROMPTS.map(pr=>`<button class="btn ghost" style="font-size:11.5px" onclick="fillGrantPrompt(${JSON.stringify(pr)})">${esc(pr)}</button>`).join('')}
+          ${GRANT_PROMPTS.map(pr=>`<button class="btn ghost" style="font-size:11.5px" onclick='fillGrantPrompt(${JSON.stringify(pr)})'>${esc(pr)}</button>`).join('')}
         </div>
         <div id="gHistory">${(v.history||[]).map(h=>`
           <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':'Grant Desk'}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
