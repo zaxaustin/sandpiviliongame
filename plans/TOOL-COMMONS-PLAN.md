@@ -1,7 +1,11 @@
 # The Tool Commons — a long-term vision, written down, not started
 
-Not started, and not meant to be — written down 2026-07-10 as the actual
-long-term shape of where the Sand Pavilion is heading, past beta. Every
+Not started, and not meant to be yet — written down 2026-07-10 as the
+actual long-term shape of where the Sand Pavilion is heading, past beta.
+**Timing, decided directly the same day:** not a full build now — this
+becomes the real framework once the Pavilion actually launches its
+beta test for other people, not before. Everything below stays written
+down and ready, not something to start pulling threads on today. Every
 other plan in this folder is a scoped feature; this one is different on
 purpose: it's the thing that gives the rest of them a reason to exist
 together instead of being a pile of separate desks. Asked for directly,

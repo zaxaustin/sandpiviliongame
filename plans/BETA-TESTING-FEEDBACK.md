@@ -533,7 +533,7 @@ rights unconfirmed) are the two real, findable candidates; both need the
 not-yet-built Internet Archive connector or a manual `library-inbox/`
 drop, not a Gutenberg fetch — no clean Gutenberg edition turned up.
 
-### 18. The Course Board should scale like a real site, and support importing plans
+### 18. [~] The Course Board should scale like a real site, and support importing plans
 
 **The ask:** as more courses get made, the board needs "a website like
 feel" instead of what will otherwise become a flat, discombobulated
@@ -544,6 +544,18 @@ separately once it's actually next: likely categories/search/filtering
 the first half, and a real format question (what would an "imported"
 course plan even look like — a file format, a pasted syllabus text the
 AI restructures?) for the second.
+
+**Scoped into a real 3-stage plan, 2026-07-10 — see
+`COURSE-BOARD-PLAN.md`.** This turned out to be three sequential asks,
+not one: **Stage 1** (now) is exactly the categories/search/filtering
+polish this note already named, kept deliberately personal-only, no
+sharing concept yet. **Stage 2** is the real standards question —
+license/attribution, a review step, and a real portable course format —
+that has to exist before "importing a course plan" means anything real.
+**Stage 3** is the long-term vision this was always secretly reaching
+for: a real, free replacement for the learning parts of college, tied
+directly to README's own "Hopes and dreams" and the sketched Round
+Table. Not built yet — the plan itself is this update's whole scope.
 
 ### 19. Thinking-model reveal, raised again
 
