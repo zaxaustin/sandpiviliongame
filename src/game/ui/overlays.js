@@ -116,7 +116,9 @@ function renderChatView(opts){
   const log=document.getElementById('chatLog');
   const bubbles=d.transcript.map((m,idx)=>
     m.from==='user' ? `<div class="bubble user">${esc(m.text)}</div>`
-                    : `<div class="bubble npc"><div class="who">${esc(d.name)}</div><span class="bubbleText" data-idx="${idx}">${esc(m.text)}</span></div>`);
+                    : `<div class="bubble npc"><div class="who">${esc(d.name)}</div>${
+                        m.thinking ? `<details class="thought"><summary>💭 thought for a moment</summary>${esc(m.thinking)}</details>` : ''
+                      }<span class="bubbleText" data-idx="${idx}">${esc(m.text)}</span></div>`);
   if(d.thinking) bubbles.push(`<div class="bubble npc thinking"><div class="who">${esc(d.name)}</div>…</div>`);
   log.innerHTML=bubbles.join('');
   log.scrollTop=log.scrollHeight;
@@ -212,7 +214,11 @@ const CHAT_AGENTS = {
         +"Library's own traditions, that the Mountain Monk may be a better person to ask — he keeps his "
         +"own quarters in the Pavilion Keep now, north of the Grounds, not here for library questions, "
         +"only spiritual ones and help finding a visitor's own intentions. When you draw from a specific "
-        +"text, name it.\n\nYou also help visitors turn a real conversation into something concrete — "
+        +"text, name it. If someone asks you to actually go fetch or add a book right now — from Project "
+        +"Gutenberg, arXiv, or anywhere else — say plainly that a browser genuinely can't reach those "
+        +"sites directly (a real technical wall, not a rule), and point them to the Request Board (in the "
+        +"Study, past the Library's east door) to leave the title for a human to fetch and review by hand.\n\n"
+        +"You also help visitors turn a real conversation into something concrete — "
         +"drafting an actual course, study plan, or practice plan from what's just been discussed, not "
         +"only answering questions about the shelves. Offer it when it fits, don't force it into every "
         +"reply."
@@ -341,8 +347,9 @@ async function sendChatMessage(q){
     // reasoning and come back empty — worth one retry with real room before
     // giving up, rather than showing a visitor a dead end mid-conversation
     if(isEmptyReply(reply)) reply=await AI.chat(messages,{...opts, long:true});
+    const thinking=AI.lastThinking||null;
     d.history.push({role:'assistant',content:reply});
-    d.transcript.push({from:'npc',text:reply});
+    d.transcript.push({from:'npc',text:reply,thinking});
     remember(d.agent,q);
     logActivity('Asked '+agent.label+': "'+(q.length>60?q.slice(0,60)+'…':q)+'"');
   }catch(err){
@@ -756,11 +763,23 @@ export function pruneOldPlannerDays(){
    import is the reverse, replacing the current save wholesale (confirmed first,
    same pattern as resetSave). No backend, no account — a real backup and a way
    to move devices, using nothing Phase 3 hasn't already earned. */
-export function exportSave(){
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+export async function exportSave(){
+  const json=JSON.stringify(data,null,2);
+  const defaultName='sand-pavilion-save-'+todayKey()+'.json';
+  // Desktop app: a real "Save As" dialog (BETA-TESTING-FEEDBACK.md #12) —
+  // Electron still honors <a download> below but always drops it silently
+  // into the OS Downloads folder with no picker.
+  if(typeof window!=='undefined' && window.desktopBridge?.saveFile){
+    const res=await window.desktopBridge.saveFile(defaultName, json);
+    if(res.canceled) return;
+    if(!res.ok){ alert('Could not save the file: '+(res.error||'unknown error')); return; }
+    blip(700,.07);
+    return;
+  }
+  const blob=new Blob([json],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url; a.download='sand-pavilion-save-'+todayKey()+'.json';
+  a.href=url; a.download=defaultName;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
   blip(700,.07);

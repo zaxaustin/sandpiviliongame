@@ -93,6 +93,11 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
   const url = (baseUrl || 'http://localhost:11434').replace(/\/$/,'');
   const p = {
     name: name || 'Ollama', model: null, availableModels: [],
+    // set by chat() whenever think:true gets real reasoning content back
+    // (currently only the Monk asks for it) — a side channel rather than
+    // changing chat()'s string-in-string-out contract, safe only because
+    // this game has at most one chat in flight at a time.
+    lastThinking: null,
     async isAvailable(){
       try{
         const res = await localFetch(url+'/api/tags', { signalMs:1200 });
@@ -127,6 +132,7 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
       });
       if(!res.ok) throw new Error('Ollama request failed: '+res.status);
       const body = await res.json();
+      p.lastThinking = (body.message?.thinking||'').trim() || null;
       return (body.message?.content||'').trim() || EMPTY_REPLY_TEXT.ollama;
     },
   };

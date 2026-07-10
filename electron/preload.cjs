@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld('desktopBridge', {
     body: opts.body,
     timeoutMs: opts.signalMs,
   }),
+  // BETA-TESTING-FEEDBACK.md #12 — a real native "Save As" dialog for
+  // Export Save, instead of always dropping into Downloads unasked.
+  saveFile: (defaultName, content) => ipcRenderer.invoke('desktop-save-file', { defaultName, content }),
 });

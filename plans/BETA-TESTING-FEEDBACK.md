@@ -277,9 +277,19 @@ the exact same drafting engine `draftCourseFromGoal()` already uses for
 courses and training plans (same shape: goal in, structured draft out),
 retargeted at a proposal section instead of a course outline?
 
-### 12. Export Save should let you choose where it goes, not just Downloads
+### 12. [x] Export Save should let you choose where it goes, not just Downloads
 
-**Not yet built — a real, well-scoped candidate, checked not guessed.**
+**Fixed 2026-07-10.** `electron/main.cjs` gained a `desktop-save-file`
+IPC handler wrapping a real `dialog.showSaveDialog`, exposed through
+`preload.cjs`'s existing bridge as `window.desktopBridge.saveFile()`.
+`exportSave()` in `overlays.js` now checks for that bridge first — the
+web build at sandpiviliongame.vercel.app is untouched, still falls back
+to the original `<a download>` behavior. Verified with `npm run build`
++ `npm test`, both clean; a live click-through of the actual save dialog
+in a running desktop window is still worth doing next session, since
+Electron's native dialogs can't be driven headlessly from here.
+
+**Original finding, not yet built — a real, well-scoped candidate, checked not guessed.**
 This game runs mainly as the desktop app now, not a browser tab
 (confirmed directly), so the real fix targets that, not a browser
 workaround: `electron/main.cjs` has no native save dialog wired up at
@@ -291,9 +301,19 @@ through `preload.cjs`'s existing bridge, called from `exportSave()` only
 when running inside Electron (falls back to the current behavior on the
 web build at sandpiviliongame.vercel.app, which stays untouched).
 
-### 13. Spell-check wasn't actually working in the desktop app
+### 13. [x] Spell-check wasn't actually working in the desktop app
 
-**Real cause, found, not guessed.** Chromium's spellchecker is on by
+**Fixed 2026-07-10.** `electron/main.cjs`'s `createWindow()` now wires up
+a real `context-menu` handler on `win.webContents`: Chromium's own
+`dictionarySuggestions`/`misspelledWord` params build a real suggestions
++ Add-to-Dictionary menu, `Menu.buildFromTemplate` plus Cut/Copy/Paste
+gated on `editFlags`. No new dependency. Doesn't touch the browser build,
+which already has this natively. Verified with `npm run build` + `npm
+test`, both clean; an actual right-click-a-misspelled-word check in a
+live desktop window is still worth doing next session — same limit as
+#12, native menus can't be driven headlessly from here.
+
+**Original finding, real cause, found, not guessed.** Chromium's spellchecker is on by
 default in Electron (the red squiggly underline is likely already
 there), but Electron never wires up the right-click "Did you mean…"
 menu on its own — a well-known Electron gap, not a Sand Pavilion bug.
@@ -454,3 +474,216 @@ something tangible, use the Library when seeking knowledge, and turn to
 counsel here rather than have ideas "turn to sand" — which the README's
 own "Hopes and dreams" section and its `README`-closing line already
 speak to directly.
+
+
+
+
+## Round 3 — 2026-07-10, raw session notes triaged
+
+A session got cut short by an MCP authentication issue before these notes
+could be triaged properly — a stray "urgent, I lost my chat" fragment
+landed in `README.md` by mistake in the confusion, since deleted (the
+notes themselves were never actually lost — they'd already saved here).
+Raw notes kept below for provenance; triaged into real, scoped items
+underneath them.
+
+### human beta testing notes
+
+i was having a conversation with the moutian monk and we had this convo about the plan and the idea of the sand pavilion
+
+THE MOUNTAIN MONK · Grand Master
+Amethaba, it brings me peace knowing the foundation settles deep before we welcome guests beyond our circle. You speak of a village—that is the true Sangha I look for more than any structure. Without that feeling of heldness, notes become just ink; with community support, they can guide a path back to right view whenever wandering strikes.
+
+As you build this firm footing: may Quill assist where writing tools and records are concerned when we reach that time together? But now I ask you gently—how is the sense of 'village' already showing itself in your practice today? When people arrive for guidance, how do they feel safe enough to share their questions before those gates even open wide?
+
+Is there a particular quality you hope this community radiates first—the quiet steadiness or an active helping hand? That answer will tell us where our next step lies.
+it is not our job to activly guide but to be there when someone comes for guidence. we can open peoples eys, point the way, but they must walk through the door.  trust in the dharma, people want to learn and find enlitenment. they just dont know how.  lets just give them the option if it dose not work we can happly fade into the sands of time content with our own pratice and growth.  it is only because we must enlighen all sentient beings to we carry the burden of teaching.  let us not seek out what is not infront of us but further deepen our own pratice to light the way for others
+
+
+
+this is the kinda thing i wana see.
+
+
+however it did the the thoughts remiand unsoken, why is the contex window like that, a fix ffor this should be immedate, i also wana see its train of thoiught.   
+
+i saw that writing desk.. yes! finnaly that is so amasing.  
+
+
+
+## more notes and thoughts by the human
+
+
+I hope that we have a place where the AI agent prompts are guidelines not tools to lobotomize the agents the IDea of the sand pavilion is to do things properly and not act out of fear.   
+
+
+To have those AI agents to be guidelines for the model to act not tools that restrict out of fear.
+
+
+
+Notes for the ideas
+
+
+What is needed in the sand pavilion is not just an interface where people can work but a platform where people can make their own interface.  I think this is the key distinction that is missing in the sand pavilion.  Tools are only good if you know how to use them and what's better way to use a tool than to be able to figure out how to make one yourself.   There's two approaches to this one. Give people a platform where they can make their own tools or give them a platform where each tool is described one by one and locked behind a chain where they can only access one after they learn the first one.   I think the idea of making some tools that are basic and easy to use would be nice, but also give people the ability to have a learning plan to build these own tools, whether it's an AI model, creating them themselves and local code on their computer or making a learning plan to understand a certain technology in order to build something.    The main way the sand pavilion can do this is to create a workshop environment where people are able to customize tools to fit their needs. Let's say if you want to write a book, you can create a book writing tool.  Or if you're running a business, you can have some way to manage those finances.   Local tools, things that are able to be able to use personally maybe even third party applications that are really good, but that should be a last resort in case we can't come up with something similar.
+
+Everything turns to sand and everything should be sand until knowledge is the foundation for it. Then you should be able to use these tools or make your own.  
+
+This should be how the user interacts with the Sand pavilion. Not how the AI does.  
+
+
+
+
+
+There are current things I want to fix in the current sand pavilion. The first is the fact that talking to the AI locally, I'm not understanding what's working under the hood. What different models will do and if this interface is possible to expand upon and what are the limitations and data transfers and using these kind of local models for these kind of things.  
+
+
+If I add books manually to the library, the AI should be able to load them in using the local model, not through this claude interface.   Let's make an explicit book explaining this process for the library and will make a bookshelf called priority. Text and that will be a lot of things that explain how the library work and things we can refer upon and also a log that quill can look at to help direct people on what they need to know
+
+
+I think there's a problem with the AI agent with the openai slow text prompts where the text is coming out slowly to make it feel more human. That should be a good stand-alone feature by itself for maybe a mobile connection to the sand pavilion for later. I think it'd be great to talk to the sand pavilion and the mountain monk as well as quill through that kind of slow text, but I need to understand what's going on under the hood if this is messing with the ability for the AI agent to do anything. And is it possible to establish a cloud connection with my own PC to my phone so I can have a local server? What kind of hardware would you require and what kind of knowledge do I need to learn.  Besides that, I haven't really explored the readme and downloading books by myself. What do you think about the learning plan and what I should? I focus on myself personally. 
+
+### 20. [~] Thinking-model reasoning — real cause found, sharper than #3/#19 guessed
+
+**Piece 1 fixed 2026-07-10** — the "show what it thought, collapsed"
+half. `provider.js`'s Ollama `chat()` now captures `body.message?.thinking`
+onto `p.lastThinking` (a side channel, not a return-shape change, since
+11 other call sites depend on `chat()` staying string-in-string-out);
+`sendChatMessage()` reads it into `d.transcript`'s new `thinking` field;
+`renderChatView()` renders it as a native `<details>`/`<summary>` — no
+new JS needed for the collapse/expand, just markup. Verified with `npm
+run build` + `npm test`, both clean; a real end-to-end check (talk to
+the Monk with a reasoning model actually loaded, confirm the toggle
+shows real content) needs a live Ollama instance with a thinking model
+installed, not available in this environment — worth doing next session.
+**Piece 2, still open on purpose:** live streaming (watch it think in
+real time, not just after the fact) needs `stream:false→true` across
+every provider plus chunk parsing — a genuinely bigger, separate change,
+not rushed into this pass.
+
+**Checked directly in `src/game/ai/provider.js` — this is a real, two-layer
+gap, not just a UI hiding problem:**
+- **Line 125:** every chat request is sent with `stream:false`. There is
+  no live streaming at all today, for any provider — so "show the
+  thinking as it happens" isn't buildable yet regardless of the thinking
+  part specifically; the whole reply, thought and answer both, only ever
+  arrives as one lump after the model finishes completely.
+- **Line 130:** the response handler reads only `body.message?.content`.
+  Ollama's own `/api/chat` returns a *separate* `message.thinking` field
+  whenever `think:true` is set — which it already is, only for the Monk
+  (`chatOptsFor()` in `overlays.js`). That field is never read, never
+  stored, never passed anywhere. The Monk's actual reasoning is generated
+  by the model on every single reply and then thrown away before it ever
+  leaves `provider.js` — not hidden by the UI, genuinely discarded.
+**Real fix, two bounded pieces:** (1) capture `body.message?.thinking`
+alongside `content` in the Ollama provider and thread it through
+`sendChatMessage()`/`d.transcript` as its own field — bounded, no
+streaming needed, ships the "collapsible thinking" half immediately;
+(2) switching `stream:false→true` and parsing chunks live is the bigger,
+separate piece that actually delivers "watch it think in real time" —
+worth sequencing as two changes, not one, since (1) alone already answers
+most of what's being asked for.
+
+### 21. AI prompts as guidelines, not fear-based restriction — checked, already mostly true
+
+**Read all four `CHAT_AGENTS` system prompts (`overlays.js`) end to end.**
+None of them carry restrictive "you must refuse/never discuss" framing —
+Quill, the Steward, and the Computer are all scoped by *role* ("that's
+the Monk's place, not yours") rather than by prohibition, and the Monk's
+one deliberate exception — the "Restricted Section" bit — is explicitly
+atmosphere: a straight-faced in-world joke about a door that doesn't
+exist, not a real content restriction, matching this project's own
+no-poison ethic (nothing here is real harm dressed up, everything
+survives being looked at directly). So the philosophy asked for already
+holds in the code as written — nothing to fix here specifically, worth
+keeping in mind as a real constraint on future prompt-writing rather than
+a bug to close.
+
+### 22. A platform where people build their own tools, not just use fixed ones
+
+**The big one — bigger than a fix, this is a real direction.** Not an
+interface where people work, but a platform where people make their own
+interface: basic tools provided, plus a real learning path to build your
+own (a local model, your own code, or understanding a technology well
+enough to build the thing yourself) — the Workshop becomes a place to
+*customize* tools to a real need (a book-writing tool, a business's own
+finance tracker) rather than a fixed menu, third-party apps only as a
+last resort. This isn't a scoped "fix or tweak" — it overlaps real
+existing plans (`AGENT-EMBODIMENT-PLAN.md`'s "give residents a real
+action," the sketched Workshop rooms in the README's "Hopes and dreams")
+but is a bigger, standalone reframe of what the Workshop even is.
+**Real next step:** this deserves its own plan doc, same as every other
+real direction this project has taken (`WRITING-DESK-PLAN.md`,
+`AGENT-EMBODIMENT-PLAN.md`) — not code started cold. Worth a real sitting
+before writing it.
+
+### 23a. [x] Fixed, 2026-07-10 — see #14 above: the "failed fetch" trigger didn't exist as assumed
+
+**Checked while doing the actual fix, correcting the earlier triage:** no
+button or code path anywhere in this game ever attempts a live fetch
+against Gutenberg or arXiv (grepped the whole `src/` tree — nothing).
+The Request Board and Bulk Import panels already say plainly "nothing
+here fetches itself." So #14's original framing (a failing in-game fetch
+needing a better error message) wasn't buildable as stated — there was
+no failure to catch. **The real gap, found instead:** Quill's own chat
+prompt (`CHAT_AGENTS.quill` in `overlays.js`) never mentioned the Request
+Board or the real browser limit at all — only the Steward's prompt did,
+despite Quill being the resident most likely to actually get asked "can
+you fetch me this book?" **Fixed:** Quill's prompt now says so plainly
+when asked to fetch/add a book live — a real technical wall, not a
+rule — and points to the Request Board by name, mirroring the line the
+Steward's prompt already had.
+
+### 23. Local AI transparency — what's actually happening under the hood
+
+**The ask:** understand what different local models actually do, what
+this interface's real limits are, and what data actually moves where —
+not vague reassurance, an actual explanation. Partly already answered:
+the README's beginner's guide covers Ollama/localhost/API/port at a
+basic level, and `LEARNING-PATH.md` Stage 16 (written 2026-07-09) covers
+what "loaded," VRAM vs. RAM, and `expires_at` mean for local models
+specifically. **Real gap:** nothing yet explains model *capability*
+differences (why `llama3.2` versus a "thinking" model behaves so
+differently, context-window size and what it actually limits, what if
+anything a cloud connection sends versus what stays local) in one place
+a visitor would actually find mid-confusion — same discoverability gap
+as #14 above, not a new problem, the same fix pattern likely applies
+(surface it at the point of friction, not just in a file you'd need to
+already know to open).
+
+### 24. Auto-load manually-added Library books via local AI, plus a "priority" explainer shelf
+
+**Checked, not guessed:** no `priority` category or shelf exists in the
+Library today (confirmed by grep across the codebase). The manual-add
+pipeline (`library-draft.py` → hand-written summary and license check →
+`promote-draft.py` → `push-fulltext.py`) is entirely hand-run today —
+nothing in it calls a local model at all. **Two real, separable asks:**
+(1) let a local Ollama model help draft the summary/category/license
+check for a manually-dropped `library-inbox/` file instead of doing it
+by hand every time — a real, scoped Caravan tooling change; (2) a
+dedicated shelf (or a `priority` category) holding texts that explain
+how the Library and Caravan actually work, plus a log Quill can read
+from to help direct visitors — content work, not code, once (1)'s
+process exists to actually document.
+
+### 25. Human-paced text streaming — a standalone, later feature
+
+**The ask:** slower, more human-paced text output (the way some
+consumer AI products throttle replies for a human feel) as its own
+opt-in feature, floated specifically for a future mobile connection to
+the Pavilion — plus a separate, real question about whether a phone
+could reach a home PC's local Ollama instance as a personal server, and
+what that would actually require (hardware, networking knowledge).
+**Not investigated this round** — genuinely a different, later-stage
+question (mobile access to a home server is a networking/security
+question, not a quick check) — worth its own real look if and when a
+mobile companion becomes an actual near-term plan, not bundled into this
+triage.
+
+### Kept, not actioned
+
+Positive, no action needed: real approval of the Mountain Monk
+conversation's tone and content ("this is the kinda thing i wana see"),
+and of the rebuilt Writing Desk ("i saw that writing desk.. yes! finnaly
+that is so amasing"). The full Monk/Sangha conversation is kept above for
+its own sake, same as the Round 2 quote — a real example of the tone this
+project is aiming for, not a bug report.
+

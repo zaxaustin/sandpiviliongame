@@ -282,13 +282,6 @@ disable/remove connections. Everything here stays on this device.
 - **"Connection refused" in `curl` too** → Ollama isn't running.
 - **Generally slow** → try a smaller model (`ollama pull llama3.2:1b`).
 
-** urgent**
-
-the last chat window was disconturned with mcp ser authentican issues
-
-i lost my last chat
- it was a bucn of beta testing things
-
 ## How it's put together
 
 ```
