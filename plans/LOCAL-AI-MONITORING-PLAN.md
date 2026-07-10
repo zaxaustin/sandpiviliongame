@@ -60,13 +60,18 @@ actually measurable without system access: how long it took.
 
 ## The plan — in order, each step small and shippable alone
 
-1. **A small "Local AI" panel** — reachable from the pause menu, same
-   pattern as the existing "📊 Your Data" and "📋 Still Open" panels.
-   Polls `/api/ps` **only while the panel is actually open** (not a
-   background timer — this project has already hit real cost from an
-   always-running check once, see `AGENT-EMBODIMENT-PLAN.md`'s own
-   warning about tick rate and inference cost), lists every currently
-   loaded model with its size and GPU/CPU residency.
+1. **[x] Built 2026-07-10.** A "🧠 Local AI" panel, reachable from the
+   pause menu, same pattern as the existing "📊 Your Data" panel.
+   `makeOllamaProvider()` gained a `listLoaded()` method (`provider.js`)
+   wrapping `/api/ps` the same way `isAvailable()` already wraps
+   `/api/tags`; the panel calls it fresh only while actually open (a
+   `↻ Refresh` button, no timer), and shows an honest message instead of
+   a fake zero when the active connection isn't Ollama at all. Verified
+   live, not just built: opened against this machine's actual running
+   Ollama instance — correctly showed "nothing loaded right now" since
+   no model was resident in memory at the time, exactly the intended
+   behavior (a model only loads once a resident is actually asked
+   something).
 2. **Per-action elapsed time**, logged the same lightweight way
    `activityLog` already logs everything else — "Quill replied in 2.3s"
    sitting next to "Asked Quill about the Dhammapada" rather than a

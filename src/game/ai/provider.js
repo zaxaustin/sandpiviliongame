@@ -120,6 +120,21 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
         return true;
       } catch(e){ return false; } // not running, wrong port, or OLLAMA_ORIGINS doesn't allow this page
     },
+    // LOCAL-AI-MONITORING-PLAN.md step 1 — Ollama's own /api/ps, same
+    // localFetch() pattern as /api/tags above, zero new dependency. Only
+    // Ollama providers have this method at all (duck-typed by callers);
+    // an OpenAI-compatible or Anthropic connection has no equivalent, so
+    // there's nothing dishonest to fake here.
+    async listLoaded(){
+      try{
+        const res = await localFetch(url+'/api/ps', { signalMs:1500 });
+        if(!res.ok) return [];
+        const body = await res.json();
+        return (body.models||[]).map(m=>({
+          name: m.name, size: m.size||0, sizeVram: m.size_vram||0, expiresAt: m.expires_at||null,
+        }));
+      } catch(e){ return []; }
+    },
     async chat(messages, opts){
       const size = (opts && opts.deep) ? 'deep' : (opts && opts.long) ? 'long' : 'short';
       const model = (opts && opts.model) || p.model;

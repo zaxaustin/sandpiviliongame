@@ -653,7 +653,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -722,6 +722,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="openInventory()" style="margin-bottom:9px">🎒 Inventory</button>
       <button class="btn ghost" onclick="openReviewQueue()" style="margin-bottom:9px">🛡 Steward Review</button>
       <button class="btn ghost" onclick="openDataPanel()" style="margin-bottom:9px">📊 Your Data</button>
+      <button class="btn ghost" onclick="openLocalAIPanel()" style="margin-bottom:9px">🧠 Local AI</button>
       <button class="btn ghost" onclick="exportSave()" style="margin-bottom:9px">⬇ Export save (.json)</button>
       <button class="btn ghost" onclick="triggerImportSave()" style="margin-bottom:9px">⬆ Import save…</button>
       <button class="btn ghost" onclick="returnToTitle()" style="margin-bottom:9px">← Return to title screen</button>
@@ -786,6 +787,48 @@ export function pruneOldPlannerDays(){
   doomed.forEach(k=>delete data.planner[k]);
   persist(); logActivity('Cleared '+doomed.length+' old planner day(s) from before '+cutoff+'.');
   renderDataPanel();
+}
+
+/* ----- LOCAL-AI-MONITORING-PLAN.md step 1 — a real "Local AI" panel,
+   reachable from the pause menu. Polls /api/ps only while the panel is
+   actually open, never a background timer — the same discipline this
+   project already holds itself to around always-on cost (see
+   AGENT-EMBODIMENT-PLAN.md's own tick-rate warning). Only Ollama
+   connections expose listLoaded() at all; anything else gets an honest
+   "no equivalent data" message instead of a fake zero. ----- */
+export function openLocalAIPanel(){
+  state.ui='localai'; hideAllOv(); showOv('localaiOv');
+  renderLocalAIPanel();
+}
+export async function renderLocalAIPanel(){
+  const panel=document.getElementById('localaiPanel');
+  panel.innerHTML = `<button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Local AI</h2>
+    <div class="meta">Checking what's actually loaded…</div>`;
+  if(!isAIActive() || typeof AI.listLoaded!=='function'){
+    panel.innerHTML = `<button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Local AI</h2>
+      <div class="meta">${isAIActive()
+        ? 'The active connection ('+esc(AI.name)+") isn't Ollama — this panel only reads Ollama's own /api/ps endpoint, real usage data with no equivalent on other connection types."
+        : 'No local AI connection is active right now — nothing to show.'}</div>`;
+    return;
+  }
+  const loaded=await AI.listLoaded();
+  if(state.ui!=='localai') return; // panel closed while the request was in flight
+  const card=(t,s)=>`<div class="card" style="cursor:default"><div class="t">${esc(t)}</div><div class="s">${s}</div></div>`;
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Local AI</h2>
+    <div class="meta">Ollama's own <code>/api/ps</code>, read fresh right now — nothing polls in
+      the background. Real memory and GPU-residency data, not a placeholder; true CPU/GPU
+      percentage needs a further, desktop-only step (see LOCAL-AI-MONITORING-PLAN.md).</div>
+    ${loaded.length ? loaded.map(m=>{
+        const onGpu=m.sizeVram>0;
+        const pct=m.size ? Math.round(m.sizeVram/m.size*100) : 0;
+        const unloads=m.expiresAt ? '<br>unloads at '+new Date(m.expiresAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+        return card(m.name, humanSize(m.size)+' total · '+(onGpu?pct+'% on GPU':'running on CPU')+unloads);
+      }).join('') : '<p>Nothing loaded right now — a model spins up fresh the moment a resident is actually asked something.</p>'}
+    <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="renderLocalAIPanel()">↻ Refresh</button></div>`;
 }
 
 /* ----- Save export / import — "a Pavilion you can carry in a file" -----
@@ -3355,6 +3398,7 @@ Object.assign(window, {
   openIdeaCapture, saveIdea, deleteIdea,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
+  openLocalAIPanel, renderLocalAIPanel,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping,
   openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openComputer, saveLastChatReplyToArchive,

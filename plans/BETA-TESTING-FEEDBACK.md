@@ -344,7 +344,7 @@ limits framing the README already uses, just surfaced at the actual
 moment of friction instead of only in a file you'd have to already know
 to open.
 
-### 15. Track local AI resource usage — a beta tool and a real feature both
+### 15. [~] Track local AI resource usage — a beta tool and a real feature both
 
 **The ask, exactly as given:** see CPU usage from the local AI models,
 how many can run at once, and what effect each action has — useful for
@@ -367,6 +367,15 @@ live against this machine's real, running Ollama instance (`/api/ps` and
 `/api/tags` both actually curled, not assumed). Explicitly not built yet
 — "let's not get ahead of ourselves," direct instruction — the plan and
 the learning module are the whole scope of this update.
+
+**Update, 2026-07-10: step 1 built.** A real "🧠 Local AI" panel in the
+pause menu, `AI.listLoaded()` wrapping `/api/ps` the same way
+`isAvailable()` already wraps `/api/tags`. Verified live against this
+machine's actual running Ollama instance, not simulated — correctly
+showed no model resident in memory at the time, an honest empty state
+rather than a fake number. Per-action timing (step 2) and the session
+summary (step 3) stay open; true CPU/GPU percentage (step 4) stays
+deferred on purpose, same reasoning as before.
 
 ### 16. [x] The Mountain Monk's actual role, corrected
 
