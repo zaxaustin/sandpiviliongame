@@ -1,6 +1,7 @@
 # Eightfold Path Temple Plan
 
-Not started. Written down 2026-07-10, asked for directly: rather than
+**Visuals built and verified live, 2026-07-10 — see the "Status" note at
+the bottom.** Written down the same day, asked for directly: rather than
 rename the sketched Workshop rooms (README's "What's next" #8 — the
 Ledger, the Maker's Bench, the Greenhouse, the Records Hall, the Round
 Table, the Mailroom) after the Noble Eightfold Path, put the Path where
@@ -116,23 +117,42 @@ statue worth a second pass instead of a placeholder blob.
 
 ## A sane build order, if picked up
 
-1. **Exact tile placement** for the eight new sign-stations within the
-   Keep's existing floor plan — a real layout decision, best made
-   looking at the actual room (or a screenshot of it), not guessed blind
-   from the tile-grid source.
-2. **Real sign text per fold** — the Pali/Sanskrit name, the plain
-   English name, a line from the actual shelved Dhammapada translation,
-   and the one-line tie to an existing Pavilion feature from the list
-   above.
-3. **Verify live** — walk the full circuit in order, same discipline as
-   every other content addition here (screenshot-checked, not just
-   read), confirm the order actually reads correctly room to room.
-4. **(B), the full eight-room complex** — only revisited later, and only
-   if (A) genuinely feels too small once it's real and walkable.
+1. **[x] Done 2026-07-10.** Exact tile placement for the eight new
+   sign-stations within the Keep's existing floor plan (`scenes.js`'s
+   `buildKeep()`) — paired left/right down the corridor, ascending
+   south to north toward the shrine, mirroring the Buddha/Ganesha
+   layout's own symmetry.
+2. **[x] Done.** Real sign text per fold — the Pali name, the plain
+   English name, the fold's real meaning cited to the shelved Dhammapada
+   (Chapter XX, "The Path"), and the one-line tie to an existing
+   Pavilion feature from the list above, for all eight.
+3. **[x] Done.** Verified live via a real Playwright run against the
+   actual running game, not just read: teleported into the Keep,
+   confirmed all eight signs render in the correct paired layout with no
+   collisions, and read the first sign's full text on screen to confirm
+   it renders correctly (including the Pali diacritics).
+4. **(B), the full eight-room complex** — still not picked up, on
+   purpose. (A) hasn't yet been walked and judged "too small" by anyone
+   but this session; a real call, not a default.
+
+## What's still actually open
+
+**Real interaction, past reading a sign.** The build above is
+deliberately visuals-only, per direct instruction this same session —
+walk up, read, that's the whole mechanic today. Whether each fold
+deserves something more (a keepsake, a small practice, a way to mark one
+"walked" today) is real, later design work, not assumed to be small.
+
+**The bare-bones-vs-Zac's-addition question, from `TOOL-COMMONS-PLAN.md`
+— still genuinely undecided.** Is this Temple something every fork of
+this project would want, or specifically this Pavilion's own tradition,
+the same category as the Monk's own teaching? Flagged, not answered,
+when the visuals shipped; still open.
 
 ## What this explicitly is not
 
 Not a rename of the Workshop rooms — those stay exactly as sketched in
-README's "What's next" #8, their own separate, practical idea. Not a
-new game mechanic — reuses the existing sign/shrine rendering system
+README's "What's next" #9, their own separate, practical idea (now also
+built — see `README.md`'s "Done since" trail, 2026-07-10). Not a new
+game mechanic — reuses the existing sign/shrine rendering system
 throughout, on purpose.

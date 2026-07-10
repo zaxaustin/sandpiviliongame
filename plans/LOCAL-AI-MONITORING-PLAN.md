@@ -1,20 +1,20 @@
 # Local AI Monitoring Plan
 
-Not started as code — this is the written plan first, same as every
-other `*-PLAN.md` in this repo. See `BETA-TESTING-FEEDBACK.md` #15 for
-the original raw ask this is built from, and
-`LEARNING-PATH.md` for the companion module written alongside this plan,
-teaching the concepts a beginner needs to actually understand what this
-feature would show them.
+**Step 1 built and verified live, 2026-07-10** — the "🧠 Local AI" panel,
+reading Ollama's own `/api/ps`. Steps 2-4 below are still just the plan.
+See `BETA-TESTING-FEEDBACK.md` #15 for the original raw ask this is
+built from, and `LEARNING-PATH.md` for the companion module written
+alongside this plan, teaching the concepts a beginner needs to actually
+understand what this feature shows them.
 
 ## The actual goal
 
 Asked for directly, 2026-07-09, in two parts: see CPU usage from the
 local AI models, and how many can run at once — both as a real beta-
 testing tool (is a given action actually expensive?) and as a genuine
-shipped feature ("a cool developer feature for this app"). **Explicitly
-holding off on building this now** — this document is the plan, written
-so it's ready to pick up, not a promise it's next in line.
+shipped feature ("a cool developer feature for this app"). Step 1
+(below) answers "how many, and how big" for real; steps 2-4 are still
+just the plan, ready to pick up, not a promise they're next in line.
 
 ## What exists today, precisely — checked directly, not assumed
 

@@ -507,12 +507,14 @@ screenshot check.
    shelved book during an idle tick) before any general action API.
    Direct service to "find direction" — a resident who's actually doing
    something, not just answering when spoken to.
-3. **A "Local AI" panel** — plan's written (`LOCAL-AI-MONITORING-PLAN.md`),
-   not the code yet: Ollama's own `/api/ps` endpoint already reports
-   every currently-loaded model's memory footprint and GPU residency for
-   free, no new dependency — real CPU/GPU percentage is a separate,
-   later, desktop-only step needing a new package in Electron's main
-   process.
+3. **A "Local AI" panel — step 1 built 2026-07-10** (see
+   `LOCAL-AI-MONITORING-PLAN.md`): a real "🧠 Local AI" panel in the pause
+   menu, reading Ollama's own `/api/ps` for every currently-loaded
+   model's memory footprint and GPU residency, verified live against a
+   real running Ollama instance. **Still open:** per-action elapsed-time
+   logging and a running session summary (steps 2-3, small, no new
+   dependency); real CPU/GPU percentage stays a separate, later,
+   desktop-only step needing a new package in Electron's main process.
 4. **A real color/appearance picker** — see
    [`CHARACTER-CUSTOMIZATION-PLAN.md`](plans/CHARACTER-CUSTOMIZATION-PLAN.md),
    written down 2026-07-08 after the sprite redesign made it a real
