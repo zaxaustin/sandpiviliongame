@@ -7,7 +7,7 @@ when something's actually fixed, don't delete the entry.
 
 ## Round 1 — 2026-07-09
 
-### 1. Notes during an AI conversation — unclear how to save/link/start new
+### 1. [~] Notes during an AI conversation — unclear how to save/link/start new
 
 **What happened:** talking to an AI resident, the note-taking section
 is a good idea, but it's not clear how to actually save a note, link it
@@ -39,6 +39,17 @@ work that's still real: make that visible (the notes area already has
 somewhere to say so, it's just easy to miss), and decide whether
 "link it to my notebook" should mean actually unifying these three
 separate note stores, which is a bigger, separate decision.
+
+**Fixed 2026-07-10, the discoverability half only — unification stays
+its own, separate, bigger question, exactly as this note already said.**
+The idle-state label (the "somewhere to say so" that already existed)
+now reads plainly, before you've typed a single character: "auto-saves
+as you type — nothing to click," switching to "✓ auto-saved" once a note
+actually exists. The textarea's own placeholder says the same thing.
+Verified live: a fresh chat open shows the idle hint immediately; typing
+still shows the existing "saving…" → "saved HH:MM" transition; closing
+and reopening the same conversation correctly shows "✓ auto-saved" with
+the note's text intact.
 
 ### 2. [x] Settings — can't get back from AI Connections to the pause menu
 

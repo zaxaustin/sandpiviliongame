@@ -128,7 +128,15 @@ function renderChatView(opts){
     if(target) typewriteChatText(target,d.transcript[lastIdx].text,log);
   } else stopChatTyping();
   const notesArea=document.getElementById('chatNotesArea');
-  if(document.activeElement!==notesArea) notesArea.value=data.chatNotes[d.agent]||'';
+  if(document.activeElement!==notesArea){
+    notesArea.value=data.chatNotes[d.agent]||'';
+    // BETA-TESTING-FEEDBACK.md #1 — saving already happens automatically,
+    // it just wasn't visible until you'd already typed something. A calm,
+    // persistent idle-state hint here, not just the transient "saving…"
+    // that only shows up mid-type.
+    document.getElementById('notesSaved').textContent =
+      data.chatNotes[d.agent] ? '✓ auto-saved' : 'auto-saves as you type — nothing to click';
+  }
   document.getElementById('chatOv').classList.toggle('terminal', d.agent==='computer');
   renderChatQuickActions(d);
   updateChatSpeakBtn();
