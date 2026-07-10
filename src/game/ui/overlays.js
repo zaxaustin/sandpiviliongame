@@ -3089,6 +3089,72 @@ function renderResidents(){
    text. Once Phase 3 and more stewards exist, this becomes a real
    table and "approve" can write to it directly — same shape, only the
    underneath changes. */
+/* ----- BOOK-DRAG-DROP-PLAN.md, Path A — client-side only, .txt first.
+   No filesystem write, no shelling out to library-draft.py (a browser
+   genuinely can't do either, the same wall the Caravan connectors
+   already document) — reads the dropped file directly, runs the same
+   Title:/Author: header regex library-draft.py already uses, and
+   pre-fills the existing manual-entry form instead of a new pipeline.
+   An unrecognized source routes to Research Desk notes, never the
+   shared queue, exactly as asked for. */
+const DROP_SOURCES = {
+  gutenberg: { label:'Project Gutenberg', license:'Public Domain (Project Gutenberg)' },
+  standardebooks: { label:'Standard Ebooks', license:'Public Domain / CC0 (Standard Ebooks)' },
+  suttacentral: { label:'SuttaCentral', license:'CC0 1.0' },
+  arxiv: { label:'arXiv', license:"Check the paper's own license — arXiv hosting isn't one" },
+  openalex: { label:'OpenAlex (via publisher)', license:"Check the paper's own license — varies by publisher" },
+  archiveorg: { label:'Internet Archive', license:"Check the item's own rights statement — varies" },
+};
+const DROP_TITLE_RE=/^Title:\s*(.+)$/m;
+const DROP_AUTHOR_RE=/^Author:\s*(.+)$/m;
+function unrecognizedDropProject(){
+  let p=data.workshop.research.find(x=>x.title==='Caravan Drops');
+  if(!p){
+    p={id:'res-dropzone', title:'Caravan Drops',
+      goal:'Texts dropped from an unrecognized source — kept here, never shelved automatically.',
+      notes:[], created:todayKey()};
+    data.workshop.research.unshift(p);
+  }
+  return p;
+}
+export function handleBookDrop(event){
+  event.preventDefault();
+  document.getElementById('dropZone')?.classList.remove('over');
+  const file=event.dataTransfer.files[0];
+  const msg=document.getElementById('dropMsg');
+  if(!file || !msg) return;
+  if(!file.name.toLowerCase().endsWith('.txt')){
+    msg.textContent='Only .txt files are supported right now — see BOOK-DRAG-DROP-PLAN.md for why (PDF support is a real, separate later phase).';
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const text=String(reader.result||'');
+    const titleMatch=DROP_TITLE_RE.exec(text);
+    const authorMatch=DROP_AUTHOR_RE.exec(text);
+    const title=titleMatch ? titleMatch[1].trim() : file.name.replace(/\.txt$/i,'');
+    const sourceKey=document.getElementById('rmDropSource')?.value;
+    const known=DROP_SOURCES[sourceKey];
+    if(known){
+      document.getElementById('rmTitle').value=title;
+      document.getElementById('rmBody').value=text;
+      document.getElementById('rmLicense').value=known.license;
+      document.getElementById('rmSource').value=known.label+(authorMatch?' — '+authorMatch[1].trim():'');
+      msg.textContent='Detected "'+title+'"'+(authorMatch?' by '+authorMatch[1].trim():'')
+        +'. License pre-filled for '+known.label+' — review everything below before adding to the '
+        +'queue, nothing here is confirmed automatically.';
+    } else {
+      const proj=unrecognizedDropProject();
+      proj.notes.unshift({ts:todayKey(), text:(authorMatch?title+' — '+authorMatch[1].trim():title)+'\n\n'+text});
+      persist();
+      logActivity('Filed "'+title+'" as a personal note (unrecognized source) instead of the shared queue.');
+      msg.textContent='No listed source picked, so this went to your own notes instead of the shared '
+        +'queue — filed under the Research Desk\'s "Caravan Drops" project, nothing shelved. Pick a '
+        +'listed source above instead if this text actually is from one of them.';
+    }
+  };
+  reader.readAsText(file);
+}
 export function openReviewQueue(){ state.ui='review'; hideAllOv(); state.reviewView=state.reviewView||{mode:'list'}; renderReviewQueue(); showOv('reviewOv'); }
 export function newReviewImportForm(){ state.reviewView={mode:'import'}; renderReviewQueue(); }
 export function newReviewManualForm(){ state.reviewView={mode:'manual'}; renderReviewQueue(); }
@@ -3119,7 +3185,21 @@ function renderReviewQueue(){
       <div class="meta">Have something real — a paper, a chapter, notes you already have permission
         to share — but no Caravan JSON for it? Paste it straight in. Same review queue, same
         license/legality check before anything's approved.</div>
-      <label>Title</label><input type="text" id="rmTitle" placeholder="e.g. On the Duty of Civil Disobedience">
+      <label>Where did it come from?</label>
+      <select id="rmDropSource" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
+        <option value="">Not listed / unknown source</option>
+        ${Object.entries(DROP_SOURCES).map(([k,s])=>`<option value="${k}">${esc(s.label)}</option>`).join('')}
+      </select>
+      <div id="dropZone" ondragover="event.preventDefault();this.classList.add('over')"
+        ondragleave="this.classList.remove('over')" ondrop="handleBookDrop(event)"
+        style="margin-top:8px;border:2px dashed #55432e;border-radius:8px;padding:22px;text-align:center;color:#a8926c;font-size:13px">
+        📄 Drag a <code>.txt</code> file here — title, author, and (for a listed source above) the
+        license get filled in below automatically. Nothing's added to any queue until you review
+        and submit. Picking "Not listed" instead files it as a personal note in the Research Desk,
+        never the shared queue.
+      </div>
+      <div id="dropMsg" class="meta"></div>
+      <label style="margin-top:10px">Title</label><input type="text" id="rmTitle" placeholder="e.g. On the Duty of Civil Disobedience">
       <label>Tradition</label>
       <select id="rmTradition" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
         ${['Theravada','Mahayana','Daoism','Practice','Science','Classics'].map(t=>`<option value="${t}">${t}</option>`).join('')}
@@ -3515,7 +3595,7 @@ Object.assign(window, {
   openComputer, saveLastChatReplyToArchive,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
-  openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem,
+  openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop,
   searchSuttaCentral, fetchSuttaCentralText,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, draftSummaryForReviewItem, generateApprovedBatch, markBatchExported,
   openNoticeBoard, openNoticePost, backToNoticeList, newNoticePostForm, submitNoticePost,

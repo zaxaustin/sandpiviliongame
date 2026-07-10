@@ -1,8 +1,9 @@
 # Book Drag-and-Drop Plan
 
-Not started as code — this is the written plan first, same as every
-other `*-PLAN.md` in this repo. See README's "What's next" for how
-this fits the rest of the priority list.
+**Path A built and verified live, 2026-07-10** — see "Status" at the
+bottom. Path B (real filesystem integration) stays exactly as scoped
+below, not started. See README's "What's next" for how this fits the
+rest of the priority list.
 
 ## The actual idea, as asked for (2026-07-09)
 
@@ -91,18 +92,35 @@ tradition. This plan automates the retyping, never the judgment.
 
 ## Rough shape, once this is picked up
 
-1. A drop zone at the Caravan Desk, `.txt` only for v1 — reads the file
-   client-side, runs the same header-detection regex `library-draft.py`
-   already uses, and opens the existing manual-entry form pre-filled.
-2. The source picker — a short, hand-maintained list matching known
-   Caravan connectors, each with its own pre-filled license string.
-3. Unknown-source routing to personal notes instead of the shared
-   queue.
-4. `.pdf` support, client-side (likely `pdf.js`, the same
-   library-family Firefox itself uses) — a real second phase, since
-   PDF text extraction quality is exactly the kind of thing
-   `pdf-to-text.py` already had to solve carefully once; don't assume
-   it's simpler just because it happens in the browser instead.
-5. Path B (Electron filesystem integration), only if Path A proves the
-   feature gets used and the manual terminal step is a real recurring
-   friction, not a one-time evening's wish.
+1. **[x] Built 2026-07-10.** A drop zone at the Caravan Desk's existing
+   "Add a Text by Hand" form (`renderReviewQueue()`'s `manual` mode),
+   `.txt` only for v1 — reads the file client-side via `FileReader`,
+   runs the same `Title:`/`Author:` header-detection regex
+   `library-draft.py` already uses (ported to JS, same two patterns),
+   and pre-fills the existing form's Title and Full text fields
+   directly — no new pipeline, the exact reuse this plan called for.
+2. **[x] Built.** The source picker (`DROP_SOURCES` in `overlays.js`) —
+   Gutenberg, Standard Ebooks, SuttaCentral, arXiv, OpenAlex, Internet
+   Archive, each pre-filling a real license string into the License
+   field (never auto-*confirming* it — still just text in an editable
+   input, same non-negotiable rule as everywhere else). Wikisource
+   stays out, matching the plan's own "once it exists."
+3. **[x] Built.** Unknown-source routing — picking "Not listed" instead
+   of a real source finds-or-creates a real Research Desk project
+   ("Caravan Drops") and files the dropped text there as a note,
+   **never touching the shared review-queue form at all.**
+4. `.pdf` support — still a real, separate later phase, not attempted
+   this pass, exactly as scoped.
+5. Path B (Electron filesystem integration) — still not started, only
+   worth it if Path A's actual use proves the manual terminal step is a
+   real recurring friction.
+
+**Verified live, not just built:** a real Playwright run against the
+running game, both paths. Dropping a real `.txt` file with a
+`Title:`/`Author:` header and "Project Gutenberg" selected correctly
+filled Title, Full text, License ("Public Domain (Project Gutenberg)"),
+and Source; dropping the same shape of file with "Not listed / unknown
+source" selected left the shared-queue form untouched and instead
+created a real "Caravan Drops" Research Desk project with the note
+actually attached — confirmed by opening the Research Desk afterward and
+seeing "1 note."

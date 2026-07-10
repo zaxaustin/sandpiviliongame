@@ -199,18 +199,26 @@ directly from a browser (a real limit of the platform, not a missing
 feature) — the Request Board is where a text you want, but can't fetch
 in-game, gets tracked until it's brought in by hand.
 
-**Adding books manually** — for any source without a Caravan connector
-yet, download the text by hand and drop it in `library-inbox/`, sorted
-into whichever subfolder matches the site it came from (one already
-exists per source — see `library-inbox/README.md`). From there it's the
-same pipeline as an automated fetch: `library-draft.py` to start a
-draft, a real hand-written summary and confirmed license, then
-`promote-draft.py` to shelve it and `push-fulltext.py` to attach the
-full text. `LIBRARY-GROWTH-PLAN.md` has the actual list of legitimately
-free sources to pull from (checked for license, not just "free to
-read") and the reasoning behind sorting drops by source in the first
-place — a folder that fills up by hand is the real signal a proper
-connector for that site is worth writing next.
+**Adding books manually — two real paths, pick whichever fits.** With a
+terminal: download the text by hand and drop it in `library-inbox/`,
+sorted into whichever subfolder matches the site it came from (one
+already exists per source — see `library-inbox/README.md`). From there
+it's the same pipeline as an automated fetch: `library-draft.py` to
+start a draft — optionally with `--ai-draft` to have a local Ollama
+model suggest a summary and tradition, always clearly marked as a
+suggestion, never final — a real hand-written summary and confirmed
+license, then `promote-draft.py` to shelve it and `push-fulltext.py` to
+attach the full text. **Without a terminal at all:** the Caravan Desk's
+"+ Add a text by hand" form has a real drag-and-drop zone — drop a
+`.txt` file, pick which site it came from if it's a known one (title,
+author, and license all fill in automatically), and it lands in the
+same Steward Review Queue either way, nothing shelved until reviewed.
+An unrecognized source routes to your own Research Desk notes instead
+of the shared queue. `LIBRARY-GROWTH-PLAN.md` has the actual list of
+legitimately free sources to pull from (checked for license, not just
+"free to read") and the reasoning behind sorting drops by source in the
+first place — a folder that fills up by hand is the real signal a
+proper connector for that site is worth writing next.
 
 **The Commons** — connect Supabase and the Library mirrors a real hosted
 database, the café's two boards become genuinely shared, and signing in
@@ -496,6 +504,29 @@ opened, every sign's real text confirmed on screen, the same discipline
 this project has held itself to since the Ganesha statue's own two-pass
 screenshot check.
 
+**Done since then (also 2026-07-10):** the Local AI panel's remaining
+two steps built and verified — every provider's `chat()` now tracks its
+own elapsed time, so the activity log gets a real "(2.3s ·
+llama3.2:latest)" tag for free, and the panel itself gained a "Today's
+session" card (real-ask count, total/average time, per-model breakdown)
+built entirely from that same log. The Caravan Desk gained a real
+drag-and-drop intake — drop a `.txt` file, pick a known source, and the
+existing manual-entry form fills itself in (title, author, and a real
+license string per source), verified live end to end including the
+unrecognized-source path, which now actually creates a real Research
+Desk project ("Caravan Drops") instead of touching the shared queue.
+`library-draft.py` also gained a local-AI-assisted `--ai-draft` flag for
+the terminal half of the same pipeline, suggesting a summary and
+tradition that stay clearly marked as suggestions, never final, and
+never touching license or source. The Caravan Desk's own list view
+gained a plain answer to "why can't I just paste a URL," right at the
+point someone actually asks it. And `COURSE-BOARD-PLAN.md` got written
+— a real 3-stage plan (personal now, real sharing standards next, a full
+free course site further out) turning the Course Board's own scaling
+complaint into a real roadmap instead of one undefined ask; paired with
+a direct decision that `TOOL-COMMONS-PLAN.md` becomes real once this
+Pavilion actually opens its beta to other people, not before.
+
 1. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 44 live texts across 9 shelves; see
    [`LIBRARY-GROWTH-PLAN.md`](plans/LIBRARY-GROWTH-PLAN.md) for the curated
@@ -584,16 +615,18 @@ screenshot check.
     assisted tool generation, an eventual in-game builder — stays
     genuinely long-term, named so it isn't lost, not promised. See
     "Hopes and dreams" below for the fuller vision.
-11. **A drag-and-drop book intake at the Caravan Desk** — see
-    [`BOOK-DRAG-DROP-PLAN.md`](plans/BOOK-DRAG-DROP-PLAN.md), written
-    2026-07-09. Pick a source website, drop the file, the Pavilion
-    fills in the rest of the existing manual-entry form instead of
-    retyping it by hand; an unrecognized source routes to personal
-    notes instead of the shared queue. The real constraint found while
-    planning it: a browser can read a dropped file, but can't write it
-    to disk or run a Python script — so this starts client-side-only
-    (`.txt` first), with real Electron filesystem integration a
-    later, separate phase, not assumed to be the same amount of work.
+11. **A drag-and-drop book intake at the Caravan Desk — built 2026-07-10**
+    (see [`BOOK-DRAG-DROP-PLAN.md`](plans/BOOK-DRAG-DROP-PLAN.md)). Pick a
+    source website, drop a `.txt` file, and the Pavilion fills in the
+    rest of the existing manual-entry form instead of retyping it by
+    hand — title/author detected, license pre-filled per source, never
+    auto-confirmed. An unrecognized source routes to a real Research
+    Desk project ("Caravan Drops") instead of the shared queue, verified
+    live. **Still open:** `.pdf` support, and real Electron filesystem
+    integration (writing straight to `library-inbox/`, invoking
+    `library-draft.py` directly) — a browser genuinely can't do either,
+    so both stay later, separate phases, not assumed to be the same
+    amount of work as the `.txt` path that's live now.
 
 ## Hopes and dreams
 

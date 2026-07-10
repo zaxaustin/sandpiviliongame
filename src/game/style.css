@@ -178,6 +178,8 @@ body { font-family:'Courier New', monospace; touch-action:none; }
   padding:12px 14px; margin-bottom:10px; cursor:pointer; transition:border-color .15s;
 }
 .card:hover { border-color:#e0a43c; }
+#dropZone { transition:border-color .15s,background-color .15s; }
+#dropZone.over { border-color:#e0a43c; background-color:rgba(224,164,60,.08); color:#f2c97a; }
 .card .t { color:#f5e9d4; font-weight:bold; font-size:14px; }
 .card .s { color:#b3a288; font-size:12.5px; line-height:1.5; margin-top:4px; }
 .badge { display:inline-block; font-size:10.5px; border:1px solid #7fa36b; color:#a9cf90;

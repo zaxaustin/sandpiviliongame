@@ -798,10 +798,19 @@ a real `--ai-draft` call against this machine's actual running Ollama
 (correctly suggested "Practice" and a real one-sentence summary for a
 test text), and a forced-unreachable run (clean fallback, no crash).
 
-**Part (2), the priority explainer shelf, still open** — real content
-to write (an honest explainer text, not a code change), not attempted
-in this same pass; the process it would document now genuinely exists
-thanks to part (1), which is what this item's own note said to wait for.
+**Part (2), the priority explainer shelf, still open — a real, unresolved
+design question found while scoping it, not just unstarted.** The
+Library's shelves are organized by `tradition` (nine of them); a
+`priority` category was the easy code addition, but the actual essay
+content — "how the Library and Caravan work" — doesn't honestly belong
+to *any* existing tradition (Theravada, Hindu, and so on are lineages of
+teaching; this would be meta content about the Pavilion's own
+mechanics, closer to the Charter or the Keeper's own signs than a
+shelved text). Forcing it onto the nearest existing shelf to avoid the
+question felt worse than leaving it open. Worth a real decision before
+writing anything: does this become a tenth, genuinely different kind of
+shelf, live only as in-world signage the way the Charter already does,
+or something else — not guessed at cold.
 
 ### 25. Human-paced text streaming — a standalone, later feature
 
