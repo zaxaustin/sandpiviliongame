@@ -594,6 +594,29 @@ function renderConnections(){
       server on your own machine) never sends anything anywhere else; a ☁ cloud connection sends
       your conversation — and whatever it's grounded in — to that provider's servers, same as
       using their own app would. Both are real options here; just know which one you're using.</div>
+    <details style="margin:4px 0 14px">
+      <summary style="cursor:pointer;color:#e0a43c;font-size:13px">❔ What's actually different between models, and where does my data go?</summary>
+      <div class="meta" style="margin-top:8px">
+        <b>Exactly what gets sent, for any connection:</b> the visible conversation so far, plus
+        whatever that resident is grounded in — for Quill, the current Library shelf list; for
+        every resident, the charter. Nothing more, nothing silent. For a 🏠 local connection that
+        never leaves this device at all; for a ☁ cloud connection, that's what actually reaches
+        the provider's servers.<br><br>
+        <b>"Thinking" models</b> (named that way on purpose — qwen3.5, deepseek-r1, qwq, and
+        similar) spend part of their reply budget on invisible reasoning before they actually
+        answer, which can make a reply slow or, if that budget runs out first, come back
+        completely blank. A plain model (llama3.2 and similar) skips that step entirely — faster
+        and more predictable for everyday conversation, which is why it's the one this game
+        suggests by default.<br><br>
+        <b>Context window</b> is the real limit on how much conversation a model can actually
+        "see" at once — a fixed budget, measured in tokens (roughly word-pieces), that a long
+        back-and-forth can genuinely fill up. Once it does, the earliest parts of the conversation
+        stop being visible to the model, even though they're still right there on your screen —
+        a hard limit of the model itself, not a bug in this game. See <code>LEARNING-PATH.md</code>
+        Stage 16 for the fuller version, including what "loaded," VRAM vs. RAM, and a model's own
+        memory footprint actually mean.
+      </div>
+    </details>
     <div id="connList">${conns.map((c,i)=>connCardHTML(c,i)).join('')}</div>
     <h3>Add a connection</h3>
     <div class="meta">"Base URL" is the address of the AI server — for Ollama that's usually

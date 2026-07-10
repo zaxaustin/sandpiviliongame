@@ -689,7 +689,7 @@ when asked to fetch/add a book live — a real technical wall, not a
 rule — and points to the Request Board by name, mirroring the line the
 Steward's prompt already had.
 
-### 23. Local AI transparency — what's actually happening under the hood
+### 23. [x] Local AI transparency — what's actually happening under the hood
 
 **The ask:** understand what different local models actually do, what
 this interface's real limits are, and what data actually moves where —
@@ -705,6 +705,18 @@ a visitor would actually find mid-confusion — same discoverability gap
 as #14 above, not a new problem, the same fix pattern likely applies
 (surface it at the point of friction, not just in a file you'd need to
 already know to open).
+
+**Fixed 2026-07-10.** A collapsed `<details>` block in the Connections
+panel itself — the actual point of friction, right where someone's
+already looking at model/connection choices — answers all three parts
+plainly: exactly what data gets sent for any connection (the visible
+conversation plus whatever that resident is grounded in, nothing more,
+nothing silent), what a "thinking" model actually does differently and
+why it can come back slow or blank, and what a context window actually
+limits once a conversation runs long. Points to `LEARNING-PATH.md` Stage
+16 for the fuller version rather than duplicating it. Verified live —
+collapsed by default, expands cleanly on click, reads correctly against
+this machine's real connected Ollama instance.
 
 ### 24. Auto-load manually-added Library books via local AI, plus a "priority" explainer shelf
 
