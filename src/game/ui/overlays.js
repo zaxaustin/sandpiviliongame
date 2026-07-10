@@ -1044,7 +1044,7 @@ window.addEventListener('keydown',e=>{
 });
 export function openReader(slug){
   const d=Store.getDoc(slug); if(!d) return;
-  state.ui='reader'; state.currentDoc=slug; state.fullTextView=null; hideAllOv();
+  state.ui='reader'; state.currentDoc=slug; state.fullTextView=null; state.bookNotesShowAll=false; hideAllOv();
   document.getElementById('rdTitle').textContent=d.title;
   document.getElementById('rdMeta').innerHTML =
     `<b>${esc(d.tradition)}</b> · License: <b>${esc(d.license)}</b> · Source: <b>${esc(d.attribution||'')}</b><br>${esc(d.source_url)}`;
@@ -1075,7 +1075,13 @@ export function addBookNote(slug){
   if(!slug) return;
   const input=document.getElementById('rdNoteInput');
   const text=input.value.trim(); if(!text) return;
-  (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift({ts:todayKey(),text});
+  // BETA-TESTING-FEEDBACK.md #10 — a note taken while actually reading the
+  // full text knows which page it was on; a note taken from the summary
+  // view has no page to attach, same as every note taken before this field
+  // existed — an absent field, not a migration.
+  const note={ts:todayKey(),text};
+  if(state.fullTextView && state.fullTextView.slug===slug) note.page=state.fullTextView.page;
+  (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift(note);
   persist(); input.value=''; renderBookNotes(slug);
   const d=Store.getDoc(slug);
   logActivity('Added a note to "'+(d?d.title:slug)+'".');
@@ -1096,21 +1102,44 @@ export function sendNoteToToday(slug, i){
   persist(); logActivity('Brought a note from "'+(d?d.title:slug)+'" to today\'s plan.'); blip(784,.09);
   renderBookNotes(slug);
 }
+// BETA-TESTING-FEEDBACK.md #10 — per-page is the default view whenever
+// you're actually mid-book (matches where you're reading right now);
+// "show all" is one click away. Reset whenever a book is freshly opened
+// (see openReader()) so a previous book's choice doesn't linger oddly.
+export function toggleBookNotesFilter(){
+  state.bookNotesShowAll=!state.bookNotesShowAll;
+  renderBookNotes(state.currentDoc);
+}
 function renderBookNotes(slug){
-  const notes=data.bookNotes[slug]||[];
+  const all=data.bookNotes[slug]||[];
+  const inFullText=state.fullTextView && state.fullTextView.slug===slug;
+  const showAll=!inFullText || state.bookNotesShowAll;
+  const notes=showAll ? all : all.filter(n=>n.page===state.fullTextView.page);
   const today=plannerDay();
-  document.getElementById('rdNotesList').innerHTML = notes.length
-    ? notes.map((n,i)=>{
+  const toggle=inFullText
+    ? `<div class="row" style="margin-bottom:8px">
+        <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="toggleBookNotesFilter()">
+          ${showAll ? '📖 Show just this page' : '📚 Show all notes ('+all.length+')'}
+        </button>
+      </div>`
+    : '';
+  const list=notes.length
+    ? notes.map(n=>{
+      const i=all.indexOf(n); // the real index into data.bookNotes[slug], not the filtered list's own
       const alreadySent=today.sparks.some(s=>s.text===n.text);
+      const pageTag=n.page!==undefined ? ` · page ${n.page+1}` : '';
       return `<div class="card" style="cursor:default">
-        <div class="s">${esc(n.ts)}</div><div>${esc(n.text)}</div>
+        <div class="s">${esc(n.ts)}${pageTag}</div><div>${esc(n.text)}</div>
         <div class="row" style="margin-top:6px">
           <button class="btn ghost" style="font-size:11px;padding:3px 10px" ${alreadySent?'disabled':''}
             onclick="sendNoteToToday('${slug}',${i})">${alreadySent?'✓ In today\'s plan':'→ Bring to today\'s plan'}</button>
         </div>
       </div>`;
     }).join('')
-    : '<p class="meta">No notes yet on this book — jot down whatever\'s worth remembering.</p>';
+    : (inFullText && !showAll
+        ? '<p class="meta">No notes on this page yet.</p>'
+        : '<p class="meta">No notes yet on this book — jot down whatever\'s worth remembering.</p>');
+  document.getElementById('rdNotesList').innerHTML = toggle+list;
 }
 export function currentDocSlug(){ return state.currentDoc; }
 
@@ -1166,9 +1195,11 @@ export async function openFullText(slug){
 }
 export function backToSummary(){
   stopSpeaking();
+  const slug=state.fullTextView?.slug;
   state.fullTextView=null;
   document.getElementById('rdSummaryView').style.display='block';
   document.getElementById('rdFullTextView').style.display='none';
+  if(slug) renderBookNotes(slug); // leaving full-text drops the per-page filter back to "all"
 }
 function renderFullTextPage(){
   const v=state.fullTextView; if(!v) return;
@@ -1177,6 +1208,7 @@ function renderFullTextPage(){
   document.getElementById('rdFullTextPageNum').textContent=`Page ${v.page+1} of ${v.pages.length}`;
   document.getElementById('rdFullTextBody').scrollTop=0;
   updateFullTextSpeakBtn();
+  renderBookNotes(v.slug); // the per-page note filter follows you as you turn pages
 }
 export function fullTextNextPage(){
   const v=state.fullTextView; if(!v||v.page>=v.pages.length-1) return;
@@ -3381,7 +3413,7 @@ export async function generateQuillReport(){
    onclick="..." handlers, which only resolve against `window` —
    module-scoped functions aren't visible there, so wire them up. */
 Object.assign(window, {
-  closeUI, openReader, markRead, backToShelf, addBookNote, sendNoteToToday, removeSpark,
+  closeUI, openReader, markRead, backToShelf, addBookNote, sendNoteToToday, removeSpark, toggleBookNotesFilter,
   openFullText, backToSummary, fullTextNextPage, fullTextPrevPage, toggleFullTextReadAloud,
   selectBook, shelfOpenSelected,
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,

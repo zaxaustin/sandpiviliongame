@@ -156,7 +156,7 @@ would need to be built as "stop, then re-speak from an approximate word
 offset," not a true seek, worth knowing before promising exact
 10-second precision.
 
-### 7. Find the real source text for the Ganesha/Shiva campaign story
+### 7. [~] Find the real source text for the Ganesha/Shiva campaign story
 
 **Current state:** `ganesha-and-the-campaign` (Hindu shelf, `personal`
 category) is an *original* telling — the steward's own account of
@@ -168,6 +168,30 @@ translation exists, add it as a real second, separately-sourced entry
 alongside the personal telling — same "both exist, clearly labeled"
 pattern already used elsewhere in this Library rather than replacing
 one with the other.
+
+**Researched 2026-07-10 — a real, honest non-result, not a shelving.**
+The story does trace to a real textual source: the Shiva Purana's own
+Tripurāsura (Tripurāntaka) episode — the devas built Shiva's cosmic
+war-chariot for the battle against the three demon cities but omitted
+inviting Ganesha first, the axle broke, and only propitiating Ganesha
+let the campaign proceed. This is a different Ganesha episode than the
+one already checked at wisdomlib's Shiva Purana Chapter 15 (the
+door-guarding/birth story) — the Tripura chapter itself wasn't pinned
+down to a specific, confirmed-safe translation. **The real blocker:**
+the only complete online English Shiva Purana (wisdomlib.org, J.L.
+Shastri's 1950 Motilal Banarsidass translation) carries no copyright or
+license statement on the page at all, and Motilal Banarsidass is a
+still-active publisher — "freely readable" is not the same as "confirmed
+redistributable," the exact distinction `LIBRARY-GROWTH-PLAN.md`'s own
+license rule exists to hold. **Checked directly, not assumed:** the
+Library's own already-shelved Wilkins text (*Hindu Mythology, Vedic and
+Puranic*, 1900, confirmed public domain) was downloaded and grepped in
+full for this specific episode — it has real Ganesha and Shiva chapters,
+but doesn't cover the Tripura story. No other 19th-century (safely
+pre-1923) English Purana translation covering this episode turned up.
+**Left as-is:** the personal telling stays the Library's only entry for
+this story, honestly, rather than shelving a translation whose right to
+redistribute was never actually confirmed.
 
 ### 8. [x] The Writing Desk should be a document first, a toolbox second
 
@@ -250,7 +274,7 @@ notes, Grant Desk documents, and book notes into one browsable structure
 own separate, bigger question, exactly as this update originally said.
 This is one desk's own drawer, real and shipped, not the whole building.
 
-### 10. Book notes need to know which page they're on
+### 10. [x] Book notes need to know which page they're on
 
 **Checked, not guessed:** `data.bookNotes[slug]` (`overlays.js`,
 `addBookNote()`/`renderBookNotes()`) is one flat array per book — a note
@@ -264,6 +288,19 @@ needed, just an absent field, same honest-default pattern already used
 for `done` on old sparks). Two real, small UI pieces once the data
 exists: a per-page notes view (default, matches where you're actually
 reading) and an all-notes-for-this-book view, one click away.
+
+**Fixed 2026-07-10.** `addBookNote()` now stamps a `page` field whenever
+a note is taken while actually inside the full-text reader (absent when
+taken from the summary view, exactly the honest-default pattern
+described above — no migration touched old notes). `renderBookNotes()`
+defaults to showing just the current page's notes while reading, with a
+"📚 Show all notes (N)" toggle one click away, following you as you turn
+pages (`state.bookNotesShowAll`, reset whenever a new book opens). Each
+note now shows its page number when it has one. Verified live with a
+real Playwright run: a note added on page 1 correctly stayed hidden on
+page 2's filtered view ("No notes on this page yet"), the toggle
+correctly listed both notes with their real page numbers once switched
+to "show all," and returning to page 1 kept the chosen filter state.
 
 ### 11. Grant Desk's AI should draft real proposal text, not just organize
 
