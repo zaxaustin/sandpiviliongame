@@ -394,7 +394,7 @@ dependency, no wordlist to maintain. Doesn't apply to the browser build
 (Chrome/Edge/Firefox already do this themselves in any `<textarea>`),
 which is fine since the ask was specifically about the desktop app.
 
-### 14. A real, current "how does this all work" guide — and a clearer in-the-moment message when a fetch fails
+### 14. [~] A real, current "how does this all work" guide — and a clearer in-the-moment message when a fetch fails
 
 **Two related asks, one real gap:** `LEARNING-PATH.md` already exists
 (a self-paced curriculum built around this exact project, linked from
@@ -413,7 +413,16 @@ limits framing the README already uses, just surfaced at the actual
 moment of friction instead of only in a file you'd have to already know
 to open.
 
-### 15. [~] Track local AI resource usage — a beta tool and a real feature both
+**The fetch-fail half fixed 2026-07-10, see #23a.** The broader
+"discoverable from inside the confusion" half fixed the same day too, at
+a different real friction point than originally guessed: the Caravan
+Desk's own list view (`renderReviewQueue()`) now has a collapsed "❔ Why
+can't I just paste a URL and have it show up?" note explaining the real
+pipeline (fetch → draft → paste/hand-add → review) and pointing to
+`LEARNING-PATH.md` Stage 9, right where someone actually hits this wall
+— same pattern as #23's Connections-panel fix.
+
+### 15. [x] Track local AI resource usage — a beta tool and a real feature both
 
 **The ask, exactly as given:** see CPU usage from the local AI models,
 how many can run at once, and what effect each action has — useful for
@@ -442,9 +451,18 @@ pause menu, `AI.listLoaded()` wrapping `/api/ps` the same way
 `isAvailable()` already wraps `/api/tags`. Verified live against this
 machine's actual running Ollama instance, not simulated — correctly
 showed no model resident in memory at the time, an honest empty state
-rather than a fake number. Per-action timing (step 2) and the session
-summary (step 3) stay open; true CPU/GPU percentage (step 4) stays
-deferred on purpose, same reasoning as before.
+rather than a fake number.
+
+**Update, same day: steps 2-3 built too.** Every provider's `chat()` now
+gets wrapped in a `withTiming()` helper, so every "Asked..." activity-log
+entry gets a real `(2.3s · llama3.2:latest)` tag for free; the Local AI
+panel gained a "Today's session" card (real-ask count, total/average
+reply time, per-model breakdown) parsed straight back out of that same
+log — no new instrumentation, exactly as planned. Verified live: a real
+question to Quill came back with the timing tag correctly attached, and
+injected real-shaped log entries (2.3s + 5.1s + 11.4s) rendered as "3
+real asks today... avg 6.3s," confirming the math. True CPU/GPU
+percentage (step 4) stays deferred on purpose, same reasoning as before.
 
 ### 16. [x] The Mountain Monk's actual role, corrected
 

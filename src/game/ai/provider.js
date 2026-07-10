@@ -14,6 +14,21 @@ export const NoProvider = {
   async chat(){ throw new Error('No AI provider is available.'); },
 };
 
+// LOCAL-AI-MONITORING-PLAN.md step 2 — wraps any provider's chat() with
+// elapsed-time tracking, the same side-channel pattern lastThinking
+// already uses, applied once here instead of touching all three
+// providers' own chat() bodies individually.
+function withTiming(p){
+  const rawChat = p.chat;
+  p.lastElapsedMs = null;
+  p.chat = async function(messages, opts){
+    const t0 = Date.now();
+    try{ return await rawChat(messages, opts); }
+    finally{ p.lastElapsedMs = Date.now() - t0; }
+  };
+  return p;
+}
+
 function withTimeout(signalMs){
   const ctrl = new AbortController();
   const timer = setTimeout(()=>ctrl.abort(), signalMs);
@@ -151,7 +166,7 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
       return (body.message?.content||'').trim() || EMPTY_REPLY_TEXT.ollama;
     },
   };
-  return p;
+  return withTiming(p);
 }
 
 /* Generic OpenAI-compatible endpoint — covers LM Studio, most self-hosted
@@ -197,7 +212,7 @@ export function makeOpenAICompatProvider(baseUrl, apiKey, name, model){
       } finally { t.done(); }
     },
   };
-  return p;
+  return withTiming(p);
 }
 
 /* Anthropic's Messages API — a genuinely different shape from the
@@ -251,7 +266,7 @@ export function makeAnthropicProvider(baseUrl, apiKey, name, model){
       } finally { t.done(); }
     },
   };
-  return p;
+  return withTiming(p);
 }
 
 export function providerFor(conn){

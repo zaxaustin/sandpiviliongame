@@ -197,6 +197,31 @@ function remember(agent,text){
   while(mem.length>MEMORY_CAP) mem.shift();
   persist();
 }
+// LOCAL-AI-MONITORING-PLAN.md step 2 — "Quill replied in 2.3s" sitting
+// next to the activity it's already logging, built from AI.lastElapsedMs
+// (the timing side-channel provider.js's withTiming() already sets on
+// every chat() call), not a separate instrumentation system.
+function elapsedTag(){
+  if(AI.lastElapsedMs==null) return '';
+  return ' ('+(AI.lastElapsedMs/1000).toFixed(1)+'s'+(AI.model?' · '+AI.model:'')+')';
+}
+// Parses that same "(2.3s · llama3.2)" suffix back out of today's activity
+// log for the running session summary (step 3) — no separate store, the
+// log text already collected in step 2 is the whole data source.
+const ELAPSED_TAG_RE=/\((\d+(?:\.\d+)?)s(?:\s*·\s*([^)]+))?\)$/;
+function sessionAISummary(){
+  const today=todayKey();
+  const asks=data.activityLog.filter(a=>a.text.startsWith('Asked ') && a.ts.slice(0,10)===today);
+  let totalMs=0, timed=0; const byModel={};
+  for(const a of asks){
+    const m=ELAPSED_TAG_RE.exec(a.text);
+    if(!m) continue;
+    timed++; totalMs+=parseFloat(m[1])*1000;
+    const model=m[2]||'unknown model';
+    byModel[model]=(byModel[model]||0)+1;
+  }
+  return { count:asks.length, timed, totalMs, byModel };
+}
 /* ----- AI-backed NPCs — a small registry so more than one resident can
    talk, each grounded in something different, without duplicating the
    chat plumbing below. Quill was the only one until the café existed;
@@ -359,7 +384,7 @@ async function sendChatMessage(q){
     d.history.push({role:'assistant',content:reply});
     d.transcript.push({from:'npc',text:reply,thinking});
     remember(d.agent,q);
-    logActivity('Asked '+agent.label+': "'+(q.length>60?q.slice(0,60)+'…':q)+'"');
+    logActivity('Asked '+agent.label+': "'+(q.length>60?q.slice(0,60)+'…':q)+'"'+elapsedTag());
   }catch(err){
     d.transcript.push({from:'npc',text:agent.errorLine});
   }
@@ -847,6 +872,8 @@ export async function renderLocalAIPanel(){
   const loaded=await AI.listLoaded();
   if(state.ui!=='localai') return; // panel closed while the request was in flight
   const card=(t,s)=>`<div class="card" style="cursor:default"><div class="t">${esc(t)}</div><div class="s">${s}</div></div>`;
+  const sess=sessionAISummary();
+  const modelBreakdown=Object.entries(sess.byModel).map(([m,n])=>`${n}× ${esc(m)}`).join(', ');
   panel.innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>Local AI</h2>
@@ -859,6 +886,14 @@ export async function renderLocalAIPanel(){
         const unloads=m.expiresAt ? '<br>unloads at '+new Date(m.expiresAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
         return card(m.name, humanSize(m.size)+' total · '+(onGpu?pct+'% on GPU':'running on CPU')+unloads);
       }).join('') : '<p>Nothing loaded right now — a model spins up fresh the moment a resident is actually asked something.</p>'}
+    <h3 style="margin-top:16px">Today's session</h3>
+    <div class="meta">Built entirely from the same activity log every ask already writes to —
+      no separate tracking.</div>
+    ${sess.count
+      ? card(sess.count+' real ask'+(sess.count===1?'':'s')+' today',
+          (sess.timed ? 'Total reply time: '+(sess.totalMs/1000).toFixed(1)+'s · avg '+((sess.totalMs/sess.timed)/1000).toFixed(1)+'s' : 'No timing recorded yet')
+          +(modelBreakdown ? '<br>'+modelBreakdown : ''))
+      : '<p>Nothing asked yet today.</p>'}
     <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="renderLocalAIPanel()">↻ Refresh</button></div>`;
 }
 
@@ -1778,7 +1813,7 @@ export async function sendPlannerMessage(){
   try{
     const reply=await AI.chat([{role:'system',content:await plannerSystemPrompt()}, ...state.plannerChat.history]);
     state.plannerChat.history.push({role:'assistant',content:reply}); state.plannerChat.lastReply=reply;
-    logActivity('Asked the Steward for help planning the day.');
+    logActivity('Asked the Steward for help planning the day.'+elapsedTag());
   }catch(e){
     state.plannerChat.history.push({role:'assistant',content:"The Steward's connection flickers — no answer this time. Check that your AI connection is still running."});
   }
@@ -2302,7 +2337,7 @@ export async function sendResearchMessage(id){
   try{
     const reply=await AI.chat([{role:'system',content:researchSystemPrompt(p)}, ...v.history]);
     v.history.push({role:'assistant',content:reply}); v.lastReply=reply;
-    logActivity('Asked the Research Desk about "'+p.title+'".');
+    logActivity('Asked the Research Desk about "'+p.title+'".'+elapsedTag());
   }catch(e){
     v.history.push({role:'assistant',content:"The connection flickered — no answer this time. Check that your AI connection is still running."});
   }
@@ -2744,7 +2779,7 @@ export async function sendGrantMessage(id){
   try{
     const reply=await AI.chat([{role:'system',content:grantSystemPrompt(p)}, ...v.history], {long:true});
     v.history.push({role:'assistant',content:reply}); v.lastReply=reply; v.lastSection=sectionGuess;
-    logActivity('Asked the Grant Desk about "'+p.title+'".');
+    logActivity('Asked the Grant Desk about "'+p.title+'".'+elapsedTag());
   }catch(e){
     v.history.push({role:'assistant',content:"The connection flickered — no answer this time. Check that your AI connection is still running."});
   }
@@ -3136,6 +3171,19 @@ function renderReviewQueue(){
       permission to shelve)? No legal or copyright question left open? That's the whole job of
       this queue — everything else about "does it fit the Library" is a judgment call, but
       license/legality is the one that isn't optional.</div>
+    <details style="margin:4px 0 14px">
+      <summary style="cursor:pointer;color:#e0a43c;font-size:13px">❔ Why can't I just paste a URL and have it show up?</summary>
+      <div class="meta" style="margin-top:8px">
+        A browser genuinely can't reach most outside sites directly — a real technical wall, not a
+        rule (confirmed for Gutenberg, arXiv, and Semantic Scholar specifically). The real path: a
+        small terminal script in <code>tools/caravan/</code> fetches the text, <code>library-draft.py</code>
+        turns it into a draft, and pasting that draft's output here (<b>+ Paste Caravan output</b>
+        below) is what actually lands it in this queue. No terminal at all? <b>+ Add a text by hand</b>
+        works for anything you already have real permission to share. See <code>LEARNING-PATH.md</code>
+        Stage 9 for the fuller explanation of why a browser can't do this itself, and what the
+        Caravan does instead of a general scraper.
+      </div>
+    </details>
     ${q.length ? q.map(item=>`
       <div class="card" style="cursor:default">
         <div class="t">${esc(item.title)} <span class="badge">${esc(item.origin)}</span> <span class="badge">${esc(item.status)}</span></div>
@@ -3436,7 +3484,7 @@ export async function generateQuillReport(){
     source:'Quill · Librarian Agent', body, created,
     meta:{ noteCount:mem.length, dateRange, suggestions },
   });
-  persist(); logActivity('Asked Quill for a memory report.'); blip(784,.09);
+  persist(); logActivity('Asked Quill for a memory report.'+elapsedTag()); blip(784,.09);
   state.archiveView={mode:'read',slug}; renderArchive();
 }
 

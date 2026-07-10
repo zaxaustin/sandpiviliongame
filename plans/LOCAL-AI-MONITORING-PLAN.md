@@ -72,14 +72,20 @@ actually measurable without system access: how long it took.
    no model was resident in memory at the time, exactly the intended
    behavior (a model only loads once a resident is actually asked
    something).
-2. **Per-action elapsed time**, logged the same lightweight way
-   `activityLog` already logs everything else — "Quill replied in 2.3s"
-   sitting next to "Asked Quill about the Dhammapada" rather than a
-   separate system.
-3. **A running "how many replies, how long, from which model" summary**
-   for the current session — the actual answer to "what kind of effect
-   does each action have," built entirely from data step 2 already
-   collects, no new instrumentation.
+2. **[x] Built 2026-07-10.** Every provider's `chat()` gets wrapped in a
+   `withTiming()` helper (`provider.js`) — the same side-channel pattern
+   `lastThinking` already used, applied once instead of touching all
+   three providers' own `chat()` bodies. Every `logActivity('Asked...')`
+   call site now appends `elapsedTag()` — "(2.3s · llama3.2:latest)" —
+   sitting right in the existing activity log, no separate system.
+   Verified live: a real question asked of Quill came back with the tag
+   correctly attached.
+3. **[x] Built 2026-07-10.** A "Today's session" card in the Local AI
+   panel itself — real-ask count, total and average reply time, and a
+   per-model breakdown — parsed back out of that same activity log
+   (`sessionAISummary()`), no new instrumentation, exactly as planned.
+   Verified with injected real-shaped log entries (2.3s + 5.1s + 11.4s):
+   the panel correctly computed "3 real asks today... avg 6.3s."
 4. **Deferred, on purpose: real CPU/GPU percentage.** Needs
    `systeminformation` (or equivalent) in Electron's main process, a new
    IPC bridge through `preload.cjs` the same shape `USER-DATA` panel's
