@@ -739,7 +739,7 @@ limits once a conversation runs long. Points to `LEARNING-PATH.md` Stage
 collapsed by default, expands cleanly on click, reads correctly against
 this machine's real connected Ollama instance.
 
-### 24. Auto-load manually-added Library books via local AI, plus a "priority" explainer shelf
+### 24. [~] Auto-load manually-added Library books via local AI, plus a "priority" explainer shelf
 
 **Checked, not guessed:** no `priority` category or shelf exists in the
 Library today (confirmed by grep across the codebase). The manual-add
@@ -753,6 +753,25 @@ dedicated shelf (or a `priority` category) holding texts that explain
 how the Library and Caravan actually work, plus a log Quill can read
 from to help direct visitors — content work, not code, once (1)'s
 process exists to actually document.
+
+**Part (1) fixed 2026-07-10.** `library-draft.py` gained an opt-in
+`--ai-draft` flag: asks a local Ollama model (`urllib.request`, stdlib
+only, same pattern the connector scripts already use, no new dependency)
+to suggest a one-two sentence summary and a tradition guess from a fixed
+list, written into the draft **clearly marked "AI-suggested" with a
+confirm-before-shelving note** — license and source are never touched by
+it, even when it succeeds, the one rule this script has never been
+allowed to break. Falls back to the exact same plain-TODO behavior as
+not passing the flag at all if Ollama isn't reachable — never a hard
+dependency. Verified live, three real runs: the plain path (unchanged),
+a real `--ai-draft` call against this machine's actual running Ollama
+(correctly suggested "Practice" and a real one-sentence summary for a
+test text), and a forced-unreachable run (clean fallback, no crash).
+
+**Part (2), the priority explainer shelf, still open** — real content
+to write (an honest explainer text, not a code change), not attempted
+in this same pass; the process it would document now genuinely exists
+thanks to part (1), which is what this item's own note said to wait for.
 
 ### 25. Human-paced text streaming — a standalone, later feature
 
