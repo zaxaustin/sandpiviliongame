@@ -492,6 +492,58 @@ function drawStation(st,ox,oy){
     ctx.beginPath(); ctx.moveTo(x+S*.22,y+S*.36); ctx.quadraticCurveTo(x+S*.5,y+S*.14,x+S*.78,y+S*.36); ctx.stroke(); // rope handle
     ctx.fillStyle='#e8dcb8'; ctx.fillRect(x+S*.62,y+S*.44,S*.22,S*.16); // luggage tag
     ctx.strokeStyle='#2a2118'; ctx.lineWidth=1; ctx.strokeRect(x+S*.62,y+S*.44,S*.22,S*.16);
+  } else if(st.kind==='records'){ // the Records Hall — a tall stack of bound volumes, dated spines, an hourglass on top: memory, not a desk to work at
+    ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.14,y+S*.7,S*.72,S*.2); // base shelf
+    const spines=['#6f8fb5','#c8574a','#7fa36b','#e0a43c'];
+    spines.forEach((c,i)=>{ ctx.fillStyle=c; ctx.fillRect(x+S*.2+i*S*.15,y+S*.34+i*S*.02,S*.13,S*.38-i*S*.02); });
+    ctx.fillStyle='#c9a06a'; ctx.beginPath(); ctx.moveTo(x+S*.42,y+S*.16); ctx.lineTo(x+S*.58,y+S*.16);
+    ctx.lineTo(x+S*.46,y+S*.26); ctx.lineTo(x+S*.58,y+S*.36); ctx.lineTo(x+S*.42,y+S*.36);
+    ctx.lineTo(x+S*.54,y+S*.26); ctx.closePath(); ctx.fill(); // a small hourglass, resting on the stack
+  } else if(st.kind==='ledger'){ // The Ledger — an open account book, ruled columns, a small coin stack, distinct from the Grant Desk's folder
+    ctx.fillStyle='#75542e'; ctx.fillRect(x+S*.08,y+S*.6,S*.1,S*.34); ctx.fillRect(x+S*.82,y+S*.6,S*.1,S*.34);
+    ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.02,y+S*.52,S*.96,S*.14);
+    ctx.fillStyle='#f0e4c4'; ctx.fillRect(x+S*.16,y+S*.3,S*.68,S*.24); // open book
+    ctx.strokeStyle='#c9b48c'; ctx.lineWidth=1;
+    for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(x+S*(.22+i*.14),y+S*.32); ctx.lineTo(x+S*(.22+i*.14),y+S*.52); ctx.stroke(); }
+    const coins=['#e0a43c','#e0a43c','#c8862e'];
+    coins.forEach((c,i)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.ellipse(x+S*.74,y+S*(.42-i*.055),S*.08,S*.035,0,0,7); ctx.fill(); });
+  } else if(st.kind==='makersbench'){ // The Maker's Bench — a workbench, a hammer, a half-built birdhouse
+    ctx.fillStyle='#6b4a2f'; ctx.fillRect(x+S*.04,y+S*.58,S*.92,S*.14); // bench top
+    ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.1,y+S*.72,S*.08,S*.24); ctx.fillRect(x+S*.78,y+S*.72,S*.08,S*.24); // legs
+    ctx.fillStyle='#a97c50'; ctx.fillRect(x+S*.32,y+S*.34,S*.3,S*.24); // birdhouse block, unfinished
+    ctx.fillStyle='#8a4a3a'; ctx.beginPath(); ctx.moveTo(x+S*.28,y+S*.34); ctx.lineTo(x+S*.47,y+S*.18); ctx.lineTo(x+S*.66,y+S*.34); ctx.fill(); // roof
+    ctx.fillStyle='#3a2c1e'; ctx.beginPath(); ctx.arc(x+S*.47,y+S*.46,S*.05,0,7); ctx.fill(); // hole
+    ctx.strokeStyle='#2a2118'; ctx.lineWidth=Math.max(1,S*.03);
+    ctx.beginPath(); ctx.moveTo(x+S*.68,y+S*.5); ctx.lineTo(x+S*.86,y+S*.32); ctx.stroke(); // hammer handle
+    ctx.fillStyle='#5a5a5a'; ctx.fillRect(x+S*.82,y+S*.26,S*.14,S*.09); // hammer head
+  } else if(st.kind==='greenhouse'){ // The Greenhouse — a terracotta pot, a small sapling, one sign of real patience
+    ctx.fillStyle='#b5754a'; ctx.beginPath(); ctx.moveTo(x+S*.28,y+S*.6); ctx.lineTo(x+S*.72,y+S*.6);
+    ctx.lineTo(x+S*.64,y+S*.86); ctx.lineTo(x+S*.36,y+S*.86); ctx.closePath(); ctx.fill(); // pot
+    ctx.fillStyle='#8a4a3a'; ctx.fillRect(x+S*.24,y+S*.56,S*.52,S*.08); // pot rim
+    ctx.strokeStyle='#5d9c66'; ctx.lineWidth=Math.max(1,S*.035);
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.56); ctx.quadraticCurveTo(x+S*.42,y+S*.36,x+S*.5,y+S*.2); ctx.stroke(); // stem
+    ctx.fillStyle='#7fa36b';
+    [[-.14,-.1,1],[ .1,-.06,-1],[0,-.24,1]].forEach(([dx,dy,dir])=>{
+      ctx.beginPath(); ctx.ellipse(x+S*(.5+dx),y+S*(.4+dy),S*.09,S*.045,dir*.6,0,7); ctx.fill();
+    }); // a few small leaves, not a full plant — young on purpose
+  } else if(st.kind==='roundtable'){ // The Round Table — an actual round table, seen from above, distinct from the Cafe's square ones
+    ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.72,S*.4,S*.14,0,0,7); ctx.fill();
+    ctx.fillStyle='#8a6438'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.5,S*.42,S*.3,0,0,7); ctx.fill();
+    ctx.fillStyle='#a97c50'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.46,S*.36,S*.25,0,0,7); ctx.fill();
+    ctx.strokeStyle='#6b4a2f'; ctx.lineWidth=1; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.46,S*.36,S*.25,0,0,7); ctx.stroke();
+    const stoolCols=['#5a4a38','#5a4a38','#5a4a38','#5a4a38'];
+    [[0,-.42],[0,.5],[-.46,.04],[.46,.04]].forEach(([dx,dy],i)=>{
+      ctx.fillStyle=stoolCols[i]; ctx.beginPath(); ctx.arc(x+S*(.5+dx),y+S*(.46+dy),S*.08,0,7); ctx.fill();
+    }); // four small stools, ringed round the table, empty, waiting
+  } else if(st.kind==='mailroom'){ // The Mailroom — a wall of cubbies, one letter waiting, home for the Waypoints feature
+    ctx.fillStyle='#6b4a2f'; ctx.fillRect(x+S*.06,y+S*.14,S*.88,S*.68);
+    ctx.strokeStyle='#3a2c1e'; ctx.lineWidth=1;
+    for(let r=0;r<3;r++) for(let c=0;c<3;c++){
+      const cx0=x+S*(.1+c*.28), cy0=y+S*(.18+r*.21);
+      ctx.strokeRect(cx0,cy0,S*.24,S*.18);
+    }
+    ctx.fillStyle='#f0e4c4'; ctx.fillRect(x+S*.38,y+S*.395,S*.24,S*.14); // one letter, sticking out of its cubby
+    ctx.fillStyle='#c8574a'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.465,S*.035,0,7); ctx.fill(); // wax seal
   } else { // the Archive Desk — an open book, plus a small stack of your own bound volumes
     ctx.fillStyle='#4a3520'; ctx.fillRect(x,y+S*.6,S,S*.34);
     ctx.fillStyle='#f3e6c8';

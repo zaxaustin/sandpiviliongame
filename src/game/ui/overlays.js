@@ -392,6 +392,36 @@ function renderBadges(){
     }).join('')}`;
 }
 
+/* ----- The Records Hall (Workshop, floor 2) — a walkable version of
+   what already exists only as files (archive/dev-log-*.txt). Visuals
+   first, on purpose, per this session's own explicit instruction: a
+   real, hand-written timeline for now, not yet reading the actual
+   archive files live — the backend connection is real future work, not
+   this pass. ----- */
+const PAVILION_TIMELINE=[
+  {date:'2026-07-06', text:'The original module split — a real Store adapter contract, and the first Phase 3 Supabase sketch.'},
+  {date:'2026-07-07', text:'The Workshop and the first AI agents, through git and GitHub — the Cafe, real accounts, steward auth, an AI-backed Steward, the agent-notes commons, the Research Desk, the first Vercel deploy.'},
+  {date:'2026-07-08', text:'Reading notes in the Reader, local object storage (Docker and MinIO), the Classics and Science shelves, the arXiv/Semantic Scholar/SuttaCentral connectors, live SuttaCentral search from inside the game.'},
+  {date:'2026-07-09', text:"The Keep's Ganesha statue, the Native American shelf, the reading-to-doing sparks system closing out, the Monk and Quill's roles split for real, the Writing Desk rebuilt around a real page instead of a stacked panel."},
+  {date:'2026-07-10', text:"A dropped session's beta notes triaged and fixed, the Eightfold Path Temple and the Tool Commons written down as real long-term plans, and the Workshop itself grew these very floors you're standing in."},
+];
+export function openRecordsHall(){ state.ui='records'; hideAllOv(); renderRecordsHall(); showOv('recordsOv'); }
+function renderRecordsHall(){
+  document.getElementById('recordsPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>The Records Hall</h2>
+    <div class="meta">The Pavilion's own memory, made walkable instead of just
+      committed. The full, real version lives in <code>archive/dev-log-*.txt</code>
+      — this hall doesn't read those files live yet, on purpose (visuals
+      first, the actual backend connection later); everything below is
+      real and accurate, just hand-kept for now, not auto-generated.</div>
+    ${PAVILION_TIMELINE.map(t=>`
+      <div class="card" style="cursor:default">
+        <div class="t">${esc(t.date)}</div>
+        <div class="s">${esc(t.text)}</div>
+      </div>`).join('')}`;
+}
+
 /* ----- Local Library storage status — same passive-status-line pattern
    as refreshAIStatus() below, for MinIO instead of Ollama. Waits on
    Store.libraryReady first (an existing hook, unused until now) since
@@ -623,7 +653,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -3326,7 +3356,7 @@ Object.assign(window, {
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping,
-  openBadges, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
+  openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openComputer, saveLastChatReplyToArchive,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,

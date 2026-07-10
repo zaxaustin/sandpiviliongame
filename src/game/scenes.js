@@ -69,7 +69,7 @@ function buildOverworld(){
     signs:[
       {x:17,y:9, name:'WOODEN SIGN', text:"PAVILION KEEP\nThe guild's charter rests here. All are welcome.\nNothing here is owned — only kept, and passed on."},
       {x:5,y:16, name:'WOODEN SIGN', text:"THE LIBRARY\nOpen to all. No gate, no fee, no ledger of debts.\nThe Study stands just beside it now, its own door — no\nneed to pass through the shelves to reach a desk."},
-      {x:34,y:16,name:'WOODEN SIGN', text:"THE WORKSHOP\nOne room stands finished: the Archive Desk, for your\nown words. Seven more are still just framing and\ngood intentions. — The Stewards"},
+      {x:34,y:16,name:'WOODEN SIGN', text:"THE WORKSHOP\nThree desks stand finished on the ground floor. Climb\nthe stairs: the Records Hall is real too, one floor up.\nFive more rooms wait above that, still just framing\nand good intentions. — The Stewards"},
       {x:27,y:16,name:'HAND-LETTERED SIGN', text:"THE CAFE\nWhere the Pavilion looks outward. A notice board, a\nhearth corner, a grant desk. — The Stewards"},
       {x:24,y:25,name:'OLD DOCK',    text:"The pond is older than the Pavilion.\nThe koi remember everything.\n(Stand on the dock, face the water, press E.)"},
     ],
@@ -121,7 +121,21 @@ function buildKeep(){
            {x:9,y:2,name:'THE CHARTER',text:"Everything turns to sand — so give it away first.\nAsk no repayment. Only that it be passed forward.\nThe long path is the shortest path."},
            {x:6,y:4,name:'A STONE BUDDHA',text:"Older than the scaffolding around it, somehow. No one\nremembers who carried it in, only that the Keep was built\naround it rather than the other way around."},
            {x:11,y:4,name:'GANESHA, REMOVER OF OBSTACLES',text:"Before any undertaking, Shiva himself once set out on a\ncampaign and met one delay after another before the first\nbattle was even fought. He realized he had not knelt to his\nson and asked for safe passage. He did — praising Ganesha's\nbrilliance, and the bond between them — and the rest of the\ncampaign went smoothly, start to finish. Kneel here the same\nway, whenever the road ahead feels uneasy, before you ever\nfind out whether it needed to be hard."},
-           {x:7,y:5,name:'A QUIET CORNER',text:"The Grand Master keeps his own quarters here now — apart\nfrom the Library's foot traffic, so a real conversation\ndoesn't have to compete with the shelves. Face him and press E."}],
+           {x:7,y:5,name:'A QUIET CORNER',text:"The Grand Master keeps his own quarters here now — apart\nfrom the Library's foot traffic, so a real conversation\ndoesn't have to compete with the shelves. Face him and press E."},
+           // The Noble Eightfold Path, walked south to north toward the shrine
+           // and the Monk's own platform — real canonical order, each fold
+           // tied to something already built rather than an isolated
+           // quotation. See EIGHTFOLD-PATH-TEMPLE-PLAN.md. Source: the
+           // Dhammapada (already shelved, Müller trans.), Chapter XX, "The
+           // Path" — the chapter that names all eight together.
+           {x:3,y:10,name:'1 · RIGHT VIEW (sammā-diṭṭhi)',text:"The first of the eight: seeing clearly what's actually\ntrue, not what's hoped or assumed. The Dhammapada names\nthis the first step of the path, in the same chapter —\n\"The Path\" — that names all eight together. The Library's\nown promise lives here too: every shelved text answers\nwhat it is, where it's from, what it costs to keep. Seeing\nclearly was always this Pavilion's first principle, not\njust the Buddha's."},
+           {x:14,y:10,name:'2 · RIGHT INTENTION (sammā-saṅkappa)',text:"The resolve behind an action, before the action itself —\nrenouncing ill will, aiming at something actually worth\naiming at. The Writing Desk asks this same question every\nmorning, plainly: what's your intention for today? That\nquestion didn't come from nowhere."},
+           {x:3,y:9,name:'3 · RIGHT SPEECH (sammā-vācā)',text:"Truthful. Kind. Never divisive, never idle. The Cafe's\nown Notice Board is steward-moderated by this same\nstandard — liberal, but never blind — and every resident\nhere, human or AI, is asked to speak the same way."},
+           {x:14,y:9,name:'4 · RIGHT ACTION (sammā-kammanta)',text:"Conduct that doesn't harm. Nothing shelved in this\nLibrary, nothing spoken by a resident here, is ever real\nharm dressed up as content — checked, not assumed, the\nsame discipline every time."},
+           {x:2,y:7,name:'5 · RIGHT LIVELIHOOD (sammā-ājīva)',text:"A way of earning that doesn't require harming to sustain\nitself. Real numbers, real honest work — ask at the Grant\nDesk, or watch for the Ledger, still just framing upstairs\nin the Workshop."},
+           {x:15,y:7,name:'6 · RIGHT EFFORT (sammā-vāyāma)',text:"Sustained, honest practice — not a single burst of\nmotivation. Every spark carried forward from a book, a\nproject, a plan, and never let quietly drop, is this fold\nmade into a real habit instead of a virtue."},
+           {x:3,y:6,name:'7 · RIGHT MINDFULNESS (sammā-sati)',text:"Real awareness of body, feeling, mind, and what's\nactually happening, moment to moment. Press M. Walk,\nstand, sit, lie down — the four postures were always this\nfold, made literal."},
+           {x:14,y:6,name:'8 · RIGHT CONCENTRATION (sammā-samādhi)',text:"The settled, absorbed attention the other seven make\npossible — not forced, only made possible by everything\nthat came before it. Sit here a while, close to the Grand\nMaster's own quarters, and see what settles."}],
     npcs:[{x:12,y:6,color:'#c8862e',glow:'#ffd27a',name:'THE KEEPER',wander:false,lines:[
       "No throne in this keep — just the charter and a good roof. Leadership here is a chore we take turns carrying.",
       "The walls are scaffolding, friend. If the guild outgrows them, we'll take them down ourselves."]},
@@ -222,6 +236,11 @@ function buildStudy(){
 }
 
 function buildWorkshop(){
+  // Bigger on the inside than its 8x5 outdoor footprint suggests — same
+  // trick the Library already uses. Three real floors now, not one room:
+  // ground floor (unchanged, the three finished desks), the Records Hall
+  // above it, and an unfinished attic above that — "seven more are still
+  // just framing" made literal, not just a line on a sign.
   const W=14,H=10, t=grid(W,H,'f');
   for(let x=0;x<W;x++){ t[0][x]='w'; t[1][x]='w'; t[H-1][x]='w'; }
   for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
@@ -230,9 +249,11 @@ function buildWorkshop(){
   [[2,2],[11,2],[2,7],[11,7]].forEach(([x,y])=>t[y][x]='p');
   scenes.workshop = {
     name:'The Workshop', outdoor:false, tiles:t, w:W, h:H, buildings:[],
-    warps:[{x:6,y:9,to:'overworld',sx:31,sy:16},{x:7,y:9,to:'overworld',sx:32,sy:16}],
+    warps:[{x:6,y:9,to:'overworld',sx:31,sy:16},{x:7,y:9,to:'overworld',sx:32,sy:16},
+           {x:12,y:3,to:'workshopfloor2',sx:5,sy:3}],
     signs:[{x:2,y:4,name:'ROUGH TIMBER SIGN',
-      text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. THE CARAVAN DESK, by\nthe west pillar — where texts from outside actually\nenter the Library, one reviewed piece at a time. Face\na desk and press E."}],
+      text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. THE CARAVAN DESK, by\nthe west pillar — where texts from outside actually\nenter the Library, one reviewed piece at a time. Face\na desk and press E."},
+           {x:12,y:2,name:'A NARROW STAIRCASE',text:"Up. The Workshop keeps growing — one real floor at a\ntime."}],
     stations:[
       {x:6,y:3,kind:'archive',name:'THE ARCHIVE DESK'},
       {x:10,y:6,kind:'research',name:'THE RESEARCH DESK'},
@@ -240,6 +261,58 @@ function buildWorkshop(){
     ],
     npcs:[],
     spawn:{x:6,y:7}
+  };
+}
+
+function buildWorkshopFloor2(){
+  // The Records Hall — a walkable version of what already exists only as
+  // files (archive/dev-log-*.txt, the reflections). One real station,
+  // one real floor, given priority over the other five sketched rooms.
+  // Interior floor is x=1..8, y=1..6 (walls ring the whole 10x8 grid) —
+  // stair tiles sit inside that ring, not on it, same trick the
+  // Library's own secret-shelf passage already uses.
+  const W=10,H=8, t=grid(W,H,'f');
+  for(let x=0;x<W;x++){ t[0][x]='w'; t[H-1][x]='w'; }
+  for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  for(let y=2;y<=5;y++) for(let x=2;x<=7;x++) t[y][x]='c';
+  [[2,2],[7,2]].forEach(([x,y])=>t[y][x]='p');
+  scenes.workshopfloor2 = {
+    name:'The Workshop — Records Hall', outdoor:false, tiles:t, w:W, h:H, buildings:[],
+    warps:[{x:2,y:1,to:'workshop',sx:12,sy:4},
+           {x:8,y:1,to:'workshopfloor3',sx:2,sy:1}],
+    signs:[{x:4,y:1,name:'ROUGH TIMBER SIGN',
+      text:"THE RECORDS HALL\nThe Pavilion's own memory, made walkable instead of\njust committed. Face the hall and press E."}],
+    stations:[{x:5,y:4,kind:'records',name:'THE RECORDS HALL'}],
+    npcs:[],
+    spawn:{x:5,y:3}
+  };
+}
+
+function buildWorkshopFloor3(){
+  // The unfinished floor — bare framing, real for the first time as a
+  // place rather than a line on a sign. Five sketched rooms (README's
+  // "What's next" #9), each a real, distinct visual and a real
+  // description, none with working features yet — honest about that,
+  // on purpose, the same way the ground floor's own sign always was.
+  // Deliberately no pillars here, unlike every other room — sparser
+  // reads as "unfinished," not just says so.
+  const W=16,H=9, t=grid(W,H,'f');
+  for(let x=0;x<W;x++){ t[0][x]='w'; t[H-1][x]='w'; }
+  for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  scenes.workshopfloor3 = {
+    name:'The Workshop — the Unfinished Floor', outdoor:false, tiles:t, w:W, h:H, buildings:[],
+    warps:[{x:2,y:7,to:'workshopfloor2',sx:7,sy:1}],
+    signs:[{x:2,y:1,name:'ROUGH TIMBER SIGN',
+      text:"THE UNFINISHED FLOOR\nFraming and good intentions, same as the sign outside\nalways said — just a real floor now instead of a line.\nFive rooms, none open yet. Face one and press E."}],
+    stations:[
+      {x:5,y:2,kind:'ledger',name:'THE LEDGER'},
+      {x:10,y:2,kind:'makersbench',name:"THE MAKER'S BENCH"},
+      {x:5,y:5,kind:'greenhouse',name:'THE GREENHOUSE'},
+      {x:10,y:5,kind:'roundtable',name:'THE ROUND TABLE'},
+      {x:13,y:4,kind:'mailroom',name:'THE MAILROOM'},
+    ],
+    npcs:[],
+    spawn:{x:2,y:1}
   };
 }
 
@@ -270,4 +343,4 @@ function buildCafe(){
   };
 }
 
-buildOverworld(); buildKeep(); buildLibrary(); buildLibraryBasement(); buildStudy(); buildWorkshop(); buildCafe();
+buildOverworld(); buildKeep(); buildLibrary(); buildLibraryBasement(); buildStudy(); buildWorkshop(); buildWorkshopFloor2(); buildWorkshopFloor3(); buildCafe();

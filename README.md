@@ -445,6 +445,57 @@ every `*-PLAN.md` plus `BETA-TESTING-FEEDBACK.md`) moved into a new
 cross-reference to a moved file updated to match, checked directly, not
 assumed.
 
+**Done since then (2026-07-10):** a dropped-session's worth of raw beta
+notes (an MCP auth issue cut the previous session short) triaged into
+`BETA-TESTING-FEEDBACK.md`'s "Round 3," then four of its small, bounded
+items actually fixed the same day: the Mountain Monk's own reasoning —
+generated every reply once `think:true` was already set for him, then
+silently discarded before it ever left `provider.js` — is now captured
+and shown, collapsed, under a "💭 thought for a moment" toggle; Export
+Save gets a real native save-location picker in the desktop app instead
+of always dropping into Downloads; a real spell-check right-click menu
+now works there too (Chromium's own suggestions were already on, just
+never wired to a menu); and Quill's own prompt now points to the Request
+Board when asked to fetch a book live, the same honest browser-limit
+framing the Steward's prompt already had. Two long-term plans written
+the same day, deliberately not built yet: `EIGHTFOLD-PATH-TEMPLE-PLAN.md`
+(the Keep reimagined as a real, walkable Noble Eightfold Path, grounded
+in the already-shelved Dhammapada, each fold tied to something real
+already in the Pavilion rather than a plaque trail) and
+`TOOL-COMMONS-PLAN.md` — the actual long-term vision for what this whole
+project is reaching for past beta: not an in-game tool-builder, not a
+promise to build every visitor's own CRM for them, but a local commons
+of small tools (the Caravan scripts already an early, unnamed version of
+this) plus a real `LEARNING-PATH.md` capstone teaching someone to build
+their own, on their own foundation, for their own real need. Raised
+alongside it, and folded into that same plan: a **bare-bones foundation
+vs. Zac's own customizations** split — the concrete mechanism this
+project's own "a Pavilion, not *the* Pavilion" hope (below) was always
+missing.
+
+**Done since then (also 2026-07-10):** the Eightfold Path Temple plan and
+the Workshop's own sketched rooms both got built the same day, visuals
+first, exactly as asked — real backend features are still open, on
+purpose. The Keep gained all eight real signs, walked south to north in
+canonical order, paired left and right down the corridor the same way
+the Buddha and Ganesha shrines already are. The Workshop grew from one
+room into three real floors — bigger on the inside than its outdoor
+footprint, same trick the Library already uses, just extended upward
+with a real staircase: the ground floor unchanged, a real Records Hall
+one floor up (a distinct station, a real hand-kept timeline panel — not
+yet reading `archive/dev-log-*.txt` live, that's the next real work),
+and an "unfinished floor" above that holding the other five sketched
+rooms, each with its own real, distinct visual (the Ledger's ruled
+columns, the Maker's Bench's half-built birdhouse, the Greenhouse's
+young sapling, the Round Table's four empty stools, the Mailroom's
+waiting letter) and an honest "not open yet" reply when pressed — no
+pillars on that floor, on purpose, so sparser reads as unfinished rather
+than just saying so. All of it verified live against the actual running
+game via Playwright, not just read — every room walked into, every panel
+opened, every sign's real text confirmed on screen, the same discipline
+this project has held itself to since the Ganesha statue's own two-pass
+screenshot check.
+
 1. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 44 live texts across 9 shelves; see
    [`LIBRARY-GROWTH-PLAN.md`](plans/LIBRARY-GROWTH-PLAN.md) for the curated
@@ -480,10 +531,22 @@ assumed.
    Supabase's Auth redirect-URL allowlist, grant a real steward role, and
    verify moderation with an actual session — whenever the Commons comes
    back off pause.
-8. **Six more Workshop rooms** and the larger public-site question.
-   Real ideas sketched 2026-07-09, none committed, each tied to
-   something already here rather than invented from nothing:
-   - **The Ledger** — a real budget-tracking room, the direct answer to
+8. **The Eightfold Path Temple, real behind the signs** — built
+   2026-07-10 (visuals; see
+   [`EIGHTFOLD-PATH-TEMPLE-PLAN.md`](plans/EIGHTFOLD-PATH-TEMPLE-PLAN.md)).
+   All eight stations stand in the Keep now, real canonical order,
+   grounded in the shelved Dhammapada, each tied to something already
+   built. **Still open:** whether this counts as bare-bones foundation
+   or a Zac-specific addition (see `TOOL-COMMONS-PLAN.md`, #10 below) —
+   still undecided on purpose; and any real interactive layer past
+   reading a sign — a keepsake, a small practice tied to each fold —
+   genuinely later work, not assumed to be the same size as the visuals.
+9. **The Workshop's five sketched rooms, real behind the walls** —
+   built 2026-07-10 (visuals; three real floors now, not one room — the
+   ground floor unchanged, a real Records Hall one floor up, and an
+   "unfinished floor" above that holding the other five). **Still
+   open**, each its own real feature, not assumed to be similar work:
+   - **The Ledger** — real budget-tracking, the direct answer to
      actually beta-testing this as an office; pairs with Wealth of
      Nations and Ten Acres Enough's "real numbers, not general
      encouragement" already on the shelves.
@@ -496,16 +559,30 @@ assumed.
      postures and the Daoist shelf already teach, made literal; a
      natural home for the sketched beaver/companion idea ("a creature
      that teaches by living its own life near you").
-   - **The Records Hall** — a walkable version of what already exists
-     only as files (`archive/dev-log-*.txt`, the reflections) — the
-     Pavilion's own memory, made explorable instead of just committed.
+   - **The Records Hall** — the panel exists and opens now, with a
+     real, hand-kept timeline; still not reading `archive/dev-log-*.txt`
+     live, the one piece of actual backend connection this room still
+     needs.
    - **The Round Table** — a real co-study room for the "free place to
      pursue higher education together" hope; the already-sketched Five
      Animals practice track is the obvious first real occupant.
    - **The Mailroom** — a home for the `Waypoints` feature (external
      links), which already exists in the pause menu with nowhere in
      the world that's actually *about* it.
-9. **A drag-and-drop book intake at the Caravan Desk** — see
+10. **The Tool Commons — the "soon" slice** — see
+    [`TOOL-COMMONS-PLAN.md`](plans/TOOL-COMMONS-PLAN.md), written
+    2026-07-10, the long-term vision behind the whole project past beta.
+    Not the in-game no-code builder (considered, set aside as too big a
+    first step) — the real near-term piece is a `tools/commons/` folder
+    convention with the Library's own what/who/license discipline
+    applied to tools instead of texts, seeded with the Caravan scripts
+    reframed as its first real entries, plus a `LEARNING-PATH.md`
+    capstone stage teaching someone to actually build and run one small
+    tool of their own. The rest — a real registry browser, local-AI-
+    assisted tool generation, an eventual in-game builder — stays
+    genuinely long-term, named so it isn't lost, not promised. See
+    "Hopes and dreams" below for the fuller vision.
+11. **A drag-and-drop book intake at the Caravan Desk** — see
     [`BOOK-DRAG-DROP-PLAN.md`](plans/BOOK-DRAG-DROP-PLAN.md), written
     2026-07-09. Pick a source website, drop the file, the Pavilion
     fills in the rest of the existing manual-entry form instead of
@@ -529,6 +606,14 @@ already true today, not just aspirational — see `DESKTOP-APP-PLAN.md`'s
 verification (MIT license, a git history confirmed clean of any
 secret, ever, and a zero-config fallback that already builds a working
 desktop app off the seed Library with no Supabase project required).
+**The one piece that hope was always missing, named 2026-07-10:** a real
+seam between the bare-bones foundation (the engine, the core mechanics)
+and this particular Pavilion's own additions (the curated Library, the
+Buddhist/Hindu Keep, the charter's exact wording) — see
+`TOOL-COMMONS-PLAN.md`'s "bare-bones foundation vs. Zac's own
+additions." Without that seam, forking this today means forking both,
+tradition and all; with it, someone else's fork keeps the foundation and
+brings their own tradition, their own shelf, their own shape.
 
 **The larger hope this is actually reaching for: a free place to pursue
 higher education together.** Not a course platform with a paywall at
@@ -661,6 +746,35 @@ What would make that pitch undeniable instead of just true:
   palette, fully remappable keys. Not urgent for one person on one
   machine; genuinely load-bearing before "worth everyone having" is
   true rather than aspirational.
+
+### A commons of tools, not just texts (2026-07-10, the long-term vision)
+
+The actual bar, stated directly and kept close to how it was said: a
+friend who's a full-time teacher wants to get back into real-estate
+side income and needs a CRM — not a hypothetical, the real test every
+design decision in `TOOL-COMMONS-PLAN.md` gets held against. **This
+project's job was never to build that CRM.** It's to already have the
+foundation — local storage, a local AI that can help, a working example
+built the right way, and a real teaching path — so a motivated,
+non-expert person can build *their own* thing on it, for a need nobody
+here ever anticipated. "I don't want to build these features for him,
+but have the Sand Pavilion be a place where he can find the knowledge
+and tools needed for himself" — the actual mission statement this
+project has been circling since "everything turns to sand, so give it
+away first."
+
+Concretely, not an in-game no-code builder (weighed and set aside as too
+big a first step) — a local, file-based commons of small tools, the same
+what/who/license discipline the Library already holds applied to code
+instead of text, with `tools/caravan/`'s eight connector scripts as its
+first, already-existing, unnamed entries. The building half is teaching,
+not a builder UI: a real `LEARNING-PATH.md` capstone using the exact
+pattern the Caravan and the Workshop desks already prove works. Local AI
+becomes the actual assist once that pattern's learned — "help me turn
+this template into a client tracker" — not a code-generation platform on
+day one. See `TOOL-COMMONS-PLAN.md` for the full staging, and its
+bare-bones-foundation-vs-personal-additions split for the mechanism that
+makes any of this shareable beyond one person's own Pavilion.
 
 ### Project history
 

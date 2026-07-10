@@ -687,3 +687,19 @@ that is so amasing"). The full Monk/Sangha conversation is kept above for
 its own sake, same as the Round 2 quote — a real example of the tone this
 project is aiming for, not a bug report.
 
+## What to actually do with this list — Round 3
+
+**Update, 2026-07-10, same day:** #12, #13, #20 (piece 1 — the collapsed
+"thought for a moment" toggle), and #23a fixed; #21 checked and already
+true, no action needed. **Still open, on purpose:** #1, #3/#19/#20 (piece
+2, live streaming), #11, #15, #18, #23, #24, #25 stay real, unrushed
+design work — none of them quick enough to fit alongside today's four.
+**Two items grew into their own real plans instead of a code fix:** #22
+(the build-your-own-tools note) became `TOOL-COMMONS-PLAN.md` — the
+actual long-term vision, not started on purpose, written down so it
+survives between sessions. A related, freshly-raised idea (not numbered
+above, since it arrived as its own ask rather than a beta note) became
+`EIGHTFOLD-PATH-TEMPLE-PLAN.md` — the Keep reimagined around the Noble
+Eightfold Path, in the real canonical order, grounded in the shelved
+Dhammapada.
+
