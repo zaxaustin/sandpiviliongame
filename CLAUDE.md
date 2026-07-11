@@ -30,7 +30,9 @@ every time.
    it may already have a real plan written, sometimes already half
    built. `plans/BETA-TESTING-FEEDBACK.md` is the running log of actual
    issues found by actually using the Pavilion — check it before
-   assuming a rough edge is undiscovered.
+   assuming a rough edge is undiscovered. Fully-built, closed plans live
+   in `plans/done/` — kept for the record, out of the way of what's
+   actually still open.
 4. **`LEARNING-PATH.md`** — if the user asks a "why" or "how does this
    work" question, this self-paced curriculum (built around this exact
    project) is where that kind of explanation belongs, calibrated to
