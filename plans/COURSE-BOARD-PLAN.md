@@ -22,7 +22,26 @@ same feature three times — Stage 2 doesn't make sense without Stage 1
 already being solid, and Stage 3 doesn't make sense without Stage 2's
 standards already being real and tested by actual sharing.
 
-## Stage 1 — now, small, for one person
+## Stage 1 — now, small, for one person — ✅ BUILT 2026-07-10
+
+All three gaps below are now closed, verified by static check (syntax,
+smoke, handler wiring, the AI category-parse logic unit-tested):
+- **Categories** — a `COURSE_CATEGORIES` axis (Practice / Study / Skill /
+  Work / Health / Personal), an orthogonal label like the Library's own,
+  chosen in the new-course form and editable in a course's detail view.
+  Old courses with no category read as Personal; nothing had to migrate.
+- **Search + category chips** on the list view, mirroring the Index
+  panel's exact pattern (a search box with caret-preserving re-render,
+  category chips with live counts). The search box only appears past four
+  courses, so a small board stays uncluttered.
+- **Archive, distinct from delete** — `archiveCourse()` toggles a real
+  `archived` flag (kept, not erased); the board's default view shows
+  active courses with a "🗄 Archived (N)" entry, and `upcomingItems()`
+  now skips archived courses so a set-aside path stops nagging the due
+  badge. "Take down" was renamed "Delete" to make the permanent one
+  clearly the permanent one, beside the new non-destructive Archive.
+
+Below is the original scoping, kept for the record.
 
 **Already mostly built, checked against the actual code:** `data.courses`
 is already personal, local-only, self-graded — "the board confers

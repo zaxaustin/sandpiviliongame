@@ -527,6 +527,30 @@ complaint into a real roadmap instead of one undefined ask; paired with
 a direct decision that `TOOL-COMMONS-PLAN.md` becomes real once this
 Pavilion actually opens its beta to other people, not before.
 
+**Done since then (also 2026-07-10):** the **pocket phone** — a chat can
+now be minimized with a 📱 button into a small floating card, freeing you
+to walk the grounds or read a book while a slow local model thinks; the
+card buzzes when the reply lands and taps back into the same conversation
+intact. It's a display trick, not a device (`state.dialog` just stays
+alive while its overlay hides) — the *real* in-world phone, gathering
+already-built features into one glanceable home screen, is written up as
+a future piece in [`PHONE-PLAN.md`](plans/PHONE-PLAN.md), explicitly bound
+by the same no-background-polling rule as the rest of the AI. (A resident's
+own reasoning is already folded into the conversation under a collapsed
+"💭 thought for a moment" toggle; watching it stream live remains the
+separate, bigger piece flagged in `AI-INTEGRATION-NOTES.md`.)
+
+**Done since then (also 2026-07-10):** **Course Board Stage 1** built (see
+[`COURSE-BOARD-PLAN.md`](plans/COURSE-BOARD-PLAN.md)) — the board now has a
+real category axis (Practice / Study / Skill / Work / Health / Personal),
+a search box and category chips that mirror the Index panel's own pattern,
+and a real **archive** state distinct from deletion, so a finished or
+set-aside course becomes kept personal history instead of being erased
+(archived courses also stop nagging the upcoming-due badge). AI-drafted
+courses now suggest a fitting category too, still just a suggestion you can
+change before pinning. All personal and local — sharing standards are
+Stage 2, deliberately not touched yet.
+
 1. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 44 live texts across 9 shelves; see
    [`LIBRARY-GROWTH-PLAN.md`](plans/LIBRARY-GROWTH-PLAN.md) for the curated

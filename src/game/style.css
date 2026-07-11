@@ -101,6 +101,35 @@ body { font-family:'Courier New', monospace; touch-action:none; }
 .chatNotes textarea:focus { outline:none; border-color:#e0a43c; }
 .chatSide { display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px 8px; }
 .chatSide .btn.ghost { width:38px; height:38px; padding:0; display:flex; align-items:center; justify-content:center; font-size:15px; }
+
+/* the pocketed-conversation "phone" — a small floating card you tap to
+   return to a minimized chat; it buzzes (pulses) when a reply lands so you
+   can wander or read while a slow local model takes its time thinking. */
+#chatPhone {
+  position:fixed; right:14px; bottom:14px; z-index:10; display:none;
+  align-items:center; gap:10px; max-width:270px;
+  background:#241b12; color:#f5e9d4; border:2px solid #8a6a3a; border-radius:12px;
+  padding:9px 12px; cursor:pointer; font-family:inherit;
+  box-shadow:0 6px 20px rgba(0,0,0,.45);
+}
+#chatPhone.show { display:flex; }
+#chatPhone:hover { border-color:#e0a43c; }
+.phoneAvatar {
+  width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:19px; flex:none; box-shadow:0 0 0 2px #55432e;
+}
+.phoneText { min-width:0; }
+.phoneName { color:#e0a43c; font-weight:bold; font-size:13px; letter-spacing:.4px; }
+.phoneStatus { color:#9c8b74; font-size:11px; margin-top:1px; }
+#chatPhone.thinking .phoneStatus { font-style:italic; }
+.phoneDot { width:9px; height:9px; border-radius:50%; background:#e0a43c; flex:none; display:none; }
+#chatPhone.unread .phoneDot { display:block; }
+#chatPhone.unread { border-color:#e0a43c; animation:phonePulse 1.4s ease-in-out infinite; }
+@keyframes phonePulse {
+  0%,100% { box-shadow:0 6px 20px rgba(0,0,0,.45), 0 0 0 0 rgba(224,164,60,.5); }
+  50% { box-shadow:0 6px 20px rgba(0,0,0,.45), 0 0 0 7px rgba(224,164,60,0); }
+}
+@media (prefers-reduced-motion:reduce){ #chatPhone.unread{ animation:none; } }
 @media (max-width:820px) {
   #chatOv.open { grid-template-columns:1fr; grid-template-rows:1fr 190px 44px; }
   .chatMain { border-right:none; border-bottom:2px solid #55432e; }

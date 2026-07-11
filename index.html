@@ -47,9 +47,21 @@
   </div>
   <div class="chatSide">
     <button class="btn ghost" id="chatSpeakBtn" title="Read the last reply aloud" onclick="toggleChatSpeak()">🔊</button>
+    <button class="btn ghost" id="chatMinBtn" title="Pocket this conversation — keep walking or read a book; it'll buzz when they reply" onclick="minimizeChat()">📱</button>
     <button class="btn ghost" onclick="openConnections()" title="Manage AI connections">⚙</button>
     <button class="btn ghost" title="Leave (Esc)" onclick="closeDialog()">✕</button>
   </div>
+</div>
+
+<!-- Pocketed conversation — the "phone": minimize a chat and keep living
+     (walk the grounds, read a book); tap to return when the reply lands. -->
+<div id="chatPhone" onclick="restoreChat()" title="Tap to return to the conversation">
+  <div class="phoneAvatar" id="phoneAvatar"></div>
+  <div class="phoneText">
+    <div class="phoneName" id="phoneName"></div>
+    <div class="phoneStatus" id="phoneStatus"></div>
+  </div>
+  <div class="phoneDot" id="phoneDot"></div>
 </div>
 
 <!-- Shelf browser -->

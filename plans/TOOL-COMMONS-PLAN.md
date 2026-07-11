@@ -72,6 +72,15 @@ nothing and can be acted on later; physically separating them (a real
 architecture) is a later, bigger decision once there's an actual second
 Pavilion wanting to fork just the foundation — not before.
 
+**That labeling has now actually started** —
+[`FOUNDATION-AND-EXTRAS.md`](FOUNDATION-AND-EXTRAS.md) is the working
+inventory this section called for: every feature that exists today sorted
+into foundation / opt-in extra / later, anchored on the fixed mission
+(set intentions in the Temple's Eightfold Path; act on them via the
+Library and the working rooms) and the two things that stay in every
+tier of every Pavilion — the Temple and the Library. It's a first pass
+meant to be walked through and revised, not a final call.
+
 ## The test every design decision here should pass
 
 **The teacher's CRM.** Not a hypothetical — the actual bar. Nobody

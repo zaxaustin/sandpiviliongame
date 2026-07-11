@@ -127,7 +127,7 @@ function dateKeyPlusDays(key,n){
    all. Nothing here interrupts anyone who never touches a due date. */
 export function upcomingItems(){
   const items=[];
-  for(const c of data.courses) if(c.due) items.push({kind:'course',id:c.id,title:c.title,due:c.due});
+  for(const c of data.courses) if(c.due && !c.archived) items.push({kind:'course',id:c.id,title:c.title,due:c.due});
   for(const p of data.grantProjects) if(p.due) items.push({kind:'grant',id:p.id,title:p.title,due:p.due});
   return items.sort((a,b)=>a.due<b.due?-1:a.due>b.due?1:0);
 }

@@ -46,7 +46,10 @@ export function closeDialog(){
   stopChatTyping();
   const wasChat = state.dialog && state.dialog.chat;
   state.dialog=null;
-  if(wasChat) document.getElementById('chatOv').classList.remove('open');
+  if(wasChat){
+    document.getElementById('chatOv').classList.remove('open');
+    document.getElementById('chatPhone').classList.remove('show','unread','thinking');
+  }
   else document.getElementById('dialog').style.display='none';
 }
 /* ----- read the current dialog line aloud — one small step toward the
@@ -71,6 +74,7 @@ function updateDialogSpeakBtn(){
    a slim side rail rather than floating over the text. */
 const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻' };
 export function openChatDialog(npc){
+  document.getElementById('chatPhone').classList.remove('show','unread','thinking'); // clear any pocketed prior chat
   state.dialog={
     name:npc.name, agent:npc.aiAgent||'quill', color:npc.color, glow:npc.glow,
     chat:true, thinking:false,
@@ -103,6 +107,54 @@ export function skipChatTyping(){
   if(!chatTyping) return;
   stopChatTyping();
   renderChatView();
+}
+/* ---------- the "phone": pocket a conversation and keep living ----------
+   A local model can take 30–180s to answer. Rather than stand at the
+   overlay watching a "…", you can pocket the conversation: the full view
+   closes, a small floating card appears, and you're free to walk the
+   grounds or read a book. When the reply lands the card buzzes; tap it to
+   drop back into the exact same conversation, transcript and notes intact.
+   state.dialog stays alive the whole time — only the overlay is hidden. */
+export function minimizeChat(){
+  const d=state.dialog; if(!d||!d.chat) return;
+  stopSpeaking(); stopChatTyping();
+  d.minimized=true;
+  document.getElementById('chatOv').classList.remove('open');
+  renderChatPhone();
+  blip(520,.05,'sine',.03);
+}
+export function restoreChat(){
+  const d=state.dialog; if(!d||!d.chat) return;
+  if(state.ui) closeUI(); // if you'd wandered into a shelf or reader, step out of it first
+  d.minimized=false; d.unread=false;
+  document.getElementById('chatPhone').classList.remove('show','unread','thinking');
+  document.getElementById('chatOv').classList.add('open');
+  // if a reply arrived while pocketed, reveal it with the same typewriter
+  renderChatView(d._landedWhilePocketed?{typeLast:true}:undefined);
+  d._landedWhilePocketed=false;
+  setTimeout(()=>document.getElementById('chatInput').focus(),30);
+  blip(700,.05,'square',.03);
+}
+export function hideChatPhone(){
+  const el=document.getElementById('chatPhone');
+  if(el) el.classList.remove('show','unread','thinking');
+}
+function renderChatPhone(){
+  const d=state.dialog, el=document.getElementById('chatPhone');
+  if(!el) return;
+  if(!d||!d.chat||!d.minimized){ el.classList.remove('show','unread','thinking'); return; }
+  const av=document.getElementById('phoneAvatar');
+  av.textContent=AGENT_AVATAR[d.agent]||'💬';
+  av.style.background=d.glow||'#e0a43c';
+  av.style.color=d.color||'#2a2118';
+  document.getElementById('phoneName').textContent=d.name;
+  const status=document.getElementById('phoneStatus');
+  el.classList.add('show');
+  el.classList.toggle('thinking', !!d.thinking);
+  el.classList.toggle('unread', !!d.unread);
+  status.textContent = d.thinking ? 'thinking…'
+                     : d.unread ? '✓ replied · tap to read'
+                     : 'tap to return';
 }
 function renderChatView(opts){
   const d=state.dialog; if(!d||!d.chat) return;
@@ -388,7 +440,16 @@ async function sendChatMessage(q){
   }catch(err){
     d.transcript.push({from:'npc',text:agent.errorLine});
   }
-  d.thinking=false; renderChatView({typeLast:true});
+  d.thinking=false;
+  if(d.minimized){
+    // the visitor pocketed the phone and walked off — don't type into a
+    // hidden overlay; buzz the floating card and reveal it on return
+    d.unread=true; d._landedWhilePocketed=true;
+    renderChatPhone();
+    blip(880,.08,'sine',.04); setTimeout(()=>blip(1120,.08,'sine',.04),110);
+  } else {
+    renderChatView({typeLast:true});
+  }
 }
 document.getElementById('dialog').addEventListener('pointerdown',e=>{
   if(e.target.tagName==='INPUT'||e.target.id==='dSpeak') return; // let the speak button handle its own clicks
@@ -1846,27 +1907,97 @@ function renderPlannerAssistBody(){
 }
 
 /* ----- Courses (the Course Board) ----- */
-export function openCourses(){ state.ui='courses'; hideAllOv(); state.courseView={mode:'list',id:null}; renderCourses(); showOv('courseOv'); }
+/* ----- Course Board — categories, search, and archiving (COURSE-BOARD-PLAN.md
+   Stage 1). An orthogonal category axis, the same idea as the Library's own
+   CATEGORIES, so the board stays browsable past a handful of courses; a
+   search box that mirrors the Index panel's pattern; and a real archived
+   state distinct from deletion — a walked-or-abandoned course is personal
+   history worth keeping, matching this project's instinct that planner days,
+   reading notes, and the activity log are all worth keeping. All local,
+   personal; nothing here touches sharing (that's Stage 2). */
+const COURSE_CATEGORIES = [
+  {id:'all',      label:'All'},
+  {id:'practice', label:'Practice'},
+  {id:'study',    label:'Study'},
+  {id:'skill',    label:'Skill'},
+  {id:'work',     label:'Work'},
+  {id:'health',   label:'Health'},
+  {id:'personal', label:'Personal'},
+];
+const courseCatLabel = id => (COURSE_CATEGORIES.find(c=>c.id===id) || COURSE_CATEGORIES[COURSE_CATEGORIES.length-1]).label;
+export function setCourseSearch(v){
+  state.courseSearch=v; renderCourses();
+  // a full innerHTML rebuild drops the cursor from the box that triggered it;
+  // re-focus and restore the caret, exactly as the Index search does
+  const inp=document.getElementById('courseSearch');
+  if(inp){ inp.focus(); inp.setSelectionRange(v.length, v.length); }
+}
+export function clearCourseSearch(){ state.courseSearch=''; renderCourses(); }
+export function setCourseCategory(id){ state.courseCat=id; state.courseSearch=''; renderCourses(); }
+export function toggleArchivedView(){ state.courseShowArchived=!state.courseShowArchived; state.courseSearch=''; renderCourses(); }
+export function archiveCourse(id){
+  const c=data.courses.find(x=>x.id===id); if(!c) return;
+  c.archived=!c.archived; persist(); setHud();
+  logActivity((c.archived?'Archived':'Restored')+' course: "'+c.title+'".');
+  blip(c.archived?392:523,.06,'sine',.03);
+  state.courseView={mode:'list'}; renderCourses();
+}
+export function openCourses(){
+  state.ui='courses'; hideAllOv();
+  state.courseView={mode:'list',id:null};
+  state.courseSearch=''; state.courseShowArchived=false; state.courseCat=state.courseCat||'all';
+  renderCourses(); showOv('courseOv');
+}
 function renderCourses(){
   const el=document.getElementById('coursePanel');
   const v=state.courseView;
   if(v.mode==='list'){
+    const q=(state.courseSearch||'').trim().toLowerCase();
+    const cat=state.courseCat||'all';
+    const showArch=!!state.courseShowArchived;
+    const active=data.courses.filter(c=>!c.archived);
+    const archived=data.courses.filter(c=>c.archived);
+    const pool=showArch?archived:active;
+    const counts={}; active.forEach(c=>{ const k=c.category||'personal'; counts[k]=(counts[k]||0)+1; });
+    let shown=pool;
+    if(q) shown=pool.filter(c=>c.title.toLowerCase().includes(q)||(c.why||'').toLowerCase().includes(q));
+    else if(!showArch && cat!=='all') shown=pool.filter(c=>(c.category||'personal')===cat);
+    const card=c=>{
+      const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
+      return `<div class="card" onclick="openCourse(${c.id})">
+        <div class="t">${esc(c.title)} <span class="badge">${esc(courseCatLabel(c.category||'personal'))}</span> <span class="badge lic">${done}/${c.steps.length} steps</span></div>
+        <div class="s">${esc(c.why||'')}${c.due?' · due '+esc(c.due):''}</div>
+        <div class="prog"><div style="width:${pct}%"></div></div>
+      </div>`;
+    };
+    const emptyMsg = q ? 'No course matches that search.'
+      : showArch ? 'No archived courses yet — finished or set-aside paths will collect here.'
+      : cat!=='all' ? 'No courses in this category yet.'
+      : 'The board is bare. Pin your first path.';
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>The Course Board</h2>
+      <h2>The Course Board${showArch?' · Archived':''}</h2>
       <div class="meta">Paths you set for yourself. The board confers nothing — the walking is the credential.</div>
-      ${data.courses.map(c=>{
-        const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
-        return `<div class="card" onclick="openCourse(${c.id})">
-          <div class="t">${esc(c.title)} <span class="badge lic">${done}/${c.steps.length} steps</span></div>
-          <div class="s">${esc(c.why||'')}${c.due?' · due '+esc(c.due):''}</div>
-          <div class="prog"><div style="width:${pct}%"></div></div>
-        </div>`;
-      }).join('') || '<p>The board is bare. Pin your first path.</p>'}
+      ${data.courses.length>4 ? `<input type="text" id="courseSearch" placeholder="Search your courses…"
+        value="${esc(state.courseSearch||'')}" oninput="setCourseSearch(this.value)" style="margin-top:12px">` : ''}
+      ${q ? `<div class="meta" style="margin:8px 0 0">Matching "${esc(state.courseSearch)}".
+        <button class="btn ghost" style="font-size:11px;padding:3px 10px;margin-left:6px" onclick="clearCourseSearch()">✕ clear</button></div>` : ''}
+      ${showArch ? '' : `<div class="row" style="margin:12px 0${q?';opacity:.4':''}">
+        ${COURSE_CATEGORIES.map(c=>{
+          const n = c.id==='all' ? active.length : (counts[c.id]||0);
+          return `<button class="btn ${c.id===cat&&!q?'':'ghost'}" style="font-size:11.5px;padding:6px 12px"
+            onclick="setCourseCategory('${c.id}')">${esc(c.label)} <span class="badge">${n}</span></button>`;
+        }).join('')}
+      </div>`}
+      ${shown.map(card).join('') || `<p>${emptyMsg}</p>`}
       <div class="row" style="margin-top:14px">
-        <button class="btn" onclick="newCourseForm()">+ Pin a new course</button>
-        ${isAIActive()?'<button class="btn ghost" onclick="newCourseAIForm()">✨ Draft a course with AI</button>':''}
+        ${showArch
+          ? `<button class="btn ghost" onclick="toggleArchivedView()">← Back to active courses</button>`
+          : `<button class="btn" onclick="newCourseForm()">+ Pin a new course</button>
+             ${isAIActive()?'<button class="btn ghost" onclick="newCourseAIForm()">✨ Draft a course with AI</button>':''}
+             ${archived.length?`<button class="btn ghost" onclick="toggleArchivedView()">🗄 Archived (${archived.length})</button>`:''}`}
       </div>`;
+    if(q){ const inp=document.getElementById('courseSearch'); if(inp){ inp.focus(); inp.setSelectionRange(state.courseSearch.length, state.courseSearch.length); } }
   }
   else if(v.mode==='draftAI'){
     el.innerHTML = `
@@ -1896,6 +2027,9 @@ function renderCourses(){
       <input type="text" id="ncTitle" value="${esc(v.draftTitle||'')}" placeholder="e.g. Four Weeks with the Breath">
       <label>Why this path (optional)</label>
       <input type="text" id="ncWhy" value="${esc(v.draftWhy||'')}" placeholder="What is this course for?">
+      <label>Category — just for keeping the board browsable, not a claim about the course</label>
+      <select id="ncCat" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">${COURSE_CATEGORIES.filter(c=>c.id!=='all').map(c=>
+        `<option value="${c.id}" ${(v.draftCat||'personal')===c.id?'selected':''}>${c.label}</option>`).join('')}</select>
       <label>Steps — one per line</label>
       <textarea id="ncSteps" rows="7" placeholder="Sit ten minutes daily | breath counting
 Read Anapanasati overview
@@ -1913,8 +2047,8 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
     const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>${esc(c.title)}</h2>
-      <div class="meta">${esc(c.why||'')} · begun ${esc(c.begun)}${c.due?' · due '+esc(c.due):''}</div>
+      <h2>${esc(c.title)}${c.archived?' <span class="badge">archived</span>':''}</h2>
+      <div class="meta">${esc(c.why||'')} · begun ${esc(c.begun)}${c.due?' · due '+esc(c.due):''} · ${esc(courseCatLabel(c.category||'personal'))}</div>
       <div class="prog"><div style="width:${pct}%"></div></div>
       <div style="margin-top:12px">
         ${c.steps.map((s,i)=>`
@@ -1928,9 +2062,14 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
       <label style="margin-top:14px">Due date (optional)</label>
       <div class="row"><input type="date" id="cDueEdit" value="${esc(c.due||'')}" style="max-width:200px">
         <button class="btn ghost" onclick="setCourseDue(${c.id})">Set</button></div>
+      <label style="margin-top:10px">Category</label>
+      <div class="row"><select id="cCatEdit" style="max-width:200px;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:8px 10px">${COURSE_CATEGORIES.filter(k=>k.id!=='all').map(k=>
+        `<option value="${k.id}" ${(c.category||'personal')===k.id?'selected':''}>${k.label}</option>`).join('')}</select>
+        <button class="btn ghost" onclick="setCourseCat(${c.id})">Set</button></div>
       <div class="row" style="margin-top:14px">
         <button class="btn ghost" onclick="backToList()">← All courses</button>
-        <button class="btn ghost" onclick="removeCourse(${c.id})">Take down</button>
+        <button class="btn ghost" onclick="archiveCourse(${c.id})">${c.archived?'♻ Restore':'🗄 Archive'}</button>
+        <button class="btn ghost" onclick="removeCourse(${c.id})">Delete</button>
       </div>`;
   }
 }
@@ -1938,6 +2077,11 @@ export function setCourseDue(id){
   const c=data.courses.find(x=>x.id===id); if(!c) return;
   c.due=document.getElementById('cDueEdit').value||null;
   persist(); setHud(); renderCourses();
+}
+export function setCourseCat(id){
+  const c=data.courses.find(x=>x.id===id); if(!c) return;
+  c.category=document.getElementById('cCatEdit').value||'personal';
+  persist(); blip(523,.05,'sine',.03); renderCourses();
 }
 function backToList(){ state.courseView={mode:'list'}; renderCourses(); }
 export function openCourse(id){ state.courseView={mode:'detail',id}; renderCourses(); }
@@ -1960,6 +2104,7 @@ function courseDraftSystemPrompt(){
     +"no markdown formatting:\n\n"
     +"TITLE: <a short course title>\n"
     +"WHY: <one sentence on what this course is for>\n"
+    +"CATEGORY: <exactly one of: practice, study, skill, work, health, personal — whichever best fits>\n"
     +"STEPS:\n"
     +"<step title> | <the practice for that step>\n"
     +"<step title> | <the practice for that step>\n"
@@ -1969,6 +2114,9 @@ function courseDraftSystemPrompt(){
 function parseAIDraftedCourse(text){
   const titleM=text.match(/^TITLE:\s*(.+)$/mi);
   const whyM=text.match(/^WHY:\s*(.+)$/mi);
+  const catM=text.match(/^CATEGORY:\s*([a-z]+)/mi);
+  let category = catM ? catM[1].trim().toLowerCase() : 'personal';
+  if(!COURSE_CATEGORIES.some(c=>c.id===category && c.id!=='all')) category='personal';
   const stepsM=text.match(/STEPS:\s*\n([\s\S]*)/i);
   const steps=stepsM ? stepsM[1].split('\n')
     // small local models are inconsistent about markdown decoration around
@@ -1982,7 +2130,7 @@ function parseAIDraftedCourse(text){
     // line with no pipe that reads like a question rather than a title.
     .filter(l=>l && !(!l.includes('|') && /\?$/.test(l)))
     .join('\n') : '';
-  return { title:titleM?titleM[1].trim():'', why:whyM?whyM[1].trim():'', steps };
+  return { title:titleM?titleM[1].trim():'', why:whyM?whyM[1].trim():'', category, steps };
 }
 async function draftCourseFromGoal(goal, opts){
   const reply=await AI.chat(
@@ -2001,7 +2149,7 @@ export async function draftCourseWithAI(){
       msg.textContent="Couldn't quite parse a course from that reply — try rephrasing the goal, or write it by hand instead.";
       return;
     }
-    state.courseView={mode:'new', draftTitle:draft.title, draftWhy:draft.why, draftSteps:draft.steps};
+    state.courseView={mode:'new', draftTitle:draft.title, draftWhy:draft.why, draftCat:draft.category, draftSteps:draft.steps};
     renderCourses(); blip(784,.09);
   }catch(e){
     msg.textContent="The connection flickered — no draft this time. Check that your AI connection is still running.";
@@ -2032,7 +2180,7 @@ export async function draftTrainingPlanFromChat(){
     if(!draft) return;
     closeDialog();
     openCourses();
-    state.courseView={mode:'new', draftTitle:draft.title, draftWhy:draft.why, draftSteps:draft.steps};
+    state.courseView={mode:'new', draftTitle:draft.title, draftWhy:draft.why, draftCat:draft.category, draftSteps:draft.steps};
     renderCourses(); blip(784,.09);
   }catch(e){
     if(btn){ btn.disabled=false; btn.textContent='📋 Draft a plan from this conversation'; }
@@ -2041,11 +2189,12 @@ export async function draftTrainingPlanFromChat(){
 export function createCourse(){
   const title=document.getElementById('ncTitle').value.trim();
   const why=document.getElementById('ncWhy').value.trim();
+  const category=document.getElementById('ncCat')?.value||'personal';
   const due=document.getElementById('ncDue')?.value||null;
   const steps=document.getElementById('ncSteps').value.split('\n').map(l=>l.trim()).filter(Boolean)
     .map(l=>{ const [t,p,u]=l.split('|').map(s=>s.trim()); return {title:t,practice:p||'',url:safeUrl(u),done:false}; });
   if(!title||!steps.length) return;
-  data.courses.unshift({ id:Date.now(), title, why, due, steps, begun:todayKey() });
+  data.courses.unshift({ id:Date.now(), title, why, category, due, steps, begun:todayKey(), archived:false });
   persist(); logActivity('Pinned a new course: "'+title+'".'); awardBadge('first-course'); blip(784,.09); setHud();
   state.courseView={mode:'list'}; renderCourses();
 }
@@ -3582,7 +3731,8 @@ Object.assign(window, {
   fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
-  newCourseAIForm, draftCourseWithAI, setCourseDue, draftTrainingPlanFromChat,
+  newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,
+  setCourseSearch, clearCourseSearch, setCourseCategory, toggleArchivedView, archiveCourse,
   addConnection, toggleConnection, removeConnection, recheckConnections, setConnectionModel, fillConnectionPreset,
   newArchiveForm, createArchiveDoc, backToArchiveList, openArchiveDoc, deleteArchiveDoc, skipTyping,
   newBulkForm, runBulkImport, generateQuillReport,
@@ -3593,7 +3743,7 @@ Object.assign(window, {
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
   openLocalAIPanel, renderLocalAIPanel,
-  closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping,
+  closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
   openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openComputer, saveLastChatReplyToArchive,
   openRequests, addRequest, removeRequest,

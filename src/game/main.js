@@ -48,7 +48,7 @@ window.addEventListener('keydown',e=>{
   keys[k]=true;
   if(k==='escape'){
     if(state.ui) closeUI();
-    else if(state.dialog) closeDialog();
+    else if(state.dialog && !state.dialog.minimized) closeDialog();
     else if(document.getElementById('title').style.display==='none') openMenu();
     return;
   }
@@ -116,7 +116,7 @@ function npcLines(npc){
 function onAction(){
   if(document.getElementById('title').style.display!=='none') return;
   if(state.ui) return;
-  if(state.dialog){ advanceDialog(); return; }
+  if(state.dialog && !state.dialog.minimized){ advanceDialog(); return; }
   if(state.fishing){ fishingAction(); return; }
   if(state.player.moving) return;
 
@@ -203,7 +203,7 @@ function update(dt){
         }
       }
     }
-  } else if(!state.dialog && !state.fishing){
+  } else if((!state.dialog || state.dialog.minimized) && !state.fishing){
     if(keys['arrowup']||keys['w']) tryMove(0,-1,'up');
     else if(keys['arrowdown']||keys['s']) tryMove(0,1,'down');
     else if(keys['arrowleft']||keys['a']) tryMove(-1,0,'left');

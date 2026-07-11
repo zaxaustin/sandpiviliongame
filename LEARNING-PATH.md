@@ -32,6 +32,7 @@ have a stage adjusted — this document is meant to change as you do.
 - [x] **Stage 14** — deploying a real app, and debugging one that doesn't work
 - [ ] Stage 15 — actually adding a real book to the Library, start to finish
 - [ ] Stage 16 — what a local AI model actually costs to run
+- [ ] Stage 17 — a real capstone: build live reply streaming yourself
 
 **Stage 14 is checked for real, hands-on reasons, not just because a lot
 of backend work happened nearby:** you created the Vercel project,
@@ -919,6 +920,106 @@ tracking exactly when it plans to unload that model if you go quiet.
 reply from a local model and correctly guess *why* — cold load from
 disk, spilled out of VRAM into RAM, or genuinely just a big model doing
 real work — instead of it just feeling like unexplained lag.
+
+## Stage 17 — a real capstone: build live reply streaming yourself
+
+**Why this stage exists:** you asked whether a resident's reply — and its
+"thinking" — could show up *as it's being generated* instead of arriving
+all at once after a long wait. The honest answer (see
+`plans/AI-INTEGRATION-NOTES.md`, "No streaming") is: yes, it's genuinely
+possible, and it's the single best latency-*feel* improvement the whole
+project could make — but it's not a one-line change, it crosses three
+different layers, and every layer you'll touch is something you've already
+met earlier in this path. That's exactly why it's the capstone: it isn't
+new territory, it's *all* the territory at once, on a feature you actually
+want. Do this and you've genuinely built a real streaming AI feature end
+to end, the thing most "AI apps" are actually made of.
+
+**This is a real project, not a read-through. Pin it to the Course Board
+first** (there's a paste-ready block at the end of this stage), then walk
+it a step at a time. Expect it to take days, not an afternoon — and expect
+to break the chat and fix it again, which is the point.
+
+**The one idea the whole thing rests on: a reply can arrive as a *stream*
+of small pieces instead of one finished block.** Right now every AI call
+in `src/game/ai/provider.js` sends `stream:false`, which tells the model
+"don't send anything until the whole answer is done." Flip that to
+`stream:true` and the model instead sends a rapid series of tiny chunks —
+a word or two at a time — that you're responsible for reading and stitching
+together yourself as they land. Nothing about the model got faster; you've
+just chosen to *watch it work* instead of waiting behind a closed door.
+
+**Step 1 — see the raw stream with your own eyes, before touching any
+code.** This is the Stage 4 / Stage 10 habit again: prove the thing is real
+at the lowest level first. With Ollama running:
+```
+curl http://localhost:11434/api/chat -d '{"model":"llama3.2","messages":[{"role":"user","content":"Count slowly to five."}],"stream":true}'
+```
+Watch your terminal: instead of one JSON object, you get a *waterfall* of
+them, one per line, each carrying a `message.content` fragment, the last
+one marked `"done":true`. That waterfall is the entire feature. Everything
+else is plumbing it into the game.
+
+**Step 2 — understand the three layers you'll have to change, in order.**
+Read them before writing anything; this is the system-design habit from
+Stage 7, scoped to one real change:
+1. **The provider (`provider.js`).** `chat()` currently `await`s the whole
+   response and returns one string. Streaming means it has to instead read
+   the response *as it arrives* (`response.body.getReader()` in a browser)
+   and hand each fragment back to its caller as it comes. The cleanest shape
+   is a callback — `chat(messages, opts, onChunk)` — where `onChunk(text)`
+   fires for every piece. All three provider families (Ollama,
+   OpenAI-compatible, Anthropic) format their chunks *differently*, so this
+   is really three small parsers behind one shape — exactly the adapter
+   pattern Stage 10 named.
+2. **The desktop bridge (`electron/preload.cjs` + `main.cjs`).** Here's the
+   real wall, and it's worth meeting head-on: the desktop app doesn't fetch
+   directly, it asks the Electron main process to fetch *for* it, and that
+   bridge currently **buffers the whole reply** before handing it back — so
+   even a perfect streaming provider would still arrive all-at-once in the
+   desktop build. Making this stream needs a real streaming channel between
+   the two processes (Electron's IPC can send many messages over time, not
+   just one return value). This is the hardest single piece, and naming it
+   honestly *is* the lesson: a feature can be trivial in one layer and hard
+   in the one beneath it, and you only find that out by tracing all the way
+   down (Stage 3's whole point).
+3. **The chat view (`renderChatView` in `ui/overlays.js`).** This one you're
+   already most of the way to. There's *already* a typewriter
+   (`typewriteChatText`) that reveals a finished reply progressively — real
+   streaming just means feeding it real fragments as they arrive instead of
+   faking the reveal after the fact. The `d.thinking` bubble becomes the
+   place the live text actually grows.
+
+**Step 3 — do the browser path first, leave the desktop bridge for last.**
+`npm run dev` in a browser fetches directly, with no bridge in the way — so
+you can get streaming genuinely working there before you fight the harder
+Electron IPC piece. Same discipline as Stage 14: get it working in the
+simpler environment, *then* port it to the one with more moving parts.
+Ship nothing to the desktop build until the browser build streams cleanly.
+
+**Watch the effectiveness-first line the whole time** (it's a standing
+project decision, see `CLAUDE.md`): streaming must not make replies *less*
+reliable. Keep the empty-reply retry, keep the scripted-dialog fallback for
+a dead connection, and make sure a stream that dies halfway degrades to
+"here's what I got" rather than a frozen half-bubble. A prettier wait that
+breaks more often is a worse feature, not a better one.
+
+**You're ready to call this stage done when:** talking to a resident in the
+browser build shows their words appearing live as they're written, the
+existing typewriter now driven by real fragments instead of a finished
+string — and you can explain, out loud, exactly why the desktop build needs
+one more piece of work the browser build didn't.
+
+### Paste this into the Course Board to track it in the Pavilion itself
+```
+Build live reply streaming | see it work end to end in the browser build
+See the raw stream first | curl Ollama's /api/chat with "stream":true and read the waterfall
+Map the three layers | provider.js, the Electron bridge, renderChatView — trace top to bottom
+Stream the provider | make chat() hand back fragments via an onChunk callback (Ollama first)
+Feed the typewriter | drive the existing typewriteChatText with real chunks, not a fake reveal
+Keep the safety nets | empty-reply retry, dead-connection fallback, half-stream degrades gracefully
+Then the desktop bridge | a real streaming IPC channel so the Electron build streams too
+```
 
 ## Where this goes next
 
