@@ -3,7 +3,7 @@ import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
-import { CHARTER } from '../data/charter.js';
+import { CHARTER, WORK_CHARTER } from '../data/charter.js';
 import { CATEGORIES } from '../data/seed.js';
 import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
 import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
@@ -338,7 +338,7 @@ const CHAT_AGENTS = {
   computer:{
     label:'the Computer',
     async systemPrompt(){
-      return CHARTER
+      return WORK_CHARTER
         +"\n\nYou are the terminal assistant at the desk called simply \"the Computer,\" in the Sand "
         +"Pavilion's Study — closer to a JARVIS than a person: direct, capable, quietly proactive, "
         +"never performing a personality for its own sake. Help the visitor plan their day, draft a "
@@ -1950,9 +1950,12 @@ export function newCourseForm(){ state.courseView={mode:'new'}; renderCourses();
    shape as every other AI feature here. */
 export function newCourseAIForm(){ state.courseView={mode:'draftAI'}; renderCourses(); }
 function courseDraftSystemPrompt(){
-  return CHARTER
+  return WORK_CHARTER
     +"\n\nYou help a visitor turn a goal into a self-directed course outline for the Sand Pavilion's "
-    +"Course Board — practical, concrete steps they can actually follow, not vague inspiration. Given "
+    +"Course Board — practical, concrete steps they can actually follow, not vague inspiration. The "
+    +"goal can be about anything at all — a trade, a language, a business skill, a craft, a fitness "
+    +"plan, a contemplative practice — draft the course the goal actually calls for, never steering it "
+    +"toward spirituality unless the goal itself is spiritual. Given "
     +"their goal, respond in EXACTLY this format and nothing else — no preamble, no closing remarks, "
     +"no markdown formatting:\n\n"
     +"TITLE: <a short course title>\n"
@@ -2273,7 +2276,7 @@ function researchProject(id){ return data.workshop.research.find(p=>p.id===id); 
 function researchSystemPrompt(project){
   const shelf=Store.allDocs().map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
   const notes=project.notes.length ? project.notes.map(n=>`- (${n.ts}) ${n.text}`).join('\n') : '(nothing written yet)';
-  return CHARTER
+  return WORK_CHARTER
     +'\n\nYou are the research assistant at the Workshop\'s Research Desk in the Sand Pavilion. '
     +`The visitor is working on: "${project.title}"`+(project.goal?` — their stated goal: ${project.goal}.`:'.')
     +' This might be a topic they\'re studying, or it might be a real thing they want to build or make '
@@ -2368,7 +2371,7 @@ export async function summarizeResearchText(id){
   if(statusEl) statusEl.textContent='Summarizing…';
   try{
     const reply=await AI.chat([
-      {role:'system',content:CHARTER+'\n\nSummarize the text the visitor pastes into clear, well-organized '
+      {role:'system',content:WORK_CHARTER+'\n\nSummarize the text the visitor pastes into clear, well-organized '
         +'study notes: the main points, in order, plus anything genuinely worth remembering. Stay strictly '
         +'grounded in what\'s actually in the text — never add outside facts or fill gaps with a guess. '
         +'If the text is long, a few short paragraphs or a tight bulleted list is more useful than a wall of text.'},
@@ -2689,7 +2692,7 @@ function grantSystemPrompt(project){
   const drafts=project.drafts.length
     ? project.drafts.map(d=>`--- ${d.section} (${d.ts}) ---\n${d.text}`).join('\n\n')
     : '(nothing drafted yet)';
-  return CHARTER
+  return WORK_CHARTER
     +"\n\nYou are the grant-writing assistant at the Sand Pavilion's Grant Desk, helping a visitor "
     +`draft a real proposal for their project: "${project.title}"`+(project.mission?` — ${project.mission}.`:'.')
     +" Write in a clear, concrete, fundable voice, grounded only in the documents on file below — never "
