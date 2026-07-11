@@ -1,5 +1,15 @@
 # AI Integration — what's actually running, what it costs, and the rule
 
+> **STATUS (2026-07-11):** the two live risks this doc named are resolved.
+> **Live streaming is built** (Ollama NDJSON + a desktop streaming bridge —
+> replies and the Monk's reasoning reveal as they generate). **The
+> `bestLocalModel()` concern closed as guidance-not-downgrade:** the Monk
+> keeps the largest installed model (standing rule), and a tiered
+> model-picking guide now lives in `PROTOCOLS.md` Protocol 2 + the
+> Connections panel, so the person choosing models chooses informed. The
+> Monk's prompt was also re-grounded the same day (identity + Library
+> knowledge, not a rulebook — see the dev log).
+
 Written 2026-07-10, asked for directly: understand what's going on under
 the hood, and set the priority plainly — **effectiveness before features
 or extra personalities.** This is the honest accounting, grounded in the

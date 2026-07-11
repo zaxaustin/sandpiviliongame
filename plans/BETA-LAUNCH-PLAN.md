@@ -1,5 +1,12 @@
 # The Beta Launch — a small core, real outlets, and a Pavilion you fill yourself
 
+> **STATUS (2026-07-11, later the same day):** the build this stance called
+> for happened — see `BETA-BUILD-PLAN.md`'s STATUS banner (personal library,
+> local-only installer, orientation, the tiered model guide answering #1
+> below). This doc stays open as the *stance*; what remains actionable from
+> it is the welcome-packet decision (seed 21 vs live 49) and the tester
+> round itself — both tracked as README "near gates."
+
 Written 2026-07-11, from the user's own framing. This is the *shape* of what
 opens to other people — not a feature list, a stance. It sits above
 `BETA-TESTING-FEEDBACK.md` (the running issue log) and `FOUNDATION-AND-EXTRAS.md`

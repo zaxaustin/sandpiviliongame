@@ -1,5 +1,13 @@
 # Desktop App Plan
 
+> **STATUS (2026-07-11):** Phases 1-4 all done and proven live (2026-07-08,
+> including running the packaged installer). Since then the bridge grew:
+> streaming fetch (07-11), a native save dialog, spell-check menu, and the
+> personal-library file storage (`desktop-library-*` handlers). A dedicated
+> **shareable beta installer** now exists too — `npm run electron:build:beta`,
+> local-only by construction (see `BETA-BUILD-PLAN.md`). **The one remaining
+> gap is unchanged: a clean install on hardware that never built it.**
+
 **Phase 1 done and verified live, 2026-07-08.** Electron picked (see
 "Shell" below — the undecided-on-purpose choice is now made). See "Local
 storage"-style status section near the bottom for the real details.

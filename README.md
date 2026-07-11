@@ -51,7 +51,7 @@ fuller orientation; this is the quick map.*
 - **Three residents, three roles:** Quill teaches (Library, plans), the Monk guides (meaning/conduct), Sebastian works with you (the day). The Monk always gets the best local model + real room to think.
 - **Three charters, don't cross them:** `CHARTER` (in-world residents, devotional), `WORK_CHARTER` (work tools, neutral/secular), `BUTLER_CHARTER` (Sebastian — warm but secular). Never skew a secular goal toward the dharma.
 - **No background polling.** Every AI call is triggered by a real user action, never a timer. This is load-bearing.
-- **Local-first.** No paid cloud API required to use it. Book *text* → local MinIO/Docker; catalog → Supabase. Cloud AI is an eyes-open opt-in, always labeled ☁.
+- **Local-first.** No paid cloud API required to use it. Certified book *text* → local MinIO/Docker; catalog → Supabase; **personal books → plain files in the desktop app's own data folder** (no services at all). Cloud AI is an eyes-open opt-in, always labeled ☁.
 - **Effectiveness before features/personalities.** A resident that answers reliably beats a richer one that hangs.
 - **The sleeper car:** low-res on purpose, so the machine's resources go to AI/Library/work, not the renderer. That's the tie-breaker on "looks more impressive" vs "does more, uses less."
 - **Build it ourselves before a third party.** The long path is the shortest path.
@@ -219,8 +219,11 @@ forever.
 
 **The Library** — nine shelves (Theravada, Mahayana, Daoism, Practice,
 Science, Classics, Native American, Hindu, and Tantra — the last three
-all added 2026-07-09), 44 texts, most of them full, real, page-by-page
-books, not summaries: the Theravada canon, the Tao Te Ching, the
+all added 2026-07-09) plus **Your Shelf**, the personal case by the
+reading nook where books you bring in yourself live, marked 👤 as yours
+(added 2026-07-11). **49 texts live** on the dev machine's full setup
+(21 of them in the shipped seed — the welcome-packet gap is near-gate #3
+below), most of them full, real, page-by-page books, not summaries: the Theravada canon, the Tao Te Ching, the
 Diamond Sutra, Meditations/Republic/Nicomachean Ethics/Discourses/
 Wealth of Nations, Darwin's Origin of Species and Beagle journal plus
 the Library's first research paper, Walden/Sailing Alone/Ten Acres
@@ -456,303 +459,40 @@ reasoning-model display gap, TTS voice/speed controls, and more — live
 in [`BETA-TESTING-FEEDBACK.md`](plans/BETA-TESTING-FEEDBACK.md), a running log that gets
 appended to each testing round rather than folded into this list.
 
-**Done since this list was last written (2026-07-08, same day):**
-closing the reading→doing loop (every book note can become a "spark" on
-the Writing Desk, one click); real Postgres full-text search in the
-Index; a Library-storage health check alongside the existing Ollama
-status line; the Library grown to 25 texts (19 with real full text);
-the Mountain Monk relocated to the Keep with a formal role split from
-the Steward; the player/NPC sprite redesigned as an actual robed
-silhouette (sash, draping sleeves, hair/topknot); and a standing rule
-that the Monk always gets the best available local model with real
-room to think, never traded for speed the way everything else may be.
+**How it got here** — the session-by-session story (which this list used to
+recount in place, at ever-growing length) lives in `archive/dev-log-*.txt`,
+one file per working day. The short shape of it: 07-06 the module split;
+07-07 Phase 3 live (café, accounts, deploy); 07-08 local object storage and
+the office pivot; 07-09 sparks, data management, the Writing Desk rebuild,
+plans/ created; 07-10 the Eightfold Path temple, three Workshop floors, the
+pocket phone, Course Board Stage 1, the Library at 49; 07-11 Sebastian's
+calendar and scheduler, the Monk re-grounded with live streaming, notes
+folders/tags, and **the beta actually built** (the `beta` branch, merged —
+see `plans/BETA-BUILD-PLAN.md`'s STATUS banner and `MANUAL.md`).
 
-**Done since then (2026-07-09):** the research-papers gap actually
-closed — `tools/caravan/pdf-to-text.py` turns a fetched PDF into real
-shelf-ready text, verified live against a real arXiv paper; two new
-Caravan connectors, `openalex.py` (searches across publishers for the
-legal open-access copy of a paper, no key needed) and
-`standardebooks.py` (worked around their OPDS catalog needing a Patrons
-Circle membership by using GitHub's own public API plus the books'
-real EPUB3 semantic markup instead); `promote-draft.py` fixed to
-actually support the `research` category instead of hardcoding
-`classical`; a new **Native American** shelf added for Charles Eastman's
-own writing rather than a secondhand ethnographic account; 10 more real
-texts fetched, drafted, and promoted live — research papers, Mahayana,
-Stoic philosophy, economics, sailing, homesteading, Native American
-tradition (see `LIBRARY-GROWTH-PLAN.md` for the full list) — taking the
-Library from 25 to **35 texts**, all with real full text attached in
-MinIO the same day they were shelved. The Caravan is now 8 connector
-scripts, not 4.
+**The near gates, in order** — what actually stands between here and real
+testers, none of it big:
 
-**Done since then (also 2026-07-09):** the Keep's temple was missing
-something real — a Ganesha statue now stands mirrored across the aisle
-from the Buddha shrine, same devotional weight, own iconography and
-glow, verified by an actual screenshot pass (twice — the first attempt
-read as a blob, not an elephant, before it was fixed). The Buddha
-statue itself got a real second pass too: a lotus base, a seated
-cross-legged silhouette instead of a shape that read as a plain cone,
-hands in dhyana mudra. Three more Hindu texts shelved — Wilkins'
-*Hindu Mythology, Vedic and Puranic* (1900, real chapters on both Shiva
-and Ganesha) and an original steward's telling of why Ganesha is
-invoked before any undertaking, kept beside the statue as its own
-practice, not just a myth. Library: **35 → 44 texts.**
-`USER-DATA-MANAGEMENT-PLAN.md` written — export/import/reset already
-exist and work; the real gaps are visibility (no way to see what's in
-your save) and granularity (all-or-nothing, no selective pruning).
+1. **A live click-through of the new flows** — Sebastian's calendar, the
+   Caravan→Your Shelf→Reader path, the welcome panel — in a running window
+   (the user's own run; statically verified, never yet clicked).
+2. **The clean-machine install test** — `release/Sand Pavilion Setup
+   0.1.0-beta.1.exe` on hardware that never built it. The one genuinely
+   unverified thing (BETA-BUILD-PLAN.md §6.8).
+3. **The welcome-packet decision** — seed(21) vs live(49): backport chosen
+   books into `seed.js`, or ship lean on purpose. A decision, not a bug.
+4. **Save export doesn't carry desktop-stored personal book files** (the
+   catalog travels; the .txt files don't) — small, honest in MANUAL.md §8,
+   worth closing before testers migrate machines.
+5. Then: hand the installer to two or three real people and let
+   `BETA-TESTING-FEEDBACK.md` fill up with things nobody imagined.
 
-**Done since then (also 2026-07-09):** `READING-TO-DOING-PLAN.md` step 1
-— the same "bring to today's plan" bridge that already worked for book
-notes now works for Research Desk notes and Grant Desk documents too,
-reusing the exact same `sparks` data, same UI pattern. A real security
-gap found and closed the same day: the MinIO container's ports were
-bound to `0.0.0.0` (reachable from anywhere on the local network, not
-just this machine) despite `LIBRARY-SCALING-PLAN.md` always claiming
-localhost-only — confirmed via `docker inspect`, not assumed, then
-fixed by recreating the container bound to `127.0.0.1` only, verified
-after with `netstat` and by confirming existing book data survived the
-recreate untouched.
+**Backend, decided (2026-07-11):** keep Supabase for now; when outgrown,
+the hybrid — a small VPS running the same Postgres+MinIO Docker stack the
+dev machine already runs, Supabase kept for the social pieces. No server
+rented until the beta actually needs hosting.
 
-**Done since then (also 2026-07-09):** `READING-TO-DOING-PLAN.md` closed
-out — steps 2-4 (a `done` flag on every spark, an opt-in "carry forward
-what's still open" toggle on the Writing Desk, and a new "📋 Still Open"
-pause-menu panel showing every not-done spark across all three sources,
-oldest first) shipped together. `USER-DATA-MANAGEMENT-PLAN.md` closed out
-too — a "📊 Your Data" pause-menu panel (real save size, counts across
-planner days/notes/projects/badges/activity) plus "clear old planner days
-before a date," the one real pruning gap; per-project removal turned out
-to already exist (each Research/Grant Desk project already has its own
-"Delete project" button) so nothing needed duplicating there. All of it
-verified live, not just read: a synthetic old save missing half its
-fields (predating `settings`, `activityLog`, `badges`, and more) imported
-clean through the real Import Save button in an actual browser, every
-missing field fell back to its default, and a legacy spark with no `done`
-field at all correctly showed up as open — then toggling it done and
-pruning old days both worked and updated the Data panel's counts live.
-
-**Done since then (also 2026-07-09):** a second session's worth of raw
-feedback — jotted straight into this file after a local wifi drop cut
-that session short — triaged into `BETA-TESTING-FEEDBACK.md`'s "Round 2"
-properly, 11 real items, each checked against the actual code. The
-Mountain Monk's actual role, corrected the same day: he's chat-only now
-— spiritual counsel, text recommendations, helping visitors find their
-own intentions, holding people to a higher moral standard, Native
-American tradition held close alongside Buddhism and Vedanta as
-something nearer his own path than a third subject — and the "draft a
-plan from this conversation" button that used to live on him moved to
-Quill, whose own role now explicitly includes turning a conversation
-into an actual saved course/study/practice plan, alongside the Library
-help she already gives. Two new plans written from that same triage:
-`WRITING-DESK-PLAN.md` (the actual current-state breakdown of the
-Writing Desk's eight stacked sections, plus a real 4-step fix — since
-built, see below) and `LOCAL-AI-MONITORING-PLAN.md` (what Ollama's
-`/api/ps` already gives for free today versus what real CPU/GPU tracking
-would actually need — still plan-only, on purpose), paired with a new
-`LEARNING-PATH.md` Stage 16 teaching the concepts behind the second one.
-
-**Done since then (also 2026-07-09):** `WRITING-DESK-PLAN.md` built, not
-just planned — the page (`#planIntent`/`#planEmber`) is the desk now,
-auto-saving the same way `chatNotes` already did elsewhere, with blocks/
-sparks/Ask the Steward/past days moved into a real collapsible toolbox
-and due-soon items left visible outside it, as the plan called for.
-**Asked for directly alongside the redesign:** "🗂 My Notes," a real
-filing cabinet in the toolbox — freeform, named, dated notes kept across
-days, separate from today's page, with its own create/edit/delete flow
-and the same auto-save pattern; a smaller, Writing-Desk-scoped answer to
-"file papers and make notes," not the bigger cross-app file-tree idea,
-which stays out of scope on purpose (see `WRITING-DESK-PLAN.md`).
-Verified live in a real browser, not just built: every toolbox panel
-opens correctly, the page auto-saves, and a filed note survives an
-actual page reload. The repo's own plan/tracking docs (eleven files —
-every `*-PLAN.md` plus `BETA-TESTING-FEEDBACK.md`) moved into a new
-`plans/` folder the same day, decluttering the root down to `README.md`,
-`LEARNING-PATH.md`, and `API-AI-INTEGRATION-PLAN.md` — every link and
-cross-reference to a moved file updated to match, checked directly, not
-assumed.
-
-**Done since then (2026-07-10):** a dropped-session's worth of raw beta
-notes (an MCP auth issue cut the previous session short) triaged into
-`BETA-TESTING-FEEDBACK.md`'s "Round 3," then four of its small, bounded
-items actually fixed the same day: the Mountain Monk's own reasoning —
-generated every reply once `think:true` was already set for him, then
-silently discarded before it ever left `provider.js` — is now captured
-and shown, collapsed, under a "💭 thought for a moment" toggle; Export
-Save gets a real native save-location picker in the desktop app instead
-of always dropping into Downloads; a real spell-check right-click menu
-now works there too (Chromium's own suggestions were already on, just
-never wired to a menu); and Quill's own prompt now points to the Request
-Board when asked to fetch a book live, the same honest browser-limit
-framing the Steward's prompt already had. Two long-term plans written
-the same day, deliberately not built yet: `EIGHTFOLD-PATH-TEMPLE-PLAN.md`
-(the Keep reimagined as a real, walkable Noble Eightfold Path, grounded
-in the already-shelved Dhammapada, each fold tied to something real
-already in the Pavilion rather than a plaque trail) and
-`TOOL-COMMONS-PLAN.md` — the actual long-term vision for what this whole
-project is reaching for past beta: not an in-game tool-builder, not a
-promise to build every visitor's own CRM for them, but a local commons
-of small tools (the Caravan scripts already an early, unnamed version of
-this) plus a real `LEARNING-PATH.md` capstone teaching someone to build
-their own, on their own foundation, for their own real need. Raised
-alongside it, and folded into that same plan: a **bare-bones foundation
-vs. Zac's own customizations** split — the concrete mechanism this
-project's own "a Pavilion, not *the* Pavilion" hope (below) was always
-missing.
-
-**Done since then (also 2026-07-10):** the Eightfold Path Temple plan and
-the Workshop's own sketched rooms both got built the same day, visuals
-first, exactly as asked — real backend features are still open, on
-purpose. The Keep gained all eight real signs, walked south to north in
-canonical order, paired left and right down the corridor the same way
-the Buddha and Ganesha shrines already are. The Workshop grew from one
-room into three real floors — bigger on the inside than its outdoor
-footprint, same trick the Library already uses, just extended upward
-with a real staircase: the ground floor unchanged, a real Records Hall
-one floor up (a distinct station, a real hand-kept timeline panel — not
-yet reading `archive/dev-log-*.txt` live, that's the next real work),
-and an "unfinished floor" above that holding the other five sketched
-rooms, each with its own real, distinct visual (the Ledger's ruled
-columns, the Maker's Bench's half-built birdhouse, the Greenhouse's
-young sapling, the Round Table's four empty stools, the Mailroom's
-waiting letter) and an honest "not open yet" reply when pressed — no
-pillars on that floor, on purpose, so sparser reads as unfinished rather
-than just saying so. All of it verified live against the actual running
-game via Playwright, not just read — every room walked into, every panel
-opened, every sign's real text confirmed on screen, the same discipline
-this project has held itself to since the Ganesha statue's own two-pass
-screenshot check.
-
-**Done since then (also 2026-07-10):** the Local AI panel's remaining
-two steps built and verified — every provider's `chat()` now tracks its
-own elapsed time, so the activity log gets a real "(2.3s ·
-llama3.2:latest)" tag for free, and the panel itself gained a "Today's
-session" card (real-ask count, total/average time, per-model breakdown)
-built entirely from that same log. The Caravan Desk gained a real
-drag-and-drop intake — drop a `.txt` file, pick a known source, and the
-existing manual-entry form fills itself in (title, author, and a real
-license string per source), verified live end to end including the
-unrecognized-source path, which now actually creates a real Research
-Desk project ("Caravan Drops") instead of touching the shared queue.
-`library-draft.py` also gained a local-AI-assisted `--ai-draft` flag for
-the terminal half of the same pipeline, suggesting a summary and
-tradition that stay clearly marked as suggestions, never final, and
-never touching license or source. The Caravan Desk's own list view
-gained a plain answer to "why can't I just paste a URL," right at the
-point someone actually asks it. And `COURSE-BOARD-PLAN.md` got written
-— a real 3-stage plan (personal now, real sharing standards next, a full
-free course site further out) turning the Course Board's own scaling
-complaint into a real roadmap instead of one undefined ask; paired with
-a direct decision that `TOOL-COMMONS-PLAN.md` becomes real once this
-Pavilion actually opens its beta to other people, not before.
-
-**Done since then (also 2026-07-10):** the **pocket phone** — a chat can
-now be minimized with a 📱 button into a small floating card, freeing you
-to walk the grounds or read a book while a slow local model thinks; the
-card buzzes when the reply lands and taps back into the same conversation
-intact. It's a display trick, not a device (`state.dialog` just stays
-alive while its overlay hides) — the *real* in-world phone, gathering
-already-built features into one glanceable home screen, is written up as
-a future piece in [`PHONE-PLAN.md`](plans/PHONE-PLAN.md), explicitly bound
-by the same no-background-polling rule as the rest of the AI. (A resident's
-own reasoning is already folded into the conversation under a collapsed
-"💭 thought for a moment" toggle; watching it stream live remains the
-separate, bigger piece flagged in `AI-INTEGRATION-NOTES.md`.)
-
-**Done since then (also 2026-07-10):** **Course Board Stage 1** built (see
-[`COURSE-BOARD-PLAN.md`](plans/COURSE-BOARD-PLAN.md)) — the board now has a
-real category axis (Practice / Study / Skill / Work / Health / Personal),
-a search box and category chips that mirror the Index panel's own pattern,
-and a real **archive** state distinct from deletion, so a finished or
-set-aside course becomes kept personal history instead of being erased
-(archived courses also stop nagging the upcoming-due badge). AI-drafted
-courses now suggest a fitting category too, still just a suggestion you can
-change before pinning. All personal and local — sharing standards are
-Stage 2, deliberately not touched yet.
-
-**Done since then (also 2026-07-10):** a **±10-second skip** on the book
-read-aloud (beta #6) — the Web Speech API can't seek, so it's done by
-tracking word boundaries and re-speaking from a new offset; feels like a
-podcast skip. The **Library grew to 49 texts** — five HTTP-verified
-public-domain books (Franklin's *Autobiography*, Emerson's *Essays*, Sun
-Tzu's *Art of War*, the full *Zhuangzi*, *Aesop's Fables*) added to the
-`seed.js` source of truth and promoted into the live Supabase library, so
-they're on the shelves now. And two decisions got recorded: the
-foundation/extras **unlock mechanic** (walk up, see the requirement,
-unlock by learning-what-it-does or walking a short learning path — tutorial
-deferred to beta; see [`FOUNDATION-AND-EXTRAS.md`](plans/FOUNDATION-AND-EXTRAS.md)),
-and beta #24's "priority shelf" closed in favor of letting the local AI
-advise on what to read given the visitor's real situation, uploaded books
-included.
-
-**Done since then (2026-07-11):** Sebastian's calendar built — the "last
-key" v1 is code-complete (see his section just below). Alongside it, two new
-plans written from a direct steer on what the beta actually is:
-[`BETA-LAUNCH-PLAN.md`](plans/BETA-LAUNCH-PLAN.md) (keep the core small, ship
-real outlets to link your own local AI, a welcome packet of books, and let
-people fill the Pavilion themselves — plus the resolution to the Monk model
-risk: he's *definitely* in the beta because guidance is what people lack, and
-the pre-launch task is to curate a tiered set of models he runs well on
-across modest/mid/beefy machines, not to exclude thinking models) and
-[`NOTES-AND-LOG-ROOM-PLAN.md`](plans/NOTES-AND-LOG-ROOM-PLAN.md) (the Records
-Hall today shows the *Pavilion's* hand-kept history, not *your* notes; the
-real want is one place to see the five scattered personal-note stores
-gathered and organised for the long term, with Sebastian as concierge —
-likely repurposing the Records Hall to hold it).
-
-**Done since then (also 2026-07-11): the beta build, actually built — on
-the `beta` branch.** `BETA-BUILD-PLAN.md` walked end to end in one session:
-**(1) the personal library** — every Caravan-queue item now has a "👤 Shelve
-on Your Shelf" button, the whole no-infrastructure local path: the catalog
-card lives in `data.personalLibrary` (save-migrated), the full text lives as
-a plain file in the desktop app's own data folder via three new bridge
-handlers (slug-locked names, no path traversal), with an inline-in-save
-browser fallback that refuses oversized books honestly; a real **YOUR SHELF**
-station stands in the Library by the reading nook (`openShelf('Personal')`),
-personal books carry a 👤 badge + "Remove from Your Shelf" in the Reader,
-ride along in the Index/Quill's grounding automatically via a `Store`
-getter-merge, and never mix into the six certified shelf blocks — the
-provenance split, built. **(2) local-only build mode** — `.env.beta`
-(committed; it *empties* the service vars) + `build:beta`/
-`electron:build:beta` scripts; the built bundle verified to contain **zero**
-mentions of the Supabase project ref, key, or `supabase.co`. **(3) first
-arrival** — a welcome overlay (keys, the three doors, how residents start
-talking, "nothing phones home") that auto-shows exactly once on a genuinely
-fresh save, then lives behind the title screen's "🧭 New here?" button.
-**(4) the model on-ramp** — the tiered pull guide (modest → strong machines)
-in `PROTOCOLS.md` Protocol 2 and as a 📏 collapsible in the Connections
-panel; `bestLocalModel()` deliberately untouched — the Monk keeps the
-largest model, guidance not downgrade. A real installer built from all of
-it: `release/Sand Pavilion Setup 0.1.0-beta.1.exe`, unsigned on purpose.
-**Still open, stated honestly:** a live click-through of shelve→read in a
-running window, and the clean-machine install test (§6.8) — the one thing
-only different hardware can prove.
-
-**The last key before beta: Butler Sebastian — v1 now code-complete
-(2026-07-11).** Sebastian is the third resident, and the division is
-clean: **Quill teaches** (the Library, turning a talk into a plan), **the
-Monk guides** (meaning, conduct, finding your intention), and **Sebastian
-works with you** — the helper who actually gets the day done. He lives in
-the **Workshop**, the working counterpart to the Monk's Temple. Talk to
-him: a `BUTLER_CHARTER` (warm like the residents, secular and goal-agnostic
-like the work tools), grounded in the real state of your day, with a
-**"send this plan to today"** button that drops a schedule he drafts into
-your daily plan (read-aloud lets you *listen* to it). And now his back half
-is built too — a real **calendar** at his desk: a month grid, a day view,
-an add-event form, with events folded into the same due-date spine the HUD
-badge and Upcoming panel already read, so there's one honest picture of the
-day, not three. At the top of the calendar sits his **advisory read** —
-"you've three things on the books today, something may have to give," or
-"the day's a blank page so far" — computed the moment you open it, **with
-no AI connected at all** (and richer when one is), never on a background
-timer. Full design and build order, plus an honest note that the one thing
-left is a live click-through in a running window, in
-[`BUTLER-SEBASTIAN-PLAN.md`](plans/BUTLER-SEBASTIAN-PLAN.md). The honest
-tradeoff, stated in the plan: he's more AI than the Pavilion has leaned on,
-real hardware cost — but bounded by no-background-polling, and exactly what
-the sleeper-car resource choice was saving room for. **Still open before
-beta:** the AI-reliability pass (the Monk's `bestLocalModel()` still hands
-him the largest installed model, often an unreliable thinking one — a live
-gap in `provider.js`, not yet fixed) and a clean "someone who isn't Zac can
-run this" path (first-arrival orientation + a clean-machine install).
+**Longer-term, each with its real plan:**
 
 1. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 49 live texts across 9 shelves; see
@@ -765,14 +505,13 @@ run this" path (first-arrival orientation + a clean-machine install).
    shelved book during an idle tick) before any general action API.
    Direct service to "find direction" — a resident who's actually doing
    something, not just answering when spoken to.
-3. **A "Local AI" panel — step 1 built 2026-07-10** (see
-   `LOCAL-AI-MONITORING-PLAN.md`): a real "🧠 Local AI" panel in the pause
-   menu, reading Ollama's own `/api/ps` for every currently-loaded
-   model's memory footprint and GPU residency, verified live against a
-   real running Ollama instance. **Still open:** per-action elapsed-time
-   logging and a running session summary (steps 2-3, small, no new
-   dependency); real CPU/GPU percentage stays a separate, later,
-   desktop-only step needing a new package in Electron's main process.
+3. **The "Local AI" panel — steps 1-3 all built 2026-07-10** (see
+   `LOCAL-AI-MONITORING-PLAN.md`): the 🧠 pause-menu panel reads Ollama's
+   own `/api/ps` (loaded models, memory footprint, GPU residency),
+   per-action elapsed times feed the activity log, and a "Today's
+   session" card summarizes asks/timings per model. **Still open:** only
+   real CPU/GPU percentages — a separate, later, desktop-only step
+   needing a new package in Electron's main process.
 4. **A real color/appearance picker** — see
    [`CHARACTER-CUSTOMIZATION-PLAN.md`](plans/CHARACTER-CUSTOMIZATION-PLAN.md),
    written down 2026-07-08 after the sprite redesign made it a real
@@ -782,11 +521,10 @@ run this" path (first-arrival orientation + a clean-machine install).
    confirming it's still wanted before it's built, now that the
    terminal tools work well on their own and `library-inbox/` covers
    manual sourcing.
-6. **A machine-that-isn't-the-dev-machine test for the desktop app** —
-   Phases 1-4 done and proven live (2026-07-08), including actually
-   running the packaged installer itself (not just dev mode) for the
-   first time. The one thing still genuinely unverified: a clean
-   install on hardware that was never used to build it.
+6. **The clean-machine install test** — promoted to near-gate #2 above;
+   kept here only so the numbering that other docs reference stays put.
+   Desktop app phases 1-4 proven live 2026-07-08; the beta installer
+   built 2026-07-11; hardware that never built it remains the gap.
 7. **Finish the production auth setup** — add the Vercel URL to
    Supabase's Auth redirect-URL allowlist, grant a real steward role, and
    verify moderation with an actual session — whenever the Commons comes
@@ -843,7 +581,7 @@ run this" path (first-arrival orientation + a clean-machine install).
     genuinely long-term, named so it isn't lost, not promised. See
     "Hopes and dreams" below for the fuller vision.
 11. **A drag-and-drop book intake at the Caravan Desk — built 2026-07-10**
-    (see [`BOOK-DRAG-DROP-PLAN.md`](plans/BOOK-DRAG-DROP-PLAN.md)). Pick a
+    (see [`BOOK-DRAG-DROP-PLAN.md`](plans/done/BOOK-DRAG-DROP-PLAN.md)). Pick a
     source website, drop a `.txt` file, and the Pavilion fills in the
     rest of the existing manual-entry form instead of retyping it by
     hand — title/author detected, license pre-filled per source, never

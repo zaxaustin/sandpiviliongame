@@ -1,7 +1,9 @@
 # Course Board Plan — three real stages, not one big jump
 
-Not started past Stage 1 (which is mostly already built). Written down
-2026-07-10, a direct answer to `BETA-TESTING-FEEDBACK.md` #18 ("the
+**Stage 1 built 2026-07-10** (categories, search/filter chips, real archive
+state, AI-suggested categories). Stages 2-3 (sharing standards, the free
+course site) deliberately not started — Stage 2 becomes real when the beta
+actually has other people in it. Written down 2026-07-10, a direct answer to `BETA-TESTING-FEEDBACK.md` #18 ("the
 Course Board should scale like a real site, and support importing
 plans") — that raw ask turned out to actually be three separate,
 sequential asks, not one feature, and staging them explicitly is the

@@ -1,5 +1,18 @@
 # Library Scaling Plan
 
+> **STATUS (2026-07-11) — the storage picture now has three honest layers,
+> reconciled here so they stop reading as contradictions:**
+> 1. **Certified library, dev machine (today):** catalog → Supabase, full
+>    text → local MinIO in Docker. Unchanged, working.
+> 2. **Personal books, any machine (built 2026-07-11):** plain files in the
+>    desktop app's own data folder, via the Electron bridge — no services.
+>    This is what beta testers get; they never touch Docker.
+> 3. **"The books should live on Docker, not Supabase" (user direction,
+>    2026-07-11) + the backend decision (Supabase now, hybrid VPS later):**
+>    the future move for the *certified* library — catalog and text together
+>    on a small VPS running this same Docker stack, Supabase kept only for
+>    the social pieces. A deliberate later build, not started.
+
 In progress. Written down so the decision survives between sessions — see
 README's "Work still to be done" for how this fits the rest of the
 priority list. Same spirit as `DESKTOP-APP-PLAN.md`: no drastic moves

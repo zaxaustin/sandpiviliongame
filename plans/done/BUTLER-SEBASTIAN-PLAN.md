@@ -1,5 +1,12 @@
 # Butler Sebastian — the calendar that's a person, not an app
 
+> **CLOSED (2026-07-11): v1 fully built** — chat presence + BUTLER_CHARTER
+> (steps 1-2, 07-10), the calendar/day-view/advisory + the scheduler that
+> turns his drafted plan into timed events (steps 3-6, 07-11). Moved to
+> `plans/done/`. What remains is only the standing kind: a live
+> click-through (README near-gate #1) and later ideas (the Computer merge
+> decision), tracked there, not here.
+
 Written 2026-07-10, at direct request, as its own plan. Sebastian is named
 as **the last key before beta testing** — the piece that turns the
 Pavilion from "a place that can help my day" into "the place I actually

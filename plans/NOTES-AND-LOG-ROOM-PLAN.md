@@ -1,5 +1,12 @@
 # Your Notes, and the Log Room — one place to see what you've kept
 
+> **STATUS (2026-07-11, same day):** the core got built — the 🗒 **Your
+> Notes** pause-menu view gathering all five note stores, **folders and
+> tags** (a content-hash side-map, `data.noteMeta`, touching no note
+> itself), and Sebastian's **scoped folder review**. **Still open:** the
+> Records Hall repurpose (making the room itself the log's home) and
+> reading `archive/dev-log-*.txt` live — the room half of this plan.
+
 Written 2026-07-11, from a direct ask: "I want a way for users to see their
 notes and have them organised in a way that can be good for long term —
 Sebastian can help with that." This plan first reports the honest state of
@@ -110,7 +117,7 @@ already is, better.
 
 Ties to: [[the beta stance]] `BETA-LAUNCH-PLAN.md` (small core, fill it
 yourself — your notes are a big part of what *you* fill it with),
-`WRITING-DESK-PLAN.md` (which deferred exactly this), `BUTLER-SEBASTIAN-PLAN.md`
+`done/WRITING-DESK-PLAN.md` (which deferred exactly this), `done/BUTLER-SEBASTIAN-PLAN.md`
 (Sebastian as concierge over the Workshop's kept things), and
 `READING-TO-DOING-PLAN.md` (the sparks family that already proves the five
 stores can be treated as one).

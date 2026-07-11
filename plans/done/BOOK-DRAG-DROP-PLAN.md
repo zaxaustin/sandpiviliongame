@@ -1,5 +1,11 @@
 # Book Drag-and-Drop Plan
 
+> **CLOSED (2026-07-11): moved to `plans/done/`.** Path A (in-game .txt
+> drag-and-drop) built and verified live 2026-07-10 — and the intake now
+> ends somewhere real: "👤 Shelve on Your Shelf" (the personal library,
+> built 07-11). Path B (.pdf + writing straight to library-inbox/ via
+> Electron) stays a later idea, recorded in README's longer-term list.
+
 **Path A built and verified live, 2026-07-10** — see "Status" at the
 bottom. Path B (real filesystem integration) stays exactly as scoped
 below, not started. See README's "What's next" for how this fits the

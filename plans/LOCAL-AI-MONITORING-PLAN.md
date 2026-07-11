@@ -1,7 +1,9 @@
 # Local AI Monitoring Plan
 
-**Step 1 built and verified live, 2026-07-10** — the "🧠 Local AI" panel,
-reading Ollama's own `/api/ps`. Steps 2-4 below are still just the plan.
+**Steps 1-3 built and verified live, 2026-07-10** — the "🧠 Local AI" panel
+(Ollama's `/api/ps`), per-action elapsed-time logging, and the "Today's
+session" summary card. Only step 4 (real CPU/GPU percentages — desktop-only,
+needs a new package in Electron's main process) is still just the plan.
 See `BETA-TESTING-FEEDBACK.md` #15 for the original raw ask this is
 built from, and `LEARNING-PATH.md` for the companion module written
 alongside this plan, teaching the concepts a beginner needs to actually

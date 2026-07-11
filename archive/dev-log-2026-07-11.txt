@@ -341,3 +341,28 @@ app to Windows (same identity, same save) — installing the beta on the
 dev machine would replace the full personal app with the local-only one
 (recoverable, nothing lost, but the right way to *try* the beta here is
 the unpacked exe: release/win-unpacked/Sand Pavilion.exe).
+
+Addendum 3 (same session): beta merged into main (fast-forward, dd57aeb) —
+one codebase, two build commands; the branch never forked the app. Then
+the documentation wash the user asked for: README's What's-next section
+had become a ~300-line changelog of "Done since then" blocks — excised
+(the dev logs already carry all of it) and replaced with a compact
+"How it got here" + a real near-gates list (live click-through, clean-
+machine test, welcome-packet decision, export-files gap, then testers)
++ the recorded backend decision. Stale facts fixed: Library count (49
+live / 21 seed, Your Shelf added), the local-first invariant now names
+personal-book file storage, Local-AI-panel item corrected to steps 1-3
+built. Plans triaged: BUTLER-SEBASTIAN and BOOK-DRAG-DROP closed and
+moved to plans/done/ with closure banners; STATUS banners stamped on
+BETA-LAUNCH (built; stance stays), DESKTOP-APP (phases done + beta
+installer; clean-machine gap unchanged), LIBRARY-SCALING (the three
+storage layers reconciled so they stop reading as contradictions),
+NOTES-AND-LOG-ROOM (core built; Records Hall repurpose open),
+LOCAL-AI-MONITORING (steps 1-3 built), COURSE-BOARD (stage 1 built),
+AI-INTEGRATION-NOTES (both named risks resolved: streaming built, Monk
+model closed as guidance-not-downgrade). All cross-references checked
+after the moves — zero stale links. One self-inflicted lesson logged
+honestly: a PowerShell edit first ran with unset variables (shell state
+does not persist between calls) and then mojibake d the README's UTF-8
+(PS5.1 Get-Content defaults to ANSI) — both caught immediately, file
+restored from git, redone atomically with explicit UTF-8 round-trip.
