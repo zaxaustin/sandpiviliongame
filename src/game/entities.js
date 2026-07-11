@@ -17,7 +17,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false} }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false} }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -26,6 +26,7 @@ if(!data.workshop.research) data.workshop.research=[];
 if(!data.ttsSettings) data.ttsSettings={voiceURI:null,rate:0.98}; // older saves predate this field
 if(!data.settings) data.settings={carryForwardSparks:false}; // older saves predate this field
 if(!data.notes) data.notes=[]; // older saves predate My Notes at the Writing Desk
+if(!data.calendar) data.calendar=[]; // older saves predate Sebastian's calendar (BUTLER-SEBASTIAN-PLAN.md)
 setTTSSettings(data.ttsSettings);
 let saveWarned=false; // only interrupt the visitor once per session, not on every failed micro-save
 export function persist(){
@@ -129,7 +130,18 @@ export function upcomingItems(){
   const items=[];
   for(const c of data.courses) if(c.due && !c.archived) items.push({kind:'course',id:c.id,title:c.title,due:c.due});
   for(const p of data.grantProjects) if(p.due) items.push({kind:'grant',id:p.id,title:p.title,due:p.due});
-  return items.sort((a,b)=>a.due<b.due?-1:a.due>b.due?1:0);
+  // Calendar events fold into the same "what's coming" spine so the HUD
+  // due badge, the Upcoming panel, and Sebastian's read all draw from one
+  // place — BUTLER-SEBASTIAN-PLAN.md step 5. Only today-or-later events
+  // surface: a past event has already happened and shouldn't nag as
+  // "overdue" the way a missed course deadline honestly should (the
+  // archived-course precedent — only surface what should truly nag).
+  const today=todayKey();
+  for(const e of (data.calendar||[])) if(e.date && e.date>=today) items.push({kind:'event',id:e.id,title:e.title,due:e.date,start:e.start||''});
+  return items.sort((a,b)=>{
+    if(a.due!==b.due) return a.due<b.due?-1:1;
+    return (a.start||'').localeCompare(b.start||''); // same day: earlier time first
+  });
 }
 export function dueSoon(days=7){
   const horizon=dateKeyPlusDays(todayKey(),days);

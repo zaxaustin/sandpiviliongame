@@ -197,7 +197,8 @@ built). Nothing silent, nothing pushed.
 ## Staging — what's v1, what's later
 
 **v1 — the last key before beta, in build order (grounded in the real
-code). Steps 1–2 built 2026-07-10; steps 3–6 are the next session's start.**
+code). Steps 1–2 built 2026-07-10; steps 3–6 built 2026-07-11. v1 is now
+code-complete — see the honest verification note at the end.**
 
 > **Built so far:** the `BUTLER_CHARTER`, Sebastian as a real chat resident
 > standing in the Workshop (an AI NPC reusing the existing chat path), his
@@ -205,9 +206,15 @@ code). Steps 1–2 built 2026-07-10; steps 3–6 are the next session's start.**
 > computed only on visit), and a **"Send this plan to today"** quick action
 > that drops each line of a schedule he drafts into the day's planner as
 > sparks. Listening to him works via the chat's existing read-aloud button.
-> **Still to build:** steps 3–6 — the real calendar data model and views,
-> folding events into `upcomingItems()`, and surfacing the advisory read as
-> its own spoken line (right now it only grounds his chat replies).
+> **Now also built (2026-07-11):** the real `data.calendar` model
+> (migration-safe), a `calendar` station at his desk with a month grid → a
+> day/agenda view → an add-event form, calendar events folded into
+> `upcomingItems()` so the HUD due badge and his read draw from one place,
+> and `butlerAdvisoryLine()` — the overbooked / empty / neglected /
+> well-kept read in his own voice, shown at the top of the calendar and
+> **computed with no AI connected at all**, so the advisory works for
+> everyone and simply gets richer when a model is present. A "📅 Open the
+> calendar" button now sits in his chat too (two doors, one spot).
 
 1. **`BUTLER_CHARTER`** ✅ — in `src/game/data/charter.js`, a third charter
    beside `CHARTER` and `WORK_CHARTER`. Warm, candid, a touch dry; fully
@@ -224,36 +231,56 @@ code). Steps 1–2 built 2026-07-10; steps 3–6 are the next session's start.**
    color/glow. Talking to an AI NPC already routes through `openChatDialog`
    (see `main.js` `onAction`), so this needs **no new chat plumbing** — the
    same path Quill, the Steward, and the Monk already use.
-3. **Calendar data model** — add `calendar:[]` to `freshData()` in
-   `entities.js` (migration-safe: an older save with no field reads as
-   empty). An event is `{ id, date:'YYYY-MM-DD', start?:'HH:MM', end?:'HH:MM',
-   title, note?, kind? }`. Local, in the same save, exported/imported with
-   everything else — no new store.
-4. **Calendar UI + his desk** — a new `#calendarOv` overlay and
+3. **Calendar data model** ✅ — `calendar:[]` added to `freshData()` in
+   `entities.js`, with the same migration patch pattern the other newer
+   fields use (an older save with no field reads as empty). An event is
+   `{ id, date:'YYYY-MM-DD', start:'HH:MM', end:'HH:MM', title, note }`.
+   Local, in the same save, exported/imported with everything else — no
+   new store.
+4. **Calendar UI + his desk** ✅ — a new `#calendarOv` overlay and
    `openCalendar()` in `overlays.js`: a **month grid** (click a day → a
-   **day/agenda view**) and an **add-event form**, reusing the existing
-   overlay/panel CSS. Add a `calendar` station at Sebastian's desk in
-   `buildWorkshop`, a `drawStation` case in `render.js`, and an `onAction`
-   dispatch in `main.js` — the exact pattern the Records Hall just followed.
-   Two doors, one spot: the NPC for the conversation, the desk for the grid.
-5. **One source of truth for the day** — extend `upcomingItems()` in
-   `entities.js` to include calendar events that carry a date, so the HUD
-   due badge and Sebastian's read both draw from one place, not three.
-   Follow the archived-course precedent: only surface what should honestly
-   nag.
-6. **Sebastian's advisory read** — a pure function (say `butlerDayRead()`)
-   that computes, from `data.calendar` + `data.planner[today]` +
-   `dueSoon()` + `openSparks()`, the **overbooked / empty / neglected /
-   well-kept** state as plain text. It feeds his `systemPrompt` grounding
-   *and* backs a short scripted line shown when you open the calendar — so
-   the advisory still works with **no AI connected**, and simply gets richer
-   when one is. Computed only on engagement, never on a timer.
+   **day/agenda view**) with an **add-event form** on the day itself (title,
+   optional start/end time, optional note), reusing the existing overlay/
+   panel CSS plus a small `.calgrid`/`.calcell` block in `style.css`. A
+   `calendar` station stands at Sebastian's desk (10,7) in `buildWorkshop`,
+   with its own `drawStation` case in `render.js` (a red-banded desk pad)
+   and an `onAction` dispatch in `main.js` — the exact pattern the Records
+   Hall follows. Two doors, one spot: the NPC for the conversation, the desk
+   for the grid, plus a "📅 Open the calendar" button inside his chat.
+5. **One source of truth for the day** ✅ — `upcomingItems()` in
+   `entities.js` now folds in calendar events that carry a date, so the HUD
+   due badge, the Upcoming panel, and Sebastian's read all draw from one
+   place. Follows the archived-course precedent exactly: only **today-or-
+   later** events surface, so a past event never falsely nags as "overdue"
+   the way a missed course deadline honestly should. Same-day items sort by
+   start time.
+6. **Sebastian's advisory read** ✅ — `butlerDayRead()` (the AI grounding)
+   now speaks to today's timed events directly; and a new
+   `butlerAdvisoryLine()` computes, from `data.calendar` +
+   `data.planner[today]` + `upcomingItems()` + `openSparks()`, the
+   **overbooked / empty / neglected / well-kept** state as one plain-text
+   line in his own voice, shown at the top of the calendar. It works with
+   **no AI connected at all** and simply gets richer when one is. Computed
+   only on engagement (opening the calendar), never on a timer.
 
 **Definition of done for v1:** you can walk into the Workshop, open the
 calendar at Sebastian's desk, add real events, see them reflected in the
 due badge, and have Sebastian — in his own warm, secular voice — tell you
 the honest shape of your day when you ask him, all without a single
-background call.
+background call. **All of this is now built.**
+
+**Verification, stated honestly (2026-07-11):** static verification is
+clean — `node --check` on every touched file, `npm test` (the smoke test,
+which now also knows the `calendar` station kind), a full `npm run build`,
+and a standalone Node test of the calendar date math (leap-year February,
+month-boundary wraps in both directions, the weekday the 1st falls on,
+tomorrow crossing a month end). What has **not** happened is a live
+click-through in a running browser/Electron window — the user prefers no
+Chrome/Playwright harness be pulled in to test, so that final "walk up to
+the desk and actually add an event" pass is the one thing left, best done
+by the user in `npm run electron:dev` (or a future session with their
+blessing to drive a browser). Nothing here changes existing behaviour for
+a save with no calendar events, which is every current save.
 
 ### The honest cost, and why it's worth it (the user's own note)
 

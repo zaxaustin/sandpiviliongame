@@ -612,27 +612,48 @@ and beta #24's "priority shelf" closed in favor of letting the local AI
 advise on what to read given the visitor's real situation, uploaded books
 included.
 
-**The last key before beta: Butler Sebastian — chat now built, calendar
-next.** Sebastian is the third resident, and the division is now clean:
-**Quill teaches** (the Library, turning a talk into a plan), **the Monk
-guides** (meaning, conduct, finding your intention), and **Sebastian
+**Done since then (2026-07-11):** Sebastian's calendar built — the "last
+key" v1 is code-complete (see his section just below). Alongside it, two new
+plans written from a direct steer on what the beta actually is:
+[`BETA-LAUNCH-PLAN.md`](plans/BETA-LAUNCH-PLAN.md) (keep the core small, ship
+real outlets to link your own local AI, a welcome packet of books, and let
+people fill the Pavilion themselves — plus the resolution to the Monk model
+risk: he's *definitely* in the beta because guidance is what people lack, and
+the pre-launch task is to curate a tiered set of models he runs well on
+across modest/mid/beefy machines, not to exclude thinking models) and
+[`NOTES-AND-LOG-ROOM-PLAN.md`](plans/NOTES-AND-LOG-ROOM-PLAN.md) (the Records
+Hall today shows the *Pavilion's* hand-kept history, not *your* notes; the
+real want is one place to see the five scattered personal-note stores
+gathered and organised for the long term, with Sebastian as concierge —
+likely repurposing the Records Hall to hold it).
+
+**The last key before beta: Butler Sebastian — v1 now code-complete
+(2026-07-11).** Sebastian is the third resident, and the division is
+clean: **Quill teaches** (the Library, turning a talk into a plan), **the
+Monk guides** (meaning, conduct, finding your intention), and **Sebastian
 works with you** — the helper who actually gets the day done. He lives in
-the **Workshop**, the working counterpart to the Monk's Temple, and you can
-talk to him now: a new `BUTLER_CHARTER` (warm like the residents, secular
-and goal-agnostic like the work tools), grounded in the real state of your
-day (today's plan, what's due, your still-open intentions), with a **"send
-this plan to today"** button that drops a schedule he drafts straight into
-your daily plan — and read-aloud already lets you *listen* to it. What's
-still to come (his v1's back half): the real **calendar layer** folded into
-the existing due-date spine, and his engagement-time advisory read ("your
-afternoon's thin," "nothing's on the books tomorrow — shall we fix
-that?") — advice on engagement, never a background timer. Full design and
-build order in [`BUTLER-SEBASTIAN-PLAN.md`](plans/BUTLER-SEBASTIAN-PLAN.md).
-Named as the piece that makes the Pavilion ready to show someone who isn't
-Zac. The honest tradeoff, stated in the plan: he's more AI than the
-Pavilion has leaned on, real hardware cost — but bounded by no-background-
-polling, and exactly what the sleeper-car resource choice was saving room
-for.
+the **Workshop**, the working counterpart to the Monk's Temple. Talk to
+him: a `BUTLER_CHARTER` (warm like the residents, secular and goal-agnostic
+like the work tools), grounded in the real state of your day, with a
+**"send this plan to today"** button that drops a schedule he drafts into
+your daily plan (read-aloud lets you *listen* to it). And now his back half
+is built too — a real **calendar** at his desk: a month grid, a day view,
+an add-event form, with events folded into the same due-date spine the HUD
+badge and Upcoming panel already read, so there's one honest picture of the
+day, not three. At the top of the calendar sits his **advisory read** —
+"you've three things on the books today, something may have to give," or
+"the day's a blank page so far" — computed the moment you open it, **with
+no AI connected at all** (and richer when one is), never on a background
+timer. Full design and build order, plus an honest note that the one thing
+left is a live click-through in a running window, in
+[`BUTLER-SEBASTIAN-PLAN.md`](plans/BUTLER-SEBASTIAN-PLAN.md). The honest
+tradeoff, stated in the plan: he's more AI than the Pavilion has leaned on,
+real hardware cost — but bounded by no-background-polling, and exactly what
+the sleeper-car resource choice was saving room for. **Still open before
+beta:** the AI-reliability pass (the Monk's `bestLocalModel()` still hands
+him the largest installed model, often an unreliable thinking one — a live
+gap in `provider.js`, not yet fixed) and a clean "someone who isn't Zac can
+run this" path (first-arrival orientation + a clean-machine install).
 
 1. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 49 live texts across 9 shelves; see

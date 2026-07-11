@@ -1,0 +1,167 @@
+dev log — 2026-07-11
+(the day Sebastian got his calendar — the "last key before beta" v1 gone
+code-complete)
+
+Full detail here so README.md can stay a current-state reference. Session
+opened by going through the plans and the beta-feedback log end to end
+against the actual code, to decide what genuinely gates beta before
+building anything.
+
+================================================================
+PART 1 — the beta map, checked against reality (not just the last note)
+================================================================
+
+Read README, all 15 plan docs' gating ones (BUTLER-SEBASTIAN,
+BETA-TESTING-FEEDBACK, AI-INTEGRATION-NOTES), and the 2026-07-10 dev-log.
+The previous session's closing path named three real beta gates: finish
+Sebastian, an AI-reliability pass, and a clean "someone else can run this"
+path. Confirmed all three against the code, and corrected one thing the
+last note got optimistic about:
+
+- The Monk's model-selection fix (bestLocalModel) was logged as "in
+  progress by the user." It has NOT landed. Read provider.js:78-87 — it
+  still just picks the largest-parameter installed model, no thinking-model
+  exclusion. So the single biggest named failure mode (flagship resident
+  hands a beta tester a qwen3.5/deepseek-r1 that hangs or returns blank) is
+  still live. Small, contained fix; moved up the list. Named honestly in
+  README's "still open before beta."
+
+User chose to build Sebastian's calendar first (his named "last key").
+
+================================================================
+PART 2 — Butler Sebastian, v1 steps 3-6 (the calendar half)
+================================================================
+
+BUTLER-SEBASTIAN-PLAN.md steps 1-2 (his charter + chat presence) shipped
+2026-07-10. Built the back half this session:
+
+- DATA MODEL (step 3). calendar:[] added to freshData() in entities.js,
+  with the same migration patch the other newer fields use (older saves
+  read as empty — no migration needed). An event is { id, date, start,
+  end, title, note }. Local, in the same save, exported/imported with
+  everything else.
+
+- ONE SOURCE OF TRUTH (step 5). upcomingItems() now folds in calendar
+  events, so the HUD due badge, the Upcoming panel, and Sebastian's read
+  all draw from one place. The honest part, following the archived-course
+  precedent: only TODAY-OR-LATER events surface, so a past event never
+  falsely nags as "overdue" the way a missed course deadline honestly
+  should. Same-day items sort by start time. Verified the badge math: an
+  event bumps the glanceable count but (being never < today) can never add
+  to the "overdue" count — exactly right.
+  Updated every upcomingItems consumer for the new 'event' kind: a shared
+  upcomingIcon() helper (📚 course / 📅 event / 📝 grant), the Writing
+  Desk's due line, and the Upcoming panel (clicking an event now opens the
+  calendar on that day).
+
+- CALENDAR UI + HIS DESK (step 4). A new #calendarOv overlay, openCalendar()
+  in overlays.js: a month grid (prev/next month, today highlighted, a dot
+  count per day) → click a day → a day/agenda view listing that day's
+  events with a remove button and an add-event form (title, optional
+  start/end time, optional note). A small .calgrid/.calcell CSS block added
+  to style.css (plus themed date/time inputs). A 'calendar' station stands
+  at Sebastian's desk (10,7) in buildWorkshop, with its own drawStation
+  case in render.js (a red-banded desk pad on a stand) and an onAction
+  dispatch in main.js — the exact Records Hall pattern. Two doors, one
+  spot: the NPC for the conversation, the desk for the grid, plus a
+  "📅 Open the calendar" button inside his chat.
+
+- ADVISORY READ (step 6). butlerDayRead() (his AI grounding) now speaks to
+  today's timed events directly. A new butlerAdvisoryLine() computes the
+  overbooked / empty / neglected / well-kept state as one plain-text line
+  in his own butler voice, shown at the top of the calendar — and computed
+  with NO AI connected at all, so the advisory works for everyone and just
+  gets richer when a model is present. A priority ladder (overdue >
+  neglected sparks > overbooked > empty > well-kept), the most worth-saying
+  thing said once. Computed only on opening the calendar — never a timer.
+
+Every onclick handler registered in the Object.assign(window,{...}) export
+block (the documented silent-fail gotcha). 'calendar' added to the smoke
+test's KNOWN_STATION_KINDS list.
+
+================================================================
+VERIFICATION — static, plus a real date-math test; honest about the gap
+================================================================
+
+- node --check clean on all five touched JS files (caught and fixed one
+  template-string escaping slip along the way).
+- npm test (smoke) passes — 9 scenes, all station kinds known, no overlaps.
+- npm run build clean (the >500kB chunk warning is pre-existing).
+- A standalone Node test of the calendar date math: leap-year Feb (2024=29,
+  2026=28), month-boundary wraps both directions, the weekday the 1st falls
+  on (Jul 1 2026 = Wed, Jan 1 2026 = Thu), and tomorrow crossing a month
+  end (Jul 31 -> Aug 1). ALL OK.
+
+NOT done: a live click-through in a running browser/Electron window. The
+user prefers no Chrome/Playwright harness be pulled in, so that final
+"walk up to the desk and actually add an event, watch the badge tick"
+pass is the one thing left — best done by the user in npm run electron:dev.
+Said plainly in the plan and the README rather than claimed as verified.
+
+================================================================
+WHERE THINGS STAND
+================================================================
+
+Sebastian v1 is code-complete. The two remaining beta gates, both named
+honestly in README's "still open before beta":
+  1. AI reliability — the Monk's bestLocalModel() fix (still a live gap in
+     provider.js), plus a once-over of the empty-reply/timeout fallbacks
+     for a stranger's shakier setup.
+  2. A clean "someone who isn't Zac can run this" path — first-arrival
+     orientation + a clean-machine install verification.
+Also still open, smaller: the Computer/Sebastian merge decision
+(recommended: fold the Computer in), and full text for the 5 newest books
+(a push-fulltext.py run each, Docker/MinIO up).
+
+================================================================
+PART 3 — a direction conversation, captured into two new plans
+================================================================
+
+The user asked about the Monk model issue (they'd delayed the fix, honestly,
+for lack of AI background). Explained it plainly — biggest installed model
+!= most reliable; the biggest is often a "thinking" model that hides a long
+reasoning pass and can hang or return blank; so the flagship resident is the
+most exposed to the worst first impression. Then the user steered the
+resolution somewhere better than "exclude thinking models":
+
+- The Monk is DEFINITELY in the beta — "what people are missing is
+  guidance," and he's the one who gives it. Don't hold him back.
+- The real pre-launch task: "pick a series of models he works well with on a
+  variety of different computers — then we can truly beta launch." I.e.
+  curate a TIERED set (modest/mid/beefy machine), each vetted for guidance
+  quality AND real latency/reliability on that hardware class.
+- Users install/assign models per their own machine (the "customize plan for
+  beta"). Per-resident model routing does NOT exist yet (detectAI picks one
+  connection for everyone) — a real new capability the customization needs.
+- Keep the Pavilion SMALL, with clear outlets to link your own local AI; a
+  better coder forks their own setup anyway. Zac's contribution is the game-
+  like interface for real work ("our bread and butter"); visitors get a
+  welcome packet of books and clear places to add their own AI, and fill the
+  Pavilion themselves just as we have. Learning the AI tradeoffs is so the
+  less-techy testers can actually be HELPED, not just shipped at.
+- The "log room": the Records Hall today shows the PAVILION's hand-kept dev
+  history (PAVILION_TIMELINE), not the visitor's notes, and doesn't read the
+  dev-logs live. What the user wants is the visitor's own notes — scattered
+  today across five stores (My Notes/data.notes, bookNotes, chatNotes,
+  research notes, grant docs) — gathered and organised for the long term,
+  with Sebastian as concierge. Likely repurpose the Records Hall to hold it.
+
+Captured all of it into two new plans so it survives the night:
+  - plans/BETA-LAUNCH-PLAN.md — the beta stance + the Monk tiered-model /
+    per-machine customization resolution + welcome packet + fill-it-yourself.
+  - plans/NOTES-AND-LOG-ROOM-PLAN.md — the honest Records Hall state, the
+    five scattered note stores, and a small "gather + organise + Sebastian"
+    plan (a view over existing notes, not a fifth store).
+Memory updated: feedback-monk-model-priority (the tiered-set refinement) and
+a new project_beta_launch_shape. README's changelog + Sebastian section and
+this log updated to match. No code written in Part 3 — direction and plans
+only, by the user's call to wind down for the night.
+
+PICK UP HERE IN THE MORNING (user's explicit intent — "right where we left
+off"): nothing half-built or broken. Natural next moves, in the user's own
+priority: (1) the Monk's tiered-model curation — the named "truly beta
+launch" task (BETA-LAUNCH-PLAN.md #1), pairs with checking what models are
+actually installed on this machine; (2) live click-through of Sebastian's
+calendar in npm run electron:dev (the one unverified piece); (3) the
+gather-your-notes view (NOTES-AND-LOG-ROOM-PLAN.md step 1). All statically
+clean as of tonight: node --check, npm test, npm run build all pass.

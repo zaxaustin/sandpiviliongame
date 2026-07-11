@@ -203,7 +203,10 @@ function renderChatQuickActions(d){
   let html='';
   if(d.agent==='quill') html+=`<button class="btn ghost" id="chatTrainBtn" onclick="draftTrainingPlanFromChat()">📋 Draft a plan from this conversation</button>`;
   if(d.agent==='computer' && hasReply) html+=`<button class="btn ghost" onclick="saveLastChatReplyToArchive()">💾 Save last reply to Archive Desk</button>`;
-  if(d.agent==='sebastian' && hasReply) html+=`<button class="btn ghost" id="sebPlanBtn" onclick="sendSebastianPlanToToday()">📋 Send this plan to today</button>`;
+  if(d.agent==='sebastian'){ // two doors, one spot: talk to him, or open the grid he keeps
+    html+=`<button class="btn ghost" onclick="openCalendar()">📅 Open the calendar</button>`;
+    if(hasReply) html+=`<button class="btn ghost" id="sebPlanBtn" onclick="sendSebastianPlanToToday()">📋 Send this plan to today</button>`;
+  }
   el.innerHTML=html;
   el.style.display=html?'block':'none';
 }
@@ -432,10 +435,11 @@ const CHAT_AGENTS = {
   },
 };
 /* Sebastian's read of the actual day — grounded in the real planner, the
-   upcoming due items, and still-open sparks. The calendar layer folds in
-   here once BUTLER-SEBASTIAN-PLAN.md v1 (steps 3-4) lands; until then he
-   already has real material to advise on. Computed only when he's actually
-   spoken to — never on a timer, the no-background-polling rule. */
+   calendar, the upcoming due items, and still-open sparks. The calendar
+   folds through upcomingItems() (BUTLER-SEBASTIAN-PLAN.md step 5), and
+   today's timed events get their own line here so he can speak to the
+   actual shape of the day. Computed only when he's actually spoken to —
+   never on a timer, the no-background-polling rule. */
 function butlerDayRead(){
   const k=todayKey();
   const day=data.planner[k];
@@ -448,14 +452,143 @@ function butlerDayRead(){
   const overdue=upcoming.filter(i=>i.due<k);
   const ahead=upcoming.slice(0,5);
   const open=openSparks();
+  const todaysEvents=eventsOn(k);
   const lines=[];
   lines.push(intention ? `Today's stated intention: "${intention}".` : `No intention has been set for today yet.`);
+  if(todaysEvents.length) lines.push(`On the calendar today: ${todaysEvents.map(e=>`"${e.title}"${e.start?' at '+e.start:''}`).join('; ')}.`);
   if(blocks.length) lines.push(`Rhythm blocks: ${tended} tended, ${rested} rested, ${waiting} still waiting.`);
-  if(ahead.length) lines.push(`Upcoming with a due date: ${ahead.map(i=>`"${i.title}" (${i.due<k?'OVERDUE, was due '+i.due:'due '+i.due})`).join('; ')}.`);
-  else lines.push(`Nothing has a due date coming up.`);
+  if(ahead.length) lines.push(`Coming up (courses/grants due, and calendar events): ${ahead.map(i=>`"${i.title}" (${i.due<k?'OVERDUE, was due '+i.due:i.kind==='event'?'on '+i.due+(i.start?' at '+i.start:''):'due '+i.due})`).join('; ')}.`);
+  else lines.push(`Nothing has a due date or event coming up.`);
   if(overdue.length>1) lines.push(`${overdue.length} items are overdue in total.`);
   if(open.length) lines.push(`${open.length} intention${open.length>1?'s':''} were set earlier and have not yet been acted on (the visitor's own open sparks).`);
   return lines.join('\n');
+}
+
+/* ================================================================
+   Sebastian's Calendar — BUTLER-SEBASTIAN-PLAN.md v1 steps 3-6.
+   A calendar that's reached two ways, one place: talk to Sebastian the
+   NPC for the conversation, or face his desk for the grid — the same way
+   the Library's shelves and Reader are one place. Local, in the same
+   save, exported/imported with everything else. No background anything:
+   the advisory read below is computed only when the calendar is opened.
+   ================================================================ */
+function calYm(dk){ return dk.slice(0,7); }
+function ymParts(ym){ const [y,m]=ym.split('-').map(Number); return {y,m}; }
+function daysInMonth(y,m){ return new Date(y,m,0).getDate(); } // m is 1-based; day 0 of next month = last of this one
+function dateKey(y,m,d){ return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+function shiftMonth(ym,delta){ let {y,m}=ymParts(ym); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return y+'-'+String(m).padStart(2,'0'); }
+function monthLabel(ym){ const {y,m}=ymParts(ym); return new Date(y,m-1,1).toLocaleDateString(undefined,{month:'long',year:'numeric'}); }
+function dayLabel(dk){ return new Date(dk+'T00:00:00').toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
+function eventsOn(dk){ return (data.calendar||[]).filter(e=>e.date===dk).sort((a,b)=>(a.start||'').localeCompare(b.start||'')); }
+
+/* Sebastian's scripted advisory line — the same overbooked / empty /
+   neglected / well-kept read the plan calls for, in his own voice, and
+   crucially computed with NO AI needed (step 6). Shown at the top of the
+   calendar so a visitor who never connected a local model still gets the
+   human read. A priority ladder: the thing most worth saying, said once. */
+function butlerAdvisoryLine(){
+  const k=todayKey();
+  const t=new Date(k+'T00:00:00'); t.setDate(t.getDate()+1);
+  const tomorrow=dateKey(t.getFullYear(),t.getMonth()+1,t.getDate());
+  const todays=eventsOn(k);
+  const tomorrows=eventsOn(tomorrow);
+  const open=openSparks();
+  const overdue=upcomingItems().filter(i=>i.due<k); // events are pre-filtered out of the past, so this is courses/grants
+  const day=data.planner[k];
+  const intention=(day&&day.intention||'').trim();
+  const tended=((day&&day.blocks)||[]).filter(b=>b.state==='tended').length;
+
+  if(overdue.length) return `A word before we go on, sir: ${overdue.length===1?'one thing has':overdue.length+' things have'} slipped past ${overdue.length===1?'its':'their'} due date. Not a scolding — a reminder, which is my job.`;
+  if(open.length>=3) return `You set ${open.length} intentions earlier that haven't been acted on. I've not forgotten them — shall we set one or two on the calendar and make them real?`;
+  if(todays.length>=3) return `You've ${todays.length} things on the books today, sir. Something may have to give, and better you choose than the clock.`;
+  if(!todays.length && !intention && !tended) return `The day's a blank page so far. No judgement — but if it's blank by accident rather than on purpose, shall we decide something worth doing on it?`;
+  if(!todays.length && !tomorrows.length) return `Nothing on the books today or tomorrow. A clear stretch is a fine thing when it's chosen — shall we spend a little of it on purpose?`;
+  if(intention && tended && !overdue.length) return `The day's in good order, sir — an intention set and work already tended. Noted, and well done.`;
+  if(todays.length) return `${todays.length===1?'One thing':todays.length+' things'} on today's calendar. I'll keep it in view; call on me if the shape of it wants changing.`;
+  return `Tomorrow has ${tomorrows.length===1?'one thing':tomorrows.length+' things'} on it, today's clear. I'll have it ready when it comes, sir.`;
+}
+
+export function openCalendar(){
+  // Always land on the current month in the grid view — a calendar you
+  // open should show "now," not wherever you last paged to.
+  state.calView={ mode:'month', ym:calYm(todayKey()), day:null };
+  state.ui='calendar'; hideAllOv(); renderCalendar(); showOv('calendarOv');
+}
+function renderCalendar(){
+  const el=document.getElementById('calendarPanel');
+  el.innerHTML = state.calView.mode==='day' ? renderCalendarDay() : renderCalendarMonth();
+}
+function calendarHeader(){
+  return `<button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>📅 Sebastian's Calendar</h2>
+    <div class="card" style="cursor:default;border-color:#8a6f4a;background:#241d14">
+      <div class="s" style="color:#d8c39c;font-size:13px;line-height:1.6">🎩 ${esc(butlerAdvisoryLine())}</div>
+    </div>`;
+}
+function renderCalendarMonth(){
+  const v=state.calView, {y,m}=ymParts(v.ym), today=todayKey();
+  const lead=new Date(y,m-1,1).getDay(); // 0=Sun … which weekday the 1st falls on
+  const dim=daysInMonth(y,m);
+  const dows=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const cells=[];
+  for(let i=0;i<lead;i++) cells.push(`<div class="calcell empty"></div>`);
+  for(let d=1;d<=dim;d++){
+    const dk=dateKey(y,m,d), evs=eventsOn(dk);
+    cells.push(`<button class="calcell${dk===today?' today':''}" onclick="calSelectDay('${dk}')">
+      <span class="caldnum">${d}</span>
+      ${evs.length?`<span class="caldots">${'•'.repeat(Math.min(evs.length,3))}${evs.length>3?'+':''}</span>`:''}
+    </button>`);
+  }
+  return `${calendarHeader()}
+    <div class="row" style="justify-content:space-between;align-items:center;margin:4px 0 8px">
+      <button class="btn ghost" onclick="calShiftMonth(-1)">‹</button>
+      <b style="color:#e0a43c;font-size:15px">${esc(monthLabel(v.ym))}</b>
+      <button class="btn ghost" onclick="calShiftMonth(1)">›</button>
+    </div>
+    <div class="calgrid">${dows.map(d=>`<div class="caldow">${d}</div>`).join('')}${cells.join('')}</div>
+    <div class="meta" style="margin-top:10px">Click any day to see it in full and add something. Events show up in your Upcoming badge too — one honest picture of the day, kept on this device only.</div>`;
+}
+function renderCalendarDay(){
+  const dk=state.calView.day, evs=eventsOn(dk), today=todayKey();
+  const list = evs.length ? evs.map(e=>`
+    <div class="card" style="cursor:default">
+      <div class="t">${e.start?`<span style="color:#e0a43c">${esc(e.start)}${e.end?'–'+esc(e.end):''}</span>  `:''}${esc(e.title)}</div>
+      ${e.note?`<div class="s">${esc(e.note)}</div>`:''}
+      <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="removeCalendarEvent(${e.id})">Remove</button></div>
+    </div>`).join('') : `<p style="color:#9c8b74">Nothing on this day yet.</p>`;
+  return `${calendarHeader()}
+    <div class="row" style="justify-content:space-between;align-items:center;margin:4px 0 8px">
+      <button class="btn ghost" onclick="calBackToMonth()">‹ ${esc(monthLabel(calYm(dk)))}</button>
+      <b style="color:#e0a43c;font-size:14px;text-align:right">${esc(dayLabel(dk))}${dk===today?' · today':''}</b>
+    </div>
+    ${list}
+    <h3>Add to this day</h3>
+    <label>What is it?</label><input type="text" id="calEvTitle" placeholder="e.g. Dentist, or Call with the grant office">
+    <div class="row" style="gap:14px">
+      <div style="flex:1"><label>Start (optional)</label><input type="time" id="calEvStart"></div>
+      <div style="flex:1"><label>End (optional)</label><input type="time" id="calEvEnd"></div>
+    </div>
+    <label>Note (optional)</label><input type="text" id="calEvNote" placeholder="Anything worth remembering about it">
+    <div id="calEvMsg" class="meta"></div>
+    <div class="row" style="margin-top:12px"><button class="btn" onclick="addCalendarEvent('${dk}')">Add to ${esc(dk)}</button></div>`;
+}
+export function calShiftMonth(delta){ state.calView.ym=shiftMonth(state.calView.ym,delta); renderCalendar(); }
+export function calSelectDay(dk){ state.calView={ mode:'day', ym:calYm(dk), day:dk }; if(state.ui!=='calendar'){ state.ui='calendar'; hideAllOv(); showOv('calendarOv'); } renderCalendar(); }
+export function calBackToMonth(){ state.calView.mode='month'; state.calView.day=null; renderCalendar(); }
+export function addCalendarEvent(dk){
+  const title=document.getElementById('calEvTitle').value.trim();
+  const start=document.getElementById('calEvStart').value;
+  const end=document.getElementById('calEvEnd').value;
+  const note=document.getElementById('calEvNote').value.trim();
+  if(!title){ document.getElementById('calEvMsg').textContent='Give it a name and it goes on the day.'; return; }
+  if(end && start && end<start){ document.getElementById('calEvMsg').textContent='The end is before the start — worth a second look.'; return; }
+  data.calendar.push({ id:Date.now(), date:dk, start:start||'', end:end||'', title, note });
+  persist(); logActivity('Added to the calendar: "'+title+'" on '+dk+'.'); blip(700,.06);
+  renderCalendar();
+}
+export function removeCalendarEvent(id){
+  data.calendar=data.calendar.filter(e=>e.id!==id);
+  persist(); renderCalendar();
 }
 /* The Mountain Monk always gets the best available local model and real
    room to actually think (opts.think:true, the 'deep' token/timeout
@@ -821,7 +954,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -1742,6 +1875,10 @@ export function toggleCarryForward(){
 // meet — still nothing that pops up on its own, just here if you came to
 // this desk to look. Empty for the ordinary day nothing's due. Stays
 // outside the toolbox on purpose — see WRITING-DESK-PLAN.md step 4.
+// One icon vocabulary for everything upcomingItems() returns, so the
+// Writing Desk's due line, the Upcoming panel, and anywhere else stay
+// consistent as new kinds (like calendar events) get folded in.
+function upcomingIcon(kind){ return kind==='course'?'📚':kind==='event'?'📅':'📝'; }
 function renderPlanUpcoming(){
   const today=todayKey();
   const horizon=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
@@ -1750,8 +1887,8 @@ function renderPlanUpcoming(){
   if(!soon.length){ el.innerHTML=''; return; }
   el.innerHTML = `<div class="meta" style="margin-top:-6px">${soon.map(i=>{
     const overdue=i.due<today, dueToday=i.due===today;
-    const label=overdue?'overdue':dueToday?'due today':'due '+i.due;
-    return `${i.kind==='course'?'📚':'📝'} <b>${esc(i.title)}</b> — ${esc(label)}`;
+    const label=i.kind==='event'&&i.start?`${dueToday?'today':i.due} at ${i.start}`:(overdue?'overdue':dueToday?'due today':'due '+i.due);
+    return `${upcomingIcon(i.kind)} <b>${esc(i.title)}</b> — ${esc(label)}`;
   }).join(' &nbsp;·&nbsp; ')}</div>`;
 }
 function pastDays(){ return Object.keys(data.planner).filter(k=>k!==todayKey()).sort().reverse(); }
@@ -3168,22 +3305,23 @@ function renderUpcoming(){
   window.__spOpenUpcomingItem=(idx)=>{
     const i=items[idx];
     if(i.kind==='course'){ openCourses(); openCourse(i.id); }
+    else if(i.kind==='event'){ openCalendar(); calSelectDay(i.due); }
     else { openGrantDesk(); openGrantProject(i.id); }
   };
   document.getElementById('upcomingPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>Upcoming</h2>
-    <div class="meta">Only things you gave a due date, on the Course Board or the Grant Desk. Nothing
-      here ever pops up on its own — this panel is the whole feature.</div>
+    <div class="meta">Only things you gave a date — a course or grant due date, or an event on Sebastian's
+      calendar. Nothing here ever pops up on its own — this panel is the whole feature.</div>
     ${items.length ? items.map((i,idx)=>{
       const overdue=i.due<today, dueToday=i.due===today;
-      const status=overdue?'overdue':dueToday?'due today':'due '+i.due;
+      const when=i.kind==='event'&&i.start?`${dueToday?'today':i.due} at ${i.start}`:(overdue?'overdue':dueToday?'due today':'due '+i.due);
       const color=overdue?'#e0a0a0':dueToday?'#ffd98a':'#9c8b74';
       return `<div class="card" onclick="__spOpenUpcomingItem(${idx})">
-        <div class="t">${i.kind==='course'?'📚':'📝'} ${esc(i.title)}</div>
-        <div class="s" style="color:${color}">${esc(status)}</div>
+        <div class="t">${upcomingIcon(i.kind)} ${esc(i.title)}</div>
+        <div class="s" style="color:${color}">${esc(when)}</div>
       </div>`;
-    }).join('') : '<p>Nothing due — because nothing has to be. Set a due date on a course or grant project any time you actually want a reminder.</p>'}`;
+    }).join('') : '<p>Nothing due — because nothing has to be. Set a due date on a course or grant project, or an event on the calendar, any time you actually want a reminder.</p>'}`;
 }
 
 /* ----- The Idea Jar — one click to jot a thought down, one click back to
@@ -3837,6 +3975,7 @@ Object.assign(window, {
   openLocalAIPanel, renderLocalAIPanel,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
   openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
+  openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
   openComputer, saveLastChatReplyToArchive, sendSebastianPlanToToday,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,

@@ -223,6 +223,28 @@ input[type=text], textarea {
 input[type=text]:focus, textarea:focus { outline:none; border-color:#e0a43c; }
 label { display:block; color:#cbb79a; font-size:12px; margin:12px 0 5px; letter-spacing:.5px; }
 
+/* Sebastian's calendar — a deliberately cheap-to-render month grid (the
+   sleeper-car point: the machine's real resources go to his reading of
+   the day, not the pixels). */
+input[type=time], input[type=date] {
+  background:#1b140d; border:2px solid #55432e; border-radius:7px;
+  color:#f5e9d4; font-family:inherit; font-size:13.5px; padding:8px 10px;
+}
+input[type=time]:focus, input[type=date]:focus { outline:none; border-color:#e0a43c; }
+.calgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+.caldow { text-align:center; color:#9c8b74; font-size:11px; letter-spacing:.5px; padding:2px 0; }
+.calcell {
+  min-height:52px; background:#221a12; border:2px solid #55432e; border-radius:8px;
+  color:#f5e9d4; font-family:inherit; cursor:pointer; padding:5px 6px;
+  display:flex; flex-direction:column; align-items:flex-start; gap:3px; transition:border-color .12s;
+}
+.calcell:hover { border-color:#e0a43c; }
+.calcell.empty { background:none; border:none; cursor:default; min-height:0; }
+.calcell.today { border-color:#e0a43c; box-shadow:inset 0 0 0 1px #e0a43c; }
+.caldnum { font-size:13px; font-weight:bold; color:#cbb79a; }
+.calcell.today .caldnum { color:#ffd98a; }
+.caldots { font-size:11px; color:#7fa36b; line-height:1; letter-spacing:1px; }
+
 /* The Writing Desk's page — meant to read as actual paper, not one more
    form field among many. Bigger, warmer, and the first thing your eye
    lands on. */

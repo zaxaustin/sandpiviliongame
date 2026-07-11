@@ -499,6 +499,18 @@ function drawStation(st,ox,oy){
     ctx.fillStyle='#c9a06a'; ctx.beginPath(); ctx.moveTo(x+S*.42,y+S*.16); ctx.lineTo(x+S*.58,y+S*.16);
     ctx.lineTo(x+S*.46,y+S*.26); ctx.lineTo(x+S*.58,y+S*.36); ctx.lineTo(x+S*.42,y+S*.36);
     ctx.lineTo(x+S*.54,y+S*.26); ctx.closePath(); ctx.fill(); // a small hourglass, resting on the stack
+  } else if(st.kind==='calendar'){ // Sebastian's desk calendar — a red-banded month pad on a small stand: the day kept, not a book to read
+    ctx.fillStyle='#3a2c1e'; ctx.fillRect(x+S*.3,y+S*.72,S*.4,S*.06); // stand foot
+    ctx.fillStyle='#5a4630'; ctx.fillRect(x+S*.46,y+S*.6,S*.08,S*.14); // stand post
+    ctx.fillStyle='#f3ead2'; ctx.fillRect(x+S*.2,y+S*.2,S*.6,S*.42); // page
+    ctx.strokeStyle='#8a6f4a'; ctx.lineWidth=1; ctx.strokeRect(x+S*.2,y+S*.2,S*.6,S*.42);
+    ctx.fillStyle='#c8574a'; ctx.fillRect(x+S*.2,y+S*.2,S*.6,S*.11); // red header band
+    ctx.strokeStyle='#b9b9b9'; ctx.lineWidth=Math.max(1,S*.03); // two binding rings above the band
+    ctx.beginPath(); ctx.arc(x+S*.36,y+S*.2,S*.035,Math.PI,2*Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x+S*.64,y+S*.2,S*.035,Math.PI,2*Math.PI); ctx.stroke();
+    ctx.strokeStyle='#c9b48c'; ctx.lineWidth=1; // a little grid of day cells
+    for(let r=0;r<3;r++) for(let c=0;c<4;c++) ctx.strokeRect(x+S*(.26+c*.13),y+S*(.36+r*.075),S*.1,S*.055);
+    ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*(.26+2*.13),y+S*.36,S*.1,S*.055); // one cell marked — today
   } else if(st.kind==='ledger'){ // The Ledger — an open account book, ruled columns, a small coin stack, distinct from the Grant Desk's folder
     ctx.fillStyle='#75542e'; ctx.fillRect(x+S*.08,y+S*.6,S*.1,S*.34); ctx.fillRect(x+S*.82,y+S*.6,S*.1,S*.34);
     ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.02,y+S*.52,S*.96,S*.14);
