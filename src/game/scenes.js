@@ -252,14 +252,16 @@ function buildWorkshop(){
     warps:[{x:6,y:9,to:'overworld',sx:31,sy:16},{x:7,y:9,to:'overworld',sx:32,sy:16},
            {x:12,y:3,to:'workshopfloor2',sx:5,sy:3}],
     signs:[{x:2,y:4,name:'ROUGH TIMBER SIGN',
-      text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. THE CARAVAN DESK, by\nthe west pillar — where texts from outside actually\nenter the Library, one reviewed piece at a time. Face\na desk and press E."},
+      text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. THE CARAVAN DESK, by\nthe west pillar — where texts from outside actually\nenter the Library, one reviewed piece at a time. Face\na desk and press E.\nSEBASTIAN the butler keeps this floor — talk to him to\nplan your day, or to be told the honest shape of it."},
            {x:12,y:2,name:'A NARROW STAIRCASE',text:"Up. The Workshop keeps growing — one real floor at a\ntime."}],
     stations:[
       {x:6,y:3,kind:'archive',name:'THE ARCHIVE DESK'},
       {x:10,y:6,kind:'research',name:'THE RESEARCH DESK'},
       {x:3,y:6,kind:'review',name:'THE CARAVAN DESK'},
     ],
-    npcs:[],
+    npcs:[{x:8,y:7,color:'#4a6a8a',glow:'#a9c7e8',name:'SEBASTIAN · Butler',wander:false,ai:true,aiAgent:'sebastian',lines:[
+      "Welcome to the Workshop. Sebastian, at your service — I keep the day, so you're free to spend it.",
+      "Tell me what the day holds, or ask what it's missing. Either way, sir, we'll sort it — and I can drop a plan straight into your day when you're ready."]}],
     spawn:{x:6,y:7}
   };
 }

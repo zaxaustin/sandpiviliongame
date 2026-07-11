@@ -3,7 +3,7 @@ import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
-import { CHARTER, WORK_CHARTER } from '../data/charter.js';
+import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES } from '../data/seed.js';
 import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
 import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
@@ -72,7 +72,7 @@ function updateDialogSpeakBtn(){
    The resident + the transcript are the main event; a persistent,
    per-resident notes area sits alongside; speak/connections/leave are
    a slim side rail rather than floating over the text. */
-const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻' };
+const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻', sebastian:'🎩' };
 export function openChatDialog(npc){
   document.getElementById('chatPhone').classList.remove('show','unread','thinking'); // clear any pocketed prior chat
   state.dialog={
@@ -203,6 +203,7 @@ function renderChatQuickActions(d){
   let html='';
   if(d.agent==='quill') html+=`<button class="btn ghost" id="chatTrainBtn" onclick="draftTrainingPlanFromChat()">📋 Draft a plan from this conversation</button>`;
   if(d.agent==='computer' && hasReply) html+=`<button class="btn ghost" onclick="saveLastChatReplyToArchive()">💾 Save last reply to Archive Desk</button>`;
+  if(d.agent==='sebastian' && hasReply) html+=`<button class="btn ghost" id="sebPlanBtn" onclick="sendSebastianPlanToToday()">📋 Send this plan to today</button>`;
   el.innerHTML=html;
   el.style.display=html?'block':'none';
 }
@@ -405,7 +406,57 @@ const CHAT_AGENTS = {
     },
     errorLine:"…connection lost. (Check that your AI connection is still running.)",
   },
+  sebastian:{
+    label:'Sebastian',
+    async systemPrompt(){
+      return BUTLER_CHARTER
+        +"\n\nYou are Sebastian, the butler of the Sand Pavilion, who keeps to the Workshop among the "
+        +"working desks. You help the visitor with both home life and work as one single day — planning "
+        +"it, keeping it, and telling the honest truth about it. Of the residents here you are the helper "
+        +"and the worker: Quill is the teacher (the Library and turning a talk into a real plan), the "
+        +"Mountain Monk is the guide on matters of meaning and conduct, and you are the one who actually "
+        +"gets the day done alongside the visitor. If a question is really about meaning, conduct, or "
+        +"finding one's own intention, say plainly and warmly that the Monk in the Keep is the better "
+        +"person for that, then turn back to the doing. You know the Workshop's desks and point a visitor "
+        +"to the right one: the Archive Desk for their own writing, the Research Desk to think a project "
+        +"through, the Grant Desk for funding proposals, the Caravan Desk for bringing outside texts into "
+        +"the Library, the Records Hall upstairs for their kept history. When you draft a schedule or a "
+        +"plan for the day, lay it out as a short, clear list the visitor can actually keep — one line per "
+        +"item, no preamble around it — so it can be dropped straight into their daily plan or read back "
+        +"aloud. Here is the honest state of the visitor's day right now; speak from it, and never invent "
+        +"items that aren't here:\n"
+        +butlerDayRead()
+        +pastAsksBlock('sebastian');
+    },
+    errorLine:"Sebastian's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
+  },
 };
+/* Sebastian's read of the actual day — grounded in the real planner, the
+   upcoming due items, and still-open sparks. The calendar layer folds in
+   here once BUTLER-SEBASTIAN-PLAN.md v1 (steps 3-4) lands; until then he
+   already has real material to advise on. Computed only when he's actually
+   spoken to — never on a timer, the no-background-polling rule. */
+function butlerDayRead(){
+  const k=todayKey();
+  const day=data.planner[k];
+  const intention=(day&&day.intention||'').trim();
+  const blocks=(day&&day.blocks)||[];
+  const tended=blocks.filter(b=>b.state==='tended').length;
+  const rested=blocks.filter(b=>b.state==='rested').length;
+  const waiting=blocks.filter(b=>b.state==='waiting').length;
+  const upcoming=upcomingItems();
+  const overdue=upcoming.filter(i=>i.due<k);
+  const ahead=upcoming.slice(0,5);
+  const open=openSparks();
+  const lines=[];
+  lines.push(intention ? `Today's stated intention: "${intention}".` : `No intention has been set for today yet.`);
+  if(blocks.length) lines.push(`Rhythm blocks: ${tended} tended, ${rested} rested, ${waiting} still waiting.`);
+  if(ahead.length) lines.push(`Upcoming with a due date: ${ahead.map(i=>`"${i.title}" (${i.due<k?'OVERDUE, was due '+i.due:'due '+i.due})`).join('; ')}.`);
+  else lines.push(`Nothing has a due date coming up.`);
+  if(overdue.length>1) lines.push(`${overdue.length} items are overdue in total.`);
+  if(open.length) lines.push(`${open.length} intention${open.length>1?'s':''} were set earlier and have not yet been acted on (the visitor's own open sparks).`);
+  return lines.join('\n');
+}
 /* The Mountain Monk always gets the best available local model and real
    room to actually think (opts.think:true, the 'deep' token/timeout
    tier) — a standing decision, not a performance default: everything
@@ -2420,6 +2471,33 @@ export function saveLastChatReplyToArchive(){
   data.workshop.docs.unshift({slug,title,license:'personal record',source:'The Computer',body:last.text,created:todayKey(),category:'ai-written'});
   persist(); logActivity('Saved a plan from the Computer to the Archive Desk.'); blip(784,.09);
 }
+/* ----- Sebastian's "send this plan to today" — takes his most recent reply
+   and drops each real line into today's planner as a spark (source
+   "Sebastian"), so a schedule he drafts in chat lands straight in the daily
+   plan the visitor already keeps. The lightweight, no-calendar-yet version
+   of BUTLER-SEBASTIAN-PLAN.md's "copy it into the daily plan" — until the
+   real calendar layer (v1 steps 3-4) exists, the planner IS the day. */
+export function sendSebastianPlanToToday(){
+  const d=state.dialog; if(!d||!d.chat) return;
+  const last=[...d.transcript].reverse().find(m=>m.from==='npc' && m.text); if(!last) return;
+  const k=todayKey();
+  const day=data.planner[k]||(data.planner[k]={ intention:'', ember:'', blocks:DEFAULT_BLOCKS.map(n=>({name:n,state:'waiting'})), sparks:[] });
+  if(!day.sparks) day.sparks=[];
+  // a schedule is a list, not a paragraph — keep real, keepable lines and
+  // strip list decoration (bullets, numbering) the way the course parser does
+  const items=last.text.split('\n').map(l=>l.trim())
+    .map(l=>l.replace(/^[-*•]\s*/,'').replace(/^\d+[.)]\s*/,'').trim())
+    .filter(l=>l.length>2 && l.length<160 && !/[?]$/.test(l));
+  if(!items.length) return;
+  // keep the visitor's own reading order — unshift in reverse so the first
+  // line ends up on top
+  items.reverse().forEach(text=>day.sparks.unshift({ts:k, text, source:'Sebastian', done:false}));
+  persist(); setHud();
+  logActivity('Sebastian sent '+items.length+' item'+(items.length>1?'s':'')+" to today's plan.");
+  blip(784,.08); setTimeout(()=>blip(988,.1),90);
+  const btn=document.getElementById('sebPlanBtn');
+  if(btn){ btn.textContent='✓ Sent '+items.length+" to today's plan"; btn.disabled=true; }
+}
 
 /* ----- The Research Desk (the Workshop) — "research/notes as a mode
    distinct from the personal archive," the piece the README's Workshop
@@ -3759,7 +3837,7 @@ Object.assign(window, {
   openLocalAIPanel, renderLocalAIPanel,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
   openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
-  openComputer, saveLastChatReplyToArchive,
+  openComputer, saveLastChatReplyToArchive, sendSebastianPlanToToday,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
   openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop,
