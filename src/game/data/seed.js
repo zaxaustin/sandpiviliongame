@@ -143,5 +143,38 @@ const RAW_SEED_LIBRARY = [
      sections:[
        {heading:'What it is', body:'Rather than opening with grand theory, Darwin starts with pigeon breeding and farm animals — variation under human selection that his Victorian readers already knew firsthand — before extending the same logic out to the whole natural world.'},
        {heading:'Why it still matters', body:'It’s less a list of conclusions than a demonstration of how to argue carefully from ordinary evidence toward an enormous claim — arguably the more durable lesson, independent of the biology.'}]}},
+ // ---- Added 2026-07-10 (LIBRARY-GROWTH-PLAN.md candidates, HTTP-verified) ----
+ // Summary-only shelf entries for now; full text can be attached later via
+ // tools/caravan (push-fulltext.py), the same two-step every text follows.
+ { slug:'franklin-autobiography', tradition:'Classics', title:'The Autobiography of Benjamin Franklin', category:'non-fiction',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/20203', attribution:'Benjamin Franklin · Project Gutenberg',
+   doc:{ summary:'Franklin’s own account of making himself — printer, scientist, and founder — written as plain, practical advice on improving yourself on purpose.',
+     sections:[
+       {heading:'What it is', body:'An unfinished memoir Franklin wrote in stages across nearly twenty years: part life story, part frank how-to on industry, thrift, and self-correction — including his famous thirteen-virtue ledger for tracking his own conduct day by day.'},
+       {heading:'Why read it', body:'It’s the original American self-improvement book, and still one of the most honest: Franklin records his vanities and failures as readily as his systems, so the method arrives with its own reality check built in.'}]}},
+ { slug:'emerson-essays', tradition:'Classics', title:'Essays — First Series', category:'non-fiction',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/16643', attribution:'Ralph Waldo Emerson · Project Gutenberg',
+   doc:{ summary:'Emerson’s essays on self-reliance, character, and nature — founding texts of American Transcendentalism, arguing that your own experience is a valid door to truth.',
+     sections:[
+       {heading:'What it is', body:'The first series of Emerson’s essays, including “Self-Reliance” and “Compensation” — dense, endlessly-quoted arguments that a person should trust their own considered judgment over inherited authority and the pull of conformity.'},
+       {heading:'How to read it', body:'A paragraph at a time. Emerson writes in aphorisms stacked into essays; the individual sentences often carry more than the argument threading them together, and reward being sat with rather than skimmed.'}]}},
+ { slug:'art-of-war', tradition:'Classics', title:'The Art of War',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/132', attribution:'Sun Tzu · tr. Lionel Giles · Project Gutenberg',
+   doc:{ summary:'Sun Tzu’s ancient treatise on strategy — thirteen short chapters arguing the highest skill is winning without fighting, by knowing yourself, your opponent, and the ground.',
+     sections:[
+       {heading:'What it is', body:'Roughly 2,500 years old, organized as terse maxims on terrain, timing, deception, and the true costs of war — written for generals, but read ever since by anyone who deals in strategy and conflict.'},
+       {heading:'Why it endures', body:'Its core claim — that preparation, information, and position decide most contests before they begin — travels far outside war, which is why it’s still read in business, sport, and diplomacy.'}]}},
+ { slug:'zhuangzi', tradition:'Daoism', title:'The Writings of Zhuangzi (Chuang Tzu)',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/59709', attribution:'Zhuangzi · tr. James Legge · Project Gutenberg',
+   doc:{ summary:'The Zhuangzi in full — the great Daoist companion to the Tao Te Ching, told in stories, jokes, and paradoxes about freedom, perspective, and living in accord with the way.',
+     sections:[
+       {heading:'What it is', body:'A collection attributed to the 4th-century-BCE thinker Zhuang Zhou, ranging from the famous butterfly dream to debates with skulls and “useless” trees — philosophy delivered as fable rather than doctrine.'},
+       {heading:'How it pairs', body:'Where the Tao Te Ching is compressed and gnomic, the Zhuangzi is playful and expansive. The Pavilion already keeps a short orientation to its Inner Chapters; this is the full James Legge translation standing behind it.'}]}},
+ { slug:'aesops-fables', tradition:'Classics', title:'Aesop’s Fables', category:'fiction',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/21', attribution:'Aesop · tr. George Fyler Townsend · Project Gutenberg',
+   doc:{ summary:'The classic collection of short animal fables, each ending in a plain moral — the tortoise and the hare, the ant and the grasshopper, the boy who cried wolf.',
+     sections:[
+       {heading:'What it is', body:'Several hundred very short stories, most only a paragraph long, using animals to make one clear point about honesty, patience, pride, or cunning — gathered over centuries and attributed to Aesop, a storyteller of ancient Greece.'},
+       {heading:'How to read it', body:'One or two at a sitting, especially aloud — they were meant to be told, not studied, and land as well for a child as for an adult who wants a moral stated without decoration.'}]}},
 ];
 export const SEED_LIBRARY = RAW_SEED_LIBRARY.map(d => ({ category:'classical', ...d }));

@@ -111,22 +111,48 @@ first) chooses to build.
 - **Agent embodiment** (`AGENT-EMBODIMENT-PLAN.md`) — residents that act,
   not just answer. Bounded, careful, later.
 
-## The open questions to actually decide together
+## The unlock mechanic — decided 2026-07-10
 
-These are the real forks, named so they don't get decided by accident:
+**How extras unlock (Zac's call):** you walk up to an extra and see its
+**requirements to unlock**, right there at the door. Then one of two
+paths opens it:
+- **Learn-what-it-does-quickly → unlocks.** A short, honest explanation of
+  what the tool is for; understanding it *is* the key. Low-friction, for
+  the extras that just need context, not training.
+- **A required learning path → unlocks.** For the extras that genuinely
+  need groundwork first, the door points at a real short path (the
+  LEARNING-PATH.md model, scoped to that tool) and opens when it's walked.
 
-1. **Does "unlock one at a time" become a literal mechanic, or stay
-   spatial?** Today everything is simply *there* when you walk to its
-   room — discovery by wandering, with badges marking what you've found.
-   A literal unlock system (rooms locked until earned/chosen) is a real
-   design change with a real cost: it can feel like a gate on a place
-   whose whole point is having no gate. Worth deciding on purpose.
-2. **Where's the line between "foundation" and "Zac's addition"?** Some
+This keeps the Library and Temple ungated (they're foundation, always
+open) while making the *extras* something you grow into on purpose —
+"unlock one at a time" becomes real, but as an invitation with a visible
+requirement, not a locked box with no explanation. The requirement being
+*visible at the door* is what keeps it from feeling like a gate: you
+always see what's behind it and exactly what opens it.
+
+**A first-arrival tutorial** — a guided walk-around when someone first
+enters the Pavilion — is the natural companion to this, but it's
+**deferred to the beta test** on purpose (that's when there's actually a
+newcomer who isn't Zac to walk through it). Written down here so it isn't
+lost, not scheduled now.
+
+**Still to decide when it's built:** which specific extras take the quick
+path vs. a real learning path, and whether "requirements" can include
+things other than learning (having used a prerequisite tool, having set
+an intention in the Temple first, etc.). Left open until the mechanic is
+actually built.
+
+## The remaining open questions
+
+These are the real forks still to settle, named so they don't get decided
+by accident:
+
+1. **Where's the line between "foundation" and "Zac's addition"?** Some
    Tier 2 items (the Research/Grant desks especially) are arguably *this*
    Pavilion's character more than every Pavilion's floor. The
    `TOOL-COMMONS-PLAN.md` split says a foundation should be forkable and
    minimal; that argues for a *smaller* Tier 1 than instinct wants.
-3. **What's the newcomer's actual first five minutes?** The foundation
+2. **What's the newcomer's actual first five minutes?** The foundation
    list is only right if walking in with just Tier 1 feels complete, not
    sparse. That's testable — and the real check on whether this triage is
    honest.

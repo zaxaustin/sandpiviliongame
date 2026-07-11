@@ -812,6 +812,18 @@ writing anything: does this become a tenth, genuinely different kind of
 shelf, live only as in-world signage the way the Charter already does,
 or something else — not guessed at cold.
 
+**Resolved 2026-07-10 (user's call):** no static "priority explainer
+shelf" — the local AI should just help the user figure out what's worth
+reading given their actual circumstance, **including books they've
+uploaded/added themselves**, not only the seeded shelves. Quill already
+carries the whole shelf list (titles, traditions, summaries) as grounding,
+so "what should I read first, for what I'm trying to do" is a question he
+can already answer live and personally — which is better than a fixed
+shelf that can't know the visitor's situation. Closes part (2) as a
+design decision (lean on the AI, don't build the shelf); any follow-up is
+just making sure hand-added/uploaded books are equally visible to that
+same AI-assisted guidance.
+
 ### 25. Human-paced text streaming — a standalone, later feature
 
 **The ask:** slower, more human-paced text output (the way some

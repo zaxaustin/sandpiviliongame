@@ -95,6 +95,8 @@
     <div class="meta" id="rdFullTextMeta"></div>
     <div class="row" style="margin-top:6px;margin-bottom:10px">
       <button class="btn ghost" id="rdFullTextReadBtn" onclick="toggleFullTextReadAloud()">🔊 Read this page</button>
+      <button class="btn ghost" id="rdSkipBack" onclick="skipReadAloud(-10)" title="Back 10 seconds" style="display:none">⏪ 10s</button>
+      <button class="btn ghost" id="rdSkipFwd" onclick="skipReadAloud(10)" title="Forward 10 seconds" style="display:none">10s ⏩</button>
     </div>
     <div id="rdFullTextBody" class="fullTextPage"></div>
     <div class="row" style="margin-top:18px;align-items:center">

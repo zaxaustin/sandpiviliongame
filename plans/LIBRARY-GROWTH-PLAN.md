@@ -393,6 +393,14 @@ a manual `library-inbox/` drop, not a guessed ID.
   public domain, not yet individually ID-checked the way the titles
   above were, since this list is already long enough to act on first.
 
+**✅ ALL FIVE SHELVED 2026-07-10** — added to `seed.js` (the version-
+controlled source of truth) *and* promoted into the live Supabase
+`library_documents` table via the Supabase MCP, so they appear in the
+running app immediately (49 texts now, up from 44). Summary-only for now;
+full text can be attached later via `tools/caravan/push-fulltext.py`, the
+same two-step every text follows. Slugs: `franklin-autobiography`,
+`emerson-essays`, `art-of-war`, `zhuangzi`, `aesops-fables`.
+
 **Direction-finding & practical self-betterment — matched to the north
 star (ease, direction, knowledge into use), all HTTP-verified reachable
 2026-07-10 (real 200s from `gutenberg.org/cache/epub/<id>/pg<id>.txt`,

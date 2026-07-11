@@ -551,6 +551,32 @@ courses now suggest a fitting category too, still just a suggestion you can
 change before pinning. All personal and local — sharing standards are
 Stage 2, deliberately not touched yet.
 
+**Done since then (also 2026-07-10):** a **±10-second skip** on the book
+read-aloud (beta #6) — the Web Speech API can't seek, so it's done by
+tracking word boundaries and re-speaking from a new offset; feels like a
+podcast skip. The **Library grew to 49 texts** — five HTTP-verified
+public-domain books (Franklin's *Autobiography*, Emerson's *Essays*, Sun
+Tzu's *Art of War*, the full *Zhuangzi*, *Aesop's Fables*) added to the
+`seed.js` source of truth and promoted into the live Supabase library, so
+they're on the shelves now. And two decisions got recorded: the
+foundation/extras **unlock mechanic** (walk up, see the requirement,
+unlock by learning-what-it-does or walking a short learning path — tutorial
+deferred to beta; see [`FOUNDATION-AND-EXTRAS.md`](plans/FOUNDATION-AND-EXTRAS.md)),
+and beta #24's "priority shelf" closed in favor of letting the local AI
+advise on what to read given the visitor's real situation, uploaded books
+included.
+
+**The last key before beta: Butler Sebastian** — a calendar that's a
+person, not an app. A butler you go to who runs your day, plans it with
+you, and tells you the truth about it ("your afternoon's thin," "nothing's
+on the books tomorrow — shall we fix that?"). The insight: calendars go
+unused for lack of *human interaction*, not features. Full design in
+[`BUTLER-SEBASTIAN-PLAN.md`](plans/BUTLER-SEBASTIAN-PLAN.md) — a new
+`BUTLER_CHARTER` (warm like the residents, secular like the work tools), a
+real calendar layer folded into the existing due-date spine, and advice
+that comes on engagement, never a background timer. Named as the piece
+that makes the Pavilion ready to show someone who isn't Zac.
+
 1. **Grow the Library toward a much bigger real dataset** — actively in
    progress, 44 live texts across 9 shelves; see
    [`LIBRARY-GROWTH-PLAN.md`](plans/LIBRARY-GROWTH-PLAN.md) for the curated

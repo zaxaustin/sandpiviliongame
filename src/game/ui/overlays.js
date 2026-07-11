@@ -8,7 +8,7 @@ import { CATEGORIES } from '../data/seed.js';
 import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
 import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
 import { isLoggedIn, isSteward, userEmail, sendMagicLink, signOut, onAuthChange } from '../data/auth.js';
-import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings } from '../tts.js';
+import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech } from '../tts.js';
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 /* escaping text is not the same as a safe link — a `javascript:` URL
@@ -1350,6 +1350,20 @@ function updateFullTextSpeakBtn(){
   if(!ttsAvailable()){ btn.style.display='none'; return; }
   btn.style.display='inline-block';
   btn.textContent = isSpeaking() ? '⏹ Stop' : '🔊 Read this page';
+  // the ±10s skip only means anything while actually reading — hide it
+  // otherwise so the row isn't cluttered with dead controls (beta #6)
+  const show = canSkipSpeech() ? 'inline-block' : 'none';
+  const back=document.getElementById('rdSkipBack'), fwd=document.getElementById('rdSkipFwd');
+  if(back) back.style.display=show;
+  if(fwd) fwd.style.display=show;
+}
+// podcast-style skip within the page being read aloud. Re-speaks from a new
+// offset (see tts.js skipSpeech) and re-syncs the buttons after.
+export function skipReadAloud(seconds){
+  if(!canSkipSpeech()) return;
+  skipSpeech(seconds);
+  blip(seconds<0?392:523,.04,'sine',.03);
+  updateFullTextSpeakBtn();
 }
 /* Per-page, not whole-book — a 50-page speech queued up front would be
    impossible to stop cleanly or resume mid-book. Reading a page and
@@ -3725,7 +3739,7 @@ export async function generateQuillReport(){
    module-scoped functions aren't visible there, so wire them up. */
 Object.assign(window, {
   closeUI, openReader, markRead, backToShelf, addBookNote, sendNoteToToday, removeSpark, toggleBookNotesFilter,
-  openFullText, backToSummary, fullTextNextPage, fullTextPrevPage, toggleFullTextReadAloud,
+  openFullText, backToSummary, fullTextNextPage, fullTextPrevPage, toggleFullTextReadAloud, skipReadAloud,
   selectBook, shelfOpenSelected,
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
   fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention,
