@@ -42,7 +42,7 @@ yet) and update `README.md`'s "What's next" section to match reality —
 future sessions (yours or anyone else's) depend on both staying honest,
 not aspirational.
 
-## Three standing decisions, stated plainly so they don't have to be re-derived
+## Four standing decisions, stated plainly so they don't have to be re-derived
 
 **The desktop app is the main focus going forward.** This project runs
 mainly as a real Electron app on the user's own machine now, not a
@@ -76,3 +76,17 @@ once you look — that gap is the whole design, not a limitation to
 apologize for. The actual tie-breaker anywhere a future choice seems to
 trade "looks more impressive" against "does more, uses less": this
 project already knows which side of that trade it's on.
+
+**AI effectiveness comes before AI features or personalities, stated
+directly 2026-07-10.** A resident that answers reliably in a plain voice
+beats one with a rich personality that hangs, returns blank, or takes two
+minutes. Fix the reply pipeline's reliability and speed before adding new
+residents, new AI-flavored features, or extra character flourish. The
+practical work tools (the course/lesson planner, the Computer, the
+Research and Grant desks) carry a neutral `WORK_CHARTER`, not the
+in-world residents' devotional `CHARTER`, precisely so they serve any
+goal on its own terms rather than skewing every course toward the dharma
+— see `plans/AI-INTEGRATION-NOTES.md` for the full accounting of how the
+AI works, what it costs to run inside a game, and the live effectiveness
+risks named in the open (chiefly: `bestLocalModel()` handing the Monk the
+largest installed model, which is often an unreliable "thinking" model).

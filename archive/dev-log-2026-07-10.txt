@@ -1,0 +1,184 @@
+dev log — 2026-07-10
+(the day the beta list got walked end to end, the Workshop grew floors,
+the Path went into the Temple, and the lesson planner stopped being a
+monk about everything)
+
+Full detail lives here so README.md can stay a current-state reference
+instead of a growing changelog. Everything below actually happened and
+was verified — live in a real browser via Playwright, a real build/test
+pass, a real Ollama call, or a curled API — not just planned. See git
+history (commits c6f41b3 through 64cab91) for the actual diffs.
+
+================================================================
+PART 1 — a dropped session recovered, and four quick fixes
+================================================================
+
+A previous session's connection dropped mid-work (an MCP auth issue),
+leaving a garbled "urgent, I lost my chat" note stranded in README.md.
+Nothing was actually lost — the real beta notes had already saved to
+BETA-TESTING-FEEDBACK.md. Cleaned out the stray note, then triaged the
+raw notes into a proper numbered "Round 3" (items #20-25), each checked
+against the actual code, not guessed.
+
+Four small, bounded items fixed and verified the same day:
+- #20: the Mountain Monk's own reasoning was being generated on every
+  reply (think:true) and then silently discarded before it left
+  provider.js. Now captured and shown collapsed, under a "💭 thought for
+  a moment" toggle. (The live-streaming half — watch it think in real
+  time — stays a separate, bigger future piece.)
+- #12: Export Save gets a real native "Save As" dialog in the desktop
+  app instead of always dropping into Downloads.
+- #13: a real spell-check right-click menu in the desktop app (Chromium
+  had the dictionary on; Electron just never wired up the menu).
+- #14 (fetch half): Quill's own prompt now points to the Request Board
+  when asked to fetch a book live — corrected from the original triage,
+  which assumed a UI failure path that doesn't actually exist in the
+  code (no in-game button ever attempts a live Gutenberg/arXiv fetch).
+
+================================================================
+PART 2 — two long-term plans written, not built
+================================================================
+
+- EIGHTFOLD-PATH-TEMPLE-PLAN.md: the Keep reimagined around the Noble
+  Eightfold Path, in real canonical order, grounded in the already-
+  shelved Dhammapada, each fold tied to something already built.
+- TOOL-COMMONS-PLAN.md: the actual long-term vision — a local commons
+  of small tools plus a LEARNING-PATH.md capstone teaching people to
+  build their own, anchored in the user's own words ("...my friend is a
+  teacher who wants a real-estate CRM... have the Sand Pavilion be a
+  place where he can find the knowledge and tools for himself"). Later
+  in the day, time-boxed by direct decision: this becomes the real
+  framework once the Pavilion opens its beta to other people, not before.
+  Carries the bare-bones-foundation-vs-Zac's-additions split, the
+  concrete mechanism behind the README's own "a Pavilion, not *the*
+  Pavilion" hope.
+
+================================================================
+PART 3 — the Workshop grew floors, the Temple got the Path (visuals)
+================================================================
+
+Asked for directly: build the sketched Workshop rooms and put the
+Eightfold Path in the Temple. Both built visuals-first, on purpose.
+
+- The Keep gained all eight Path signs, real canonical order, paired
+  left/right down the corridor toward the Buddha/Ganesha shrines the
+  same way those two are already mirrored.
+- The Workshop grew from one room into three real floors — bigger on the
+  inside than its outdoor footprint, same trick the Library already uses,
+  extended upward with a real staircase. Ground floor unchanged; a real
+  Records Hall one floor up (its own station, a real hand-kept timeline
+  panel); an "unfinished floor" above that holding the five sketched
+  rooms (Ledger, Maker's Bench, Greenhouse, Round Table, Mailroom), each
+  with its own distinct bespoke visual and an honest "not open yet" reply.
+- Two real bugs caught only by walking the rooms live: a warp trigger on
+  a wall tile (unreachable) and a landing spot on its own return trigger
+  (an instant bounce loop). Both fixed before they shipped.
+
+The sleeper-car design philosophy got written down the same day (in
+CLAUDE.md as a third standing decision, and in LIBRARY-GROWTH-PLAN.md):
+the low-res look is a resource choice, not a budget one — the game is
+deliberately cheap so the machine's real resources go to a local model,
+a bigger Library, and real work, all at once.
+
+================================================================
+PART 4 — the beta queue, walked end to end
+================================================================
+
+With the user's blessing to "build what we can and talk about problems
+as they come up," walked the remaining beta list:
+
+- #7: researched the Ganesha/Shiva campaign story's real source (the
+  Shiva Purana's Tripurasura episode) and closed it as an honest
+  non-result — no confirmed-public-domain translation exists, and the
+  already-shelved Wilkins text (downloaded and grepped in full) doesn't
+  cover it. Left the personal telling as the Library's only entry rather
+  than shelve something unconfirmed.
+- #10: book notes now know which page they're on — a page field stamped
+  when taken from the full-text reader, a per-page/show-all toggle that
+  follows you as you turn pages. Verified live.
+- #1: chat-note auto-save is now visible before you've typed anything
+  ("auto-saves as you type — nothing to click" / "✓ auto-saved").
+- #23: a real local-AI transparency explainer in the Connections panel —
+  exactly what data gets sent, what a "thinking" model does differently,
+  what a context window limits.
+- #11: turned out to be already built — grantSystemPrompt already demands
+  full prose. The real blocker was a live bug found only by clicking the
+  quick-start buttons: a JSON.stringify/onclick double-quote collision
+  throwing "Unexpected end of input." Fixed; verified real grounded
+  proposal prose comes out now.
+- #15: the Local AI panel — step 1 (a "🧠 Local AI" panel reading
+  Ollama's /api/ps for loaded-model memory/GPU residency), then steps
+  2-3 (per-action elapsed timing on every reply via a withTiming()
+  wrapper, and a "Today's session" summary parsed from the same activity
+  log). All verified against the real running Ollama.
+- #24 part 1: library-draft.py gained an opt-in --ai-draft flag — a
+  local model suggests a summary and tradition, clearly marked, never
+  touching license or source. Three real runs verified (plain, live AI,
+  forced-unreachable fallback).
+- #14 (guide half): the Caravan Desk gained a "why can't I just paste a
+  URL" explainer at the actual point of confusion, pointing to
+  LEARNING-PATH.md Stage 9.
+
+Then, per direct instruction ("do the plans that aren't my design
+conversation first"):
+
+- COURSE-BOARD-PLAN.md written: a real 3-stage plan — Stage 1 (now,
+  small, personal), Stage 2 (real sharing standards: license, review, a
+  portable format), Stage 3 (a full free replacement for the learning
+  parts of college, tied to the Round Table and README's Hopes and
+  Dreams). #18's one undefined ask turned into a real roadmap.
+- The drag-and-drop book intake (BOOK-DRAG-DROP-PLAN.md Path A) built:
+  drop a .txt at the Caravan Desk, pick a known source, and the manual-
+  entry form fills itself in (title/author/license per source, never
+  auto-confirmed). An unrecognized source routes to a real, auto-created
+  "Caravan Drops" Research Desk project instead of the shared queue.
+  Verified live, both paths. README's library-growing section now gives
+  the terminal path and the drag-and-drop path equal billing.
+
+================================================================
+PART 5 — a real AI bug, and the effectiveness-first rule
+================================================================
+
+Two things surfaced near the end of the day:
+
+- The lesson planner (and every practical work tool) was prepending the
+  full CHARTER — which hard-codes the Buddhist Four Noble Truths framing
+  — as its system prompt. That skewed a secular course ("start a real
+  estate side business") toward spiritual language. Fixed by adding a
+  neutral WORK_CHARTER (same harm-declining guardrail, no roleplay, no
+  devotional framing, an explicit "serve the goal on its own terms") and
+  applying it to the five work tools (course/lesson planner, Computer,
+  Research Desk, Grant Desk, summarizer). The in-world residents (Quill,
+  the Steward, the Monk) keep the full CHARTER. Verified live: a real-
+  estate course now drafts completely secular and practical.
+
+- Documented the whole AI integration honestly in AI-INTEGRATION-NOTES.md,
+  asked for directly — what actually runs, the real reply-tier numbers,
+  the genuine cost of AI in a game-like interface (latency vs. immediacy,
+  real machine resources, reliability vs. capability, the cloud
+  tradeoff), and the stated priority: effectiveness before features or
+  extra personalities. Named the biggest live effectiveness risk in the
+  open: bestLocalModel() picks the largest installed model for the Monk,
+  which is often a THINKING model (qwen3.5, deepseek-r1) — exactly the
+  kind that can hang or return blank. The resident the project cares most
+  about is the most exposed to the worst failure mode. (User was already
+  handling the fix.)
+
+================================================================
+WHERE THINGS STAND
+================================================================
+
+Environment checked and clean: no stray node/vite processes, MinIO
+container stopped (exited 0 — full texts won't load until it's
+restarted), Ollama idle with no model resident. Nothing polling in the
+background, by design.
+
+Beta list: Round 1-2 essentially closed; Round 3 (#20-25) mostly closed,
+with the thinking-model live-stream (#3/#19/#20-part-2) and human-paced
+text (#25) deliberately deferred as harder problems.
+
+Still open and named honestly: the Monk's model-selection fix (in
+progress by the user), #24 part 2's shelf-taxonomy question (a tenth
+kind of shelf, or in-world signage?), live reply streaming as the
+highest-value latency fix, and the Course Board / Tool Commons stages
+that are written down and waiting.

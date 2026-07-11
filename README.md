@@ -837,6 +837,17 @@ The detailed, session-by-session build log lives in `archive/`:
   [`CLAUDE.md`](CLAUDE.md), written the same day, for the two standing
   decisions that came out of it: the desktop app is the main focus now,
   and new work gets built here first, not bolted on from a third party.
+- `archive/dev-log-2026-07-10.txt` — the whole beta list walked end to
+  end (the Local AI panel, the drag-and-drop book intake, book-note
+  pages, Grant Desk drafting, and more), three new Workshop floors and
+  the Eightfold Path Temple built visuals-first, the sleeper-car design
+  philosophy written down, and a real AI fix: the lesson planner (and
+  every practical work tool) made subject-neutral so it serves any goal,
+  not just Buddhist ones. See
+  [`AI-INTEGRATION-NOTES.md`](plans/AI-INTEGRATION-NOTES.md), written the
+  same day, for the honest accounting of how the AI actually works, what
+  it costs to run inside a game, and the standing rule: effectiveness
+  before features or extra personalities.
 - `archive/readme-2026-07-07-full.md` — a full snapshot of this file
   before its second trim, including detailed design essays not carried
   forward into the current version.
