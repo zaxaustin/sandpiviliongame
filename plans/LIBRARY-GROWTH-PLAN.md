@@ -393,6 +393,35 @@ a manual `library-inbox/` drop, not a guessed ID.
   public domain, not yet individually ID-checked the way the titles
   above were, since this list is already long enough to act on first.
 
+**Direction-finding & practical self-betterment — matched to the north
+star (ease, direction, knowledge into use), all HTTP-verified reachable
+2026-07-10 (real 200s from `gutenberg.org/cache/epub/<id>/pg<id>.txt`,
+not a Gutendex lookup this time — actually pinged):**
+- *The Autobiography of Benjamin Franklin* (Gutenberg #20203). The
+  original English-language self-improvement book — Franklin's rise from
+  a candlemaker's son to printer, scientist, and statesman, and his
+  famous project of the thirteen virtues with a daily examination. The
+  single best fit for this project's own office/self-direction angle;
+  belongs on the Practice shelf beside the homesteading and household
+  manuals. Unambiguously public domain (written 1771–1790).
+- *Essays: First Series* — Ralph Waldo Emerson (Gutenberg #16643).
+  "Self-Reliance," "Compensation," "Circles" — the American gospel of
+  trusting your own direction. Directly serves "help me find direction";
+  a Classics-shelf philosophy entry. Public domain.
+- *The Art of War* — Sun Tzu, tr. Lionel Giles 1910 (Gutenberg #132).
+  Strategy and decision-making under constraint — reads as much like a
+  manual for real choices as a military text. Practice shelf. Giles's
+  translation is pre-1929 public domain.
+- *Chuang Tzŭ* (Zhuangzi) — tr. Herbert Giles (Gutenberg #59709). The
+  other foundational Daoist text beside the already-shelved Tao Te
+  Ching, and the Course Board's own example course literally references
+  "the Inner Chapters" — shelving it closes a loop the game already
+  points at. Deepens the Daoism shelf. Public domain.
+- *Aesop's Fables* (Gutenberg #21). Teaching-by-story, the exact texture
+  the Mountain Monk already reaches for ("rather answer a heavy question
+  with an unexpected story"); short, universally readable, fits Practice
+  or Classics. Public domain.
+
 **Known gap, not forgotten:** Euclid's *Elements* (Gutenberg #21076) —
 same problem as Einstein's *Relativity* before it: geometry-heavy
 texts often ship as HTML/EPUB only, no plain-text mirror. Worth a
