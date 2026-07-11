@@ -42,6 +42,7 @@ fuller orientation; this is the quick map.*
 - **`archive/dev-log-*.txt`** — the narrative of how it got here, session by session. Skim the latest one or two.
 - **`plans/*.md`** — every open plan; `plans/done/` for closed ones; `plans/BETA-TESTING-FEEDBACK.md` for real issues found by using it.
 - **`LEARNING-PATH.md`** — the self-paced curriculum; answer "why/how does this work" questions at the stage the user's actually reached.
+- **`MANUAL.md`** — the visitor's handbook: every room, desk, resident, and where your data lives — the "how do I use this place" layer, written for someone non-technical.
 - **`PROTOCOLS.md`** — the how-to manual for filling your own Pavilion: adding a book (both paths), connecting your own AI, more to come.
 - **Code map:** `src/game/` — `main.js` (loop, input, onAction dispatch), `scenes.js` (every room + NPCs/stations/warps), `render.js` (pixel drawing, `drawStation`), `entities.js` (data model + `freshData()` + `dueSoon`/`upcomingItems`/`openSparks`), `ui/overlays.js` (**the big one** — every panel, chat, `CHAT_AGENTS`), `ai/provider.js` (Ollama/cloud adapters), `data/` (`charter.js`, `seed.js`, `store.js`, `supabase.js`). Tools in `tools/caravan/`. Memory lives outside the repo in the user's `.claude` memory dir.
 
@@ -64,6 +65,11 @@ fuller orientation; this is the quick map.*
 - At session end: append to `archive/dev-log-YYYY-MM-DD.txt` and update this README's "What's next." Commit only when asked; the project commits straight to `main`.
 
 ## New here? Start with this
+
+The full visitor's handbook — every room, every desk, every resident,
+written for someone who has never seen this before — is
+[`MANUAL.md`](MANUAL.md). The short version of its two promises: nothing
+breaks by clicking around, and nothing phones home.
 
 You don't need to know how to code, use a terminal, or understand what
 an "API" is to enjoy the Sand Pavilion. None of that is required to walk
@@ -91,17 +97,30 @@ Two things worth knowing going in:
   [`API-AI-INTEGRATION-PLAN.md`](API-AI-INTEGRATION-PLAN.md) for the same
   ideas pointed outward at work/desktop AI integration generally.
 
-## Running it
+## Running it — every mode, and how to get each up
+
+There are five ways to run the Pavilion, plus three optional layers you
+add on top. Every mode starts the same way, once:
 
 ```
 npm install
-npm run dev       # starts Vite, prints a localhost URL
 ```
 
-Walk with Arrows/WASD, interact/fish with `E`, close menus with `Esc`.
-`Esc` with nothing open — or the `☰` button in the corner — opens a pause
-menu. Everything you do saves to `localStorage` automatically; the title
-screen tells you whether it's actually persisting.
+Controls everywhere: walk with Arrows/WASD, interact/fish with `E`, close
+menus with `Esc`, pause menu via `Esc` or `☰`. Everything saves
+automatically. The full room-by-room guide to actually *using* the place
+is [`MANUAL.md`](MANUAL.md) — the visitor's handbook.
+
+### Mode 1 — a browser tab, live (the everyday dev loop)
+
+```
+npm run dev        # starts Vite, prints a localhost URL — open it
+```
+
+Instant reload on every code change. The browser mode needs the
+`OLLAMA_ORIGINS` step (below) before local AI works.
+
+### Mode 2 — a browser, built static site
 
 ```
 npm run build      # outputs a static site to dist/
@@ -109,43 +128,70 @@ npm run preview    # serve that build locally to sanity-check it
 npm test           # config sanity check — scenes, warps, seed data (no browser needed)
 ```
 
-### Playing it as a real desktop app, not a browser tab
+The deployed version is exactly this: **[sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app)**,
+auto-deployed by Vercel on every push to `main`. Local AI still works on
+the deployed site, since the game checks `localhost:11434` from *whoever's
+browser is open*, not from wherever the files are hosted.
 
-Same `npm install` first, then:
+### Mode 3 — a real desktop window, live
 
 ```
-npm run electron:dev         # a real native window, live — the fastest way to just try it
-npm run electron:build       # produces an actual Windows installer (.exe) in release/
-npm run electron:build:beta  # the SHAREABLE build: same installer, but local-only —
-                             # no Supabase keys baked in, even if .env.local has them
+npm run electron:dev     # a native window over the live dev server
 ```
 
-The `:beta` variant is the one to hand to another person: it builds with
-`.env.beta` (committed, deliberately empty), so Vite's mode priority
-guarantees the dev machine's own Supabase/MinIO config never reaches the
-installer — verified by grepping the built bundle for the project ref and
-key (zero hits). See [`BETA-BUILD-PLAN.md`](plans/BETA-BUILD-PLAN.md).
+The fastest "just show me it as an app." Bonus over a browser: the desktop
+app's own process proxies Ollama directly, so **no `OLLAMA_ORIGINS` setup
+is needed at all** in any desktop mode.
 
-`electron:dev` is the quickest path if you just want to see it running
-as its own window right now, no install step. `electron:build` is the
-one worth running if you want a real, permanent desktop app — install
-it once, get a Start Menu shortcut, and never open a terminal again
-afterward to play. The installer is unsigned on purpose (see
-[`DESKTOP-APP-PLAN.md`](plans/DESKTOP-APP-PLAN.md) for why) — Windows will
-show an "unknown publisher" warning the first time; that's expected for
-a personal/small project, not a sign anything's wrong. Same local-AI
-setup applies either way — see below if you want Quill, the Steward,
-or the Monk to actually talk back.
+### Mode 4 — the installed desktop app (your own machine, full setup)
 
-**It's live:** [sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app)
-— deployed via Vercel's GitHub integration, auto-deploys on every push to
-`main`. Local AI still works after deployment, since the game always
-checks `localhost:11434` from *whoever's browser is currently open*, not
-wherever the static files are hosted.
+```
+npm run electron:build   # a real Windows installer (.exe) in release/
+```
 
-Everything below "works with zero setup" also works completely
-disconnected from the internet, forever, on this or any machine — the
-cloud pieces (Supabase, a hosted deploy) are additive, never required.
+Run the installer from `release/` once: Start Menu shortcut, its own
+window, never a terminal again. This build carries whatever's in your
+`.env.local` — on the dev machine that means the full personal setup
+(Supabase catalog + MinIO full texts), which is exactly right for *this*
+machine and wrong to hand to anyone else. For that:
+
+### Mode 5 — the shareable beta installer (what you give other people)
+
+```
+npm run electron:build:beta   # same installer, built local-only
+```
+
+Builds with `.env.beta` (committed, deliberately *empty*), which Vite's
+mode priority guarantees overrides `.env.local` — so no Supabase key, URL,
+or MinIO endpoint can reach the installer even though the dev machine has
+them (verified: the whole Supabase library tree-shakes out of the bundle).
+A tester gets: the world, the residents, the 21-text seed Library, Your
+Shelf, and every desk — zero services, nothing to stand up. The installer
+is unsigned on purpose (see [`DESKTOP-APP-PLAN.md`](plans/DESKTOP-APP-PLAN.md));
+Windows shows an "unknown publisher" warning the first run — expected.
+
+### The three optional layers (each independent, each honest without it)
+
+- **Local AI — Ollama** (any mode; the one layer most people want):
+  install [ollama.com](https://ollama.com), pull a model that fits your
+  machine (the tiered guide is in [`PROTOCOLS.md`](PROTOCOLS.md) Protocol 2),
+  and in a *browser* mode also run
+  `setx OLLAMA_ORIGINS "http://localhost:5173,http://localhost:5174"` and
+  reopen the terminal. Desktop modes skip that step entirely. The
+  beginner's walk-through is further down this README.
+- **Full-text object storage — MinIO in Docker** (dev machine only): holds
+  the full text of catalog-first *certified* books. Beta testers never
+  need it — Your Shelf stores personal books as plain files through the
+  app itself. Setup lives in [`LIBRARY-SCALING-PLAN.md`](plans/LIBRARY-SCALING-PLAN.md).
+- **The Commons — Supabase** (optional, currently dormant by choice): a
+  `.env.local` with `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY`
+  turns on the mirrored catalog, café boards, accounts, and steward
+  moderation. Remember the standing gotcha: **Supabase rows replace the
+  seed, they don't merge.**
+
+Everything marked "works with zero setup" also works completely
+disconnected from the internet, forever, on this or any machine — every
+layer above is additive, never required.
 
 ## What the Sand Pavilion can do today
 

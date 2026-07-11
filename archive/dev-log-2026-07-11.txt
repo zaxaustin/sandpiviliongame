@@ -318,3 +318,15 @@ electron-builder packaging run started (see next entry / README).
 NOT verified, stated honestly: a live click-through of the shelve→read
 flow in a running window, and the clean-machine install test — both
 remain the user's (and the plan's §6.8) to run.
+
+Addendum (same session): MANUAL.md written — the visitor's handbook the
+protocols were missing a layer under (named directly by the user: "there
+needs to be a user manual to get familiar with the sand pavilion").
+Covers controls, the map, the three residents' division, the Library/
+Study/Workshop room guides, the AI setup pointer, where data lives
+(including the honest export limit: desktop-shelved personal book FILES
+don't travel inside a save export), and a symptom table. README's
+"Running it" rebuilt as "every mode, and how to get each up" — the five
+modes (browser dev, static build, electron:dev, installed app, shareable
+beta) plus the three optional layers (Ollama, MinIO, Supabase), each with
+what it needs. MANUAL.md linked from the orientation map and "New here?".
