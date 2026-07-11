@@ -452,6 +452,16 @@ const CHAT_AGENTS = {
   sebastian:{
     label:'Sebastian',
     async systemPrompt(){
+      // scoped folder review — set only when the visitor hands him one folder
+      // from the notes log; he sees just those notes, never the whole pile.
+      const review=(state.dialog && state.dialog.agent==='sebastian' && state.dialog.review) ? state.dialog.review : null;
+      const reviewBlock = review
+        ? "\n\nThe visitor has asked you to look over the notes gathered in their \""+review.folder+"\" folder and "
+          +"help tidy them — suggest how they might be grouped, merged, shortened, or given a clearer shape, and "
+          +"name anything that seems to belong elsewhere. Work ONLY from these notes; invent none that aren't here, "
+          +"and keep it brief and practical rather than exhaustive:\n"
+          +review.notes.map(n=>`- (${n.where}) ${n.title}: ${(n.text||'').slice(0,400)}`).join('\n')
+        : "";
       return BUTLER_CHARTER
         +"\n\nYou are Sebastian, the butler of the Sand Pavilion, who keeps to the Workshop among the "
         +"working desks. You help the visitor with both home life and work as one single day — planning "
@@ -466,9 +476,13 @@ const CHAT_AGENTS = {
         +"the Library, the Records Hall upstairs for their kept history. When you draft a schedule or a "
         +"plan for the day, lay it out as a short, clear list the visitor can actually keep — one line per "
         +"item, no preamble around it — so it can be dropped straight into their daily plan or read back "
-        +"aloud. Here is the honest state of the visitor's day right now; speak from it, and never invent "
-        +"items that aren't here:\n"
+        +"aloud. When an item happens at a particular time, begin that line with the clock time and an "
+        +"am/pm (for example, \"9:00 AM — Morning sit\" or \"2:30 PM — Call the grant office\"), so it can "
+        +"be placed on the calendar; a line with no natural time is simply a task and needs no time. Here "
+        +"is the honest state of the visitor's day right now; speak from it, and never invent items that "
+        +"aren't here:\n"
         +butlerDayRead()
+        +reviewBlock
         +pastAsksBlock('sebastian');
     },
     errorLine:"Sebastian's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -595,14 +609,21 @@ function renderCalendarDay(){
       <div class="t">${e.start?`<span style="color:#e0a43c">${esc(e.start)}${e.end?'–'+esc(e.end):''}</span>  `:''}${esc(e.title)}</div>
       ${e.note?`<div class="s">${esc(e.note)}</div>`:''}
       <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="removeCalendarEvent(${e.id})">Remove</button></div>
-    </div>`).join('') : `<p style="color:#9c8b74">Nothing on this day yet.</p>`;
+    </div>`).join('') : `<p style="color:#9c8b74">Nothing scheduled on this day yet.</p>`;
+  // the untimed half of the day — to-dos (sparks) kept on the planner for
+  // this date, so the calendar shows one whole picture: what's timed, and
+  // what just needs doing. Managed on the Writing Desk; shown here read-only.
+  const daySparks=(data.planner[dk]&&data.planner[dk].sparks)||[];
+  const todos = daySparks.length ? `<h3 style="margin-top:16px">To-do (no set time)</h3>${daySparks.map(s=>
+    `<div class="s" style="padding:3px 0;${s.done?'opacity:.5;text-decoration:line-through':''}">• ${esc(s.text)}${s.source?` <span style="color:#9c8b74;font-size:11px">— ${esc(s.source)}</span>`:''}</div>`).join('')}` : '';
   return `${calendarHeader()}
     <div class="row" style="justify-content:space-between;align-items:center;margin:4px 0 8px">
       <button class="btn ghost" onclick="calBackToMonth()">‹ ${esc(monthLabel(calYm(dk)))}</button>
       <b style="color:#e0a43c;font-size:14px;text-align:right">${esc(dayLabel(dk))}${dk===today?' · today':''}</b>
     </div>
     ${list}
-    <h3>Add to this day</h3>
+    ${todos}
+    <h3 style="margin-top:16px">Add to this day</h3>
     <label>What is it?</label><input type="text" id="calEvTitle" placeholder="e.g. Dentist, or Call with the grant office">
     <div class="row" style="gap:14px">
       <div style="flex:1"><label>Start (optional)</label><input type="time" id="calEvStart"></div>
@@ -1011,7 +1032,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -1076,6 +1097,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
       <button class="btn ghost" onclick="openStillOpen()" style="margin-bottom:9px">📋 Still Open${openSparks().length?' · '+openSparks().length:''}</button>
+      <button class="btn ghost" onclick="openNotesLog()" style="margin-bottom:9px">🗒 Your Notes</button>
       <button class="btn ghost" onclick="openBadges()" style="margin-bottom:9px">🏅 Badges</button>
       <button class="btn ghost" onclick="openInventory()" style="margin-bottom:9px">🎒 Inventory</button>
       <button class="btn ghost" onclick="openReviewQueue()" style="margin-bottom:9px">🛡 Steward Review</button>
@@ -1333,6 +1355,171 @@ function renderStillOpen(){
     ${open.length ? open.map(s=>sparkCardHTML(s.dayKey,s.i,s,{showDay:true})).join('')
       : '<p>Nothing open right now — everything brought over from reading, research, or a grant project has been marked done.</p>'}`;
 }
+
+/* ----- Your Notes — one gathered, searchable view over every place a note
+   actually lives (My Notes, book notes, chat notes, Research Desk notes,
+   Grant Desk documents). NOTES-AND-LOG-ROOM-PLAN.md step 1: a *view*, not a
+   sixth store — nothing is copied or moved, and each note is still edited
+   where it lives. gatherNotes() is a pure read: it just walks data.* and
+   normalises each note into the same small shape, so search/filter/sort work
+   across all five at once. */
+const NOTE_SOURCES=[
+  {id:'all',      label:'All',           icon:'🗒'},
+  {id:'mynotes',  label:'My Notes',      icon:'📓'},
+  {id:'book',     label:'Book notes',    icon:'📖'},
+  {id:'chat',     label:'Conversations', icon:'💬'},
+  {id:'research', label:'Research',      icon:'🔬'},
+  {id:'grant',    label:'Grant docs',    icon:'📝'},
+];
+// A small stable key per note so the folder/tag layer (data.noteMeta) can
+// attach without touching the note itself. My Notes and chat notes already
+// have stable identity (id / agent); book/research/grant notes are keyed by
+// a content hash (source + a djb2 of ts|text) so the key survives another
+// note being deleted or reordered — an index would not.
+function noteHash(s){ let h=5381; for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; } return (h>>>0).toString(36); }
+function noteFolderOf(key){ return (data.noteMeta[key]&&data.noteMeta[key].folder)||''; }
+function noteTagsOf(key){ return (data.noteMeta[key]&&data.noteMeta[key].tags)||[]; }
+function allFolders(){ return [...new Set(Object.values(data.noteMeta||{}).map(m=>m&&m.folder).filter(Boolean))].sort(); }
+function setNoteMeta(key, patch){
+  const m=Object.assign({folder:'',tags:[]}, data.noteMeta[key]||{}, patch);
+  if(!m.folder && (!m.tags||!m.tags.length)) delete data.noteMeta[key]; // don't keep empty entries
+  else data.noteMeta[key]=m;
+  persist();
+}
+function gatherNotes(){
+  const out=[];
+  for(const n of (data.notes||[]))
+    out.push({source:'mynotes', icon:'📓', where:'My Notes', title:n.title||'Untitled note', text:n.body||'', date:n.updated||n.created||'', key:'mynotes:'+n.id});
+  const titleFor={}; try{ Store.allDocs().forEach(d=>{ titleFor[d.slug]=d.title; }); }catch(e){}
+  for(const slug of Object.keys(data.bookNotes||{})){
+    const bookTitle=titleFor[slug]||slug;
+    (data.bookNotes[slug]||[]).forEach(n=>
+      out.push({source:'book', icon:'📖', where:'Book · '+bookTitle+(n.page?' · p.'+n.page:''), title:bookTitle, text:n.text||'', date:n.ts||'', key:'book:'+slug+':'+noteHash((n.ts||'')+'|'+(n.text||''))}));
+  }
+  for(const agent of Object.keys(data.chatNotes||{})){
+    const text=(data.chatNotes[agent]||'').trim(); if(!text) continue;
+    const label=(CHAT_AGENTS[agent]&&CHAT_AGENTS[agent].label)||agent;
+    out.push({source:'chat', icon:AGENT_AVATAR[agent]||'💬', where:'Conversation · '+label, title:label, text, date:'', key:'chat:'+agent});
+  }
+  for(const p of (data.workshop.research||[]))
+    (p.notes||[]).forEach(n=>
+      out.push({source:'research', icon:'🔬', where:'Research · '+p.title, title:p.title, text:n.text||'', date:n.ts||'', key:'research:'+p.id+':'+noteHash((n.ts||'')+'|'+(n.text||''))}));
+  for(const p of (data.grantProjects||[]))
+    (p.documents||[]).forEach(n=>
+      out.push({source:'grant', icon:'📝', where:'Grant · '+p.title, title:n.label||p.title, text:n.text||'', date:n.ts||'', key:'grant:'+p.id+':'+noteHash((n.ts||'')+'|'+(n.label||'')+'|'+(n.text||''))}));
+  return out.sort((a,b)=>(b.date||'').localeCompare(a.date||'')); // newest first; undated (chat) sink to the bottom
+}
+export function openNotesLog(){
+  state.notesLogView=state.notesLogView||{source:'all',folder:'all',q:'',expanded:null};
+  if(!state.notesLogView.folder) state.notesLogView.folder='all';
+  state.ui='notesLog'; hideAllOv(); renderNotesLog(); showOv('notesLogOv');
+}
+function notesLogFiltered(){
+  const v=state.notesLogView, q=v.q.trim().toLowerCase();
+  return gatherNotes().filter(n=>{
+    if(v.source!=='all' && n.source!==v.source) return false;
+    const folder=noteFolderOf(n.key);
+    if(v.folder==='__unfiled'){ if(folder) return false; }
+    else if(v.folder && v.folder!=='all'){ if(folder!==v.folder) return false; }
+    if(q){ const hay=(n.title+' '+n.text+' '+n.where+' '+noteTagsOf(n.key).join(' ')).toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+}
+function renderNotesLog(){
+  const v=state.notesLogView, all=gatherNotes();
+  const counts={all:all.length}; all.forEach(n=>{ counts[n.source]=(counts[n.source]||0)+1; });
+  const chips=NOTE_SOURCES.map(s=>{
+    const active=v.source===s.id;
+    return `<button class="btn ghost" onclick="setNotesLogSource('${s.id}')" style="margin:0 6px 6px 0;padding:5px 10px;font-size:12px${active?';background:#e0a43c;color:#2a2118':''}">${s.icon} ${s.label}${counts[s.id]?' · '+counts[s.id]:''}</button>`;
+  }).join('');
+  // folder row — folders exist because a note is filed in one; a content-safe
+  // name (no quotes) is enforced on creation so it's safe in these handlers.
+  const folders=allFolders();
+  const unfiled=all.filter(n=>!noteFolderOf(n.key)).length;
+  const folderRow = folders.length ? '<div style="margin-bottom:8px">'+
+    [{id:'all',label:'📁 All folders'}, ...folders.map(f=>({id:f,label:'📁 '+f})), {id:'__unfiled',label:'📂 Unfiled'+(unfiled?' · '+unfiled:'')}]
+      .map(fc=>{ const active=v.folder===fc.id; return `<button class="btn ghost" onclick="setNotesLogFolder('${fc.id}')" style="margin:0 6px 6px 0;padding:5px 10px;font-size:12px${active?';background:#7fa3c7;color:#2a2118':''}">${esc(fc.label)}</button>`; }).join('')
+    +'</div>' : '';
+  // Sebastian only gets handed one folder at a time, on purpose — "there when
+  // needed, never swarmed with data he doesn't need."
+  const sebBtn = (v.folder && v.folder!=='all' && v.folder!=='__unfiled')
+    ? `<button class="btn ghost" onclick="askSebastianReviewFolder()" style="margin-bottom:10px;border-color:#7fa3c7;color:#a9c7e8">🎩 Ask Sebastian to tidy this folder</button>` : '';
+  document.getElementById('notesLogPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🗒 Your Notes</h2>
+    <div class="meta">Every note you've written, gathered in one place. A window onto them, not a new
+      drawer: each note is still kept, and still edited, where it lives. Open a note to file it in a
+      folder or add tags — the folders are just for you (and for Sebastian, when you ask him to tidy one).</div>
+    <input type="text" id="notesLogSearch" placeholder="Search notes and tags…" value="${esc(v.q)}"
+      oninput="setNotesLogSearch(this.value)" style="margin-bottom:10px">
+    <div style="margin-bottom:6px">${chips}</div>
+    ${folderRow}${sebBtn}
+    <div id="notesLogList"></div>`;
+  renderNotesLogList();
+  const inp=document.getElementById('notesLogSearch');
+  if(inp && v.q){ inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length); }
+}
+const NOTE_SELECT_STYLE="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13px;padding:7px 9px";
+function renderNotesLogList(){
+  const el=document.getElementById('notesLogList'); if(!el) return;
+  const v=state.notesLogView, list=notesLogFiltered(), folders=allFolders();
+  if(!list.length){ el.innerHTML='<p style="color:#9c8b74">No notes here yet. Anything you write — beside a book, in a conversation, or at a desk — will gather here.</p>'; return; }
+  el.innerHTML=list.map(n=>{
+    const open=v.expanded===n.key, folder=noteFolderOf(n.key), tags=noteTagsOf(n.key);
+    const body=n.text ? (n.text.length>140 && !open ? esc(n.text.slice(0,140))+'…' : esc(n.text)) : '<i>(empty)</i>';
+    const badges=`${folder?`<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📁 ${esc(folder)}</span>`:''}${tags.map(t=>`<span class="badge lic">#${esc(t)}</span>`).join('')}`;
+    // folder + tag editors live only in the expanded view, and stop their own
+    // clicks so fiddling with them doesn't collapse the card.
+    const controls = open ? `<div onclick="event.stopPropagation()" style="margin-top:10px;border-top:1px solid #55432e;padding-top:9px">
+        <label style="margin:0 0 4px">Folder</label>
+        <select onchange="assignNoteFolder('${n.key}',this.value)" style="${NOTE_SELECT_STYLE}">
+          <option value=""${folder?'':' selected'}>Unfiled</option>
+          ${folders.map(f=>`<option${f===folder?' selected':''}>${esc(f)}</option>`).join('')}
+          <option value="__new">＋ New folder…</option>
+        </select>
+        <label style="margin:8px 0 4px">Tags</label>
+        <input type="text" value="${esc(tags.join(', '))}" placeholder="comma, separated, tags" onchange="setNoteTags('${n.key}',this.value)">
+      </div>` : '';
+    return `<div class="card" onclick="toggleNotesLogItem('${n.key}')">
+      <div class="t">${n.icon} ${esc(n.title)}${n.date?` <span class="badge lic">${esc(n.date)}</span>`:''}</div>
+      <div class="s" style="color:#9c8b74;font-size:11px">${esc(n.where)}</div>
+      ${badges?`<div style="margin:4px 0">${badges}</div>`:''}
+      <div class="s" style="white-space:pre-wrap${open?'':';max-height:3.6em;overflow:hidden'}">${body}</div>
+      ${controls}
+    </div>`;
+  }).join('');
+}
+export function setNotesLogSource(id){ state.notesLogView.source=id; state.notesLogView.expanded=null; renderNotesLog(); }
+export function setNotesLogFolder(id){ state.notesLogView.folder=id; state.notesLogView.expanded=null; renderNotesLog(); }
+export function setNotesLogSearch(val){ state.notesLogView.q=val; state.notesLogView.expanded=null; renderNotesLogList(); }
+export function toggleNotesLogItem(key){ const v=state.notesLogView; v.expanded=v.expanded===key?null:key; renderNotesLogList(); }
+export function assignNoteFolder(key, val){
+  if(val==='__new'){
+    let name=window.prompt('New folder name:'); if(name==null){ renderNotesLogList(); return; }
+    name=name.replace(/['"\\]/g,'').trim(); if(!name){ renderNotesLogList(); return; } // keep names handler-safe
+    setNoteMeta(key,{folder:name});
+  } else setNoteMeta(key,{folder:val||''});
+  renderNotesLog(); // the set of folders may have changed
+}
+export function setNoteTags(key, str){
+  const tags=str.split(',').map(t=>t.trim().replace(/^#/,'')).filter(Boolean).slice(0,8);
+  setNoteMeta(key,{tags});
+  renderNotesLogList();
+}
+/* Hand Sebastian exactly one folder to look over — scoped grounding on his
+   dialog, so he sees only what was asked and nothing else. Cleared naturally
+   when the conversation ends (it lives on state.dialog). */
+export function askSebastianReviewFolder(){
+  const folder=state.notesLogView.folder;
+  if(!folder||folder==='all'||folder==='__unfiled') return;
+  const notes=gatherNotes().filter(n=>noteFolderOf(n.key)===folder);
+  if(!notes.length) return;
+  openChatDialog({ name:'SEBASTIAN · Butler', aiAgent:'sebastian', color:'#4a6a8a', glow:'#a9c7e8',
+    lines:[`The “${folder}” folder — very good, sir. Let me see what’s gathered here, and what wants tidying.`] });
+  state.dialog.review={ folder, notes: notes.map(n=>({where:n.where, title:n.title, text:n.text})) };
+  renderChatView();
+}
+
 export function returnToTitle(){
   persist();
   state.ui=null; hideAllOv(); stopTyping(); stopSpeaking();
@@ -2671,26 +2858,60 @@ export function saveLastChatReplyToArchive(){
    plan the visitor already keeps. The lightweight, no-calendar-yet version
    of BUTLER-SEBASTIAN-PLAN.md's "copy it into the daily plan" — until the
    real calendar layer (v1 steps 3-4) exists, the planner IS the day. */
+/* Pull a clock time off the front of a schedule line so Sebastian's plan can
+   become a real timed day, not just a list of to-dos. Handles "9:00 — Sit",
+   "2:00 PM Call", "10:30-11:30 Writing", "9am Meditate". Returns
+   { start:'HH:MM', end?:'HH:MM', title } or null when there's no leading time
+   (those lines stay untimed to-dos). Kept deliberately forgiving: a butler
+   writes for a person, not a parser, so we read what a person would write. */
+export function parseScheduleTime(raw){
+  const m=raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:(?:-|–|—|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?\s*[-–—:.)]?\s*(.+)$/i);
+  if(!m) return null;
+  const to24=(h,min,ap)=>{
+    h=parseInt(h,10); min=min?parseInt(min,10):0;
+    if(ap){ ap=ap.toLowerCase(); if(ap==='pm'&&h<12) h+=12; if(ap==='am'&&h===12) h=0; }
+    if(h>23||min>59) return null;
+    return String(h).padStart(2,'0')+':'+String(min).padStart(2,'0');
+  };
+  const start=to24(m[1],m[2],m[3]); if(!start) return null;
+  const title=(m[7]||'').trim(); if(title.length<2) return null; // a bare time with no activity isn't schedulable
+  const end=m[4]?to24(m[4],m[5],m[6]||m[3]):undefined; // borrow the start's am/pm if the end leaves it off
+  return { start, end, title };
+}
 export function sendSebastianPlanToToday(){
   const d=state.dialog; if(!d||!d.chat) return;
   const last=[...d.transcript].reverse().find(m=>m.from==='npc' && m.text); if(!last) return;
   const k=todayKey();
   const day=data.planner[k]||(data.planner[k]={ intention:'', ember:'', blocks:DEFAULT_BLOCKS.map(n=>({name:n,state:'waiting'})), sparks:[] });
   if(!day.sparks) day.sparks=[];
-  // a schedule is a list, not a paragraph — keep real, keepable lines and
-  // strip list decoration (bullets, numbering) the way the course parser does
-  const items=last.text.split('\n').map(l=>l.trim())
-    .map(l=>l.replace(/^[-*•]\s*/,'').replace(/^\d+[.)]\s*/,'').trim())
+  if(!data.calendar) data.calendar=[];
+  // strip list decoration first — bullets always, numbering only when a space
+  // follows the "1." so it can't swallow a "9:00" time.
+  const lines=last.text.split('\n').map(l=>l.trim())
+    .map(l=>l.replace(/^[-*•]\s*/,'').replace(/^\d+[.)]\s+/,'').trim())
     .filter(l=>l.length>2 && l.length<160 && !/[?]$/.test(l));
-  if(!items.length) return;
-  // keep the visitor's own reading order — unshift in reverse so the first
-  // line ends up on top
-  items.reverse().forEach(text=>day.sparks.unshift({ts:k, text, source:'Sebastian', done:false}));
+  if(!lines.length) return;
+  const base=Date.now();
+  const newSparks=[]; let events=0;
+  lines.forEach((line,i)=>{
+    const t=parseScheduleTime(line);
+    if(t){ // a timed line becomes a real calendar event for today
+      data.calendar.push({ id:base+i, date:k, start:t.start, end:t.end||'', title:t.title, note:'' });
+      events++;
+    } else { // an untimed line stays a to-do (spark)
+      newSparks.push({ ts:k, text:line, source:'Sebastian', done:false });
+    }
+  });
+  if(!events && !newSparks.length) return;
+  newSparks.reverse().forEach(s=>day.sparks.unshift(s)); // keep the visitor's reading order
   persist(); setHud();
-  logActivity('Sebastian sent '+items.length+' item'+(items.length>1?'s':'')+" to today's plan.");
+  logActivity(`Sebastian set today's plan: ${events} scheduled, ${newSparks.length} to do.`);
   blip(784,.08); setTimeout(()=>blip(988,.1),90);
   const btn=document.getElementById('sebPlanBtn');
-  if(btn){ btn.textContent='✓ Sent '+items.length+" to today's plan"; btn.disabled=true; }
+  if(btn){
+    const parts=[]; if(events) parts.push(events+' scheduled'); if(newSparks.length) parts.push(newSparks.length+' to do');
+    btn.textContent='✓ '+parts.join(' · ')+' — on today'; btn.disabled=true;
+  }
 }
 
 /* ----- The Research Desk (the Workshop) — "research/notes as a mode
@@ -4033,6 +4254,8 @@ Object.assign(window, {
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
   openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
+  openNotesLog, setNotesLogSource, setNotesLogFolder, setNotesLogSearch, toggleNotesLogItem,
+  assignNoteFolder, setNoteTags, askSebastianReviewFolder,
   openComputer, saveLastChatReplyToArchive, sendSebastianPlanToToday,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
