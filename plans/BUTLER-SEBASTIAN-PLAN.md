@@ -25,9 +25,30 @@ into action* (the plan actually gets kept, not just made).
 
 ## Who Sebastian is
 
-A **butler** — warm, competent, a touch dry, genuinely attentive. He runs
-your day and, later, perhaps your correspondence. He is where you go to:
-- **plan the day** (and the week, and what's coming),
+A **butler** — warm, competent, a touch dry, genuinely attentive. A *true*
+butler, which is the important word: a butler doesn't run one drawer of the
+house, he runs the household. Sebastian helps with **home life and work
+alike** — the day, the week, the errands, and equally the projects, the
+deadlines, the professional correspondence. He doesn't treat "your life"
+and "your work" as two apps; a good butler knows they're one day, and keeps
+them as one.
+
+**He is the working counterpart to the Mountain Monk, by design.** The Monk
+sits in the Temple and is there to **guide you** — to help you find the
+intention beneath the day. Sebastian stands in the Workshop and is there to
+**work with you** — to take that intention and actually make the day hold
+it. Guide and butler, Temple and Workshop, intention and action: the two
+residents are the Pavilion's guiding mission (*set intentions; act on
+them*) given two faces. Neither replaces the other; you go to the Monk to
+know what matters, and to Sebastian to get it done.
+
+He is where you go to:
+- **plan the day** (and the week, and what's coming) — home and work
+  together, one calendar, one honest picture,
+- **run the work** — a butler over the whole Workshop: the writing, the
+  research, the grants, the records already living there, plus his own
+  calendar. He knows which desk a thing belongs at and will point you there
+  ("that's the Grant Desk's business, sir — shall I walk you over?"),
 - **hear the truth about it** — "your afternoon's gotten thin, sir," or
   "nothing's on the books tomorrow, and I don't believe that's laziness so
   much as it hasn't been decided yet — shall we decide?",
@@ -102,9 +123,18 @@ Completely new, and the part that needs real design:
   answer to "what does today actually hold" — `upcomingItems()` is the
   natural place to fold calendar events in, so the existing badge and any
   Sebastian summary read from one place, not three.
-- **Where it lives.** Sebastian gets a room or a desk — a butler's study.
-  Opening the calendar and talking to Sebastian are two doors into the same
-  room, the way the Library's shelves and Reader are one place.
+- **Where it lives — the Workshop is his home.** Sebastian is the
+  Workshop's butler, standing on its ground floor among the working desks
+  that already live there (the Writing/Archive Desk, Research Desk, Grant
+  Desk, Caravan Desk, and the Records Hall upstairs). This is deliberate:
+  the Workshop is already *where work happens*, so its butler belongs there,
+  not in a new room built to hold him. It also completes the mirror — the
+  Monk in the Temple, Sebastian in the Workshop, the two poles of the whole
+  place. Talking to Sebastian and opening the calendar are two doors into
+  the same spot: walk up to him for the conversation, or to his desk/ledger
+  for the calendar view, the way the Library's shelves and Reader are one
+  place. He's the concierge who ties the Workshop's separate desks into one
+  household, which is exactly a butler's actual job.
 
 ## The advisory behaviour — the actual "human interaction"
 
@@ -133,13 +163,73 @@ built). Nothing silent, nothing pushed.
 
 ## Staging — what's v1, what's later
 
-**v1 — the last key before beta:**
-- The `BUTLER_CHARTER` and Sebastian as a real chat resident.
-- The calendar data model + a month and day view + event creation.
-- Calendar events folded into `upcomingItems()` so the due badge is honest.
-- Sebastian's engagement-time advisory read (overbooked / empty /
-  neglected / well-kept), computed on visit, grounded in real state.
-- His room/desk in the Pavilion.
+**v1 — the last key before beta, in build order (grounded in the real
+code, so the next session can just start at step 1):**
+
+1. **`BUTLER_CHARTER`** — in `src/game/data/charter.js`, a third charter
+   beside `CHARTER` and `WORK_CHARTER`. Warm, candid, a touch dry; fully
+   secular and goal-agnostic; treats home and work as one day; declines
+   real harm plainly; never performs personality at the expense of being
+   useful.
+2. **Sebastian as a chat resident** — add a `sebastian` entry to
+   `CHAT_AGENTS` in `ui/overlays.js`: a `label`, a `systemPrompt()` that
+   stitches `BUTLER_CHARTER` + the computed day read (step 6) +
+   `pastAsksBlock('sebastian')`, an `errorLine`, and his own memory key.
+   Give him an avatar in `AGENT_AVATAR` (🎩 or 🛎). Then place him as an NPC
+   on the Workshop ground floor (`buildWorkshop` in `scenes.js`, currently
+   `npcs:[]`) with `ai:true, aiAgent:'sebastian'` and a distinct
+   color/glow. Talking to an AI NPC already routes through `openChatDialog`
+   (see `main.js` `onAction`), so this needs **no new chat plumbing** — the
+   same path Quill, the Steward, and the Monk already use.
+3. **Calendar data model** — add `calendar:[]` to `freshData()` in
+   `entities.js` (migration-safe: an older save with no field reads as
+   empty). An event is `{ id, date:'YYYY-MM-DD', start?:'HH:MM', end?:'HH:MM',
+   title, note?, kind? }`. Local, in the same save, exported/imported with
+   everything else — no new store.
+4. **Calendar UI + his desk** — a new `#calendarOv` overlay and
+   `openCalendar()` in `overlays.js`: a **month grid** (click a day → a
+   **day/agenda view**) and an **add-event form**, reusing the existing
+   overlay/panel CSS. Add a `calendar` station at Sebastian's desk in
+   `buildWorkshop`, a `drawStation` case in `render.js`, and an `onAction`
+   dispatch in `main.js` — the exact pattern the Records Hall just followed.
+   Two doors, one spot: the NPC for the conversation, the desk for the grid.
+5. **One source of truth for the day** — extend `upcomingItems()` in
+   `entities.js` to include calendar events that carry a date, so the HUD
+   due badge and Sebastian's read both draw from one place, not three.
+   Follow the archived-course precedent: only surface what should honestly
+   nag.
+6. **Sebastian's advisory read** — a pure function (say `butlerDayRead()`)
+   that computes, from `data.calendar` + `data.planner[today]` +
+   `dueSoon()` + `openSparks()`, the **overbooked / empty / neglected /
+   well-kept** state as plain text. It feeds his `systemPrompt` grounding
+   *and* backs a short scripted line shown when you open the calendar — so
+   the advisory still works with **no AI connected**, and simply gets richer
+   when one is. Computed only on engagement, never on a timer.
+
+**Definition of done for v1:** you can walk into the Workshop, open the
+calendar at Sebastian's desk, add real events, see them reflected in the
+due badge, and have Sebastian — in his own warm, secular voice — tell you
+the honest shape of your day when you ask him, all without a single
+background call.
+
+### The honest cost, and why it's worth it (the user's own note)
+
+Sebastian *is* more AI than the Pavilion has leaned on before: every
+advisory read can be a real model call, and a resident you consult often is
+a resident the machine works for often. **That's real hardware strain, and
+it's named plainly here** the way `AI-INTEGRATION-NOTES.md` names every AI
+cost — no pretending it's free. But it's the doorway the whole project has
+been walking toward: genuine **AI–human interaction**, a resident you
+actually *work with*, not a box you query. Two things keep that cost honest
+rather than runaway:
+- **On engagement, never a timer.** The strain happens when *you* choose to
+  talk to him, and stops the moment you walk away. No background model, no
+  ambient nag — the ceiling on the cost is your own attention.
+- **This is the sleeper car paying off, not straining against it.** The
+  plain-pixel world was kept deliberately cheap (`LIBRARY-GROWTH-PLAN.md`,
+  `CLAUDE.md`) precisely so the machine's real resources were free for
+  exactly this — a real local model carrying a real working relationship.
+  Sebastian is what those saved resources were *for*.
 
 **Later — bigger, flagged honestly:**
 - **Email and professional exchanges.** This is the one part that breaks
