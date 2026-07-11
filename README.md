@@ -134,13 +134,19 @@ bench just outside the
 door.
 
 **AI residents** — connect a local model (Ollama) and Quill, the
-Steward, the Mountain Monk, and the Computer (a full JARVIS-style
-terminal) become real, streaming conversations, grounded in the actual
-shelved texts and the charter. The Monk keeps his own quarters in the
-Pavilion Keep now, north of the Grounds, for conduct/meaning/practice
-specifically — daily-life help is the Steward's place, including a real
-"Ask the Steward" at the Writing Desk that helps plan your actual day,
-grounded in what's due soon, how recent days went, and any "sparks"
+Steward, the Mountain Monk, the Computer (a full JARVIS-style terminal),
+and now **Butler Sebastian** become real conversations, grounded in the
+actual shelved texts, your own day, and the charter. The three main
+residents divide the work cleanly: **Quill teaches** (the Library, and
+turning a conversation into a real plan), **the Monk guides** (conduct,
+meaning, and finding your own intention — he keeps his own quarters in
+the Pavilion Keep, north of the Grounds, for that specifically), and
+**Sebastian works with you** — the butler in the Workshop who helps run
+the day itself. Talk to Sebastian and he reads the honest shape of your
+day (today's plan, what's due, your still-open intentions) and can drop a
+schedule he drafts straight into your daily plan; daily-life help is also
+the Steward's place, including a real "Ask the Steward" at the Writing
+Desk grounded in what's due soon, how recent days went, and any "sparks"
 you've brought over from a book's reading notes. The Monk himself
 always runs on the single best local model actually installed, with
 real room to think — a standing rule, not a default, held separately
@@ -566,19 +572,30 @@ and beta #24's "priority shelf" closed in favor of letting the local AI
 advise on what to read given the visitor's real situation, uploaded books
 included.
 
-**The last key before beta: Butler Sebastian** — a calendar that's a
-person, not an app. A butler you go to who runs your day, plans it with
-you, and tells you the truth about it ("your afternoon's thin," "nothing's
-on the books tomorrow — shall we fix that?"). The insight: calendars go
-unused for lack of *human interaction*, not features. Full design in
-[`BUTLER-SEBASTIAN-PLAN.md`](plans/BUTLER-SEBASTIAN-PLAN.md) — a new
-`BUTLER_CHARTER` (warm like the residents, secular like the work tools), a
-real calendar layer folded into the existing due-date spine, and advice
-that comes on engagement, never a background timer. Named as the piece
-that makes the Pavilion ready to show someone who isn't Zac.
+**The last key before beta: Butler Sebastian — chat now built, calendar
+next.** Sebastian is the third resident, and the division is now clean:
+**Quill teaches** (the Library, turning a talk into a plan), **the Monk
+guides** (meaning, conduct, finding your intention), and **Sebastian
+works with you** — the helper who actually gets the day done. He lives in
+the **Workshop**, the working counterpart to the Monk's Temple, and you can
+talk to him now: a new `BUTLER_CHARTER` (warm like the residents, secular
+and goal-agnostic like the work tools), grounded in the real state of your
+day (today's plan, what's due, your still-open intentions), with a **"send
+this plan to today"** button that drops a schedule he drafts straight into
+your daily plan — and read-aloud already lets you *listen* to it. What's
+still to come (his v1's back half): the real **calendar layer** folded into
+the existing due-date spine, and his engagement-time advisory read ("your
+afternoon's thin," "nothing's on the books tomorrow — shall we fix
+that?") — advice on engagement, never a background timer. Full design and
+build order in [`BUTLER-SEBASTIAN-PLAN.md`](plans/BUTLER-SEBASTIAN-PLAN.md).
+Named as the piece that makes the Pavilion ready to show someone who isn't
+Zac. The honest tradeoff, stated in the plan: he's more AI than the
+Pavilion has leaned on, real hardware cost — but bounded by no-background-
+polling, and exactly what the sleeper-car resource choice was saving room
+for.
 
 1. **Grow the Library toward a much bigger real dataset** — actively in
-   progress, 44 live texts across 9 shelves; see
+   progress, 49 live texts across 9 shelves; see
    [`LIBRARY-GROWTH-PLAN.md`](plans/LIBRARY-GROWTH-PLAN.md) for the curated
    source list and which connectors (Wikisource, OpenStax, Internet
    Archive) are worth building next.

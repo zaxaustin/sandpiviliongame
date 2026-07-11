@@ -182,3 +182,101 @@ progress by the user), #24 part 2's shelf-taxonomy question (a tenth
 kind of shelf, or in-world signage?), live reply streaming as the
 highest-value latency fix, and the Course Board / Tool Commons stages
 that are written down and waiting.
+
+================================================================
+PART 6 — a long continuation session: the phone, the board, the books,
+and the beginning of Butler Sebastian
+================================================================
+
+The same session ran long into a second stretch of real work. Everything
+below was built and checked (syntax, the smoke test, handler/ID cross-
+checks, and a unit test of the AI parse logic) — verification stayed
+static on purpose after a headless-browser test harness was dropped at the
+user's fair objection to pulling in anything third-party mid-build.
+
+- The POCKET PHONE. A resident conversation can now be minimized with a 📱
+  button into a small floating card, freeing the player to walk the grounds
+  or read a book while a slow local model thinks; the card buzzes when the
+  reply lands and taps back into the same conversation intact. A display
+  trick (state.dialog stays alive while the overlay hides), not a device —
+  the real in-world phone is written up as a future piece in PHONE-PLAN.md,
+  bound by the same no-background-polling rule. Scoped exactly this way at
+  the user's direction ("just a display function... a plan for a real phone
+  later").
+
+- COURSE BOARD STAGE 1 (COURSE-BOARD-PLAN.md). A real category axis
+  (Practice/Study/Skill/Work/Health/Personal), a search box + category
+  chips mirroring the Index panel's own pattern, and a real ARCHIVE state
+  distinct from deletion — a finished or set-aside course becomes kept
+  history instead of being erased, and archived courses stop nagging the
+  due badge (upcomingItems() now skips them). AI-drafted courses suggest a
+  fitting category too. All personal/local; sharing is Stage 2, untouched.
+
+- READ-ALOUD ±10s SKIP (beta #6). The Web Speech API can't seek, so it's
+  done by tracking word boundaries and re-speaking from a computed offset —
+  approximate, but it feels like a podcast skip. Buttons appear only while
+  actually reading.
+
+- FIVE BOOKS SHELVED, live. Franklin's Autobiography, Emerson's Essays, Sun
+  Tzu's Art of War, the full Zhuangzi, and Aesop's Fables — added to
+  seed.js (the version-controlled source of truth) AND promoted into the
+  live Supabase library_documents table via the connected Supabase MCP
+  (verified: 5 rows inserted, all search-indexed). This surfaced and
+  documented the real "sync gotcha": the app uses Supabase, whose rows
+  replace the seed entirely, so seed edits alone don't appear live — the
+  promote step is required. Library is 49 texts now, up from 44.
+
+- DECISIONS RECORDED (the user's own calls):
+  * The foundation/extras UNLOCK MECHANIC: walk up to an extra, see the
+    requirement at the door, and unlock it either by learning-what-it-does-
+    quickly or by walking a short learning path. Library + Temple stay
+    ungated. First-arrival tutorial deferred to beta. In
+    FOUNDATION-AND-EXTRAS.md — a new first-pass triage of every feature into
+    foundation / opt-in extra / later, anchored on the fixed mission (set
+    intentions in the Temple's Eightfold Path; act on them via the Library
+    and working rooms).
+  * Beta #24 closed: no static "priority shelf" — the local AI advises what
+    to read given the visitor's real situation, uploaded books included.
+  * The Computer overlaps Sebastian (both AI work-assistants) — logged as a
+    real fork in BUTLER-SEBASTIAN-PLAN.md: fold the Computer into Sebastian
+    (recommended) or keep it as a device beside him.
+
+- LEARNING PATH Stage 17 added: a hands-on capstone to build live reply
+  streaming yourself, layer by layer (the stream:true waterfall, the
+  provider, the buffering Electron bridge, the existing typewriter) — the
+  user's "fun way to learn," since watching the model think live isn't
+  shipping as a feature yet.
+
+- BUTLER SEBASTIAN — the last key before beta. Named directly as the piece
+  that turns "a place that helps my day" into "the place I manage my day
+  from." A calendar that's a PERSON, not an app: the insight is that
+  calendars go unused for lack of human interaction, not features. Given
+  his own plan (BUTLER-SEBASTIAN-PLAN.md), his home in the WORKSHOP (the
+  working counterpart to the Monk's Temple), and a clean three-resident
+  division stated by the user: Quill teaches, the Monk guides, Sebastian
+  works with you. v1 STEPS 1-2 BUILT this session:
+  * BUTLER_CHARTER — a third charter beside CHARTER/WORK_CHARTER: warm and
+    in-character like the residents, but secular and goal-agnostic like the
+    work tools (personality is the feature, but never steers a secular day
+    toward the dharma).
+  * Sebastian as a real chat resident, an AI NPC on the Workshop ground
+    floor reusing the existing chat path (no new plumbing), grounded in a
+    butlerDayRead() of the real planner + upcoming due items + open sparks,
+    computed only on visit (no-background-polling).
+  * A "Send this plan to today" quick action that drops each line of a
+    schedule he drafts into the day's planner as sparks — the no-calendar-
+    yet version of "copy it into the daily plan." Listening works via the
+    chat's existing read-aloud button.
+  Still to build (v1 steps 3-6): the real calendar data model + month/day
+  views, folding events into upcomingItems(), and the advisory read as its
+  own spoken line. The honest tradeoff is named in the plan: Sebastian is
+  more AI than the Pavilion has leaned on (real hardware cost), but bounded
+  by no-background-polling and exactly what the sleeper-car resource choice
+  was saving room for — the doorway to real AI-human interaction.
+
+Docs squared away at the user's request: README's "what it can do today"
+and "what's next" both updated to reflect the phone, Course Board Stage 1,
+the read-aloud skip, the 49-text Library, and Sebastian; every plan touched
+this session (COURSE-BOARD, PHONE, FOUNDATION-AND-EXTRAS, LIBRARY-GROWTH,
+BUTLER-SEBASTIAN, BETA-TESTING-FEEDBACK) updated to match reality. Memory
+updated with Sebastian as the beta gate.

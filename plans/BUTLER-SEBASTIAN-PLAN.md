@@ -42,6 +42,12 @@ residents are the Pavilion's guiding mission (*set intentions; act on
 them*) given two faces. Neither replaces the other; you go to the Monk to
 know what matters, and to Sebastian to get it done.
 
+Said plainly, the three main residents divide the work: **Quill is the
+teacher** (the Library, and turning a conversation into a real plan), **the
+Monk is the guide** (meaning, conduct, and finding your intention — the
+preacher, affectionately), and **Sebastian is the helper and worker** (the
+day itself, and getting it done). Three doors: learn, orient, act.
+
 He is where you go to:
 - **plan the day** (and the week, and what's coming) — home and work
   together, one calendar, one honest picture,
@@ -136,6 +142,33 @@ Completely new, and the part that needs real design:
   place. He's the concierge who ties the Workshop's separate desks into one
   household, which is exactly a butler's actual job.
 
+## Open decision: the Computer overlaps Sebastian — merge or co-locate
+
+Raised directly 2026-07-10: the **Computer** (the JARVIS-style terminal
+assistant, currently in the Study, on `WORK_CHARTER`) does much of what
+Sebastian does — draft a plan from a rough idea, think a task through, save
+a result. Two AI work-assistants is one too many, especially for a
+newcomer and for the foundation-vs-extras cleanliness. Two ways to resolve
+it, to decide when the calendar half is built:
+
+- **(a) Fold the Computer into Sebastian (recommended).** Retire the
+  separate Computer; Sebastian absorbs its real abilities (draft/think/save
+  a plan). One assistant, one clear "who do I talk to about my day and
+  work." Simpler for everyone, and it fits the three-resident division
+  cleanly: teacher / guide / worker, no fourth overlapping voice. Cost: the
+  Computer's Study station and its `computer` `CHAT_AGENTS` entry get
+  migrated or removed, and its "save to Archive" quick action moves to
+  Sebastian.
+- **(b) Keep the Computer as a device beside Sebastian.** The butler and
+  his terminal, both in the Workshop — the Computer stays a distinct, more
+  technical surface for people who want a plain tool, standing next to the
+  person who gives it a voice. Cost: the redundancy stays, just co-located
+  instead of merged.
+
+Recommendation: **(a)**, unless the plain-terminal feel turns out to be
+worth keeping as its own thing. Either way the Computer likely moves from
+the Study to the Workshop, next to Sebastian.
+
 ## The advisory behaviour — the actual "human interaction"
 
 When you come to Sebastian (or open the calendar), he computes, right then,
@@ -164,14 +197,24 @@ built). Nothing silent, nothing pushed.
 ## Staging — what's v1, what's later
 
 **v1 — the last key before beta, in build order (grounded in the real
-code, so the next session can just start at step 1):**
+code). Steps 1–2 built 2026-07-10; steps 3–6 are the next session's start.**
 
-1. **`BUTLER_CHARTER`** — in `src/game/data/charter.js`, a third charter
+> **Built so far:** the `BUTLER_CHARTER`, Sebastian as a real chat resident
+> standing in the Workshop (an AI NPC reusing the existing chat path), his
+> `butlerDayRead()` grounding (real planner + upcoming due + open sparks,
+> computed only on visit), and a **"Send this plan to today"** quick action
+> that drops each line of a schedule he drafts into the day's planner as
+> sparks. Listening to him works via the chat's existing read-aloud button.
+> **Still to build:** steps 3–6 — the real calendar data model and views,
+> folding events into `upcomingItems()`, and surfacing the advisory read as
+> its own spoken line (right now it only grounds his chat replies).
+
+1. **`BUTLER_CHARTER`** ✅ — in `src/game/data/charter.js`, a third charter
    beside `CHARTER` and `WORK_CHARTER`. Warm, candid, a touch dry; fully
    secular and goal-agnostic; treats home and work as one day; declines
    real harm plainly; never performs personality at the expense of being
    useful.
-2. **Sebastian as a chat resident** — add a `sebastian` entry to
+2. **Sebastian as a chat resident** ✅ — add a `sebastian` entry to
    `CHAT_AGENTS` in `ui/overlays.js`: a `label`, a `systemPrompt()` that
    stitches `BUTLER_CHARTER` + the computed day read (step 6) +
    `pastAsksBlock('sebastian')`, an `errorLine`, and his own memory key.
