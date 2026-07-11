@@ -114,9 +114,17 @@ npm test           # config sanity check — scenes, warps, seed data (no browse
 Same `npm install` first, then:
 
 ```
-npm run electron:dev     # a real native window, live — the fastest way to just try it
-npm run electron:build   # produces an actual Windows installer (.exe) in release/
+npm run electron:dev         # a real native window, live — the fastest way to just try it
+npm run electron:build       # produces an actual Windows installer (.exe) in release/
+npm run electron:build:beta  # the SHAREABLE build: same installer, but local-only —
+                             # no Supabase keys baked in, even if .env.local has them
 ```
+
+The `:beta` variant is the one to hand to another person: it builds with
+`.env.beta` (committed, deliberately empty), so Vite's mode priority
+guarantees the dev machine's own Supabase/MinIO config never reaches the
+installer — verified by grepping the built bundle for the project ref and
+key (zero hits). See [`BETA-BUILD-PLAN.md`](plans/BETA-BUILD-PLAN.md).
 
 `electron:dev` is the quickest path if you just want to see it running
 as its own window right now, no install step. `electron:build` is the
@@ -630,6 +638,34 @@ Hall today shows the *Pavilion's* hand-kept history, not *your* notes; the
 real want is one place to see the five scattered personal-note stores
 gathered and organised for the long term, with Sebastian as concierge —
 likely repurposing the Records Hall to hold it).
+
+**Done since then (also 2026-07-11): the beta build, actually built — on
+the `beta` branch.** `BETA-BUILD-PLAN.md` walked end to end in one session:
+**(1) the personal library** — every Caravan-queue item now has a "👤 Shelve
+on Your Shelf" button, the whole no-infrastructure local path: the catalog
+card lives in `data.personalLibrary` (save-migrated), the full text lives as
+a plain file in the desktop app's own data folder via three new bridge
+handlers (slug-locked names, no path traversal), with an inline-in-save
+browser fallback that refuses oversized books honestly; a real **YOUR SHELF**
+station stands in the Library by the reading nook (`openShelf('Personal')`),
+personal books carry a 👤 badge + "Remove from Your Shelf" in the Reader,
+ride along in the Index/Quill's grounding automatically via a `Store`
+getter-merge, and never mix into the six certified shelf blocks — the
+provenance split, built. **(2) local-only build mode** — `.env.beta`
+(committed; it *empties* the service vars) + `build:beta`/
+`electron:build:beta` scripts; the built bundle verified to contain **zero**
+mentions of the Supabase project ref, key, or `supabase.co`. **(3) first
+arrival** — a welcome overlay (keys, the three doors, how residents start
+talking, "nothing phones home") that auto-shows exactly once on a genuinely
+fresh save, then lives behind the title screen's "🧭 New here?" button.
+**(4) the model on-ramp** — the tiered pull guide (modest → strong machines)
+in `PROTOCOLS.md` Protocol 2 and as a 📏 collapsible in the Connections
+panel; `bestLocalModel()` deliberately untouched — the Monk keeps the
+largest model, guidance not downgrade. A real installer built from all of
+it: `release/Sand Pavilion Setup 0.1.0-beta.1.exe`, unsigned on purpose.
+**Still open, stated honestly:** a live click-through of shelve→read in a
+running window, and the clean-machine install test (§6.8) — the one thing
+only different hardware can prove.
 
 **The last key before beta: Butler Sebastian — v1 now code-complete
 (2026-07-11).** Sebastian is the third resident, and the division is

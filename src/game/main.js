@@ -6,7 +6,7 @@ import {
   blocked, facingTile, opposite, MOVE_TIME, dueSoon, todayKey,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome } from './ui/overlays.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -71,6 +71,10 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   document.getElementById('title').style.display='none';
   if(state.ui) closeUI(); // guard: don't enter the grounds with the Connections panel left open
   blip(659,.08); setTimeout(()=>blip(880,.1),90);
+  // First arrival, genuinely fresh save only (no saved position yet) — the
+  // orientation shows exactly once, then lives behind the title screen's
+  // "New here?" button forever after. Never re-shown on its own.
+  if(!data.seenWelcome && !data.pos){ data.seenWelcome=true; persist(); openWelcome(); }
 });
 document.getElementById('saveMode').textContent =
   Store.mode==='local' ? '● Saving to this device — your days, courses, and reading survive reloads.'
@@ -78,6 +82,7 @@ document.getElementById('saveMode').textContent =
 refreshAIStatus();
 refreshLibraryStorageStatus();
 document.getElementById('connBtn').addEventListener('click', openConnections);
+document.getElementById('welcomeBtn').addEventListener('click', openWelcome);
 document.getElementById('menuBtn').addEventListener('click', openMenu);
 
 /* ---------- HUD ---------- */
@@ -137,6 +142,7 @@ function onAction(){
     else if(st.kind==='review') openReviewQueue();
     else if(st.kind==='records') openRecordsHall();
     else if(st.kind==='calendar') openCalendar();
+    else if(st.kind==='yourshelf') openShelf('Personal');
     else if(st.kind==='ledger') openDialog('THE LEDGER',["Real numbers, not general encouragement — pairs with Wealth of\nNations and Ten Acres Enough, already on the Library shelves.\nNot open yet. Still just framing and good intentions."]);
     else if(st.kind==='makersbench') openDialog("THE MAKER'S BENCH",["A home for real-world physical projects — a build, a repair,\na garden. Distinct from the Grant Desk's funding focus and\nthe Research Desk's thinking-through focus. Not open yet."]);
     else if(st.kind==='greenhouse') openDialog('THE GREENHOUSE',["Something that visibly grows over real calendar time, not\ngame-time — the same patience the four postures and the\nDaoist shelf already teach, made literal. Not open yet."]);

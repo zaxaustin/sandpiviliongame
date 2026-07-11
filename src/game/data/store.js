@@ -12,6 +12,23 @@ import { supabase } from './supabase.js';
    already uses, applied here to data instead of a chat reply. */
 let libraryDocs = SEED_LIBRARY;
 let librarySource = 'seed';
+
+/* ----- The personal shelf — books the user added themselves, living in
+   their own save (and, on desktop, the app's own data folder), never in
+   Supabase or the seed. Registered as a getter rather than imported
+   directly because entities.js (which owns `data`) already imports this
+   file — a function handed in at startup breaks the cycle. Personal docs
+   are appended after the certified library everywhere, and each carries
+   `personal:true` so every surface can say plainly whose shelf it's on. */
+let personalDocsFn = null;
+export function registerPersonalDocs(fn){ personalDocsFn = fn; }
+function personalDocs(){
+  try{ return (personalDocsFn && personalDocsFn()) || []; }catch(e){ return []; }
+}
+function mergedDocs(){
+  const p = personalDocs();
+  return p.length ? libraryDocs.concat(p) : libraryDocs;
+}
 const libraryReady = (async () => {
   if(!supabase) return;
   try{
@@ -60,9 +77,10 @@ export const Store = (() => {
     // (e.g. the title screen's status line) wait for the real answer.
     get libraryMode(){ return librarySource; },
     libraryReady,
-    allDocs(){ return libraryDocs; },
-    listDocs(tradition){ return libraryDocs.filter(d => d.tradition === tradition); },
-    getDoc(slug){ return libraryDocs.find(d => d.slug === slug) || null; },
+    registerPersonalDocs,
+    allDocs(){ return mergedDocs(); },
+    listDocs(tradition){ return mergedDocs().filter(d => d.tradition === tradition); },
+    getDoc(slug){ return mergedDocs().find(d => d.slug === slug) || null; },
 
     /* Real search — Postgres full-text search (tsvector + ts_rank) via
        the search_library_documents() function, word-stemmed and ranked

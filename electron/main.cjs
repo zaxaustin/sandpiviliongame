@@ -148,6 +148,39 @@ ipcMain.handle('desktop-save-file', async (event, { defaultName, content }) => {
   }
 });
 
+/* BETA-BUILD-PLAN.md §5(A) — the personal Library's full-text storage,
+   without Docker or MinIO: plain .txt files under the app's own data
+   folder (app.getPath('userData')/library). The book genuinely lives on
+   the user's disk, survives reinstalls of the app itself, and needs no
+   running service at all. Names are locked to a slug-safe character set
+   so a crafted save can't turn this into a path-traversal hole. */
+const libraryDir = () => path.join(app.getPath('userData'), 'library');
+function safeLibraryName(name){
+  return typeof name === 'string' && /^[a-z0-9][a-z0-9._-]{0,120}\.txt$/i.test(name) && !name.includes('..');
+}
+ipcMain.handle('desktop-library-write', async (event, { name, content }) => {
+  if(!safeLibraryName(name) || typeof content !== 'string') return { ok:false, error:'bad name or content' };
+  try{
+    await fs.mkdir(libraryDir(), { recursive: true });
+    await fs.writeFile(path.join(libraryDir(), name), content, 'utf-8');
+    return { ok:true };
+  }catch(e){ return { ok:false, error:String(e) }; }
+});
+ipcMain.handle('desktop-library-read', async (event, { name }) => {
+  if(!safeLibraryName(name)) return { ok:false, error:'bad name' };
+  try{
+    const text = await fs.readFile(path.join(libraryDir(), name), 'utf-8');
+    return { ok:true, text };
+  }catch(e){ return { ok:false, error:String(e) }; }
+});
+ipcMain.handle('desktop-library-delete', async (event, { name }) => {
+  if(!safeLibraryName(name)) return { ok:false, error:'bad name' };
+  try{
+    await fs.unlink(path.join(libraryDir(), name));
+    return { ok:true };
+  }catch(e){ return { ok:false, error:String(e) }; }
+});
+
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if(process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if(BrowserWindow.getAllWindows().length===0) createWindow(); });

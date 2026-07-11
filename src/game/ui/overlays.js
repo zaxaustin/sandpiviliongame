@@ -792,7 +792,10 @@ export async function refreshLibraryStorageStatus(){
   const el=document.getElementById('libMode');
   if(!el) return;
   await Store.libraryReady;
-  const usesStorage=Store.allDocs().some(d=>d.doc.fullText && d.doc.fullText.storage);
+  // Only MinIO-style pointers ({bucket,key}) need a running service — a
+  // personal book's {personal:'…'} pointer is a plain file the desktop app
+  // reads itself, so it must never trigger the MinIO warning.
+  const usesStorage=Store.allDocs().some(d=>d.doc.fullText && d.doc.fullText.storage && d.doc.fullText.storage.bucket);
   if(!usesStorage){ el.textContent=''; return; }
   const base=(import.meta.env && import.meta.env.VITE_MINIO_ENDPOINT) || 'http://localhost:9000';
   try{
@@ -942,6 +945,22 @@ function renderConnections(){
       server on your own machine) never sends anything anywhere else; a ☁ cloud connection sends
       your conversation — and whatever it's grounded in — to that provider's servers, same as
       using their own app would. Both are real options here; just know which one you're using.</div>
+    <details style="margin:4px 0 10px">
+      <summary style="cursor:pointer;color:#e0a43c;font-size:13px">📏 Which model fits my machine? (the tiered guide)</summary>
+      <div class="meta" style="margin-top:8px">
+        Pick by the machine you actually have, not the biggest number:<br><br>
+        <b>Modest</b> (no real GPU, 8GB RAM) — <code>ollama pull llama3.2:1b</code>. Snappy, simple, everything works.<br>
+        <b>Everyday</b> (most laptops, 8–16GB RAM) — <code>ollama pull llama3.2</code>. The dependable default.<br>
+        <b>Capable</b> (real GPU or 16GB+ RAM) — an 8B instruct model, e.g. <code>ollama pull llama3.1:8b</code>. Deeper, still reliable.<br>
+        <b>Strong</b> (12GB+ VRAM) — an 8–14B instruct, plus optionally <i>one</i> "thinking" model.<br><br>
+        Two Pavilion facts worth knowing: <b>the Mountain Monk always claims the single largest
+        model installed</b> — the biggest model on your machine is effectively his, and his
+        reasoning streams live so slow-and-profound is watchable, not a dead panel. <b>Everyone
+        else runs on the connection's default</b> — keep that a plain instruct model and the whole
+        place feels alive. Start small; only move up a tier if replies feel thin. The full guide
+        lives in <code>PROTOCOLS.md</code> (Protocol 2).
+      </div>
+    </details>
     <details style="margin:4px 0 14px">
       <summary style="cursor:pointer;color:#e0a43c;font-size:13px">❔ What's actually different between models, and where does my data go?</summary>
       <div class="meta" style="margin-top:8px">
@@ -1032,7 +1051,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -1520,6 +1539,47 @@ export function askSebastianReviewFolder(){
   renderChatView();
 }
 
+/* ----- First-arrival orientation (BETA-BUILD-PLAN.md §6.5) — the honest
+   minimum someone who isn't the builder needs on day one. Auto-shown
+   exactly once, only for a genuinely fresh save (see main.js), and
+   findable forever after via the title screen's "New here?" button —
+   never a recurring popup; the standing automation rule applies to
+   orientation the same as everything else. */
+export function openWelcome(){
+  state.ui='welcome'; hideAllOv();
+  document.getElementById('welcomePanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🧭 Welcome to the Sand Pavilion</h2>
+    <div class="meta">A small world you walk around in — a Library with real, readable books, a Study
+      for planning your day, a Workshop where a butler helps you run it. It looks like a game because
+      a game is a good shape for a place. Everything saves to this device; nothing phones home.</div>
+    <h3>Getting around</h3>
+    <p><b>Arrows / WASD</b> walk · <b>E</b> talks, reads, fishes · <b>Esc</b> closes anything
+      (worst case, you close a panel and try again — nothing here breaks by clicking around) ·
+      <b>M</b> to sit for a while.</p>
+    <h3>Three doors worth knowing</h3>
+    <p><b>The Library</b> — south of the Grounds. Face any shelf, press E, read a whole real book.
+      The small case by the reading nook is <b>Your Shelf</b>: books you bring in yourself.<br>
+      <b>The Study</b> — through the Library, or its own south door. The Writing Desk plans your day;
+      the Course Board holds the long paths.<br>
+      <b>The Workshop</b> — east side. Sebastian keeps your calendar there, and the desks
+      (Archive, Research, Grants, the Caravan) are where real work happens.</p>
+    <h3>Making the residents talk</h3>
+    <p>Quill, the Monk, and Sebastian become real conversations once a local AI runs on
+      <i>your</i> computer — that's the one piece of real setup here, and it's free. The short
+      version: install <b>Ollama</b> (ollama.com), pull a model, and check
+      <b>⚙ Manage AI connections</b>. The full walk-through — written for someone who's never
+      done anything like it — is the book <i>“How to Complete Your Own Pavilion”</i> on the
+      Library's Practice shelf.</p>
+    <p class="meta">Skippable, all of it. The Pavilion works with no setup at all — walk, read,
+      plan, fish. The AI and the books you add are how it becomes yours.</p>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" onclick="closeUI()">Enter the Grounds</button>
+      <button class="btn ghost" onclick="openConnections()">⚙ Set up an AI connection</button>
+    </div>`;
+  showOv('welcomeOv');
+}
+
 export function returnToTitle(){
   persist();
   state.ui=null; hideAllOv(); stopTyping(); stopSpeaking();
@@ -1544,7 +1604,7 @@ export function shelfTraditionFor(x,y){
   const side = x<8 ? 0 : 1;
   return [['Theravada','Mahayana'],['Daoism','Practice'],['Science','Classics']][row][side];
 }
-const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Classics:150 };
+const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Classics:150, Personal:46 };
 export function openShelf(tradition){
   state.ui='shelf'; state.shelfTradition=tradition; state.shelfIndex=0; hideAllOv();
   document.getElementById('shelfTitle').textContent='Shelf · '+tradition;
@@ -1577,7 +1637,11 @@ function renderShelf(){
         <button class="btn ghost" onclick="openIndex()">📑 Full Index</button>
       </div>
       <div class="blHint">◀ ▶ browse the shelf · Enter / E open</div>
-    </div>` : '<p>This shelf waits for its first text.</p>';
+    </div>` : (state.shelfTradition==='Personal'
+      ? `<p>Your own shelf — empty so far, and that's the design: you fill it. Bring a text in at
+         the Caravan Desk in the Workshop (drop a .txt file, paste Caravan output, or browse
+         SuttaCentral), then press <b>👤 Shelve on Your Shelf</b>. It lands here, marked as yours.</p>`
+      : '<p>This shelf waits for its first text.</p>');
 }
 export function selectBook(i){
   state.shelfIndex=i; renderShelf(); blip(600,.03,'square',.02);
@@ -1602,7 +1666,9 @@ export function openReader(slug){
   state.ui='reader'; state.currentDoc=slug; state.fullTextView=null; state.bookNotesShowAll=false; hideAllOv();
   document.getElementById('rdTitle').textContent=d.title;
   document.getElementById('rdMeta').innerHTML =
-    `<b>${esc(d.tradition)}</b> · License: <b>${esc(d.license)}</b> · Source: <b>${esc(d.attribution||'')}</b><br>${esc(d.source_url)}`;
+    `<b>${esc(d.tradition)}</b> · License: <b>${esc(d.license)}</b> · Source: <b>${esc(d.attribution||'')}</b><br>${esc(d.source_url)}`
+    + (d.personal ? `<br><span class="badge">👤 personal — Your Shelf, not the certified commons</span>
+        <button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px" onclick="removePersonalBook('${esc(d.slug)}')">Remove from Your Shelf</button>` : '');
   document.getElementById('rdBody').innerHTML =
     `<p class="rdSummary">${esc(d.doc.summary)}</p>` +
     d.doc.sections.map(s=>`<h3>${esc(s.heading)}</h3><p>${esc(s.body)}</p>`).join('');
@@ -1731,6 +1797,25 @@ export async function openFullText(slug){
   document.getElementById('rdFullTextView').style.display='block';
   document.getElementById('rdFullTextPageNum').textContent='';
   let text = ft.text;
+  // A personal book shelved in the desktop app — its text is a plain file
+  // in the app's own data folder, read back through the same bridge that
+  // wrote it. No server involved, not even a local one.
+  if(!text && ft.storage && ft.storage.personal){
+    document.getElementById('rdFullTextBody').textContent='Loading from this device…';
+    const bridge=window.desktopBridge;
+    if(bridge && bridge.libraryRead){
+      try{
+        const res=await bridge.libraryRead(ft.storage.personal);
+        if(res && res.ok) text=res.text;
+      }catch(e){ /* falls through to the honest message below */ }
+    }
+    if(!text){
+      document.getElementById('rdFullTextBody').textContent =
+        "Couldn't load this personal book's text. It was shelved in the desktop app, where its file lives — "
+        +"open it there to read it (or add the text again here).";
+      return;
+    }
+  }
   if(!text && ft.storage){
     document.getElementById('rdFullTextBody').textContent='Loading from local storage…';
     try{
@@ -3933,6 +4018,7 @@ function renderReviewQueue(){
           ${item.status==='pending' ? `
             <button class="btn" onclick="approveReviewItem(${item.id})">Approve</button>
             <button class="btn ghost" onclick="rejectReviewItem(${item.id})">Reject</button>` : ''}
+          <button class="btn ghost" id="shelfPersonalBtn${item.id}" onclick="shelvePersonalBook(${item.id})">👤 Shelve on Your Shelf</button>
           ${aiOn ? `<button class="btn ghost" id="reviewDraftBtn${item.id}" onclick="draftSummaryForReviewItem(${item.id})">✨ ${item.draftSummary?'Redraft':'Draft'} summary with AI</button>` : ''}
         </div>
       </div>`).join('') : '<p>Nothing waiting for review.</p>'}
@@ -4059,6 +4145,70 @@ export function approveReviewItem(id){
 export function rejectReviewItem(id){
   data.reviewQueue=data.reviewQueue.filter(x=>x.id!==id);
   persist(); renderReviewQueue();
+}
+/* ----- Your Shelf — the personal half of the provenance split
+   (BETA-BUILD-PLAN.md): a text you brought in yourself gets shelved
+   under YOU, plainly marked, never mixed into the certified commons
+   shelves. This is the whole local path — no Supabase row, no MinIO
+   object, no terminal batch: the catalog card lives in your save, and
+   the full text lives as a plain file in the desktop app's own data
+   folder (falling back to inline-in-save in a browser, where big books
+   get refused honestly rather than corrupting the save). */
+const INLINE_PERSONAL_MAX = 1500000; // ~1.5MB of text — past this, a browser's localStorage save genuinely can't hold it
+export async function shelvePersonalBook(id){
+  const item=data.reviewQueue.find(x=>x.id===id); if(!item) return;
+  const btn=document.getElementById('shelfPersonalBtn'+id);
+  if(btn){ btn.disabled=true; btn.textContent='Shelving…'; }
+  const body=item.body||'';
+  const bridge=window.desktopBridge;
+  if(!(bridge&&bridge.libraryWrite) && body.length>INLINE_PERSONAL_MAX){
+    if(btn){ btn.disabled=false; btn.textContent='Too big for a browser save — the desktop app shelves it as a real file'; }
+    return;
+  }
+  let slug='personal-'+slugify(item.title);
+  while(Store.getDoc(slug)) slug+='-2'; // never collide with a certified slug or an earlier personal copy
+  const license=item.license||'Personal — license not certified';
+  const fullText={ license, source_url:item.source||'' };
+  let storedAsFile=false;
+  if(bridge && bridge.libraryWrite){
+    try{
+      const res=await bridge.libraryWrite(slug+'.txt', body);
+      if(res && res.ok){ fullText.storage={ personal:slug+'.txt' }; fullText.chars=body.length; storedAsFile=true; }
+    }catch(e){ /* falls back to inline below */ }
+  }
+  if(!storedAsFile){
+    if(body.length>INLINE_PERSONAL_MAX){ // desktop write failed AND too big to inline — stop honestly
+      if(btn){ btn.disabled=false; btn.textContent="Couldn't write the file — try again"; }
+      return;
+    }
+    fullText.text=body;
+  }
+  const summary=item.draftSummary
+    || (body.slice(0,240).replace(/\s+\S*$/,'')+(body.length>240?'…':''));
+  data.personalLibrary.push({
+    slug, tradition:'Personal', title:item.title, license,
+    source_url:item.source||'',
+    attribution:'Added by you — personal shelf, not the certified commons',
+    added:todayKey(), category:'personal', personal:true,
+    doc:{ summary, sections:item.draftSections||[], fullText },
+  });
+  data.reviewQueue=data.reviewQueue.filter(x=>x.id!==id);
+  persist(); logActivity('Shelved "'+item.title+'" on Your Shelf (personal'+(storedAsFile?', stored on this device':'')+').');
+  blip(784,.09);
+  renderReviewQueue();
+}
+export function removePersonalBook(slug){
+  const b=data.personalLibrary.find(d=>d.slug===slug); if(!b) return;
+  const sure=window.confirm('Take "'+b.title+'" off Your Shelf? Its stored text goes with it. '
+    +'(Notes you took on it stay in your save.)');
+  if(!sure) return;
+  const st=b.doc && b.doc.fullText && b.doc.fullText.storage;
+  if(st && st.personal && window.desktopBridge && window.desktopBridge.libraryDelete){
+    window.desktopBridge.libraryDelete(st.personal); // best-effort — a leftover file is harmless
+  }
+  data.personalLibrary=data.personalLibrary.filter(d=>d.slug!==slug);
+  persist(); logActivity('Removed "'+b.title+'" from Your Shelf.');
+  openShelf('Personal');
 }
 /* ----- AI-assisted shelf copy — closes the real gap the batch generator
    always had: a promoted entry's summary/sections used to be pure "TODO"
@@ -4260,6 +4410,7 @@ Object.assign(window, {
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
   openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop,
+  shelvePersonalBook, removePersonalBook, openWelcome,
   searchSuttaCentral, fetchSuttaCentralText,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, draftSummaryForReviewItem, generateApprovedBatch, markBatchExported,
   openNoticeBoard, openNoticePost, backToNoticeList, newNoticePostForm, submitNoticePost,

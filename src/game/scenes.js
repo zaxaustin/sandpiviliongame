@@ -166,6 +166,11 @@ function buildLibrary(){
     name:'The Library', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:7,y:14,to:'overworld',sx:7,sy:16},{x:8,y:14,to:'overworld',sx:8,sy:16},
            {x:15,y:4,to:'study',sx:1,sy:4},{x:4,y:6,to:'librarybasement',sx:4,sy:7}],
+    // Your Shelf — the personal half of the provenance split: books the
+    // visitor brought in themselves, marked as theirs, kept deliberately
+    // apart from the six certified shelf blocks (BETA-BUILD-PLAN.md §6.4).
+    // West of the reading nook, on the door's approach — yours, at hand.
+    stations:[{x:2,y:11,kind:'yourshelf',name:'YOUR SHELF'}],
     signs:[{x:14,y:5,name:'BRASS ARROW',text:"→ THE STUDY\nA desk for the day. A board for the long paths."},
            {x:5,y:8,name:'HAND-LETTERED SIGN',text:"THE THIRD SHELF\nScience, west — Classics, east. Newer, and further from the\ndoor than the rest — same rule as always: what is it,\nwhere's it from, what license does it travel under."},
            {x:9,y:2,name:'A QUIET SHRINE',text:"Not for worship — just for remembering there's something\nlarger than any one shelf. The Grand Master keeps his own\nquarters in the Keep now, north of here, if you're after a\nreal conversation rather than a quiet moment."},
@@ -173,7 +178,7 @@ function buildLibrary(){
            {x:12,y:2,name:'A LEDGER, KEPT BY THE DOOR',text:"Not everything that could be found gets shelved here. Every\ntext in this room passed a real test at the door — what is\nit, where's it from, what does it actually cost to keep — and\nsome things simply don't pass. That isn't hinted at for\natmosphere; it's the one promise this Library has made since\nthe first shelf went up, kept in full view, never behind a\nlocked door. Nothing here was ever going to hurt you, and\nthat was true before you walked in — not because anything's\nbeen hidden, but because of what the stewards refuse to\ncarry at all."}],
     shelves:true,
     npcs:[{x:8,y:4,color:'#9a6fb5',glow:'#d9b9ea',name:'QUILL · Librarian Agent',wander:false,ai:true,lines:[
-      "Six shelves now, three rows deep: Theravada and Mahayana up front, Daoism and Practice behind them, Science and Classics further back still. Face one and press E.",
+      "Six shelves now, three rows deep: Theravada and Mahayana up front, Daoism and Practice behind them, Science and Classics further back still. Face one and press E. The small case by the reading nook is Your Shelf — books you bring in yourself live there, marked as yours.",
       "Yes, it's bigger in here than the building looks outside. I've stopped explaining it. The shrine up front was the Grand Master's corner once — he's kept to the Keep now, north of the Grounds, for anyone after a real conversation instead of a quiet moment. Every text still answers three questions at the door, though, regardless of room: what is it, where is it from, and under what license does it travel."]}],
     spawn:{x:7,y:13}
   };

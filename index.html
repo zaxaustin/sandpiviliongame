@@ -176,6 +176,9 @@
 <!-- Your Notes — one gathered view over every note store (NOTES-AND-LOG-ROOM-PLAN.md) -->
 <div class="overlay" id="notesLogOv"><div class="panel" id="notesLogPanel"></div></div>
 
+<!-- First-arrival orientation — shown once for a brand-new save, then only ever by asking (BETA-BUILD-PLAN.md §6.5) -->
+<div class="overlay" id="welcomeOv"><div class="panel" id="welcomePanel"></div></div>
+
 <!-- Library Index (categories, across the Library and your own Archive) -->
 <div class="overlay" id="indexOv"><div class="panel" id="indexPanel"></div></div>
 
@@ -230,6 +233,7 @@
   <p id="libMode"></p>
   <button class="btn" id="startBtn" style="font-size:16px;padding:12px 34px">Enter the Grounds</button>
   <button class="btn ghost" id="connBtn" style="font-size:12px;padding:6px 16px">⚙ Manage AI connections</button>
+  <button class="btn ghost" id="welcomeBtn" style="font-size:12px;padding:6px 16px">🧭 New here? Start here</button>
 </div>
 
 <script type="module" src="/src/game/main.js"></script>

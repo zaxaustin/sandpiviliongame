@@ -236,3 +236,85 @@ Still open after this session: verify streaming live; the Monk tiered-model
 curation (BETA-LAUNCH #1); Sebastian calendar live click-through; the
 gather-your-notes view; and the bigger noted ideas (breviary, Lotus Sutra,
 mega-snowball bundles, second Library floor).
+
+================================================================
+SESSION (later, 2026-07-11) — THE BETA BUILD, ACTUALLY BUILT
+================================================================
+Direct instruction: stop planning, build the beta per BETA-BUILD-PLAN.md,
+own branch, free/self-built over third parties, user reviews as we go.
+All work on the new `beta` branch, main untouched.
+
+Phase 0 decisions (delegated, now locked):
+- Storage: personal books' full text = plain .txt files in Electron's own
+  userData/library folder via the existing desktop bridge; browser build
+  falls back to inline-in-save (with an honest ~1.5MB refusal for books
+  too big for localStorage). No Docker, no MinIO, nothing to install.
+- Welcome packet: the current 21-text seed ships as-is (4 full books
+  inline + the essays/summaries) — the middle path between "empty" and
+  "cathedral"; testers fill the rest themselves.
+- Provenance: user-added books are `personal:true`, tradition 'Personal',
+  marked 👤 everywhere, never mixed into the six certified shelf blocks.
+- Backend: none at all. Supabase stripped from the beta build by mode.
+
+Built (Phase 1 — the personal library, the one real engineering task):
+- data.personalLibrary[] (freshData + migration); Store gains
+  registerPersonalDocs(getter) and merges personal docs into
+  allDocs/listDocs/getDoc — so the Index, shelves, and Quill's grounding
+  all see personal books for free, no call site changed.
+- electron/main.cjs: desktop-library-write/read/delete IPC handlers,
+  slug-locked filenames (no path traversal), files under
+  app.getPath('userData')/library/. preload.cjs exposes
+  libraryWrite/libraryRead/libraryDelete.
+- The Caravan Desk queue: every item gets "👤 Shelve on Your Shelf" —
+  the whole local path (writes the file on desktop / inlines in browser,
+  builds the catalog card from the item + any AI-drafted summary, removes
+  it from the queue). This is what the approve→batch→terminal pipeline
+  never offered a tester: a book in, readable, zero infrastructure.
+- The Reader: openFullText handles {storage:{personal:...}} via the
+  bridge; personal books show a 👤 badge + "Remove from Your Shelf"
+  (which also deletes the stored file, best-effort).
+- The world: a YOUR SHELF station (kind 'yourshelf') in the Library by
+  the reading nook — small warm-wood case, half-empty on purpose; opens
+  openShelf('Personal'); Quill's intro line mentions it; empty-shelf text
+  points at the Caravan Desk. smoke.mjs knows the new kind.
+- Fixed en route: the title screen's MinIO health check now only fires
+  for {bucket,key} pointers — a personal file pointer must never scare a
+  tester with a "MinIO not running" warning.
+
+Built (Phase 2 — local-only build mode):
+- .env.beta (committed on purpose: it EMPTIES the service vars; Vite
+  gives mode files priority over .env.local, so the dev machine's own
+  config stays put and still never reaches an installer).
+- package.json: build:beta + electron:build:beta scripts.
+- VERIFIED: the beta dist/ has 0 mentions of the Supabase project ref,
+  0 of the publishable key, 0 of supabase.co. Nothing to strip by hand;
+  every no-backend surface already degrades with an honest message.
+
+Built (Phase 2b — first arrival):
+- A welcome overlay (#welcomeOv): keys, the three doors, "make the
+  residents talk" pointing at Ollama + the in-world protocol book,
+  "nothing phones home." Auto-shows exactly ONCE, only for a genuinely
+  fresh save (no data.pos yet, seenWelcome flag), then lives behind a
+  new "🧭 New here? Start here" title-screen button forever. The
+  standing automation rule applied to orientation itself.
+
+Built (Phase 3 — the model on-ramp, BETA-LAUNCH #1):
+- PROTOCOLS.md Protocol 2: a real tiered pull guide (modest/everyday/
+  capable/strong), the thinking-vs-instruct tradeoff stated plainly, the
+  two Pavilion facts (the Monk claims the largest model installed — his
+  depth is never traded away; everyone else favors speed). The desktop
+  app's "skips OLLAMA_ORIGINS entirely" fact written down at last.
+- The Connections panel: a matching 📏 "Which model fits my machine?"
+  collapsible, one glance's worth.
+- Protocol 1 Pathway A now ends at "👤 Shelve on Your Shelf" with the
+  provenance split stated plainly (certified = a steward vouched;
+  personal = you vouched; both first-class, the label always honest).
+- bestLocalModel() deliberately NOT changed — the standing Monk rule
+  holds; guidance, not downgrade, was always the resolution.
+
+Verified: node --check on every touched file; npm test (smoke, incl. the
+new station kind); npm run build:beta clean; the dist/ leak grep above.
+electron-builder packaging run started (see next entry / README).
+NOT verified, stated honestly: a live click-through of the shelve→read
+flow in a running window, and the clean-machine install test — both
+remain the user's (and the plan's §6.8) to run.

@@ -16,6 +16,13 @@ contextBridge.exposeInMainWorld('desktopBridge', {
   // BETA-TESTING-FEEDBACK.md #12 — a real native "Save As" dialog for
   // Export Save, instead of always dropping into Downloads unasked.
   saveFile: (defaultName, content) => ipcRenderer.invoke('desktop-save-file', { defaultName, content }),
+  // Personal-Library text storage (BETA-BUILD-PLAN.md §5A) — a shelved
+  // personal book's full text lives as a plain file in the app's own data
+  // folder, not in the save and not in any container. Read back on demand
+  // by the Reader's openFullText().
+  libraryWrite: (name, content) => ipcRenderer.invoke('desktop-library-write', { name, content }),
+  libraryRead: (name) => ipcRenderer.invoke('desktop-library-read', { name }),
+  libraryDelete: (name) => ipcRenderer.invoke('desktop-library-delete', { name }),
   // Live-streaming variant of fetchJSON, so the desktop app can stream a
   // local model's reply/reasoning instead of buffering the whole response
   // (BETA-TESTING-FEEDBACK.md #35 — "the thought slips away"). onChunk is

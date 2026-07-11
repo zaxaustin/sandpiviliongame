@@ -88,6 +88,19 @@ For when you just want to add a book without touching a command line.
    - An **unrecognized source** routes to a **Research Desk project** ("Caravan
      Drops") instead of the shared queue — your own notes, not the public
      shelf, until its provenance is sorted.
+6. **Press "👤 Shelve on Your Shelf."** This is the whole local path — no
+   database, no container, no terminal. The book lands on **Your Shelf**, the
+   small personal case by the Library's reading nook, readable in the Reader
+   like any other text. In the **desktop app** its full text is stored as a
+   plain file in the app's own data folder on your disk; in a browser it lives
+   inside your save (very large books need the desktop app).
+
+**The provenance split, stated plainly:** a book you shelve this way is
+**personal — yours, marked 👤, kept apart from the certified shelves.** The
+six certified shelf blocks carry texts whose license and source a steward has
+stood behind; Your Shelf carries what *you* brought in, on your own judgment.
+Both are first-class citizens of the Library (the Index lists them, Quill
+knows them) — the label just always tells the truth about who vouched.
 
 *Today this pathway handles `.txt`. PDF-in-the-game and writing straight to
 `library-inbox/` are real browser limits — use Pathway B for those.*
@@ -149,16 +162,48 @@ the main [`README.md`](README.md#setting-up-local-ai--a-beginners-guide);
 the short version:
 
 1. Install [Ollama](https://ollama.com) and pull a model —
-   `ollama pull llama3.2` (fast, reliable; avoid "thinking" models for
-   everyday residents).
+   `ollama pull llama3.2` (fast, reliable; see the picking guide below).
 2. Allow the game to reach it:
    `setx OLLAMA_ORIGINS "http://localhost:5173,http://localhost:5174"`,
-   then restart the terminal.
+   then restart the terminal. **The desktop app skips this step entirely** —
+   its own native process talks to Ollama directly, no CORS rule involved.
 3. Open the game — the title screen reports what it found. Manage everything
    from **⚙ Manage AI connections**.
 
 Everything stays on your machine. Nothing is sent anywhere unless you
 deliberately add a ☁ cloud connection.
+
+### Which model should I pull? (the tiered guide)
+
+The honest tradeoff, learned here the hard way: **plain "instruct" models
+answer fast and reliably; "thinking"/"reasoning" models (`deepseek-r1`,
+`qwq`, the `qwen3` reasoning family) spend a long, hidden stretch reasoning
+first** — sometimes minutes, sometimes coming back blank. The Pavilion now
+streams that reasoning live so you can *watch* it think instead of staring at
+a dead panel, but a plain model sidesteps the wait entirely. Pick by the
+machine you actually have:
+
+| Your machine | Pull this | What to expect |
+| --- | --- | --- |
+| Modest — no real GPU, 8GB RAM, a few years old | `ollama pull llama3.2:1b` | Snappy, simple replies; the whole Pavilion works |
+| Everyday — most laptops/desktops, 8–16GB RAM | `ollama pull llama3.2` (3B) | The dependable default; quick, plain-spoken residents |
+| Capable — a real GPU (8GB+ VRAM) or 16GB+ RAM | an 8B instruct model, e.g. `ollama pull llama3.1:8b` | Noticeably deeper conversations, still reliable |
+| Strong — a gaming/creator machine, 12GB+ VRAM | a 8–14B instruct **plus, optionally, one thinking model** | The Monk automatically claims the largest model installed and streams his reasoning live — on a machine like this, watching him actually think is worth the wait |
+
+Two Pavilion-specific facts that make the choice easier:
+
+- **The Mountain Monk always takes the single largest model you have
+  installed** — a standing rule, his depth is never traded for speed. So the
+  biggest model on your machine is, in effect, *his*. Install a thinking
+  model only if you're happy for the Monk to be slow and profound rather
+  than quick.
+- **Everyone else favors speed.** Quill, Sebastian, and the work desks run
+  on your connection's default model — keep that a plain instruct model and
+  the whole Pavilion feels alive rather than laggy.
+
+Start small, talk to a resident, and only move up a tier if the replies feel
+thin. A model that answers in two seconds beats a smarter one you stop
+wanting to talk to.
 
 ---
 

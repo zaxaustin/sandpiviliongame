@@ -1,5 +1,15 @@
 # The Beta Build — what ships, how it's packaged, and what to iron out first
 
+> **STATUS (2026-07-11, same day): BUILT — on the `beta` branch.** Phases 0–4
+> below were walked end to end: storage fork resolved as §5(A) (Electron-native
+> personal library, built), welcome packet = the 21-text seed as-is, provenance
+> split built (👤 Your Shelf), local-only mode via `.env.beta` +
+> `electron:build:beta` (bundle verified key-free), first-arrival orientation
+> built, tiered model guide written (PROTOCOLS.md P2 + Connections panel), and
+> a real installer produced: `release/Sand Pavilion Setup 0.1.0-beta.1.exe`.
+> **Still open:** §6.8's clean-machine install test, and a live click-through
+> of the shelve→read flow. Details in `archive/dev-log-2026-07-11.txt`.
+
 Written 2026-07-11, at direct request: a full build plan for a Pavilion
 someone can **download and run on their own computer** for their own use.
 This is the *mechanics* companion to [`BETA-LAUNCH-PLAN.md`](BETA-LAUNCH-PLAN.md)

@@ -1,7 +1,9 @@
 {
   "name": "sand-pavilion",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0-beta.1",
+  "description": "The Sand Pavilion — a small walkable world for reading, planning, and working, with AI residents that run on your own machine. Local-first; nothing phones home.",
+  "author": "The Sand Pavilion stewards",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -10,7 +12,9 @@
     "preview": "vite preview",
     "test": "node test/smoke.mjs",
     "electron:dev": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "vite build && electron-builder",
+    "build:beta": "vite build --mode beta",
+    "electron:build:beta": "vite build --mode beta && electron-builder"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

@@ -511,6 +511,14 @@ function drawStation(st,ox,oy){
     ctx.strokeStyle='#c9b48c'; ctx.lineWidth=1; // a little grid of day cells
     for(let r=0;r<3;r++) for(let c=0;c<4;c++) ctx.strokeRect(x+S*(.26+c*.13),y+S*(.36+r*.075),S*.1,S*.055);
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*(.26+2*.13),y+S*.36,S*.1,S*.055); // one cell marked — today
+  } else if(st.kind==='yourshelf'){ // Your Shelf — a small personal bookcase, warmer wood than the six certified blocks, half-empty on purpose: you fill it
+    ctx.fillStyle='#7a5a34'; ctx.fillRect(x+S*.08,y+S*.08,S*.84,S*.86); // case
+    ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.14,y+S*.16,S*.72,S*.32); // upper cubby
+    ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.14,y+S*.56,S*.72,S*.32); // lower cubby
+    const yourSpines=[['#c8574a',.18],['#4a6a8a',.28],['#e0a43c',.38]]; // three books so far — room left beside them
+    for(const [c,sx] of yourSpines){ ctx.fillStyle=c; ctx.fillRect(x+S*sx,y+S*.2,S*.08,S*.26); }
+    ctx.fillStyle='#f3ead2'; ctx.fillRect(x+S*.2,y+S*.62,S*.24,S*.07); // a waiting label card in the empty lower cubby
+    ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.36,y+S*.03,S*.28,S*.05); // a small brass nameplate on top
   } else if(st.kind==='ledger'){ // The Ledger — an open account book, ruled columns, a small coin stack, distinct from the Grant Desk's folder
     ctx.fillStyle='#75542e'; ctx.fillRect(x+S*.08,y+S*.6,S*.1,S*.34); ctx.fillRect(x+S*.82,y+S*.6,S*.1,S*.34);
     ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.02,y+S*.52,S*.96,S*.14);
