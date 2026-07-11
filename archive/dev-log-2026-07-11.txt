@@ -330,3 +330,14 @@ don't travel inside a save export), and a symptom table. README's
 modes (browser dev, static build, electron:dev, installed app, shareable
 beta) plus the three optional layers (Ollama, MinIO, Supabase), each with
 what it needs. MANUAL.md linked from the orientation map and "New here?".
+
+Addendum 2 (same session): backend decided by the user — keep Supabase for
+now; when outgrown, the hybrid (small VPS running the same Postgres+MinIO
+Docker stack the dev machine already runs, Supabase kept for the social
+pieces). Recorded in BETA-BUILD-PLAN.md §5. README Mode 5 now says where
+the installer actually lands (release/) and carries the one real caution:
+the beta installer and the dev machine's own Mode-4 install are the same
+app to Windows (same identity, same save) — installing the beta on the
+dev machine would replace the full personal app with the local-only one
+(recoverable, nothing lost, but the right way to *try* the beta here is
+the unpacked exe: release/win-unpacked/Sand Pavilion.exe).

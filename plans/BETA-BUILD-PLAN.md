@@ -141,6 +141,14 @@ MinIO + Postgres, or a managed equivalent). Costs real money; needed only for
 the shared/federated layer, not for anyone's personal Pavilion. Deliberately
 out of scope for the first beta.
 
+> **DECIDED 2026-07-11 (user, after the build):** keep **Supabase** as the
+> backend for now (it already carries auth, the café boards, moderation, and
+> the mirrored catalog, free tier); when it's outgrown, move to the **hybrid**
+> — a small VPS running the same Docker stack the dev machine already runs
+> (Postgres + MinIO) for the Library, with Supabase (or a successor) kept only
+> for the small social pieces until they too are worth replacing. Revisit
+> hosting choices then, not before.
+
 **AI backend:** none of ours — the user's own local Ollama (or an opt-in
 cloud key they add themselves). Already how it works.
 

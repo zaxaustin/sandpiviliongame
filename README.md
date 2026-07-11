@@ -170,6 +170,19 @@ Shelf, and every desk — zero services, nothing to stand up. The installer
 is unsigned on purpose (see [`DESKTOP-APP-PLAN.md`](plans/DESKTOP-APP-PLAN.md));
 Windows shows an "unknown publisher" warning the first run — expected.
 
+**Where the installer actually is:** it lands in `release/` — right now
+that's `release/Sand Pavilion Setup 0.1.0-beta.1.exe`. "Distributing the
+beta" means handing someone that one file (or attaching it to a GitHub
+Release when it's time). It isn't hosted anywhere yet, on purpose.
+
+**One caution on the dev machine itself:** the beta installer and your own
+Mode-4 install are the *same app* to Windows (same identity, same save) —
+installing the beta here would replace your full personal app with the
+local-only one. Nothing would be lost (your save persists, and the Library
+lives in Supabase/MinIO, not the app — rebuilding Mode 4 restores it), but
+to just *try* the beta without touching your install, run the unpacked
+copy directly instead: `release/win-unpacked/Sand Pavilion.exe`.
+
 ### The three optional layers (each independent, each honest without it)
 
 - **Local AI — Ollama** (any mode; the one layer most people want):
