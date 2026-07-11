@@ -174,6 +174,22 @@ A checklist, roughly in priority order. Most are small; two are real.
 
 ---
 
+## 7a. Visual polish for the beta (user's note, 2026-07-11)
+
+The user's own words: *"I like this low-res Pokémon-style game, but we don't
+need to be afraid to make it look nicer for the beta build."* This is a
+deliberate, bounded relaxation of the sleeper-car stance (`CLAUDE.md`), not a
+reversal:
+
+- **Keep the identity.** Low-res, pixel-art, top-down Pokémon feel stays —
+  it's who the Pavilion is, and the cheapness is still the point (resources go
+  to AI/Library/work).
+- **Polish within that.** Sharper palette harmony, more consistent UI panels,
+  a warmer title screen, small readability and charm passes — all fine and
+  welcome. **The bar:** stays cheap (no heavy assets, no perf-hungry effects,
+  nothing external — CSP-safe, self-contained), and never breaks a working
+  feature. Looking nicer must not cost the sleeper-car advantage.
+
 ## 7. A phased build order (smallest safe path)
 
 - **Phase 0 — decide.** §6 items 1, 3, 4 (the storage fork, the welcome-packet
