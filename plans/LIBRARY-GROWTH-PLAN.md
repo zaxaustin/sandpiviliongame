@@ -396,10 +396,28 @@ a manual `library-inbox/` drop, not a guessed ID.
 **✅ ALL FIVE SHELVED 2026-07-10** — added to `seed.js` (the version-
 controlled source of truth) *and* promoted into the live Supabase
 `library_documents` table via the Supabase MCP, so they appear in the
-running app immediately (49 texts now, up from 44). Summary-only for now;
-full text can be attached later via `tools/caravan/push-fulltext.py`, the
-same two-step every text follows. Slugs: `franklin-autobiography`,
-`emerson-essays`, `art-of-war`, `zhuangzi`, `aesops-fables`.
+running app immediately (49 texts now, up from 44). Slugs:
+`franklin-autobiography`, `emerson-essays`, `art-of-war`, `zhuangzi`,
+`aesops-fables`.
+
+**IMPORTANT — where book data lives, so this is never confused (the split
+is decided in `LIBRARY-SCALING-PLAN.md`, restated here at the point books
+actually get added):**
+- **The full book TEXT belongs in local object storage — MinIO, running in
+  Docker on your own machine, S3-style. NOT the cloud, not Supabase.** This
+  is the local-first line: the actual content stays on your computer.
+- **Supabase/Postgres holds only the catalog CARD** — title, license,
+  source, summary, tags, and the search index. Small metadata, not the
+  book. That's all that was promoted for these five.
+- **So these five are catalog-only right now — no full text attached
+  anywhere yet.** To make "📖 Read the full text" appear, run
+  `tools/caravan/push-fulltext.py <slug> <textfile> …` for each, which
+  uploads the real text into your local MinIO (Docker must be up:
+  `docker ps` should show `sand-pavilion-minio`). That is the *only* place
+  the book text goes — on the machine, in Docker.
+- The four already-readable Buddhist texts (Dhammapada, etc.) are a third
+  case: their full text is *bundled in the repo* (`data/library-texts/*.js`)
+  rather than MinIO — fine for a handful, but MinIO is the path for scale.
 
 **Direction-finding & practical self-betterment — matched to the north
 star (ease, direction, knowledge into use), all HTTP-verified reachable

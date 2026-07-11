@@ -28,6 +28,40 @@ Request Board and `tools/caravan/` are that door, not a workaround to
 feel bad about — a commons that pretends to be more self-sufficient than
 it actually is just breaks trust with whoever's using it.
 
+---
+
+## For the next session — where everything is, and what not to break
+
+*A standing note to whoever picks this up next (human or a fresh Claude),
+since context windows don't carry over. Read `CLAUDE.md` first — it's the
+fuller orientation; this is the quick map.*
+
+**Where to find things**
+- **`CLAUDE.md`** — how to get oriented, and the standing decisions. Start here.
+- **This README** — current state: what's built, what's next. The source of truth for *now*.
+- **`archive/dev-log-*.txt`** — the narrative of how it got here, session by session. Skim the latest one or two.
+- **`plans/*.md`** — every open plan; `plans/done/` for closed ones; `plans/BETA-TESTING-FEEDBACK.md` for real issues found by using it.
+- **`LEARNING-PATH.md`** — the self-paced curriculum; answer "why/how does this work" questions at the stage the user's actually reached.
+- **Code map:** `src/game/` — `main.js` (loop, input, onAction dispatch), `scenes.js` (every room + NPCs/stations/warps), `render.js` (pixel drawing, `drawStation`), `entities.js` (data model + `freshData()` + `dueSoon`/`upcomingItems`/`openSparks`), `ui/overlays.js` (**the big one** — every panel, chat, `CHAT_AGENTS`), `ai/provider.js` (Ollama/cloud adapters), `data/` (`charter.js`, `seed.js`, `store.js`, `supabase.js`). Tools in `tools/caravan/`. Memory lives outside the repo in the user's `.claude` memory dir.
+
+**Invariants — the structure to keep, not silently change**
+- **The Temple (Eightfold Path) and the Library stay — always, in every tier.** Set intentions; act on them. That's the whole mission.
+- **Three residents, three roles:** Quill teaches (Library, plans), the Monk guides (meaning/conduct), Sebastian works with you (the day). The Monk always gets the best local model + real room to think.
+- **Three charters, don't cross them:** `CHARTER` (in-world residents, devotional), `WORK_CHARTER` (work tools, neutral/secular), `BUTLER_CHARTER` (Sebastian — warm but secular). Never skew a secular goal toward the dharma.
+- **No background polling.** Every AI call is triggered by a real user action, never a timer. This is load-bearing.
+- **Local-first.** No paid cloud API required to use it. Book *text* → local MinIO/Docker; catalog → Supabase. Cloud AI is an eyes-open opt-in, always labeled ☁.
+- **Effectiveness before features/personalities.** A resident that answers reliably beats a richer one that hangs.
+- **The sleeper car:** low-res on purpose, so the machine's resources go to AI/Library/work, not the renderer. That's the tie-breaker on "looks more impressive" vs "does more, uses less."
+- **Build it ourselves before a third party.** The long path is the shortest path.
+- **Provenance at the door:** every shelved text carries license + source. "Restricted"/"dangerous" content is always 100% atmosphere, never real harm.
+
+**Mechanical gotchas that will bite you**
+- Every `onclick="fn()"` handler must be added to the `Object.assign(window, {…})` block at the bottom of `ui/overlays.js`, or it silently fails.
+- Verify with `node --check <file>` and `node test/smoke.mjs`. There's no live browser test by default; the user prefers you *not* pull in Chrome/Playwright to test.
+- Movement needs *held* keys, not `.press()` — relevant if you ever do automate a browser check.
+- Supabase rows **replace** the seed (they don't merge) — seed edits won't show if Supabase is configured; promote via the Supabase MCP or `promote-draft.py`.
+- At session end: append to `archive/dev-log-YYYY-MM-DD.txt` and update this README's "What's next." Commit only when asked; the project commits straight to `main`.
+
 ## New here? Start with this
 
 You don't need to know how to code, use a terminal, or understand what
@@ -182,10 +216,16 @@ mention), not just literal substring matching. Falls back to the
 existing local search instantly if Supabase isn't configured or a query
 errors, so the search box never just goes dead.
 
-**Local Library storage** — full book text lives in MinIO, running
-locally in Docker on this machine (`sand-pavilion-minio`, set to survive
-a reboot), not stuffed into the database. A hundred gigabytes are set
-aside for it; a few megabytes are used. See
+**Local Library storage — where book data actually lives (the split, kept
+deliberate).** The full book **text** lives in **MinIO, running locally in
+Docker on this machine** (`sand-pavilion-minio`, set to survive a reboot) —
+on your computer, never the cloud. The **database (Supabase) holds only the
+catalog card** — title, license, source, summary, tags, search — the small
+metadata, not the book itself. A hundred gigabytes are set aside locally
+for text; a few megabytes are used. (Note: books added catalog-first, like
+the five shelved 2026-07-10, are readable as summaries until their full
+text is pushed to local MinIO with `push-fulltext.py` — the text step is
+always the local one.) See
 [`LIBRARY-SCALING-PLAN.md`](plans/LIBRARY-SCALING-PLAN.md) for the reasoning
 and the real setup.
 
