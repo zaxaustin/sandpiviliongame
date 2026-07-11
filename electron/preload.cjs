@@ -16,4 +16,19 @@ contextBridge.exposeInMainWorld('desktopBridge', {
   // BETA-TESTING-FEEDBACK.md #12 — a real native "Save As" dialog for
   // Export Save, instead of always dropping into Downloads unasked.
   saveFile: (defaultName, content) => ipcRenderer.invoke('desktop-save-file', { defaultName, content }),
+  // Live-streaming variant of fetchJSON, so the desktop app can stream a
+  // local model's reply/reasoning instead of buffering the whole response
+  // (BETA-TESTING-FEEDBACK.md #35 — "the thought slips away"). onChunk is
+  // called with { chunk } for each piece of the body as it arrives; the
+  // returned promise resolves { ok, status } when the stream ends. Each call
+  // gets its own channel id so concurrent streams can't cross wires.
+  fetchStream: (url, opts, onChunk) => {
+    const id = 'strm-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    const channel = 'desktop-fetch-stream:' + id;
+    const listener = (_e, msg) => { try{ onChunk(msg); }catch(e){ /* ignore a bad consumer */ } };
+    ipcRenderer.on(channel, listener);
+    return ipcRenderer.invoke('desktop-fetch-stream-start', {
+      id, url, method: opts.method || 'POST', headers: opts.headers || {}, body: opts.body, timeoutMs: opts.signalMs,
+    }).finally(() => ipcRenderer.removeListener(channel, listener));
+  },
 });

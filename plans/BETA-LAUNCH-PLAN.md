@@ -131,10 +131,13 @@ technical outlet in the whole Pavilion.
 3. **Per-resident model assignment in the Connections panel** — the real
    "customize your AI to your machine" outlet, and where a user picks the
    Monk's tier for their box. Bigger; the heart of the customization plan.
-4. **Live-streaming the Monk's reasoning** — "see the train of thought" as it
-   happens (currently only shown collapsed, after the fact). The `stream:false
-   → true` waterfall already written up as a `LEARNING-PATH.md` Stage 17
-   capstone and in `AI-INTEGRATION-NOTES.md`.
+4. **Live-streaming the Monk's reasoning** — ✅ **built 2026-07-11.** "See the
+   train of thought" as it happens: `provider.js`'s `ollamaStreamChat()` reads
+   the `stream:true` NDJSON token stream, and `sendChatMessage()` shows the
+   reasoning live (open above the answer) with the answer typing in real time.
+   Browser reads the fetch body stream; the desktop app got a streaming IPC
+   channel (`fetchStream`); any failure falls back to the buffered request.
+   Static + parse-tested; the live on-screen check is the user's to run.
 5. **Welcome packet finish** — full text pushed for the catalog-only books so
    the first shelf a stranger opens is whole.
 6. **First-arrival orientation** — the minimal "you are here" pass.

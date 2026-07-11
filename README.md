@@ -42,6 +42,7 @@ fuller orientation; this is the quick map.*
 - **`archive/dev-log-*.txt`** — the narrative of how it got here, session by session. Skim the latest one or two.
 - **`plans/*.md`** — every open plan; `plans/done/` for closed ones; `plans/BETA-TESTING-FEEDBACK.md` for real issues found by using it.
 - **`LEARNING-PATH.md`** — the self-paced curriculum; answer "why/how does this work" questions at the stage the user's actually reached.
+- **`PROTOCOLS.md`** — the how-to manual for filling your own Pavilion: adding a book (both paths), connecting your own AI, more to come.
 - **Code map:** `src/game/` — `main.js` (loop, input, onAction dispatch), `scenes.js` (every room + NPCs/stations/warps), `render.js` (pixel drawing, `drawStation`), `entities.js` (data model + `freshData()` + `dueSoon`/`upcomingItems`/`openSparks`), `ui/overlays.js` (**the big one** — every panel, chat, `CHAT_AGENTS`), `ai/provider.js` (Ollama/cloud adapters), `data/` (`charter.js`, `seed.js`, `store.js`, `supabase.js`). Tools in `tools/caravan/`. Memory lives outside the repo in the user's `.claude` memory dir.
 
 **Invariants — the structure to keep, not silently change**
@@ -245,7 +246,10 @@ directly from a browser (a real limit of the platform, not a missing
 feature) — the Request Board is where a text you want, but can't fetch
 in-game, gets tracked until it's brought in by hand.
 
-**Adding books manually — two real paths, pick whichever fits.** With a
+**Adding books manually — two real paths, pick whichever fits.** The full
+step-by-step, both paths, with the free-source index and the provenance
+rule up front, is written as a real protocol in [`PROTOCOLS.md`](PROTOCOLS.md)
+(Protocol 1) — one place a newcomer can actually follow. In short: with a
 terminal: download the text by hand and drop it in `library-inbox/`,
 sorted into whichever subfolder matches the site it came from (one
 already exists per source — see `library-inbox/README.md`). From there
@@ -985,3 +989,5 @@ right now, what's still open — not a scrolling changelog.
 
 The one line worth keeping without reading further: *everything turns to
 sand, so give it away first.*
+
+

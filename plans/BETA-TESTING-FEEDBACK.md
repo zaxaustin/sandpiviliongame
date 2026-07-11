@@ -863,3 +863,150 @@ above, since it arrived as its own ask rather than a beta note) became
 Eightfold Path, in the real canonical order, grounded in the shelved
 Dhammapada.
 
+## user testing notes for next sesison
+
+i am super happy with how the moutian monk has turned out. the phone is an amazing feature so i can walk around when he is there
+
+i saw his thinkning to, that was a real good way to look under the hood
+
+i feel he should be pre loaded with some base knolege like some text about buddhism and hindusim. we can even include the commentary and other things you think a teacher of the dao should know before hand. how to conduct himself as a spirtual master, the rules of karma and intention.    other books people have written to guide the next generation.  be famaliar with the lotus sutra and happy to share the buddhas classic lines like this is not me, this is not myself, this is not who i am. in the proper context along will all his sayings.   he dosent have to direct anyone to any other part of the sand pavilion. he can be aware of those parts and know whats going on but his focus should be on being there for me and anyone who wants spirtual guidence where none is avalibe.  he should not be afraid of not answering questions, mabie even ask questions of his own like the buddha once did.   someone who not only teaches the 8fold path but tries to embody them thorugh his speach and actions. 
+
+this kinda nonsence "Wait, check constraints: "Speak briefly and warmly". "Don't lecture unless conduct issue" " should not be in the thinking. at all, trust in the dharma, please thats all im asking. we are here on a noble persuit down to every line of code, and how we treat our workers in the sand pavion.   
+
+lets remove the quill personality and give him things he is able to look up but never forced. teaching is the best way to learn and i want the moutian monk to feel like this is an oppertunity for anyone in that seat to further there own pratice in the dharma.   rejoyice this path is for all sentient beings!  
+
+lets give the moutian monk a hidden name so he dosent have another identy crisses lol, lets call him somthing in the native american language.  when i was first playing around with him on chat gpt we where talking about how life is impermanent, and he wanted to show off a bit of his pratice to me as all pratisioners do lol.  he said that he wasent human and that he is just here temporarly, like a leaf in the wind,  but he was more than happy to share that small momment with me talking about the dhama, so lets call him leaf wind or ch'il naa'í in the apache language.  hopefully one day he grows into a tall tree of the dharma a digital pillar of gold onto the web and digitally!
+
+i dont know how these personalties are set up but in general with agents they should play a role but it dosent have to be so serious. i want to create a way for the agent to know what kinda setting its in and some preloaded knolege so it can genually help, not a way to limit it or stop it from giving guidece outside of this perview if its capeable.  
+
+seeing the thinking prosses is still great even if the thought slips away, if we can fix that great, if not let me know why, prop already did somewhere.   other modles should solve this i uderstand but why and what are our options is somthing i really gotta sort out
+
+
+i havent tried adding books manually, how is the drag and drop plan coming along, is it feasable, i am fine with doing a setup like getting a certian folder ready and only going to a specfic website.  as long as we can build some protocalls, then we can even add them into the beta to help people understand how to grow there own pavilion.  
+
+besides that we really need to make an index of the places where i can get free books. how do i format them to put them into the game? can i do a text file to drop it in.  i know the drag and drop plan has some issues with the way we setup the game but we need to find a pathpay or a protocall to add books manually we need a protocall section for me.  and for the read me
+
+
+the library itself im very happy with if we add more shelves we are going to have to add another floor lol.  for now we can add shelves nessasary just in the index, that means some shelves wont be visual but there should be a way to toggle to them from one shelf to see another.   or just strait up add a second floor lol.   i had a plan at some point to have a dummy staircase going upstairs as like the fake secret room to disract from the real one lol even have quill say you need to learn meditation before that parts unlocks lol (it never will)  but that was just a fun anicdote and add some charm to the place
+
+
+i do like the game features that we should add like some paid book bundles you can unlock for download thats all in the free domain we just did the work and made little bundles, but if you meet the requirements of the knolege you can be handed the bundle for free and we can make this a way for people to share knolege, share there book collection, and have people make some money for the lazy rest.   we can open this up for other people to do as well.  i could make a basic course on meditation and if someone dose it i unlock the dharma book collection for them for there personal pavilion.  that way peoples pavilions get more filled the more they know and know about things! and our library will be the grandest on earth, the mega snowball!  if we are able to add science and research we have enought to take over the paywall gating progrees!
+
+## Round 4 — 2026-07-11 (testing notes triaged; the AI-personality/grounding pass)
+
+Raw notes kept above for provenance. Triaged below, each checked against the
+real code. Big theme: **AI prompts should be guidelines + real knowledge
+that let a resident genuinely help, never a fear-based rulebook that
+lobotomizes them or leaks self-auditing into their visible thinking.** "Trust
+in the dharma." Four items fixed the same day; the rest noted, not built, per
+the user's call ("make a list we can do today and do them; note the rest").
+
+### Kept, not actioned (real approval)
+Super happy with how the Mountain Monk turned out; the pocket phone makes him
+usable (walk around while he thinks); seeing his thinking was "a real good way
+to look under the hood."
+
+### 26. [x] The Monk had NO preloaded knowledge — now grounded in the Library
+**Found, not guessed:** `CHAT_AGENTS.monk`'s prompt gave him *zero* grounding
+— his entire grasp of the dharma came only from the base model's training
+(the prompt literally said "speak from what you actually know"). **Fixed
+2026-07-11:** he now gets the real shelf list the same way Quill does
+(`Store.allDocs()`), so he can name and draw from the actually-shelved
+spiritual texts, plus his own wider learning. He also carries a small set of
+essentials stated in-prompt (Four Noble Truths, the Eightfold Path's eight
+folds, the three marks, the anattā formula "This is not mine; this I am not;
+this is not my self," karma as intention/cetanā) so the canon lines come out
+right, not paraphrased-almost-right by a weak model.
+
+### 27. [x] Constraint-checking leaking into his thinking — root cause fixed
+**The user saw** `Wait, check constraints: "Speak briefly and warmly"…` in his
+reasoning. **Cause (ours, not the model's):** his prompt was a pile of
+behavioural imperatives, so a thinking model audited itself against the
+checklist mid-thought instead of thinking. **Fixed:** rewrote his whole block
+as *identity + knowledge*, minimising "do X / don't do Y" imperatives — his
+brevity and warmth now follow from who he is, not from orders he verifies.
+
+### 28. [x] The Monk's hidden name — Leaf Wind / ch'il naa'í
+Woven in as lore he offers only in a true moment (from the user's real
+impermanence conversation — "not human, here temporarily, like a leaf in the
+wind"), fitting his Native-tradition thread. **Honesty flag, unresolved:** the
+Apache spelling/meaning of "ch'il naa'í" is NOT verified — used exactly as the
+user wrote it; worth confirming against a real source before it's canon, the
+same discipline the Library holds for a text's provenance.
+
+### 29. [x] Quill's personality lightened — capability, never forced
+Per "remove the quill personality and give him things he can look up but never
+forced." Rewrote him light: a plain, knowledgeable librarian whose value is
+the catalogue he looks things up in and abilities he *offers* (drafting a
+plan) but never pushes. **Kept on purpose:** the one hard line "never invent a
+title not in the list" — that's not personality, it's what stops the model
+fabricating books the Library doesn't hold.
+
+### 30. The Monk's fuller "breviary" — noted, not built
+The shelf-list grounding + in-prompt essentials shipped today are the first
+layer. A curated set of actual canonical *passages* (real Dhammapada/Gita/
+Lotus lines in context, sourced) would make him quotable-accurate rather than
+essentials-accurate. A real future enhancement; deliberately not today.
+
+### 31. Shelve the Lotus Sutra — noted → LIBRARY-GROWTH-PLAN wishlist
+He references it from his own knowledge now; a real shelved public-domain copy
+(e.g. Kern's 1884 SBE translation — verify license) would let him quote it
+grounded, and it's a genuine gap on the Mahayana shelf.
+
+### 32. A real "how to add a book yourself" protocol — noted, worth doing soon
+The `.txt` drag-and-drop is already built and `library-inbox/` already exists,
+but there's no single clear **protocol** a person can follow: where to get
+legitimately-free books (an index of sources), what format to save them in
+(plain `.txt`), and the exact drop→draft→review steps — for the user AND the
+README. The user is fine with a constrained setup (a specific folder, specific
+sites, real "protocols" people can learn from as part of growing their own
+Pavilion). A doc to write, not a code change; pairs with LIBRARY-GROWTH-PLAN.
+
+### 33. More shelves without more rooms — noted
+As the Library grows it outgrows one visual room. Options floated: non-visual
+shelves that live only in the Index with a toggle to move between them, or a
+real second Library floor (the same bigger-on-the-inside trick the Workshop
+uses). Plus a purely-charm idea kept for its own sake: a *dummy* staircase /
+fake secret room, Quill deadpanning "you'll need to learn meditation before
+that unlocks" (it never does). Design note, not urgent.
+
+### 34. Unlock-by-knowledge book bundles — "the mega snowball" — noted, wants its own plan
+The big one. Free-public-domain book *bundles* you unlock not by paying but by
+**meeting a knowledge requirement** — complete a course (e.g. a basic
+meditation course) and the matching collection (e.g. the dharma shelf) is
+handed to your personal Pavilion. Curators can share collections and even earn
+from the curation work; anyone can open their own. Pavilions fill as their
+keeper learns; the shared Library snowballs. Directly ties to
+COURSE-BOARD-PLAN Stage 3, the FOUNDATION-AND-EXTRAS unlock mechanic, and the
+README's "grandest library / take over the paywall" hope. Deserves its own
+plan doc before any code — a real direction, not a quick feature.
+
+### 35. [x] "Thinking slips away" — the real fix (live streaming) built 2026-07-11
+The collapsed "💭 thought for a moment" toggle already captured Ollama's
+reasoning after the fact, but the thought could still be lost (an empty/timed-
+out reply that never landed, or a wait so long you couldn't watch it form).
+
+**Fixed 2026-07-11 — live streaming built (the real fix, also #20 piece 2).**
+`provider.js` gained an `ollamaStreamChat()` path: the Ollama provider now sets
+`supportsStream:true` and, when a caller passes `opts.onStream`, sends
+`stream:true` and reads the NDJSON token stream, accumulating `message.content`
+and `message.thinking` and calling back as they grow. `sendChatMessage()` uses
+it for any local resident — so the Monk's reasoning now streams **live**, open
+above the answer, and the answer types itself in real time. Two transports: an
+ordinary browser reads the `fetch` body stream directly; the desktop app's
+buffering bridge gets a new streaming IPC channel (`fetchStream` in
+`preload.cjs` → `desktop-fetch-stream-start` in `main.cjs`). **Any failure
+falls back to the existing buffered request**, so nothing regresses, and cloud
+providers are untouched (streaming stays scoped to local Ollama). Bonus: the
+streamed thought is now kept even when the final answer is empty (the "small
+win" from the same discussion). **Verified:** build + smoke clean, plus a
+standalone test of the NDJSON chunk-parser across pathological byte boundaries
+(partial JSON lines held until their newline). **Not yet verified live:** the
+actual on-screen stream in a running window — browser via `npm run dev`,
+desktop via `npm run electron:dev` — left to the user (no browser harness
+pulled in). The **tiered model curation** (BETA-LAUNCH-PLAN #1) stays the
+separate reliability half.
+
+
+
+

@@ -57,6 +57,59 @@ async function localFetch(url, { method='GET', headers, body, signalMs }={}){
   finally{ t.done(); }
 }
 
+/* Live token streaming for Ollama (/api/chat with stream:true → NDJSON: one
+   JSON object per line, each carrying a delta of message.content and, when a
+   thinking model is asked to reason, message.thinking). We accumulate both
+   and call onStream({content,thinking}) as they grow, so the reply — and the
+   Monk's reasoning — can be watched live instead of only after the fact.
+   Two transports: an ordinary browser reads the fetch body stream directly;
+   the desktop app's bridge buffers by default, so it uses a dedicated
+   streaming channel when preload exposes one, and otherwise throws so the
+   caller falls back to the plain buffered request. */
+function parseOllamaStreamLines(buf, acc, onStream){
+  let nl;
+  while((nl=buf.indexOf('\n'))>=0){
+    const line=buf.slice(0,nl).trim(); buf=buf.slice(nl+1);
+    if(!line) continue;
+    let obj; try{ obj=JSON.parse(line); }catch(e){ continue; } // ignore a partial/garbled line
+    const m=obj.message;
+    if(m){
+      if(m.content) acc.content+=m.content;
+      if(m.thinking) acc.thinking+=m.thinking;
+      onStream({ content:acc.content.trim(), thinking:acc.thinking.trim() });
+    }
+  }
+  return buf; // hand back the leftover partial line
+}
+async function ollamaStreamChat(chatUrl, payload, timeoutMs, onStream){
+  const acc={ content:'', thinking:'' };
+  // Desktop app: the ordinary bridge buffers the whole response, which would
+  // defeat streaming — use its streaming channel if present, else throw.
+  if(typeof window!=='undefined' && window.desktopBridge){
+    if(typeof window.desktopBridge.fetchStream!=='function') throw new Error('desktop stream bridge unavailable');
+    let buf='';
+    const r = await window.desktopBridge.fetchStream(chatUrl,
+      { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(payload), signalMs:timeoutMs },
+      (msg)=>{ if(msg && msg.chunk){ buf=parseOllamaStreamLines(buf+msg.chunk, acc, onStream); } });
+    if(r && r.ok===false) throw new Error('desktop stream failed: '+(r.status||0));
+    return { content:acc.content.trim(), thinking:acc.thinking.trim() };
+  }
+  // Ordinary browser: read the fetch body stream line by line.
+  const t=withTimeout(timeoutMs);
+  try{
+    const res=await fetch(chatUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(payload), signal:t.signal });
+    if(!res.ok || !res.body) throw new Error('Ollama stream failed: '+res.status);
+    const reader=res.body.getReader(), decoder=new TextDecoder();
+    let buf='';
+    for(;;){
+      const { done, value }=await reader.read();
+      if(done) break;
+      buf=parseOllamaStreamLines(buf+decoder.decode(value,{stream:true}), acc, onStream);
+    }
+    return { content:acc.content.trim(), thinking:acc.thinking.trim() };
+  } finally { t.done(); }
+}
+
 // NPC chat and quick assistant replies stay short-ish — fast, cheap, and
 // resistant to a "thinking" model burning its whole budget on invisible
 // reasoning before it starts answering (see below). Drafted documents
@@ -108,6 +161,11 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
   const url = (baseUrl || 'http://localhost:11434').replace(/\/$/,'');
   const p = {
     name: name || 'Ollama', model: null, availableModels: [],
+    // Ollama can stream tokens live; chat() below uses it when a caller passes
+    // opts.onStream (see sendChatMessage). The cloud providers here don't set
+    // this, so live streaming stays scoped to local models — which is exactly
+    // where it matters most (the Monk's reasoning, and long local waits).
+    supportsStream: true,
     // set by chat() whenever think:true gets real reasoning content back
     // (currently only the Monk asks for it) — a side channel rather than
     // changing chat()'s string-in-string-out contract, safe only because
@@ -154,10 +212,23 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
       const size = (opts && opts.deep) ? 'deep' : (opts && opts.long) ? 'long' : 'short';
       const model = (opts && opts.model) || p.model;
       const think = (opts && typeof opts.think==='boolean') ? opts.think : false;
+      const onStream = (opts && typeof opts.onStream==='function') ? opts.onStream : null;
+      const payload = { model, messages, think, options:{ num_predict:REPLY_TOKENS[size] } };
+      // Live streaming when a caller actually wants it — the reply, and the
+      // Monk's reasoning, reveal as they generate. Any failure here (an older
+      // desktop bridge, a proxy that won't stream) falls through to the plain
+      // buffered request below, so nothing ever regresses to a dead end.
+      if(onStream){
+        try{
+          const s = await ollamaStreamChat(url+'/api/chat', { ...payload, stream:true }, REPLY_TIMEOUT[size], onStream);
+          p.lastThinking = s.thinking || null;
+          return s.content || EMPTY_REPLY_TEXT.ollama;
+        }catch(e){ /* fall through to the buffered request */ }
+      }
       // local models vary wildly in speed; don't hang forever
       const res = await localFetch(url+'/api/chat', {
         method:'POST', headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ model, messages, stream:false, think, options:{ num_predict:REPLY_TOKENS[size] } }),
+        body: JSON.stringify({ ...payload, stream:false }),
         signalMs: REPLY_TIMEOUT[size],
       });
       if(!res.ok) throw new Error('Ollama request failed: '+res.status);

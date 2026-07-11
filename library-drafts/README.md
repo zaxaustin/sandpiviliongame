@@ -52,9 +52,10 @@ there's more than one person submitting things.
 
 ## Why a `tradition` might not fit yet
 
-The four shelves today are Theravada, Mahayana, Daoism, and Practice
-(the Pavilion's own notes about itself). A book from a different
-tradition (Stoic philosophy, Vedanta, Sufi poetry, whatever) doesn't
+The shelves today are Theravada, Mahayana, Daoism, Practice (the
+Pavilion's own notes about itself), Science, Classics, Native American,
+Hindu, and Tantra. A book from a tradition none of those cover (Sufi
+poetry, say) doesn't
 have a shelf to go on yet — that's a real, separate decision (a new
 shelf means a layout change in `scenes.js`/`render.js`, not just a new
 text), not something to force into the nearest existing category. Leave

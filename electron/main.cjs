@@ -95,6 +95,40 @@ ipcMain.handle('desktop-fetch', async (event, { url, method, headers, body, time
   }
 });
 
+/* Streaming sibling of desktop-fetch — reads the response body and pushes
+   each chunk back to the renderer over a per-request channel, so a local
+   model's reply/reasoning can be watched live in the desktop app instead of
+   arriving as one buffered lump (BETA-TESTING-FEEDBACK.md #35). Same
+   localhost-only guard as desktop-fetch. If anything goes wrong the promise
+   resolves { ok:false }, and the renderer falls back to the buffered path. */
+ipcMain.handle('desktop-fetch-stream-start', async (event, { id, url, method, headers, body, timeoutMs }) => {
+  if(!isAllowedLocalUrl(url)){
+    console.log(`[desktop-fetch-stream] blocked non-local URL: ${url}`);
+    return { ok:false, status:0 };
+  }
+  const channel = 'desktop-fetch-stream:' + id;
+  const ctrl = new AbortController();
+  const timer = timeoutMs ? setTimeout(()=>ctrl.abort(), timeoutMs) : null;
+  try{
+    const res = await fetch(url, { method: method||'POST', headers, body, signal: ctrl.signal });
+    if(!res.ok || !res.body){ return { ok:false, status:res.status }; }
+    const decoder = new TextDecoder();
+    const reader = res.body.getReader(); // getReader() works on every Electron/Node; async-iterating res.body doesn't
+    for(;;){
+      const { done, value } = await reader.read();
+      if(done || event.sender.isDestroyed()) break;
+      event.sender.send(channel, { chunk: decoder.decode(value, { stream:true }) });
+    }
+    console.log(`[desktop-fetch-stream] ${method||'POST'} ${url} -> ${res.status} (streamed)`);
+    return { ok:true, status:res.status };
+  }catch(e){
+    console.log(`[desktop-fetch-stream] ${method||'POST'} ${url} -> FAILED: ${e.message}`);
+    return { ok:false, status:0, error:String(e) };
+  }finally{
+    if(timer) clearTimeout(timer);
+  }
+});
+
 /* BETA-TESTING-FEEDBACK.md #12 — Export Save previously always dropped
    into the OS default Downloads folder with no picker (the browser
    <a download> pattern, which Electron still honors but never prompts).

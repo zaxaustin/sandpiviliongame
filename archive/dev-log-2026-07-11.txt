@@ -165,3 +165,74 @@ actually installed on this machine; (2) live click-through of Sebastian's
 calendar in npm run electron:dev (the one unverified piece); (3) the
 gather-your-notes view (NOTES-AND-LOG-ROOM-PLAN.md step 1). All statically
 clean as of tonight: node --check, npm test, npm run build all pass.
+
+================================================================
+MORNING SESSION (2026-07-11 cont.) — the AI-personality pass, the
+library protocol, and live streaming
+================================================================
+
+The user tested overnight; "super happy overall," questions mainly about
+what the AIs are preloaded with. Left detailed testing notes at the end of
+BETA-TESTING-FEEDBACK.md, triaged into "Round 4" (#26-35).
+
+PART A — the AI grounding/personality pass (guidelines, not restrictions):
+- KEY finding: the Mountain Monk had ZERO grounding — his whole grasp of the
+  dharma ran on the base model's training alone. And the user had seen his
+  thinking literally say `check constraints: "Speak briefly and warmly"` —
+  because his prompt was a behavioural rulebook a thinking model audits
+  itself against. Both fixed: he's now grounded in the real Library shelf
+  list (like Quill) PLUS in-prompt canon essentials (Four Noble Truths, the
+  eight folds, the three marks, the anatta formula, karma as cetana), and
+  his prompt was rewritten as identity + knowledge rather than a checklist.
+  Dropped the traffic-cop routing (reverses the older #16 "actively redirect"
+  call — confirmed the user has evolved past it). Given a hidden name he
+  offers only in a true moment: Leaf Wind / ch'il naa'i (Apache — spelling
+  UNVERIFIED, flagged honestly, used as the user wrote it).
+- Quill lightened: performance stripped, a plain knowledgeable librarian
+  whose catalogue-lookup + plan-drafting are offered, never forced. Kept the
+  one hard "never invent a book not on the shelves" line (Library integrity,
+  not personality).
+- Captured the principle as memory feedback_prompts_are_guidelines: prompts
+  ENABLE via identity+knowledge+grounding, never a fear-based leash.
+
+PART B — the Library "protocol" (the user wrote "protocol" repeatedly in
+beta notes; wants it documented for themselves and the README):
+- Investigated the whole pipeline (tools/caravan/, library-inbox/,
+  library-drafts/, the in-game Caravan Desk). It was already solid but
+  scattered across three files + the desk, with no single authoritative
+  how-to. Wrote PROTOCOLS.md — the canonical manual: Protocol 1 (adding a
+  book, BOTH pathways: in-game .txt drag-drop, and the terminal
+  draft→promote→push-fulltext pipeline) with the provenance-first rule and a
+  free-source index table up front; Protocol 2 (connecting your own AI);
+  and a "more to come" stub (shelves/traditions, bundles, own-Pavilion).
+  README now points at it; fixed a stale "four shelves" line in
+  library-drafts/README (it's nine now).
+
+PART C — live streaming for the Monk (the user: "do the real fix"):
+- provider.js: Ollama provider now supportsStream:true; chat() takes
+  opts.onStream and, when present, streams stream:true NDJSON via a new
+  ollamaStreamChat(), accumulating message.content + message.thinking and
+  calling back as they grow. Any failure falls back to the buffered request
+  — no regression; cloud providers untouched (local-only).
+- The desktop bridge buffered (would defeat streaming), so added a real
+  streaming IPC channel: fetchStream in preload.cjs -> desktop-fetch-stream-
+  start in main.cjs (getReader loop, per-request channel id, localhost-only
+  guard kept). Falls back if unavailable.
+- UI (overlays.js): sendChatMessage streams for any local resident; a live
+  bubble shows the reasoning open above the answer, both patched in place per
+  token (updateStreamingBubble), a blinking caret; the phone "thinking…"
+  state respects streaming; the streamed thought is kept even if the final
+  answer is empty (the "small win" too). If it streamed, the final render
+  skips the typewriter.
+- VERIFIED: node --check on all changed files (incl. the two .cjs), npm test,
+  npm run build all clean; plus a standalone test of the NDJSON chunk-parser
+  across pathological byte boundaries (1,3,7,13,50,10000-byte chunks; partial
+  JSON held until its newline) — ALL OK. NOT verified: the actual on-screen
+  stream in a running browser/Electron window — the user's to run (no browser
+  harness pulled in, by their standing preference). The Electron streaming
+  bridge especially wants a real electron:dev check.
+
+Still open after this session: verify streaming live; the Monk tiered-model
+curation (BETA-LAUNCH #1); Sebastian calendar live click-through; the
+gather-your-notes view; and the bigger noted ideas (breviary, Lotus Sutra,
+mega-snowball bundles, second Library floor).
