@@ -535,3 +535,18 @@ review queue reframed as the shared/certified path), MANUAL Your-books.
 Verified: node --check, smoke (22 docs), build all clean. The live click-
 through (drop Paradise Lost -> Classics -> find it under P + in search) is
 the user's own test.
+
+Addendum 11 (2026-07-12): three small usage fixes from the user actually
+adding books ("it works great!"), all in the Add-a-Text-by-Hand form:
+- The shelf (tradition) selector moved ABOVE the Title field and relabeled
+  "📚 Which shelf? — pick this first," gold-bordered — because picking the
+  wrong shelf was the real cause of the user's accidental misfiles. It's
+  now the first field you see and set.
+- On a successful "Add to my Library now": the book fields (title, body,
+  license, source) clear, and the drop message clears — so the same text
+  can't be added twice. The chosen shelf is deliberately KEPT, for adding
+  several books to the same shelf in a row.
+- A 5-second button cooldown with a live countdown ("✓ Added — ready in
+  5s"), guarded by a shelveNowCooldown flag, so a stray double-click can't
+  double-add. Re-enables itself after.
+Verified: node --check, smoke (22 docs), build all clean.

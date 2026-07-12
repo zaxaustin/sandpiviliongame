@@ -4081,17 +4081,17 @@ function renderReviewQueue(){
         never the shared queue.
       </div>
       <div id="dropMsg" class="meta"></div>
-      <label style="margin-top:10px">Title</label><input type="text" id="rmTitle" placeholder="e.g. On the Duty of Civil Disobedience">
-      <label>Tradition</label>
-      <select id="rmTradition" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
+      <label style="margin-top:10px;color:#e0a43c">📚 Which shelf? — pick this first, so the book lands in the right place</label>
+      <select id="rmTradition" style="width:100%;background:#1b140d;border:2px solid #8a6a3a;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
         ${['Theravada','Mahayana','Daoism','Practice','Science','Classics'].map(t=>`<option value="${t}">${t}</option>`).join('')}
       </select>
+      <label style="margin-top:10px">Title</label><input type="text" id="rmTitle" placeholder="e.g. On the Duty of Civil Disobedience">
       <label>License</label><input type="text" id="rmLicense" placeholder="e.g. Public Domain, CC0, CC-BY 4.0">
       <label>Source (URL or citation)</label><input type="text" id="rmSource" placeholder="Where this actually came from">
       <label>Full text</label><textarea id="rmBody" rows="8" placeholder="Paste the whole thing — this is what gets shelved."></textarea>
       <div id="reviewManualMsg" class="meta"></div>
       <div class="row" style="margin-top:14px">
-        <button class="btn" onclick="shelveManualFormNow()">📚 Add to my Library now</button>
+        <button class="btn" id="shelveNowBtn" onclick="shelveManualFormNow()">📚 Add to my Library now</button>
         <button class="btn ghost" onclick="submitManualReviewItem()">Send to review queue instead</button>
         <button class="btn ghost" onclick="backToReviewList()">← Back</button>
       </div>`;
@@ -4347,7 +4347,9 @@ export async function shelvePersonalBook(id){
 /* The direct path a solo visitor actually wants: drop a book, pick its shelf,
    and put it in the Library in one step — no review-queue detour. Reads the
    same manual-entry form the queue path uses. */
+let shelveNowCooldown=false; // guards against a second add of the same book while the form is being cleared
 export async function shelveManualFormNow(){
+  if(shelveNowCooldown) return;
   const title=document.getElementById('rmTitle').value.trim();
   const body=document.getElementById('rmBody').value.trim();
   const msg=document.getElementById('reviewManualMsg');
@@ -4358,8 +4360,31 @@ export async function shelveManualFormNow(){
   if(msg) msg.textContent='Shelving…';
   const res=await shelveAsPersonal({ title, body, license, source, tradition });
   if(!res.ok){ if(msg) msg.textContent=res.reason; return; }
+  // Clear the book fields so the same text can't be added twice by a stray
+  // second click; the shelf stays picked in case you're adding several to it.
+  ['rmTitle','rmBody','rmLicense','rmSource'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const dm=document.getElementById('dropMsg'); if(dm) dm.textContent='';
   if(msg) msg.innerHTML='“'+esc(title)+'” is in your Library now — on the <b>'+esc(res.shelf)
     +'</b> shelf, marked 👤 as your own. Walk to that shelf in the Library, or find it in the Index search.';
+  // A short cooldown on the button — a clear "done, don't double-add" beat.
+  const btn=document.getElementById('shelveNowBtn');
+  shelveNowCooldown=true;
+  if(btn){
+    btn.disabled=true;
+    let secs=5;
+    btn.textContent='✓ Added — ready in '+secs+'s';
+    const tick=setInterval(()=>{
+      secs--;
+      if(secs<=0){
+        clearInterval(tick); shelveNowCooldown=false;
+        if(document.getElementById('shelveNowBtn')===btn){ btn.disabled=false; btn.textContent='📚 Add to my Library now'; }
+      } else if(document.getElementById('shelveNowBtn')===btn){
+        btn.textContent='✓ Added — ready in '+secs+'s';
+      }
+    },1000);
+  } else {
+    setTimeout(()=>{ shelveNowCooldown=false; },5000);
+  }
 }
 export function removePersonalBook(slug){
   const b=data.personalLibrary.find(d=>d.slug===slug); if(!b) return;
