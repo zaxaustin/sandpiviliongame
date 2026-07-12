@@ -91,21 +91,22 @@ For when you just want to add a book without touching a command line.
 3. Choose **"+ Add a text by hand,"** and **drag your `.epub` (or `.txt`)
    onto the drop zone**. An EPUB is unpacked in the game on the spot — title
    and author fill themselves in from the book's own metadata.
-4. **Pick which site it came from.** If it's a known source, the title,
-   author, and a correct **license string fill in automatically**. Write a
-   short honest **summary** in your own words.
-5. **Submit.** It lands in the **Steward Review Queue** — *nothing is shelved
-   until it's reviewed*. (You're the steward right now, so you approve your
-   own; the queue exists for when more than one person submits.)
-   - An **unrecognized source** routes to a **Research Desk project** ("Caravan
-     Drops") instead of the shared queue — your own notes, not the public
-     shelf, until its provenance is sorted.
-6. **Press "👤 Shelve on Your Shelf."** This is the whole local path — no
-   database, no container, no terminal. The book lands on **Your Shelf**, the
-   small personal case by the Library's reading nook, readable in the Reader
-   like any other text. In the **desktop app** its full text is stored as a
-   plain file in the app's own data folder on your disk; in a browser it lives
-   inside your save (very large books need the desktop app).
+4. **Pick its shelf** (the Tradition dropdown — e.g. Classics for *Paradise
+   Lost*), and, if it came from a known source, confirm the license that
+   filled itself in. That shelf is where the book will actually appear.
+5. **Press "📚 Add to my Library now."** That's the whole local path — no
+   database, no container, no terminal, no review-queue detour. The book
+   appears **immediately on the shelf you chose** (findable by walking to it,
+   and in the Index search), marked **👤** as your own addition. It also
+   gathers on **Your Shelf**, the case by the reading nook. In the **desktop
+   app** its full text is stored as a plain file in the app's own data folder;
+   in a browser it lives inside your save (very large books need the desktop
+   app).
+   - **Want a shared, certified commons instead?** Use **"Send to review
+     queue"** — the book waits in the Steward Review Queue until *approved*,
+     the multi-person path where texts are vetted before shelving. (An
+     unrecognized drop source routes to a Research Desk project, "Caravan
+     Drops," rather than the shared queue.)
 
 **The provenance split, stated plainly:** a book you shelve this way is
 **personal — yours, marked 👤, kept apart from the certified shelves.** The

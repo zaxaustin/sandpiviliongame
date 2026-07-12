@@ -1700,8 +1700,12 @@ export function shelfTraditionFor(x,y){
 const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Classics:150, Personal:46 };
 export function openShelf(tradition){
   state.ui='shelf'; state.shelfTradition=tradition; state.shelfIndex=0; hideAllOv();
-  document.getElementById('shelfTitle').textContent='Shelf · '+tradition;
-  state.shelfDocs=Store.listDocs(tradition);
+  document.getElementById('shelfTitle').textContent = tradition==='Personal' ? 'Shelf · Your Shelf' : 'Shelf · '+tradition;
+  // Your Shelf gathers every book YOU added, whatever tradition you filed it
+  // under — a book filed as Classics shows both there and here. Every other
+  // shelf is its tradition, certified and personal side by side (personal
+  // ones wear the 👤 mark).
+  state.shelfDocs = tradition==='Personal' ? Store.allDocs().filter(d=>d.personal) : Store.listDocs(tradition);
   renderShelf();
   showOv('shelfOv'); blip(700,.05,'square',.03);
 }
@@ -1715,6 +1719,7 @@ function renderShelf(){
         <div class="spine ${i===state.shelfIndex?'sel':''}" style="--hue:${hue+i*4}" onclick="selectBook(${i})">
           ${data.read[d.slug]?'<span class="spineRead">✓</span>':''}
           ${isRecentlyAdded(d.added)?'<span class="spineNew">NEW</span>':''}
+          ${d.personal?'<span class="spineNew" title="Your own addition">👤</span>':''}
           <span class="spineTitle">${esc(d.title)}</span>
         </div>`).join('')}
     </div>
@@ -2004,7 +2009,7 @@ export function openIndex(){
 }
 function indexItems(){
   const lib = Store.allDocs().map(d=>({kind:'library', slug:d.slug, title:d.title, category:d.category,
-    sub:d.tradition, license:d.license, summary:d.doc.summary, added:d.added}));
+    sub:d.tradition, license:d.license, summary:d.doc.summary, added:d.added, personal:d.personal}));
   const arc = data.workshop.docs.map(d=>({kind:'archive', slug:d.slug, title:d.title, category:d.category||'personal',
     sub:d.license||'', summary:d.body||'', added:d.created}));
   return [...lib, ...arc];
@@ -2066,15 +2071,18 @@ function renderIndex(){
   let shown, usedRealSearch=false;
   if(search){
     if(state.indexSearchResults){
-      // Real, ranked results already came back — library matches are in
-      // relevance order from Postgres; a local substring match covers the
-      // Archive Desk too, since personal writing never lives in Supabase
-      // and real search can't reach it.
+      // Real, ranked results already came back from Postgres — but that search
+      // can only see the CERTIFIED library (what's mirrored in Supabase). Books
+      // that live only on this device — your own Archive Desk writing AND the
+      // personal books on Your Shelf — never reach it, so match those locally
+      // and fold them in. Without this, a book you added yourself is unfindable
+      // by search whenever Supabase is configured.
       const libResults=state.indexSearchResults.map(d=>({kind:'library', slug:d.slug, title:d.title,
         category:d.category, sub:d.tradition, license:d.license, summary:d.doc.summary, added:d.added}));
-      const archiveMatches=items.filter(i=>i.kind==='archive'
+      const seen=new Set(libResults.map(d=>d.slug));
+      const localMatches=items.filter(i=>!seen.has(i.slug) && (i.kind==='archive' || i.personal)
         && (i.title.toLowerCase().includes(search) || (i.summary||'').toLowerCase().includes(search)));
-      shown=[...libResults, ...archiveMatches];
+      shown=[...libResults, ...localMatches];
       usedRealSearch=true;
     } else {
       shown=items.filter(i => i.title.toLowerCase().includes(search) || (i.summary||'').toLowerCase().includes(search));
@@ -4054,9 +4062,10 @@ function renderReviewQueue(){
     panel.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>Add a Text by Hand</h2>
-      <div class="meta">Have something real — a paper, a chapter, notes you already have permission
-        to share — but no Caravan JSON for it? Paste it straight in. Same review queue, same
-        license/legality check before anything's approved.</div>
+      <div class="meta">Have something real — a book, a paper, a chapter you have permission to keep?
+        Drop or paste it below, pick its shelf, and <b>📚 Add to my Library now</b> puts it straight
+        on that shelf, marked 👤 as your own. (Or send it to the shared review queue instead, if
+        you're curating a certified commons for others.)</div>
       <label>Where did it come from?</label>
       <select id="rmDropSource" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
         <option value="">Not listed / unknown source</option>
@@ -4082,7 +4091,8 @@ function renderReviewQueue(){
       <label>Full text</label><textarea id="rmBody" rows="8" placeholder="Paste the whole thing — this is what gets shelved."></textarea>
       <div id="reviewManualMsg" class="meta"></div>
       <div class="row" style="margin-top:14px">
-        <button class="btn" onclick="submitManualReviewItem()">Add to queue</button>
+        <button class="btn" onclick="shelveManualFormNow()">📚 Add to my Library now</button>
+        <button class="btn ghost" onclick="submitManualReviewItem()">Send to review queue instead</button>
         <button class="btn ghost" onclick="backToReviewList()">← Back</button>
       </div>`;
     return;
@@ -4283,20 +4293,22 @@ export function rejectReviewItem(id){
    folder (falling back to inline-in-save in a browser, where big books
    get refused honestly rather than corrupting the save). */
 const INLINE_PERSONAL_MAX = 1500000; // ~1.5MB of text — past this, a browser's localStorage save genuinely can't hold it
-export async function shelvePersonalBook(id){
-  const item=data.reviewQueue.find(x=>x.id===id); if(!item) return;
-  const btn=document.getElementById('shelfPersonalBtn'+id);
-  if(btn){ btn.disabled=true; btn.textContent='Shelving…'; }
-  const body=item.body||'';
+/* The one place a personal book actually gets built and shelved — shared by
+   the queue's "Shelve" button and the drop form's direct "Add to my Library
+   now". It files the book under the tradition you chose, so it lands on that
+   real shelf (findable under its title), while keeping personal:true and the
+   👤 mark — honest that YOU vouched for it, not a steward. Full text goes to
+   a file on desktop, inline in a browser. Returns {ok, slug, shelf} or
+   {ok:false, reason}. */
+async function shelveAsPersonal({title, body, license, source, tradition, summary, sections}){
+  body=body||'';
   const bridge=window.desktopBridge;
-  if(!(bridge&&bridge.libraryWrite) && body.length>INLINE_PERSONAL_MAX){
-    if(btn){ btn.disabled=false; btn.textContent='Too big for a browser save — the desktop app shelves it as a real file'; }
-    return;
-  }
-  let slug='personal-'+slugify(item.title);
+  if(!(bridge&&bridge.libraryWrite) && body.length>INLINE_PERSONAL_MAX)
+    return { ok:false, reason:'This book is large — the desktop app stores it as a real file, but a browser save can’t hold it.' };
+  let slug='personal-'+slugify(title||'untitled');
   while(Store.getDoc(slug)) slug+='-2'; // never collide with a certified slug or an earlier personal copy
-  const license=item.license||'Personal — license not certified';
-  const fullText={ license, source_url:item.source||'' };
+  const lic=license||'Personal — license not certified';
+  const fullText={ license:lic, source_url:source||'' };
   let storedAsFile=false;
   if(bridge && bridge.libraryWrite){
     try{
@@ -4305,25 +4317,49 @@ export async function shelvePersonalBook(id){
     }catch(e){ /* falls back to inline below */ }
   }
   if(!storedAsFile){
-    if(body.length>INLINE_PERSONAL_MAX){ // desktop write failed AND too big to inline — stop honestly
-      if(btn){ btn.disabled=false; btn.textContent="Couldn't write the file — try again"; }
-      return;
-    }
+    if(body.length>INLINE_PERSONAL_MAX) return { ok:false, reason:"Couldn’t write the file — try again." };
     fullText.text=body;
   }
-  const summary=item.draftSummary
-    || (body.slice(0,240).replace(/\s+\S*$/,'')+(body.length>240?'…':''));
+  const shelf=(tradition && tradition.trim()) ? tradition.trim() : 'Personal';
+  const sum=summary || (body.slice(0,240).replace(/\s+\S*$/,'')+(body.length>240?'…':''));
   data.personalLibrary.push({
-    slug, tradition:'Personal', title:item.title, license,
-    source_url:item.source||'',
-    attribution:'Added by you — personal shelf, not the certified commons',
+    slug, tradition:shelf, title:title||'Untitled', license:lic,
+    source_url:source||'',
+    attribution:'Added by you — your own addition, not the certified commons',
     added:todayKey(), category:'personal', personal:true,
-    doc:{ summary, sections:item.draftSections||[], fullText },
+    doc:{ summary:sum, sections:sections||[], fullText },
   });
-  data.reviewQueue=data.reviewQueue.filter(x=>x.id!==id);
-  persist(); logActivity('Shelved "'+item.title+'" on Your Shelf (personal'+(storedAsFile?', stored on this device':'')+').');
+  persist();
+  logActivity('Shelved "'+(title||'untitled')+'" in your Library ('+shelf+', personal'+(storedAsFile?', stored on this device':'')+').');
   blip(784,.09);
+  return { ok:true, slug, shelf, storedAsFile };
+}
+export async function shelvePersonalBook(id){
+  const item=data.reviewQueue.find(x=>x.id===id); if(!item) return;
+  const btn=document.getElementById('shelfPersonalBtn'+id);
+  if(btn){ btn.disabled=true; btn.textContent='Shelving…'; }
+  const res=await shelveAsPersonal({ title:item.title, body:item.body, license:item.license,
+    source:item.source, tradition:item.tradition, summary:item.draftSummary, sections:item.draftSections });
+  if(!res.ok){ if(btn){ btn.disabled=false; btn.textContent=res.reason; } return; }
+  data.reviewQueue=data.reviewQueue.filter(x=>x.id!==id);
   renderReviewQueue();
+}
+/* The direct path a solo visitor actually wants: drop a book, pick its shelf,
+   and put it in the Library in one step — no review-queue detour. Reads the
+   same manual-entry form the queue path uses. */
+export async function shelveManualFormNow(){
+  const title=document.getElementById('rmTitle').value.trim();
+  const body=document.getElementById('rmBody').value.trim();
+  const msg=document.getElementById('reviewManualMsg');
+  if(!title||!body){ if(msg) msg.textContent='A title and the actual text are both required.'; return; }
+  const tradition=document.getElementById('rmTradition').value;
+  const license=document.getElementById('rmLicense').value.trim();
+  const source=document.getElementById('rmSource').value.trim();
+  if(msg) msg.textContent='Shelving…';
+  const res=await shelveAsPersonal({ title, body, license, source, tradition });
+  if(!res.ok){ if(msg) msg.textContent=res.reason; return; }
+  if(msg) msg.innerHTML='“'+esc(title)+'” is in your Library now — on the <b>'+esc(res.shelf)
+    +'</b> shelf, marked 👤 as your own. Walk to that shelf in the Library, or find it in the Index search.';
 }
 export function removePersonalBook(slug){
   const b=data.personalLibrary.find(d=>d.slug===slug); if(!b) return;
@@ -4538,7 +4574,7 @@ Object.assign(window, {
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
   openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop,
-  shelvePersonalBook, removePersonalBook, openWelcome,
+  shelvePersonalBook, shelveManualFormNow, removePersonalBook, openWelcome,
   toggleEventReminder, dismissButlerPing, butlerPingGo,
   searchSuttaCentral, fetchSuttaCentralText,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, draftSummaryForReviewItem, generateApprovedBatch, markBatchExported,

@@ -96,12 +96,14 @@ still has scripted things to say, and every desk still works.
 - **Carry a book:** 🎒 takes it with you, readable from anywhere via the
   pause menu's Inventory.
 - **The Index** (📑, from any shelf) — every text in one searchable list.
-- **Your Shelf** — the small case by the reading nook. Books *you* bring in
-  land here, marked 👤 as yours — deliberately separate from the certified
-  shelves, where every text carries a steward-vouched license and source.
-  How to add your own books is [`PROTOCOLS.md`](PROTOCOLS.md) Protocol 1;
-  the short version: Caravan Desk → drop a `.txt` → *👤 Shelve on Your
-  Shelf*.
+- **Your own books** — add them at the **Caravan Desk** (Workshop): drop an
+  `.epub` or `.txt`, pick a shelf, press **📚 Add to my Library now**. The
+  book appears **on the shelf you chose** (e.g. *Paradise Lost* on Classics,
+  under P), marked **👤** as your own addition, and readable like any other
+  text — findable by walking to that shelf or by Index search. Every book you
+  add also gathers on **Your Shelf**, the small case by the reading nook, so
+  you can always find your own additions in one place. Full guide:
+  [`PROTOCOLS.md`](PROTOCOLS.md) Protocol 1.
 
 ---
 

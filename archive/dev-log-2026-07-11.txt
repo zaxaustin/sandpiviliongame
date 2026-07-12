@@ -499,3 +499,39 @@ the user's request ("just a written plan right now vs code").
   and Stage 6's "make a real change yourself" can be a real Pavilion
   improvement -- the student improves the school. Linked from
   DAILY-HEAVY-LIFTING (new Phase-2 item #10) and saved to memory.
+
+Addendum 10 (2026-07-12): fixed "I added Paradise Lost but can't find it in
+the Library" — a real bug + two UX gaps the user hit while testing.
+Diagnosis (three things at once):
+1. The review queue is a STAGING area — "Add to queue" never shelved the
+   book; it sat in data.reviewQueue, invisible to shelves and the Index.
+   The user's confusion was correct and earned.
+2. REAL BUG: the Index search's real-search branch (Postgres/Supabase)
+   rebuilt the shown list purely from Supabase results + archive matches,
+   DROPPING personal-library books entirely. So a book you added yourself
+   was unfindable by search whenever Supabase is configured (always, on the
+   dev machine). Fixed: fold local matches for archive AND personal books
+   into the real-search results (dedup by slug).
+3. By old design personal books only sat on a separate "Personal" shelf,
+   never under P on Classics where the user looked.
+Fixes:
+- Refactored shelving into shelveAsPersonal({title,body,license,source,
+  tradition,...}) — files the book under the CHOSEN tradition (keeps
+  personal:true + the 👤 mark), so it lands on that real shelf. Used by
+  both the queue's "Shelve" button and a new direct path.
+- New "📚 Add to my Library now" button on the Add-a-Text-by-Hand form
+  (shelveManualFormNow) — the one-step path a solo user actually wants:
+  drop -> pick shelf -> in the Library, no queue detour. "Send to review
+  queue" kept as the secondary, multi-person certified path.
+- Your Shelf now gathers ALL personal books by the personal flag
+  (openShelf('Personal') -> allDocs().filter(personal)), regardless of the
+  tradition they're filed under — so a Classics-filed personal book shows
+  BOTH on Classics and on Your Shelf.
+- Personal books show a 👤 marker on their shelf spine (honest provenance
+  even when sitting among certified books).
+- indexItems carries `personal`; search fix uses it.
+Docs updated: PROTOCOLS Pathway A (now ends at "Add to my Library now",
+review queue reframed as the shared/certified path), MANUAL Your-books.
+Verified: node --check, smoke (22 docs), build all clean. The live click-
+through (drop Paradise Lost -> Classics -> find it under P + in search) is
+the user's own test.
