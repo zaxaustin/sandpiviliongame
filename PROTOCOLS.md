@@ -64,21 +64,32 @@ signal — see "why sorted by source" in
 
 ### What format the file needs to be
 
-**Plain text (`.txt`) is what the Library wants.** Most public-domain sites
-offer a "Plain Text UTF-8" download — take it. If all you can get is a
-**PDF**, that's fine, but it needs one extra step:
-`python tools/caravan/pdf-to-text.py <file.pdf>` turns it into shelf-ready
-text first.
+**EPUB and plain text (`.txt`) both work directly** — and EPUB is the format
+most free-book sites actually hand you (Standard Ebooks, Gutenberg's "EPUB"
+download, most library exports). You do **not** have to format anything by
+hand:
+
+- **`.epub`** — just drop it on the Caravan Desk (Pathway A below). The game
+  unpacks it right there — no conversion, no terminal, no upload — reading the
+  book's own chapter order and dropping the title-page/colophon boilerplate
+  automatically. (An EPUB is really a zip of chapter files; the Pavilion reads
+  that structure directly, with nothing external.)
+- **`.txt`** — works too; most sites offer a "Plain Text UTF-8" download.
+- **`.pdf`** — one extra step first, since a PDF is page-layout, not text:
+  `python tools/caravan/pdf-to-text.py <file.pdf>` turns it into shelf-ready
+  text. (For EPUB from a terminal instead of in-game, the equivalent is
+  `python tools/caravan/epub-to-text.py <file.epub>`.)
 
 ### Pathway A — no terminal (inside the game)
 
 For when you just want to add a book without touching a command line.
 
-1. Get a **`.txt`** of the book from a source above.
+1. Get an **`.epub`** or **`.txt`** of the book from a source above.
 2. In the game, walk to the **Workshop** and face the **Caravan Desk**
    (west pillar); press **E**.
-3. Choose **"+ Add a text by hand,"** and **drag your `.txt` onto the drop
-   zone**.
+3. Choose **"+ Add a text by hand,"** and **drag your `.epub` (or `.txt`)
+   onto the drop zone**. An EPUB is unpacked in the game on the spot — title
+   and author fill themselves in from the book's own metadata.
 4. **Pick which site it came from.** If it's a known source, the title,
    author, and a correct **license string fill in automatically**. Write a
    short honest **summary** in your own words.
@@ -102,8 +113,9 @@ stood behind; Your Shelf carries what *you* brought in, on your own judgment.
 Both are first-class citizens of the Library (the Index lists them, Quill
 knows them) — the label just always tells the truth about who vouched.
 
-*Today this pathway handles `.txt`. PDF-in-the-game and writing straight to
-`library-inbox/` are real browser limits — use Pathway B for those.*
+*This pathway handles `.epub` and `.txt` in the game directly. PDF-in-the-game
+and writing straight to `library-inbox/` are real browser limits — use Pathway
+B (or the `pdf-to-text.py` / `epub-to-text.py` converters) for those.*
 
 ### Pathway B — with a terminal (the real pipeline)
 

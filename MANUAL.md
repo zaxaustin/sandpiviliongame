@@ -150,9 +150,10 @@ of the day, not three.
   helps turn an idea into concrete next steps, and chapter/paper
   summarizing for text you paste in (kept private, always).
 - **The Caravan Desk** — where texts from outside enter (Protocol 1 lives
-  here): drag-and-drop `.txt` intake, paste-in of Caravan tool output, a
-  live SuttaCentral search, and the review queue where *you* stand behind
-  what you shelve.
+  here): drag-and-drop intake for **`.epub` and `.txt`** files (an EPUB —
+  the format most free-book sites give you — is unpacked right in the game,
+  no conversion), paste-in of Caravan tool output, a live SuttaCentral
+  search, and the review queue where *you* stand behind what you shelve.
 - **The Records Hall** (one floor up) — the Pavilion's own hand-kept
   timeline.
 - **🗒 Your Notes** (pause menu) — every note you've taken *anywhere*

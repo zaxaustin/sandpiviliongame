@@ -331,9 +331,11 @@ model suggest a summary and tradition, always clearly marked as a
 suggestion, never final — a real hand-written summary and confirmed
 license, then `promote-draft.py` to shelve it and `push-fulltext.py` to
 attach the full text. **Without a terminal at all:** the Caravan Desk's
-"+ Add a text by hand" form has a real drag-and-drop zone — drop a
-`.txt` file, pick which site it came from if it's a known one (title,
-author, and license all fill in automatically), and it lands in the
+"+ Add a text by hand" form has a real drag-and-drop zone — drop an
+**`.epub`** (the format most free-book sites hand you — unpacked right in
+the game, no conversion, via the browser's own `DecompressionStream`, no
+library) or a **`.txt`**, pick which site it came from if it's a known one
+(title, author, and license all fill in automatically), and it lands in the
 same Steward Review Queue either way, nothing shelved until reviewed.
 An unrecognized source routes to your own Research Desk notes instead
 of the shared queue. `LIBRARY-GROWTH-PLAN.md` has the actual list of

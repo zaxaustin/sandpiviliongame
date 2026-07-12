@@ -439,3 +439,36 @@ CLAUDE.md trued up: the stale Monk-model risk clause replaced with its
 2026-07-11 resolution, and MANUAL.md/PROTOCOLS.md added to the
 orientation list as part of the definition of done. Tagged
 v0.1.0-beta.1 so this state has a name.
+
+Addendum 8 (session continued into 2026-07-12): EPUB support — books added
+without hand-formatting a .txt, the way the user actually has them. The ask
+sharpened mid-build: not just a terminal converter but drag-and-drop INSIDE
+the game, "either through the local AI or some manual way with the game
+interface."
+- tools/caravan/epub-to-text.py — stdlib-only (zipfile + xml.etree +
+  html.parser) EPUB->text, matching the Caravan pattern. Follows the EPUB
+  spine (real reading order), reads epub:type to drop titlepage/colophon/
+  toc boilerplate by structure, keeps text when a plainer EPUB has no such
+  markup. Tested live on the user's actual Standard Ebooks Franklin epub:
+  382,666 clean chars, title+author auto-detected. The reference impl.
+- src/game/epub.js — the SAME algorithm ported to the browser, no third-
+  party library: a minimal ZIP central-directory reader + the browser's
+  built-in DecompressionStream('deflate-raw') to inflate, and DOMParser to
+  read each chapter's XHTML. CSP-safe, self-contained (sleeper-car rule).
+  epubToText(file) -> {title, author, body}.
+- Wired into the Caravan Desk drop zone: handleBookDrop() now async, detects
+  .epub, unpacks in-game ("Unpacking the EPUB..."), fills the same review
+  form as the .txt path (refactored the shared fill into fillDropForm()).
+  Clear fallbacks: NO_DECOMPRESSION -> point at the desktop app / the .py;
+  image-only epub -> honest "needs OCR" message. Drop-zone hint + PROTOCOLS
+  Protocol 1 + MANUAL + README all updated (.txt-only was stale).
+- VERIFIED: the risky binary core (ZIP parse + raw inflate) tested in Node
+  (same DecompressionStream) against TWO real epubs (Franklin 44 entries,
+  Beowulf 68; both stored+deflate) - container.xml, OPF path, dc:title,
+  spine all read correctly. Chapter extraction validated via the identical
+  Python reference (382k chars). node --check both files, smoke test (22
+  docs), npm run build all clean. NOT verified: the actual in-game drop in
+  a running window (DOMParser is browser-native; the user's own click-
+  through) - a real epub from their Downloads folder is the obvious test.
+Note: the user has a whole Standard Ebooks library downloaded (Franklin,
+Beowulf, Sherlock, Dracula, Gatsby, etc.) - ready to actually fill shelves.

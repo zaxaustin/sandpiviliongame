@@ -9,6 +9,7 @@ import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQu
 import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
 import { isLoggedIn, isSteward, userEmail, sendMagicLink, signOut, onAuthChange } from '../data/auth.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech } from '../tts.js';
+import { epubToText } from '../epub.js';
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 /* escaping text is not the same as a safe link — a `javascript:` URL
@@ -3956,14 +3957,64 @@ function unrecognizedDropProject(){
   }
   return p;
 }
-export function handleBookDrop(event){
+/* Shared by both drop paths (.txt and .epub) — a detected book fills the
+   review form for a listed source, or routes to your own notes for an
+   unrecognized one. Nothing is ever auto-shelved; this only pre-fills. */
+function fillDropForm(title, author, body, msg){
+  const sourceKey=document.getElementById('rmDropSource')?.value;
+  const known=DROP_SOURCES[sourceKey];
+  const size=body.length.toLocaleString();
+  if(known){
+    document.getElementById('rmTitle').value=title;
+    document.getElementById('rmBody').value=body;
+    document.getElementById('rmLicense').value=known.license;
+    document.getElementById('rmSource').value=known.label+(author?' — '+author:'');
+    msg.textContent='Detected "'+title+'"'+(author?' by '+author:'')+' ('+size+' characters). '
+      +'License pre-filled for '+known.label+' — review everything below before adding to the '
+      +'queue, nothing here is confirmed automatically.';
+  } else {
+    const proj=unrecognizedDropProject();
+    proj.notes.unshift({ts:todayKey(), text:(author?title+' — '+author:title)+'\n\n'+body});
+    persist();
+    logActivity('Filed "'+title+'" as a personal note (unrecognized source) instead of the shared queue.');
+    msg.textContent='No listed source picked, so this went to your own notes instead of the shared '
+      +'queue — filed under the Research Desk\'s "Caravan Drops" project, nothing shelved. Pick a '
+      +'listed source above instead if this text actually is from one of them.';
+  }
+}
+export async function handleBookDrop(event){
   event.preventDefault();
   document.getElementById('dropZone')?.classList.remove('over');
   const file=event.dataTransfer.files[0];
   const msg=document.getElementById('dropMsg');
   if(!file || !msg) return;
-  if(!file.name.toLowerCase().endsWith('.txt')){
-    msg.textContent='Only .txt files are supported right now — see BOOK-DRAG-DROP-PLAN.md for why (PDF support is a real, separate later phase).';
+  const name=file.name.toLowerCase();
+  // EPUB — the format most free-book sites hand you. Unpacked in the browser
+  // itself (src/game/epub.js), no terminal, no conversion step, no upload.
+  if(name.endsWith('.epub')){
+    msg.textContent='Unpacking the EPUB… a long book can take a few seconds.';
+    let res;
+    try{ res=await epubToText(file); }
+    catch(err){
+      const m=String(err&&err.message||'');
+      msg.textContent = m.includes('NO_DECOMPRESSION')
+        ? "This browser can't unpack an EPUB on its own. Use the desktop app, or convert it with "
+          +"tools/caravan/epub-to-text.py and drop the resulting .txt here."
+        : "Couldn't read that EPUB ("+(m||'unknown error')+"). If it's an unusual file, try "
+          +"tools/caravan/epub-to-text.py, which prints a clearer reason.";
+      return;
+    }
+    if(!res.body || !res.body.trim()){
+      msg.textContent="That EPUB held no readable text — it may be image-only (scanned pages), which "
+        +"needs OCR the Pavilion doesn't do. Try a text-based edition.";
+      return;
+    }
+    fillDropForm(res.title||file.name.replace(/\.epub$/i,''), res.author, res.body, msg);
+    return;
+  }
+  if(!name.endsWith('.txt')){
+    msg.textContent='Drop a .txt or .epub file here. (For a PDF, convert it first with '
+      +'tools/caravan/pdf-to-text.py, then drop the .txt.)';
     return;
   }
   const reader=new FileReader();
@@ -3972,25 +4023,7 @@ export function handleBookDrop(event){
     const titleMatch=DROP_TITLE_RE.exec(text);
     const authorMatch=DROP_AUTHOR_RE.exec(text);
     const title=titleMatch ? titleMatch[1].trim() : file.name.replace(/\.txt$/i,'');
-    const sourceKey=document.getElementById('rmDropSource')?.value;
-    const known=DROP_SOURCES[sourceKey];
-    if(known){
-      document.getElementById('rmTitle').value=title;
-      document.getElementById('rmBody').value=text;
-      document.getElementById('rmLicense').value=known.license;
-      document.getElementById('rmSource').value=known.label+(authorMatch?' — '+authorMatch[1].trim():'');
-      msg.textContent='Detected "'+title+'"'+(authorMatch?' by '+authorMatch[1].trim():'')
-        +'. License pre-filled for '+known.label+' — review everything below before adding to the '
-        +'queue, nothing here is confirmed automatically.';
-    } else {
-      const proj=unrecognizedDropProject();
-      proj.notes.unshift({ts:todayKey(), text:(authorMatch?title+' — '+authorMatch[1].trim():title)+'\n\n'+text});
-      persist();
-      logActivity('Filed "'+title+'" as a personal note (unrecognized source) instead of the shared queue.');
-      msg.textContent='No listed source picked, so this went to your own notes instead of the shared '
-        +'queue — filed under the Research Desk\'s "Caravan Drops" project, nothing shelved. Pick a '
-        +'listed source above instead if this text actually is from one of them.';
-    }
+    fillDropForm(title, authorMatch?authorMatch[1].trim():null, text, msg);
   };
   reader.readAsText(file);
 }
@@ -4032,7 +4065,8 @@ function renderReviewQueue(){
       <div id="dropZone" ondragover="event.preventDefault();this.classList.add('over')"
         ondragleave="this.classList.remove('over')" ondrop="handleBookDrop(event)"
         style="margin-top:8px;border:2px dashed #55432e;border-radius:8px;padding:22px;text-align:center;color:#a8926c;font-size:13px">
-        📄 Drag a <code>.txt</code> file here — title, author, and (for a listed source above) the
+        📄 Drag a <code>.txt</code> or <code>.epub</code> file here — an EPUB is unpacked right here
+        in the game, no conversion needed. Title, author, and (for a listed source above) the
         license get filled in below automatically. Nothing's added to any queue until you review
         and submit. Picking "Not listed" instead files it as a personal note in the Research Desk,
         never the shared queue.
