@@ -607,6 +607,11 @@ lifting for someone's daily life*).
 
 ## Hopes and dreams
 
+**Every dream below now has a written road** — the dream in one line, the
+first honest slice, and what it waits on — in
+[`HOPES-AND-DREAMS-ROADS.md`](plans/HOPES-AND-DREAMS-ROADS.md)
+(2026-07-11). This section stays the attic; that doc is the stairs.
+
 The short version: a Pavilion, not *the* Pavilion — anyone able to stand
 up their own instance and optionally open a gate between two. Residents
 who keep living and noticing each other while the tab's closed, not just

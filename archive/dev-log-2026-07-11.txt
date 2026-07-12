@@ -423,3 +423,19 @@ a reminder more than an hour stale (Pavilion wasn't open) passes quietly
 instead of ambushing late; reminded-stamp prevents refires, and un-belling
 clears it. MANUAL.md §6 documents it. Verified: node --check, smoke test
 (22 docs), build clean. Live click-through still the user's own.
+
+Addendum 7 (same session, the last with Fable): the attic given stairs.
+plans/HOPES-AND-DREAMS-ROADS.md written — every Hopes-and-Dreams item
+turned into a walkable road: the dream in one line, the FIRST HONEST
+SLICE (a session or two, not a promise of the whole), and what it waits
+on. Eight roads: residents who keep living (walk this one first — the
+idle tick reuses the reminder-sweep pattern proven this week),
+federation via bundles-as-files, the open protocol (document the shapes
+that already exist), the foundation/additions seam, the home-office
+flank (voice-in, own documents, focus mode), the beaver, the Round
+Table, and the accessibility pass (honestly the best polish-week
+candidate before testers). README's Hopes section points at it.
+CLAUDE.md trued up: the stale Monk-model risk clause replaced with its
+2026-07-11 resolution, and MANUAL.md/PROTOCOLS.md added to the
+orientation list as part of the definition of done. Tagged
+v0.1.0-beta.1 so this state has a name.

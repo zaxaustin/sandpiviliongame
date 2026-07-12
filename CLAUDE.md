@@ -37,6 +37,10 @@ every time.
    work" question, this self-paced curriculum (built around this exact
    project) is where that kind of explanation belongs, calibrated to
    where they've already gotten to.
+5. **`MANUAL.md` and `PROTOCOLS.md`** — the user-facing layer (the
+   visitor's handbook, and the fill-your-own-Pavilion protocols). When a
+   feature changes what a *user* sees or does, these move with it —
+   they're part of the definition of done, not an afterthought.
 
 When you finish a real session of work, add to that day's
 `archive/dev-log-YYYY-MM-DD.txt` (create it if the day doesn't have one
@@ -89,6 +93,8 @@ Research and Grant desks) carry a neutral `WORK_CHARTER`, not the
 in-world residents' devotional `CHARTER`, precisely so they serve any
 goal on its own terms rather than skewing every course toward the dharma
 — see `plans/AI-INTEGRATION-NOTES.md` for the full accounting of how the
-AI works, what it costs to run inside a game, and the live effectiveness
-risks named in the open (chiefly: `bestLocalModel()` handing the Monk the
-largest installed model, which is often an unreliable "thinking" model).
+AI works and what it costs to run inside a game. (Its two once-live risks
+were resolved 2026-07-11: replies/reasoning now stream live, and the
+`bestLocalModel()` concern closed as guidance-not-downgrade — the Monk
+keeps the largest installed model by standing rule, and the tiered
+model-picking guide in `PROTOCOLS.md` Protocol 2 does the protecting.)
