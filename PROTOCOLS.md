@@ -14,7 +14,8 @@ breaks trust with whoever's using it.
 **Protocols in this file:**
 1. [Adding a book to the Library](#protocol-1--adding-a-book-to-the-library) — the important one, two pathways
 2. [Connecting your own local AI](#protocol-2--connecting-your-own-local-ai) — so residents talk back
-3. [More to come](#more-protocols-to-come)
+3. [The terminal toolkit](#protocol-3--the-terminal-toolkit) — every useful command in one place
+4. [More to come](#more-protocols-to-come)
 
 ---
 
@@ -216,6 +217,95 @@ Two Pavilion-specific facts that make the choice easier:
 Start small, talk to a resident, and only move up a tier if the replies feel
 thin. A model that answers in two seconds beats a smarter one you stop
 wanting to talk to.
+
+---
+
+## Protocol 3 — The terminal toolkit
+
+Every command worth keeping, in one place, so you never hunt for it. You do
+**not** need any of these to use the Pavilion — the game and its in-app
+Caravan Desk cover the everyday. This is for when you want the terminal's
+extra reach (bigger books, the certified pipeline, running the app from
+source). Commands are PowerShell-flavored (Windows); on Mac/Linux swap
+`setx X "y"` for `export X=y` and backticks for backslashes.
+
+### Running the Pavilion from source
+
+| Command | What it does |
+| --- | --- |
+| `npm install` | Install dependencies (once, and after a `git pull`) |
+| `npm run dev` | Browser dev server, live-reloads on edits — prints a localhost URL |
+| `npm run build` | Build the static site into `dist/` |
+| `npm test` | Config sanity check (scenes, warps, seed) — no browser needed |
+| `npm run electron:dev` | The desktop app, live (no `OLLAMA_ORIGINS` step needed) |
+| `npm run electron:build` | Your own installer (`.exe` in `release/`) — carries your `.env.local` |
+| `npm run electron:build:beta` | The **shareable** installer — local-only, no keys baked in |
+
+### Bringing in books — the Caravan connectors
+
+Each is one named source, stdlib-only, no scraping. Output lands in
+`library-sources/` ready for the draft step (or drop the result on the
+Caravan Desk in-game).
+
+| Command | What it does |
+| --- | --- |
+| `python tools/caravan/epub-to-text.py book.epub` | **EPUB → clean text** (the format most sites give you) |
+| `python tools/caravan/pdf-to-text.py paper.pdf` | PDF → text (needs `pip install pypdf`) |
+| `python tools/caravan/gutenberg.py 2680` | Fetch a Project Gutenberg book by its ID |
+| `python tools/caravan/standardebooks.py search "meditations"` | Search Standard Ebooks |
+| `python tools/caravan/standardebooks.py fetch-text <repo>` | Fetch one Standard Ebooks title's text |
+| `python tools/caravan/suttacentral.py <uid>` | Fetch a text from the Buddhist canon |
+| `python tools/caravan/arxiv.py <id>` | Fetch an arXiv paper (PDF) |
+| `python tools/caravan/openalex.py "<query>"` | Find the open-access copy of a paper |
+| `python tools/caravan/semanticscholar.py "<query>"` | Search Semantic Scholar |
+
+### Shelving a book — the certified pipeline (terminal path)
+
+Needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set for the last two
+(the service-role key, never committed). See Protocol 1, Pathway B.
+
+| Command | What it does |
+| --- | --- |
+| `python tools/caravan/library-draft.py library-sources/<file>.txt` | Start a draft (add `--ai-draft` for an AI summary suggestion) |
+| `python tools/caravan/promote-draft.py library-drafts/<slug>.md` | Shelve it (refuses if license/tradition still TODO) |
+| `python tools/caravan/push-fulltext.py <slug> <file>.txt --license "…" --source-url "…"` | Attach the full text to local MinIO |
+
+### Your local AI — Ollama
+
+| Command | What it does |
+| --- | --- |
+| `winget install Ollama.Ollama` | Install Ollama (Windows) |
+| `ollama pull llama3.2` | Download a model (see Protocol 2's tiered guide) |
+| `ollama list` | Show installed models |
+| `ollama serve` | Make sure it's running |
+| `ollama ps` | Show what's currently loaded in memory |
+| `curl http://localhost:11434/api/tags` | Confirm the game can reach it (should print your models) |
+| `setx OLLAMA_ORIGINS "http://localhost:5173,http://localhost:5174"` | Let a *browser* build reach Ollama (desktop app doesn't need this) |
+
+### The local Library store — Docker + MinIO (only for the certified full-text pipeline)
+
+Beta testers never need this; it's for your own machine's certified library.
+
+| Command | What it does |
+| --- | --- |
+| `docker ps` | Is the MinIO container running? |
+| `docker start sand-pavilion-minio` | Start it if stopped |
+| `curl http://localhost:9000/minio/health/live` | Confirm MinIO is up |
+
+### git — saving and sharing your work
+
+| Command | What it does |
+| --- | --- |
+| `git status` | What's changed |
+| `git add -A && git commit -m "message"` | Save a snapshot |
+| `git log --oneline -10` | Recent history |
+| `git tag v0.1.0` | Name a milestone |
+| `git checkout -b my-branch` | Work on a branch without touching `main` |
+
+> **The one habit worth keeping:** when a command asks for a secret (a
+> `SERVICE_ROLE_KEY`, an API key), set it as an environment variable for that
+> terminal session — never paste it into a file that git tracks. Every script
+> here reads its secrets that way on purpose.
 
 ---
 

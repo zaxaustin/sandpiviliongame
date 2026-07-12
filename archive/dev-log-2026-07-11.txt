@@ -472,3 +472,30 @@ interface."
   through) - a real epub from their Downloads folder is the obvious test.
 Note: the user has a whole Standard Ebooks library downloaded (Franklin,
 Beowulf, Sherlock, Dracula, Gatsby, etc.) - ready to actually fill shelves.
+
+Addendum 9 (session continued, 2026-07-12): two written deliverables, at
+the user's request ("just a written plan right now vs code").
+- PROTOCOLS.md Protocol 3 — "The terminal toolkit": every useful command
+  in one place (run-from-source, the Caravan connectors incl. the new
+  epub-to-text.py, the certified shelving pipeline, Ollama, Docker/MinIO,
+  git), each with a one-line "what it does" + the standing secrets-as-env
+  -vars habit. The user asked for the terminal EPUB path plus "all the
+  terminal codes you think are useful" gathered here.
+- plans/PAVILION-ACADEMY-PLAN.md — the big one the user got excited about:
+  turn the Pavilion into a real learning place. An AI Tutor (WORK_CHARTER,
+  not the devotional charter — coding is secular) that does four jobs:
+  teach (grounded in the lesson), test (quiz + real grading), review your
+  work (paste code -> structured feedback with the WHY), and counsel when
+  stuck (hands over the lesson + your last attempt). Voice in (the gap) +
+  out (exists) to smooth an hour a day. Built on what already exists: the
+  Course Board, LEARNING-PATH.md's 17 coding stages (several already
+  Course-Board-formatted), the chat stack, and the just-built calendar +
+  reminder bell (the "hour a day" scaffold). Eventual home: the sketched
+  Round Table room. Phased with a first honest slice each; Phase 0 is
+  mostly content (port LEARNING-PATH stages into real courses). Names the
+  real risk up front: an AI tutor can be confidently wrong -> ground in
+  real text, and for coding, code that RUNS is a truth-check. Doubles as
+  beta testing: the user is student zero, learning the coding they need,
+  and Stage 6's "make a real change yourself" can be a real Pavilion
+  improvement -- the student improves the school. Linked from
+  DAILY-HEAVY-LIFTING (new Phase-2 item #10) and saved to memory.

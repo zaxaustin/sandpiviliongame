@@ -65,6 +65,14 @@ them, walked daily until it's smooth:
    than books), and the case for a **PubMed Central open-access
    connector** — the biggest legitimately-free source not yet in the
    Caravan.
+10. **The Pavilion Academy** (`PAVILION-ACADEMY-PLAN.md`, 2026-07-12) —
+    "learn with it" grown into its own system: real courses from
+    `LEARNING-PATH.md`, a Tutor who tests you, reviews your work, and
+    counsels when you're stuck, voice to smooth it, an hour a day on the
+    calendar. First subject: the coding the user needs. Doubles as beta
+    testing (student zero improving the school). This is arguably the
+    truest expression of the north star — knowledge into use — and may
+    well jump ahead of the research walk once the daily loop is proven.
 
 ## Phase 3 — Open the doors (beta proper)
 
