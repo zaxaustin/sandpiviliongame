@@ -146,7 +146,7 @@ def main():
         print(f"Author: {author}")
     print(f"Body length: {len(body):,} characters")
     print(f"Wrote: {out_path}")
-    print("\nNext step: open the Archive Desk in-game -> \"+ Bulk import\" -> paste this file's contents.")
+    print("\nNext step (in-game): the Workshop's Caravan Desk -> \"+ Paste Caravan output\" -> paste this file's contents.\nFrom the queue: \"Approve\" for the certified pipeline, or \"Shelve on Your Shelf\" to keep it as your own (personal) book.")
 
 
 if __name__ == "__main__":

@@ -366,3 +366,28 @@ honestly: a PowerShell edit first ran with unset variables (shell state
 does not persist between calls) and then mojibake d the README's UTF-8
 (PS5.1 Get-Content defaults to ANSI) — both caught immediately, file
 restored from git, redone atomically with explicit UTF-8 round-trip.
+
+Addendum 4 (same session): the book pipeline ironed out for real.
+- Audited all 49 live docs with one SQL pass: 36 had MinIO full text, 8
+  are original Pavilion essays (complete as-is, by design), and 5 were
+  the known wound — the 2026-07-10 classics (Aesop, Art of War, Emerson,
+  Franklin, Zhuangzi), shelved catalog-first, full text never pushed,
+  sources not even in library-sources/.
+- Fixed end to end with the pipeline's own tools: gutenberg.py fetched
+  all five (PG 21, 132, 16643, 20203, 59709), bodies extracted to
+  library-sources/, uploaded to MinIO via the same docker/mc recipe
+  push-fulltext.py uses, fullText pointers merged into the Supabase
+  catalog (translators credited: Townsend, L. Giles, H. Giles), then
+  verified the way the game reads: anonymous HTTP GET against
+  localhost:9000 — all five HTTP 200. No live book is catalog-only now.
+- Near-gate #4 closed: exportSave() inlines each desktop-stored personal
+  book's text into the exported copy (live data untouched; a failed read
+  keeps the pointer — partial beats none), and import writes inline
+  texts back out as files on desktop (browser keeps them inline, which
+  is already right there). One .json is the whole Pavilion again.
+- gutenberg.py's "Next step" message updated: it pointed at the Archive
+  Desk bulk import; the real path now is the Caravan Desk's "+ Paste
+  Caravan output" -> queue -> Approve (certified) or Shelve on Your
+  Shelf (personal). Same JSON shape, no code change needed - the message
+  was the only stale part.
+- Verified: node --check, npm test, npm run build all clean.

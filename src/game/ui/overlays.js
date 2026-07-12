@@ -1245,8 +1245,28 @@ export async function renderLocalAIPanel(){
    import is the reverse, replacing the current save wholesale (confirmed first,
    same pattern as resetSave). No backend, no account — a real backup and a way
    to move devices, using nothing Phase 3 hasn't already earned. */
+/* A save export must be a whole Pavilion in one file. Personal books
+   shelved in the desktop app keep their text as a file on disk, not in the
+   save — so the export reads each one back through the bridge and inlines
+   it into the exported COPY (live data is never touched). If a file can't
+   be read, its pointer is kept as-is: a partial export beats none. */
+async function exportableData(){
+  const copy=JSON.parse(JSON.stringify(data));
+  const bridge=window.desktopBridge;
+  if(bridge && bridge.libraryRead){
+    for(const b of (copy.personalLibrary||[])){
+      const st=b.doc && b.doc.fullText && b.doc.fullText.storage;
+      if(!st || !st.personal) continue;
+      try{
+        const res=await bridge.libraryRead(st.personal);
+        if(res && res.ok){ b.doc.fullText.text=res.text; delete b.doc.fullText.storage; }
+      }catch(e){ /* keep the pointer */ }
+    }
+  }
+  return copy;
+}
 export async function exportSave(){
-  const json=JSON.stringify(data,null,2);
+  const json=JSON.stringify(await exportableData(),null,2);
   const defaultName='sand-pavilion-save-'+todayKey()+'.json';
   // Desktop app: a real "Save As" dialog (BETA-TESTING-FEEDBACK.md #12) —
   // Electron still honors <a download> below but always drops it silently
@@ -1282,8 +1302,25 @@ document.getElementById('importFile').addEventListener('change', e=>{
       +'position, reading, planner days, courses, waypoints, AI connections, and Archive Desk entries. '
       +'This cannot be undone.');
     if(!sure) return;
-    Store.save(parsed);
-    location.reload();
+    // The mirror of exportableData(): an imported save may carry personal
+    // book texts inline. On desktop, write each back out as a real file and
+    // keep only the pointer in the save (localStorage stays small); in a
+    // browser, inline is already the right resting shape — leave it.
+    (async ()=>{
+      const bridge=window.desktopBridge;
+      if(bridge && bridge.libraryWrite){
+        for(const b of (parsed.personalLibrary||[])){
+          const ft=b.doc && b.doc.fullText;
+          if(!ft || !ft.text || !b.slug) continue;
+          try{
+            const res=await bridge.libraryWrite(b.slug+'.txt', ft.text);
+            if(res && res.ok){ ft.storage={personal:b.slug+'.txt'}; ft.chars=ft.text.length; delete ft.text; }
+          }catch(e){ /* keep inline — still readable, just bulkier */ }
+        }
+      }
+      Store.save(parsed);
+      location.reload();
+    })();
   };
   reader.readAsText(file);
 });

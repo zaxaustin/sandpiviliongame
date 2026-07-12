@@ -293,10 +293,12 @@ Docker on this machine** (`sand-pavilion-minio`, set to survive a reboot) —
 on your computer, never the cloud. The **database (Supabase) holds only the
 catalog card** — title, license, source, summary, tags, search — the small
 metadata, not the book itself. A hundred gigabytes are set aside locally
-for text; a few megabytes are used. (Note: books added catalog-first, like
-the five shelved 2026-07-10, are readable as summaries until their full
-text is pushed to local MinIO with `push-fulltext.py` — the text step is
-always the local one.) See
+for text; a few megabytes are used. (Books added catalog-first are readable as
+summaries until their full text is pushed to local MinIO with
+`push-fulltext.py` — the text step is always the local one. As of
+2026-07-11 **no live book is in that state**: the five catalog-only
+classics from 07-10 got their full texts fetched and pushed, so all 41
+non-essay texts read in full.) See
 [`LIBRARY-SCALING-PLAN.md`](plans/LIBRARY-SCALING-PLAN.md) for the reasoning
 and the real setup.
 
@@ -481,9 +483,10 @@ testers, none of it big:
    unverified thing (BETA-BUILD-PLAN.md §6.8).
 3. **The welcome-packet decision** — seed(21) vs live(49): backport chosen
    books into `seed.js`, or ship lean on purpose. A decision, not a bug.
-4. **Save export doesn't carry desktop-stored personal book files** (the
-   catalog travels; the .txt files don't) — small, honest in MANUAL.md §8,
-   worth closing before testers migrate machines.
+4. ~~Save export doesn't carry desktop-stored personal book files~~ —
+   **closed 2026-07-11:** export inlines each personal book's text into the
+   save; import writes them back out as files on desktop. One `.json` is
+   the whole Pavilion again.
 5. Then: hand the installer to two or three real people and let
    `BETA-TESTING-FEEDBACK.md` fill up with things nobody imagined.
 

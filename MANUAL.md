@@ -185,10 +185,10 @@ memory footprint, and a "today's session" count of asks and timings.
   file: carry it between machines, back it up, own it. In the desktop app,
   export opens a real save-location dialog.
 - **Desktop-shelved personal books** store their full text as plain files
-  in the app's own data folder. One honest limit: the save export carries
-  the *catalog* of Your Shelf, not those text files — moving to a new
-  machine means re-adding big personal texts there (in a browser, small
-  personal books travel inside the save itself).
+  in the app's own data folder — and the save export carries them:
+  exporting inlines each book's text into the save file, and importing on
+  a desktop writes them back out as files. One `.json` really is your
+  whole Pavilion, Your Shelf included.
 - **⚠ Reset all progress** does exactly what it says, confirms first, and
   cannot be undone.
 - The Café's shared boards need a hosted Commons connection and say so
