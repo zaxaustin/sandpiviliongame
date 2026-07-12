@@ -405,3 +405,21 @@ shelf, added-dated so they carry the NEW tag. Smoke test + build clean.
 plans/DAILY-HEAVY-LIFTING-PLAN.md written — the comprehensive what-next
 gathered into one ordered sequence (prove it -> live it -> learn with it
 -> open it), README pointed at it and its counts trued to 22/51.
+
+Addendum 6 (same session): Sebastian's reminder service — the butler taps
+your shoulder. Direct ask: "he can ping you on the phone if it's time to
+do something... make him feel more like a butler." Built inside the house
+rules, stated in the code where it lives: opt-in by construction (fires
+only for a 🔔 the visitor set themselves), a clock comparison NEVER an AI
+call (the no-background-polling rule is about AI; it stands untouched),
+and a small dismissible card parked above the pocket phone — never a
+popup, never blocks anything. Mechanics: calendar events grow an optional
+remind flag (add-form checkbox, needs a start time to fire at; per-event
+🔔/🔕 toggle in the day view); schedules Sebastian drafts arrive with the
+bell already on (you set that plan WITH him — any bell can be turned off);
+a sweep in main.js's existing frame loop (throttled to ~20s inside) fires
+one reminder at a time with a two-note chime and one of four butler lines;
+a reminder more than an hour stale (Pavilion wasn't open) passes quietly
+instead of ambushing late; reminded-stamp prevents refires, and un-belling
+clears it. MANUAL.md §6 documents it. Verified: node --check, smoke test
+(22 docs), build clean. Live click-through still the user's own.

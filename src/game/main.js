@@ -6,7 +6,7 @@ import {
   blocked, facingTile, opposite, MOVE_TIME, dueSoon, todayKey,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome, sweepReminders } from './ui/overlays.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -218,6 +218,10 @@ function update(dt){
   }
 
   updateNPCs(dt);
+  // Sebastian's reminder sweep — a clock comparison against reminders the
+  // visitor set themselves, throttled inside to ~every 20s. Not an AI call;
+  // the no-background-polling rule (which is about AI) stands untouched.
+  sweepReminders();
 }
 
 /* ---------- loop ---------- */

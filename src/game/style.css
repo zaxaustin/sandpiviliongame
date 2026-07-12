@@ -133,6 +133,24 @@ body { font-family:'Courier New', monospace; touch-action:none; }
   50% { box-shadow:0 6px 20px rgba(0,0,0,.45), 0 0 0 7px rgba(224,164,60,0); }
 }
 @media (prefers-reduced-motion:reduce){ #chatPhone.unread{ animation:none; } }
+/* Sebastian's reminder ping — same small-card language as the pocket phone,
+   parked above it so the two never overlap. Dismiss is its own button so a
+   stray click doesn't silently eat a reminder. */
+#butlerPing {
+  position:fixed; right:14px; bottom:84px; z-index:10; display:none;
+  align-items:center; gap:10px; max-width:290px;
+  background:#241b12; color:#f5e9d4; border:2px solid #4a6a8a; border-radius:12px;
+  padding:9px 12px; font-family:inherit;
+  box-shadow:0 6px 20px rgba(0,0,0,.45);
+}
+#butlerPing.show { display:flex; animation:phonePulse 1.4s ease-in-out 3; }
+#butlerPing .phoneName { color:#a9c7e8; }
+.pingDismiss {
+  flex:none; background:none; border:1px solid #55432e; border-radius:8px;
+  color:#9c8b74; font-family:inherit; font-size:12px; padding:4px 8px; cursor:pointer;
+}
+.pingDismiss:hover { border-color:#e0a43c; color:#e0a43c; }
+@media (prefers-reduced-motion:reduce){ #butlerPing.show{ animation:none; } }
 @media (max-width:820px) {
   #chatOv.open { grid-template-columns:1fr; grid-template-rows:1fr 190px 44px; }
   .chatMain { border-right:none; border-bottom:2px solid #55432e; }

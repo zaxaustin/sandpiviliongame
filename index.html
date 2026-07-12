@@ -64,6 +64,18 @@
   <div class="phoneDot" id="phoneDot"></div>
 </div>
 
+<!-- Sebastian's reminder ping — fires only for reminders YOU set (a 🔔 on a
+     calendar event); a clock check, never an AI call, never a popup that
+     blocks anything. The butler taps you on the shoulder; you keep walking. -->
+<div id="butlerPing">
+  <div class="phoneAvatar" style="background:#4a6a8a">🎩</div>
+  <div class="phoneText" onclick="butlerPingGo()" style="cursor:pointer" title="To the calendar">
+    <div class="phoneName">SEBASTIAN</div>
+    <div class="phoneStatus" id="butlerPingText"></div>
+  </div>
+  <button class="pingDismiss" onclick="dismissButlerPing()" title="Thank you, Sebastian">✕</button>
+</div>
+
 <!-- Shelf browser -->
 <div class="overlay" id="shelfOv"><div class="panel">
   <button class="xbtn" onclick="closeUI()">Esc ✕</button>

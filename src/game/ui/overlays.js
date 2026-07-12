@@ -606,9 +606,12 @@ function renderCalendarDay(){
   const dk=state.calView.day, evs=eventsOn(dk), today=todayKey();
   const list = evs.length ? evs.map(e=>`
     <div class="card" style="cursor:default">
-      <div class="t">${e.start?`<span style="color:#e0a43c">${esc(e.start)}${e.end?'–'+esc(e.end):''}</span>  `:''}${esc(e.title)}</div>
+      <div class="t">${e.start?`<span style="color:#e0a43c">${esc(e.start)}${e.end?'–'+esc(e.end):''}</span>  `:''}${esc(e.title)}${e.remind?' <span title="Sebastian will remind you">🔔</span>':''}</div>
       ${e.note?`<div class="s">${esc(e.note)}</div>`:''}
-      <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="removeCalendarEvent(${e.id})">Remove</button></div>
+      <div class="row" style="margin-top:8px">
+        ${e.start?`<button class="btn ghost" onclick="toggleEventReminder(${e.id})">${e.remind?'🔕 No reminder':'🔔 Remind me'}</button>`:''}
+        <button class="btn ghost" onclick="removeCalendarEvent(${e.id})">Remove</button>
+      </div>
     </div>`).join('') : `<p style="color:#9c8b74">Nothing scheduled on this day yet.</p>`;
   // the untimed half of the day — to-dos (sparks) kept on the planner for
   // this date, so the calendar shows one whole picture: what's timed, and
@@ -630,6 +633,10 @@ function renderCalendarDay(){
       <div style="flex:1"><label>End (optional)</label><input type="time" id="calEvEnd"></div>
     </div>
     <label>Note (optional)</label><input type="text" id="calEvNote" placeholder="Anything worth remembering about it">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer">
+      <input type="checkbox" id="calEvRemind" style="width:auto">
+      🔔 Sebastian reminds you at the start time (a quiet card while the Pavilion is open — never a popup)
+    </label>
     <div id="calEvMsg" class="meta"></div>
     <div class="row" style="margin-top:12px"><button class="btn" onclick="addCalendarEvent('${dk}')">Add to ${esc(dk)}</button></div>`;
 }
@@ -643,7 +650,10 @@ export function addCalendarEvent(dk){
   const note=document.getElementById('calEvNote').value.trim();
   if(!title){ document.getElementById('calEvMsg').textContent='Give it a name and it goes on the day.'; return; }
   if(end && start && end<start){ document.getElementById('calEvMsg').textContent='The end is before the start — worth a second look.'; return; }
-  data.calendar.push({ id:Date.now(), date:dk, start:start||'', end:end||'', title, note });
+  const remindBox=document.getElementById('calEvRemind');
+  const remind=!!(remindBox && remindBox.checked && start); // a reminder needs a time to fire at
+  if(remindBox && remindBox.checked && !start){ document.getElementById('calEvMsg').textContent='A reminder needs a start time to fire at — set one, or uncheck the bell.'; return; }
+  data.calendar.push({ id:Date.now(), date:dk, start:start||'', end:end||'', title, note, remind });
   persist(); logActivity('Added to the calendar: "'+title+'" on '+dk+'.'); blip(700,.06);
   renderCalendar();
 }
@@ -651,6 +661,51 @@ export function removeCalendarEvent(id){
   data.calendar=data.calendar.filter(e=>e.id!==id);
   persist(); renderCalendar();
 }
+export function toggleEventReminder(id){
+  const e=data.calendar.find(x=>x.id===id); if(!e||!e.start) return;
+  e.remind=!e.remind;
+  if(!e.remind) delete e.reminded; // un-belling and re-belling later means it can fire again
+  persist(); renderCalendar();
+}
+/* ----- Sebastian's reminder service — the butler taps you on the shoulder.
+   Fires ONLY for reminders the visitor set themselves (the 🔔 on a calendar
+   event), so it's opt-in by construction; it's a clock comparison, never an
+   AI call, so the no-background-polling rule stands untouched; and it's a
+   small dismissible card by the pocket phone, never a popup that blocks
+   anything. Swept from main.js's existing frame loop (~every 20s), one
+   reminder at a time; a reminder more than an hour stale (the Pavilion
+   wasn't open) is marked quietly instead of ambushing the visitor late. */
+const BUTLER_PING_LINES=[
+  'Begging your pardon — this stands ready:',
+  'As requested, the hour has arrived:',
+  'A gentle word, as you asked:',
+  'The time you set is upon us:',
+];
+let lastReminderSweep=0;
+export function sweepReminders(){
+  const nowMs=Date.now();
+  if(nowMs-lastReminderSweep<20000) return;
+  lastReminderSweep=nowMs;
+  if(document.getElementById('butlerPing').classList.contains('show')) return; // one shoulder-tap at a time
+  const today=todayKey(), d=new Date();
+  const nowMin=d.getHours()*60+d.getMinutes();
+  for(const e of (data.calendar||[])){
+    if(!e.remind || e.reminded || e.date!==today || !e.start) continue;
+    const [sh,sm]=e.start.split(':').map(Number);
+    const evMin=sh*60+(sm||0);
+    if(nowMin<evMin) continue;
+    e.reminded=nowMs; persist();
+    if(nowMin-evMin>60) continue; // stale — the Pavilion wasn't open; let it pass quietly
+    const line=BUTLER_PING_LINES[Math.floor(Math.random()*BUTLER_PING_LINES.length)];
+    document.getElementById('butlerPingText').innerHTML=`${esc(line)}<br><b style="color:#f5e9d4">${esc(e.title)}</b> · ${esc(e.start)}`;
+    document.getElementById('butlerPing').classList.add('show');
+    blip(880,.07); setTimeout(()=>blip(660,.09),140); // a two-note chime, not an alarm
+    logActivity('Sebastian reminded you: "'+e.title+'" ('+e.start+').');
+    return;
+  }
+}
+export function dismissButlerPing(){ document.getElementById('butlerPing').classList.remove('show'); }
+export function butlerPingGo(){ dismissButlerPing(); calSelectDay(todayKey()); }
 /* The Mountain Monk always gets the best available local model and real
    room to actually think (opts.think:true, the 'deep' token/timeout
    tier) — a standing decision, not a performance default: everything
@@ -3017,8 +3072,10 @@ export function sendSebastianPlanToToday(){
   const newSparks=[]; let events=0;
   lines.forEach((line,i)=>{
     const t=parseScheduleTime(line);
-    if(t){ // a timed line becomes a real calendar event for today
-      data.calendar.push({ id:base+i, date:k, start:t.start, end:t.end||'', title:t.title, note:'' });
+    if(t){ // a timed line becomes a real calendar event for today — and since
+      // you set this schedule WITH Sebastian, he minds the clock for it too
+      // (remind:true); any bell can be turned off in the day view.
+      data.calendar.push({ id:base+i, date:k, start:t.start, end:t.end||'', title:t.title, note:'', remind:true });
       events++;
     } else { // an untimed line stays a to-do (spark)
       newSparks.push({ ts:k, text:line, source:'Sebastian', done:false });
@@ -4448,6 +4505,7 @@ Object.assign(window, {
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
   openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop,
   shelvePersonalBook, removePersonalBook, openWelcome,
+  toggleEventReminder, dismissButlerPing, butlerPingGo,
   searchSuttaCentral, fetchSuttaCentralText,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, draftSummaryForReviewItem, generateApprovedBatch, markBatchExported,
   openNoticeBoard, openNoticePost, backToNoticeList, newNoticePostForm, submitNoticePost,

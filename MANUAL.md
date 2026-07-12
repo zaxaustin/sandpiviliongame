@@ -135,6 +135,12 @@ of the day, not three.
   ("three things on the books — something may have to give"), computed the
   moment you open it, never on a timer. Add events with times; they fold
   into the same Upcoming spine as everything else.
+- **Reminders — the butler taps your shoulder.** Tick 🔔 on any timed
+  event (schedules Sebastian drafts for you come with the bell already on)
+  and, at that hour, a small card appears by the pocket phone — a two-note
+  chime, his own words, a ✕ to thank him. Never a popup, never blocks
+  anything, fires only for bells *you* set, and only while the Pavilion is
+  open. Any bell turns off in the day view (🔕).
 - **Talking to Sebastian** is the faster way to plan: describe the day,
   and his drafted schedule gets a **send this plan to today** button —
   timed lines become calendar events, the rest land as to-dos.
