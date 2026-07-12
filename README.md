@@ -221,8 +221,8 @@ forever.
 Science, Classics, Native American, Hindu, and Tantra — the last three
 all added 2026-07-09) plus **Your Shelf**, the personal case by the
 reading nook where books you bring in yourself live, marked 👤 as yours
-(added 2026-07-11). **49 texts live** on the dev machine's full setup
-(21 of them in the shipped seed — the welcome-packet gap is near-gate #3
+(added 2026-07-11). **51 texts live** on the dev machine's full setup
+(22 of them in the shipped seed — the welcome-packet gap is near-gate #3
 below), most of them full, real, page-by-page books, not summaries: the Theravada canon, the Tao Te Ching, the
 Diamond Sutra, Meditations/Republic/Nicomachean Ethics/Discourses/
 Wealth of Nations, Darwin's Origin of Species and Beagle journal plus
@@ -481,8 +481,10 @@ testers, none of it big:
 2. **The clean-machine install test** — `release/Sand Pavilion Setup
    0.1.0-beta.1.exe` on hardware that never built it. The one genuinely
    unverified thing (BETA-BUILD-PLAN.md §6.8).
-3. **The welcome-packet decision** — seed(21) vs live(49): backport chosen
+3. **The welcome-packet decision** — seed(22) vs live(51): backport chosen
    books into `seed.js`, or ship lean on purpose. A decision, not a bug.
+   (The two in-world guide books — the protocol book and A Visitor's
+   Handbook — are in both now, shelved on Practice, 2026-07-11.)
 4. ~~Save export doesn't carry desktop-stored personal book files~~ —
    **closed 2026-07-11:** export inlines each personal book's text into the
    save; import writes them back out as files on desktop. One `.json` is
@@ -494,6 +496,13 @@ testers, none of it big:
 the hybrid — a small VPS running the same Postgres+MinIO Docker stack the
 dev machine already runs, Supabase kept for the social pieces. No server
 rented until the beta actually needs hosting.
+
+**The comprehensive what-next** — the near gates above, the daily loop,
+the research walk (Protocol 3), and the tester round, gathered into one
+ordered sequence — is
+[`DAILY-HEAVY-LIFTING-PLAN.md`](plans/DAILY-HEAVY-LIFTING-PLAN.md)
+(written 2026-07-11, from the direct goal: *the Pavilion does the heavy
+lifting for someone's daily life*).
 
 **Longer-term, each with its real plan:**
 

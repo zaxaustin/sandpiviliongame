@@ -391,3 +391,17 @@ Addendum 4 (same session): the book pipeline ironed out for real.
   Shelf (personal). Same JSON shape, no code change needed - the message
   was the only stale part.
 - Verified: node --check, npm test, npm run build all clean.
+
+Addendum 5 (same session): the guides put IN the Library, where the user
+said they belong — and a real bug found by the user asking "which shelf
+is the protocol book on?": "How to Complete Your Own Pavilion" existed
+only in seed.js, and since Supabase rows REPLACE the seed, it was
+invisible on the dev machine's own Pavilion (a tester would have seen
+it; the owner could not). Fixed by promoting it into Supabase — and a
+second in-world guide written beside it: "A Visitor's Handbook"
+(MANUAL.md condensed into six shelf sections, in-world voice), added to
+BOTH seed.js (22 docs now) and Supabase (51 live). Both on the Practice
+shelf, added-dated so they carry the NEW tag. Smoke test + build clean.
+plans/DAILY-HEAVY-LIFTING-PLAN.md written — the comprehensive what-next
+gathered into one ordered sequence (prove it -> live it -> learn with it
+-> open it), README pointed at it and its counts trued to 22/51.
