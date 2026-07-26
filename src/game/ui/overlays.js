@@ -3992,6 +3992,35 @@ const CURRICULUM = [
       {title:'What "local" and "API" mean, from the inside', body:"(planned) The same beating-heart pipeline you set up, understood."},
       {title:'Make a real change yourself', body:"(planned) Edit something in this actual codebase and see it work — the capstone of the on-ramp."},
     ]},
+  // ---- Electronics (the beta test for the lab + research room — RESEARCH-ROOM-PLAN.md) ----
+  { id:'electronics-101', track:'Electronics', level:101, prereqs:[],
+    title:'Electronics 101 — light your first LED',
+    summary:"Teach yourself the real basics, hardware or not, and use the Science Hall as your lab to test what you learn. This is the beta test for the research room — notice anywhere you think 'where do I put this?'",
+    steps:[
+      {title:'The core idea: voltage, current, resistance', body:"Voltage pushes, current flows, resistance limits — and Ohm's law ties them together: V = I x R. Get this one idea solid before touching parts. Find a free primer yourself; All About Circuits has a free online textbook and SparkFun's tutorials are friendly."},
+      {title:'Start with no hardware — a free simulator', body:"You don't need to buy anything to begin. The free Falstad circuit simulator (falstad.com/circuit) builds and runs circuits right in your browser — wire a battery, a resistor, and an LED and watch the current move."},
+      {title:'Light an LED (the hello-world)', body:"In the simulator, or a cheap breadboard kit if you have one: battery -> resistor -> LED -> back to battery. The resistor keeps the LED from burning out. Getting it to glow is electronics' hello-world."},
+      {title:'Test it in the Lab', body:"Now use the Science & Research Hall as your lab: open a self-experiment or an investigation like 'does doubling the resistor roughly halve the brightness?' Predict first, then check in the simulator or with a meter. Letting the evidence settle it IS the lab working."},
+      {title:'Keep your notes and a datasheet', body:"Every component has a datasheet. Find your LED's, paste it into the Research Desk, and summarize it into notes you keep. Your growing electronics notes and ideas live there — private until you choose to share a build."},
+    ]},
+  { id:'electronics-201', track:'Electronics', level:201, prereqs:['electronics-101'], status:'planned',
+    title:'Electronics 201 — read a schematic, measure for real',
+    summary:"The next rung — reading schematics, using a multimeter, and more parts (transistors, capacitors). Planned; here so the track's shape is visible and you can tell me what it should cover.",
+    steps:[
+      {title:'Read a schematic', body:"(planned) The shorthand every circuit is drawn in."},
+      {title:'Use a multimeter', body:"(planned) Measure voltage, current, and resistance for real."},
+      {title:'Beyond the LED', body:"(planned) Transistors and capacitors — switches and timing."},
+    ]},
+  // ---- Cybersecurity (planned — CYBERSECURITY-PLAN.md; defensive/educational, authorized practice only) ----
+  { id:'security-101', track:'Cybersecurity', level:101, prereqs:[], status:'planned',
+    title:'Security 101 — see what your own machine is doing',
+    summary:"Start by SEEING what's going on — what's running on your computer and what's talking to the network — the foundation of both defending and understanding systems. Then safe, authorized practice (Hack The Box). Defensive and educational, never real harm. Planned — see plans/CYBERSECURITY-PLAN.md.",
+    steps:[
+      {title:'See what is running', body:"(planned) Processes, services, and what's using your network — visibility before anything else."},
+      {title:'Linux & the command line, for real', body:"(planned) The environment nearly all of this happens in."},
+      {title:'Networking basics', body:"(planned) Ports, protocols, how machines actually talk."},
+      {title:'Authorized practice — Hack The Box', body:"(planned) HTB Academy + Starting Point: legal, guided targets you're meant to break, to learn how to defend."},
+    ]},
 ];
 function curriculumNode(id){ return CURRICULUM.find(n=>n.id===id); }
 function lessonProgress(id){ return data.curriculum[id]||(data.curriculum[id]={steps:{}}); }

@@ -1082,5 +1082,34 @@ fixes, prioritising the timeout ("don't cut a convo in the middle") and keeping
 model interference minimal. Done: #21 (gentle history cap) and #22 (longer
 timeouts + kind timeout message) fixed; #23's user-facing half (prune your own
 memory) built, with the converter + living-village half planned in
-`LIVING-VILLAGE-PLAN.md`. All verified (check + smoke + build clean).
+`LIVING-VILLAGE-PLAN.md`.
+
+## Round 4 — what to beta test next (the real daily-use test), 2026-07-12
+
+The steward says he's *close to using the Pavilion daily for reading and
+planning.* That's the test that matters now — not imagined features, but real
+daily use. A concrete checklist to run and report against:
+
+1. **Give it a beating heart** — follow `lessons/01-a-beating-heart.md` end to
+   end on this machine (llama3.1:8b, kept modest for cooling). Does the green
+   "● Connected" appear? Does Quill answer? Note every snag.
+2. **Use it for real reading** — read an actual book in the Reader over a few
+   sittings; take page notes; bring one to today's plan as a spark. Does it feel
+   like a place you'd *return* to read, or a demo?
+3. **Use it for real planning** — set a day's intention, ask Sebastian for a
+   schedule, "📋 Send to today," get a reminder. Does the day-loop actually help?
+4. **Walk the Learning Tree** — complete "A Beating Heart," watch "Meet the
+   residents" unlock; start "Electronics 101" (the lab beta test — open a Hall
+   investigation about an LED/resistor). Where do you think "where do I put this?"
+   — that's the Research-Room finding.
+5. **The integration you want most:** dragging papers into the game. Not built
+   yet — `WEB-VESSEL-PLAN.md` Phase 1 (paste-everywhere) then Phase 2 (richer
+   drops) is the path. Flag it here each time you hit the wall so it stays #1.
+6. **Voice:** read-aloud works; *editing/customising the voice* and *speaking to*
+   residents are future (`PAVILION-ACADEMY-PLAN.md` Ph3 / Hopes Road 5). Note
+   what you'd actually want the voice to do.
+
+**The honest bar:** if after a week of real use it's the place you *reach for* to
+read and plan, the core is done and everything else is growth. Report friction
+here; that's how it gets to "close to perfect." All verified (check + smoke + build clean).
 

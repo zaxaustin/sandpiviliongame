@@ -384,3 +384,40 @@ personal books need NO Docker (files) — this is only for a big certified libra
 (the self-hosted, own-your-library path). Verified: check + smoke + build clean.
 Still queued (not built): converting coding-101 from planned stub to a real
 lesson node.
+
+RESEARCH ROOM PLAN + ELECTRONICS BETA TEST + CYBERSECURITY PLAN (night wrap)
+---------------------------------------------------------------------------
+User asked where papers/ideas live, the plan for the research room, whether to
+add a library floor, and framed Docker as the PRIVATE workbench before releasing
+to the commons. Then: beta-test the lab/research by teaching himself electronics.
+Then: a cybersecurity plan + Hack The Box progression + "see what's going on."
+Then: good stopping point for the night; what should he beta test; near daily use
+for reading+planning; wants drag-papers-into-game integration + future voice
+editing.
+Built/wrote:
+- plans/RESEARCH-ROOM-PLAN.md: honest inventory (papers/ideas already live,
+  scattered: Research Desk=think, Hall/lab=test+dissect, Science shelf=shared,
+  Idea Jar/notes=quick); the gap = no single "My Research" home + no explicit
+  private->release path. Docker/MinIO = the private workbench; release = review
+  queue/promote. RECOMMENDATION: don't add a library floor yet — build the flow
+  ("My Research" home) first, let real use (electronics) pick the room (Hall-as-
+  room vs a papers floor). Phases 0-3.
+- Electronics track in the Learning Tree (beta test of lab+research): electronics
+  -101 REAL (hardware-optional — Falstad simulator; Ohm's law; light an LED; TEST
+  it in the Hall as a self-experiment/investigation; keep datasheet notes in the
+  Research Desk) + electronics-201 planned.
+- plans/CYBERSECURITY-PLAN.md + a planned Security 101 tree node: DEFENSIVE/
+  EDUCATIONAL, authorized practice only (HTB is legal by design). Two halves —
+  "see what's going on" (visibility on your own machine + the Pavilion's own
+  transparency: activity log / Local-AI panel / memory mgmt) and the HTB ladder
+  (fundamentals -> Starting Point -> easy boxes w/ writeups -> branches). Every
+  "how it breaks" pairs with "how to defend"; doubles as securing the self-hosted
+  stack. Phases 0-3.
+- BETA-TESTING-FEEDBACK Round 4: the real daily-use test checklist (beating heart
+  -> real reading -> real planning -> walk the tree/electronics-in-the-lab ->
+  flag drag-papers as the #1 wanted integration -> note voice wants). Honest bar:
+  after a week, is it the place he REACHES FOR to read & plan.
+Verified: check + smoke + build clean throughout.
+Near-term priorities parked for next session: WEB-VESSEL Phase 1 (paste/drag
+papers — his most-wanted), then the "My Research" home; coding-101 real; the
+in-app hardware hint; voice (later).
