@@ -67,3 +67,30 @@ Recommended NEXT build: voice-in (SpeechRecognition, desktop-first) + replies in
 Sebastian's voice — the daily-use unlock the user keeps naming. Then Phase 2
 (AI organizes the Log after capture), Phase 3 (Threads backlog), Phase 4 (mood
 picker — the anti-abandonment surface).
+
+WRITING DESK = BULLET JOURNAL (iron-out, not sprawl); vision captured
+--------------------------------------------------------------------
+User clarified the soul (origin epiphany: "why am I doing this alone? build a
+place others can come learn/do too" -> a catalog of plans others make; heart-
+subject = spirituality; also wants Spanish/coding; a game that works, needed with
+AI). Captured in memory (project_platform_and_conductor). Strong steer: IRON OUT
+what we have before adding more.
+
+Built (the headline ask, additive/safe): the Writing Desk's white paper is now a
+bullet journal — day.log with the three classic entries • task / ○ event / — note
+(BUJO_KINDS), rapid-log input (Enter to add), tasks toggle done, remove; rendered
+into a new #planLog on the page above the freeform paper (which stays, rows 14->
+10). plannerDay patches log:[] for old days. renderPlanLog + setPlanLogKind/
+addPlanLogEntry/togglePlanLogTask/removePlanLogEntry; called from openPlanner;
+window-registered. Verified: check + smoke + build clean.
+
+Decisions recorded in SELF-LEARNING-JOURNAL-PLAN.md (Update 2026-07-26):
+- The Log (HUD capture inbox) vs Writing Desk log (today) — plan a "send to
+  today" bridge so capture flows to the day, no parallel silo. Not built.
+- Second brain: keep growing My Notes in-house; offer OPTIONAL Obsidian vault
+  export/link later (local markdown = aligned, but build-ours-first). Not built.
+- Sebastian modes ("ease in: one thing a day" vs "work mode: keep the schedule")
+  — bounded next build (data.settings.sebMode + day-read/advisory line).
+- Voice: DEFERRED on purpose until the user has a mic + understands the backend
+  (their stated reason). Journal works fully typed.
+Recommended next small build: Sebastian modes.

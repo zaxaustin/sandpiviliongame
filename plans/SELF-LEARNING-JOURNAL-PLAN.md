@@ -74,6 +74,38 @@ The roles, made coherent:
 
 ---
 
+## Update 2026-07-26 — refinements from real use ("iron out before we get ahead")
+
+The steward's steer: consolidate what exists; don't sprawl. Concrete decisions:
+
+- **The Writing Desk's white paper IS the bullet journal now. [BUILT]** The day's
+  page carries a rapid-log of the three classic entries — **• task / ○ event /
+  — note** (`day.log`), tasks toggle done, right above the freeform paper (which
+  stays, for longer writing). This is the "make the writing area the bullet
+  journal" ask, done additively.
+- **The Log vs. the Writing Desk log — how they relate (avoid a 2nd silo):**
+  The Log (HUD 💡) is the *capture-anywhere inbox*; the Writing Desk log is
+  *today's page*. The ironing-out ahead: a one-tap "send to today" from a Log
+  entry (like sparks already do), so capture flows to the day rather than
+  becoming a parallel list. Designed, not yet built.
+- **Second brain — build our own, keep the door open to Obsidian.** Honest
+  assessment: Obsidian is *local markdown files in a folder* — genuinely aligned
+  with local-first/own-your-data, and the desktop app *could* read/link a vault
+  (filesystem access). But the standing decision is build-it-ourselves first, and
+  **My Notes already is** a second brain (folders, tags, one unified log). So:
+  keep growing My Notes as the in-house second brain; offer an **optional Obsidian
+  vault export/link later** (a bridge, not a dependency) for those who want it.
+  Not built now.
+- **Sebastian gets modes/paths.** The user's ask: an "ease in — one thing a day,
+  early" path and a "work mode — a schedule to actually stick to today" path.
+  This is a bounded improvement to an existing resident (a `data.settings.sebMode`
+  + a matching line in his day-read + scripted advisory), not a new system.
+  Recommended as the next small build. Fits the north star: meet the person where
+  their energy is.
+- **Voice: deferred, on purpose.** The button (read-aloud) exists; voice-*in*
+  waits until the steward has a mic set up **and** understands the backend (their
+  stated reason). Not a blocker — the journal works fully typed.
+
 ## Phases (each a real, felt slice; personal interface first)
 
 **Phase 1 — The Log: rapid capture, one place. [BUILT 2026-07-26]**

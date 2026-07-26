@@ -155,7 +155,10 @@ of the day, not three.
   open. Any bell turns off in the day view (🔕).
 - **Talking to Sebastian** is the faster way to plan: describe the day,
   and his drafted schedule gets a **send this plan to today** button —
-  timed lines become calendar events, the rest land as to-dos.
+  timed lines become calendar events, the rest land as to-dos. The page is a
+  **bullet journal**: jot a **•** task, an **○** event, or a **—** note in the
+  day's log (tasks tick off when done), with the freeform paper below for longer
+  writing.
 - **The Archive Desk** — your own writing: documents you keep, personal by
   default, submittable to review if you ever mean to shelve one.
 - **The Research Desk** — freeform projects: notes, an AI assistant that

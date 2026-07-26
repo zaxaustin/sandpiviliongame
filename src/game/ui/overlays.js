@@ -2361,7 +2361,51 @@ function plannerDay(){
   const k=todayKey();
   if(!data.planner[k]) data.planner[k]={ intention:'', ember:'', blocks:DEFAULT_BLOCKS.map(n=>({name:n,state:'waiting'})), sparks:[] };
   if(!data.planner[k].sparks) data.planner[k].sparks=[]; // upgrade days saved before sparks existed
+  if(!data.planner[k].log) data.planner[k].log=[]; // the day's bullet-journal log (SELF-LEARNING-JOURNAL-PLAN.md)
   return data.planner[k];
+}
+/* The Writing Desk's white paper IS a bullet journal now (the user's ask):
+   the classic three entry types — a • task, an ○ event, a — note — rapid-logged
+   right on the day's page. Tasks toggle done. Kept simple and fast; migration
+   (re-deciding what still matters) is a later phase, per the plan. */
+const BUJO_KINDS=[
+  {id:'task',  label:'• Task'},
+  {id:'event', label:'○ Event'},
+  {id:'note',  label:'— Note'},
+];
+function bujoSig(e){ return e.kind==='task' ? (e.done?'✓':'•') : e.kind==='event' ? '○' : '—'; }
+function renderPlanLog(){
+  const el=document.getElementById('planLog'); if(!el) return;
+  const day=plannerDay(), log=day.log||[], kind=state.planLogKind||'task';
+  el.innerHTML = `
+    <div class="meta" style="margin-top:4px">Today's log — a bullet journal: a <b>•</b> task, an <b>○</b> event, or a <b>—</b> note. Jot fast; tidy later.</div>
+    <div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
+      ${BUJO_KINDS.map(k=>`<button class="btn ${k.id===kind?'':'ghost'}" style="font-size:11px;padding:5px 10px" onclick="setPlanLogKind('${k.id}')">${esc(k.label)}</button>`).join('')}
+      <input type="text" id="planLogInput" placeholder="add a ${esc(kind)} — Enter to log" style="flex:1;min-width:150px" onkeydown="if(event.key==='Enter'){event.preventDefault();addPlanLogEntry();}">
+      <button class="btn ghost" style="font-size:11px" onclick="addPlanLogEntry()">Add</button>
+    </div>
+    ${log.length?`<div style="margin-top:8px">${log.map(e=>{
+      const isTask=e.kind==='task';
+      return `<div class="row" style="align-items:center;gap:8px;margin-top:3px">
+        <span style="flex:1;${e.done?'opacity:.55;text-decoration:line-through':''}"><b style="cursor:${isTask?'pointer':'default'};color:#e0a43c" ${isTask?`onclick="togglePlanLogTask(${e.id})"`:''}>${bujoSig(e)}</b> ${esc(e.text)}</span>
+        <button class="btn ghost" style="font-size:10px;padding:2px 8px" onclick="removePlanLogEntry(${e.id})">✕</button>
+      </div>`;
+    }).join('')}</div>`:''}`;
+}
+export function setPlanLogKind(k){ state.planLogKind=k; renderPlanLog(); setTimeout(()=>document.getElementById('planLogInput')?.focus(),20); }
+export function addPlanLogEntry(){
+  const inp=document.getElementById('planLogInput'); const text=(inp&&inp.value||'').trim(); if(!text) return;
+  const day=plannerDay(); if(!day.log) day.log=[];
+  day.log.push({id:Date.now(), text, kind:state.planLogKind||'task', done:false});
+  persist(); if(inp) inp.value=''; renderPlanLog(); setHud();
+  setTimeout(()=>document.getElementById('planLogInput')?.focus(),20);
+}
+export function togglePlanLogTask(id){
+  const day=plannerDay(), e=(day.log||[]).find(x=>x.id===id); if(!e||e.kind!=='task') return;
+  e.done=!e.done; persist(); renderPlanLog();
+}
+export function removePlanLogEntry(id){
+  const day=plannerDay(); day.log=(day.log||[]).filter(x=>x.id!==id); persist(); renderPlanLog();
 }
 /* ----- WRITING-DESK-PLAN.md, steps 1-3 — the page is the desk now, not
    the sixth thing on it. `#planIntent`/`#planEmber` are the only things
@@ -2389,6 +2433,7 @@ export function openPlanner(){
   document.getElementById('planEmber').value = day.ember;
   document.getElementById('planSaved').textContent='';
   renderPlanUpcoming();
+  renderPlanLog();
   state.plannerChat=state.plannerChat||{history:[]};
   state.plannerTool=null;
   renderToolbox();
@@ -5450,6 +5495,7 @@ Object.assign(window, {
   openVoiceSettings, setTTSVoice, setTTSRate, previewTTSVoice,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   openIdeaCapture, saveIdea, deleteIdea, setLogKind,
+  setPlanLogKind, addPlanLogEntry, togglePlanLogTask, removePlanLogEntry,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
   forgetMemoryItem, forgetAllMemory,
