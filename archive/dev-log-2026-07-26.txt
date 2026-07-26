@@ -164,3 +164,23 @@ parallel list — the one open seam from the journal plan, closed. Verified: che
 Also noted to the user: the "upright in the public square" value (don't take away
 people's ability, but stay honest in the commons) — the personal-vs-commons split
 embodies it; aligns with existing no-poison/truth-seeking ethos.
+
+AI BOOK ANALYSIS — the local AI actually engages with a book (fun use)
+----------------------------------------------------------------------
+User wanted a way to get an overall impression of a book or an analysis of a
+chapter, giving the local AI real use. Built in the Reader (the natural home —
+you open a book there, incl. from the inventory):
+- "✨ Overall impression" (summary view): AI reads the book's summary + sections
+  and writes a thoughtful impression. aiBookImpression().
+- "✨ Analyze this page" (full-text view): AI does a close read of the CURRENT
+  page's text. aiAnalyzePage(). ("chapter" ~= the current page, since full text
+  is paginated.)
+Both saved as book notes via saveAiBookNote, prefixed "✨ ... (AI)" so they're
+never confused with the user's own notes; they get the existing → Bring to
+today's plan + search for free. Neutral/analytical voice (WORK_CHARTER + "a
+perceptive literary companion") so it serves any book on its own terms. Bounded
+on purpose (impression = summary+sections; analysis = one page) to respect a
+local model's context — never feeds the whole book. Buttons show only when AI is
+active (rdImpressionBtn in openReader, rdAnalyzeBtn in renderFullTextPage, both
+independent of TTS). isEmptyReply retry-guard messaging. Verified: check + smoke
++ build clean. MANUAL §4 updated.

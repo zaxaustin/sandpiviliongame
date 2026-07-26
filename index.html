@@ -93,6 +93,7 @@
     <div class="row" style="margin-top:6px">
       <button class="btn ghost" id="rdReadBtn" onclick="toggleReadAloud()">🔊 Read aloud</button>
       <button class="btn ghost" id="rdSummaryBtn" onclick="toggleSpokenSummary()">🔊 Summary aloud</button>
+      <button class="btn ghost" id="rdImpressionBtn" onclick="aiBookImpression()" style="display:none">✨ Overall impression</button>
     </div>
     <div class="meta" id="rdSpokenNote"></div>
     <div id="rdBody"></div>
@@ -107,6 +108,7 @@
     <div class="meta" id="rdFullTextMeta"></div>
     <div class="row" style="margin-top:6px;margin-bottom:10px">
       <button class="btn ghost" id="rdFullTextReadBtn" onclick="toggleFullTextReadAloud()">🔊 Read this page</button>
+      <button class="btn ghost" id="rdAnalyzeBtn" onclick="aiAnalyzePage()" style="display:none">✨ Analyze this page</button>
       <button class="btn ghost" id="rdSkipBack" onclick="skipReadAloud(-10)" title="Back 10 seconds" style="display:none">⏪ 10s</button>
       <button class="btn ghost" id="rdSkipFwd" onclick="skipReadAloud(10)" title="Forward 10 seconds" style="display:none">10s ⏩</button>
     </div>

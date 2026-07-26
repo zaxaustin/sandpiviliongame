@@ -101,6 +101,11 @@ still has scripted things to say, and every desk still works.
   page-by-page texts, not summaries.
 - **Read aloud:** the 🔊 button speaks the page; ±10-second skips work like
   a podcast. Voice and speed live in the pause menu's **🔊 Voice settings**.
+- **Let the AI read with you:** with a local AI connected, the Reader offers
+  **✨ Overall impression** (its thoughtful take on the whole book) and, in the
+  full text, **✨ Analyze this page** (a close read of the passage you're on).
+  Both save straight into your book notes, marked ✨ as the AI's, never confused
+  with your own — a real, engaged use of your local model, not just chat.
 - **Take notes while reading:** the note box in the Reader files a note to
   that book (and that page, if you're mid-text). Every note has a
   **→ Bring to today's plan** button — one click and it lands on the

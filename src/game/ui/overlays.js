@@ -1917,6 +1917,7 @@ export function openReader(slug){
   document.getElementById('rdMark').textContent = data.read[slug] ? 'Read ✓' : 'Mark as read';
   document.getElementById('rdSpokenNote').textContent='';
   updateReaderSpeakBtns();
+  { const ib=document.getElementById('rdImpressionBtn'); if(ib) ib.style.display=isAIActive()?'inline-block':'none'; }
   const carryBtn=document.getElementById('rdCarryBtn');
   if(carryBtn) carryBtn.textContent = data.inventory.includes(slug) ? '🎒 Carrying' : '🎒 Take with you';
   document.getElementById('rdFullTextBtn').style.display = d.doc.fullText ? 'inline-block' : 'none';
@@ -2005,6 +2006,63 @@ function renderBookNotes(slug){
   document.getElementById('rdNotesList').innerHTML = toggle+list;
 }
 export function currentDocSlug(){ return state.currentDoc; }
+/* Give the local AI some real, fun use: let it actually ENGAGE with a book —
+   an overall impression from the summary/sections, or an analysis of the page
+   you're on — saved straight into your book notes (marked ✨ AI, so it's never
+   confused with your own). Neutral/analytical (WORK_CHARTER) so it serves any
+   book, fiction to science, on its own terms. Bounded on purpose: the impression
+   uses the summary + sections (small), the analysis uses just the current page —
+   never the whole book, which would overwhelm a local model's context. */
+function saveAiBookNote(slug, label, text, page){
+  const note={ ts:todayKey(), text:'✨ '+label+' (AI)\n'+String(text).trim() };
+  if(typeof page==='number') note.page=page;
+  (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift(note);
+  persist(); logActivity('The AI wrote a book note — '+label+'.'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
+  renderBookNotes(slug);
+}
+export async function aiBookImpression(){
+  const slug=state.currentDoc; if(!slug) return;
+  const d=Store.getDoc(slug); if(!d) return;
+  const note=document.getElementById('rdSpokenNote');
+  if(!isAIActive()){ if(note) note.textContent='Connect a local AI (⚙ Manage AI connections) to get an impression.'; return; }
+  const btn=document.getElementById('rdImpressionBtn'); if(btn) btn.disabled=true;
+  if(note) note.textContent='Reading it over…';
+  const src=[d.title, d.doc.summary, ...(d.doc.sections||[]).map(s=>s.heading+': '+s.body)].join('\n\n');
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nYou are a perceptive, well-read literary companion in the Sand Pavilion. '
+        +'Give a thoughtful OVERALL IMPRESSION of the book described below: what it is really doing, its spirit and worth, '
+        +'who might love it, and an honest reservation or two — a few short paragraphs, written to be read, genuinely engaged '
+        +'rather than a dry blurb. Stay grounded in what you are given; do not invent specifics about the book beyond it.'},
+      {role:'user', content:src},
+    ], {long:true});
+    if(isEmptyReply(reply)){ if(note) note.textContent="The thought slipped away — try again in a moment."; }
+    else { saveAiBookNote(slug, 'Overall impression', reply); if(note) note.textContent='✨ Saved an impression to your notes below.'; }
+  }catch(e){ if(note) note.textContent="The connection flickered — no impression this time. (Is your local AI still running?)"; }
+  if(btn) btn.disabled=false;
+}
+export async function aiAnalyzePage(){
+  const v=state.fullTextView; if(!v) return;
+  const slug=v.slug, d=Store.getDoc(slug);
+  const pageText=(v.pages[v.page]||'').trim(); if(!pageText) return;
+  const meta=document.getElementById('rdFullTextMeta'); const prev=meta?meta.textContent:'';
+  if(!isAIActive()){ if(meta) meta.textContent='Connect a local AI (⚙ Manage AI connections) to analyze this page.'; return; }
+  const btn=document.getElementById('rdAnalyzeBtn'); if(btn) btn.disabled=true;
+  if(meta) meta.textContent='Analyzing this page…';
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nYou are a perceptive literary companion in the Sand Pavilion. Analyze the single '
+        +'passage below from "'+(d?d.title:'a book')+'": what it is saying, what is notable in HOW it says it, and anything '
+        +'worth carrying away — a few short paragraphs, grounded strictly in this passage, written to be read. Do NOT summarize '
+        +'the whole book; stay with this passage only.'},
+      {role:'user', content:pageText},
+    ], {long:true});
+    if(meta) meta.textContent=prev;
+    if(isEmptyReply(reply)){ if(meta) meta.textContent="The thought slipped away — try again in a moment."; }
+    else saveAiBookNote(slug, 'Analysis · page '+(v.page+1), reply, v.page);
+  }catch(e){ if(meta) meta.textContent="The connection flickered — no analysis this time. (Is your local AI still running?)"; }
+  if(btn) btn.disabled=false;
+}
 
 /* ----- Reading the whole book, not just the shelf summary — paginated
    client-side (no server, no chunking API) since a full public-domain
@@ -2090,6 +2148,7 @@ function renderFullTextPage(){
   document.getElementById('rdFullTextPageNum').textContent=`Page ${v.page+1} of ${v.pages.length}`;
   document.getElementById('rdFullTextBody').scrollTop=0;
   updateFullTextSpeakBtn();
+  { const ab=document.getElementById('rdAnalyzeBtn'); if(ab) ab.style.display=isAIActive()?'inline-block':'none'; }
   renderBookNotes(v.slug); // the per-page note filter follows you as you turn pages
 }
 export function fullTextNextPage(){
@@ -5609,6 +5668,7 @@ export async function generateQuillReport(){
 Object.assign(window, {
   closeUI, openReader, markRead, backToShelf, addBookNote, sendNoteToToday, removeSpark, toggleBookNotesFilter,
   openFullText, backToSummary, fullTextNextPage, fullTextPrevPage, toggleFullTextReadAloud, skipReadAloud,
+  aiBookImpression, aiAnalyzePage,
   selectBook, shelfOpenSelected,
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
   fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention,
