@@ -52,6 +52,11 @@ screen tells you plainly whether saving to this device is working.
   about being unfinished.
 - **The Café** — the outward-looking room: the Counter, the Notice Board,
   the Residents' Board, the Hearth Corner, and the Grant Desk.
+- **The Stacks** (the Index → 🗂 Browse by section) — the whole Library sorted
+  into a real catalog for when it gets big: **Section → Subsection → books**
+  (Religion & Spirituality → Buddhism / Hinduism / Daoism…, plus Philosophy &
+  Classics, Science, Non-fiction, Fiction). The physical shelves stay a curated
+  handful; the Stacks hold *everything*, your own 👤 books included.
 - **The Keep** (north of the Grounds) — the Pavilion's temple: the Buddha
   and Ganesha shrines, the eight signs of the Eightfold Path walked south
   to north, and the Mountain Monk's own quarters. Walk up to any of the eight

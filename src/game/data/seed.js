@@ -8,7 +8,7 @@ import { satipatthanaFullText } from './library-texts/satipatthana.js';
 import { mettaFullText } from './library-texts/metta.js';
 import { anapanasatiFullText } from './library-texts/anapanasati.js';
 
-export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice','Science','Classics','Native American','Hindu','Tantra'];
+export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice','Science','Classics','Native American','Hindu','Tantra','Fiction','Non-fiction'];
 /* Categories are a second, orthogonal axis to tradition — "what kind of
    text is this" rather than "which lineage." Every seed text today is
    the same kind (classical, hand-vetted, non-fiction) — the taxonomy is

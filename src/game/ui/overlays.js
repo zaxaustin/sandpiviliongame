@@ -1188,7 +1188,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -2214,6 +2214,7 @@ function renderIndex(){
     <div class="meta">Every text in one place, sorted by kind rather than lineage — the Library's
       shelves and your own Archive Desk together. Categories with nothing in them yet are still
       shown; the shape's there before the content is.</div>
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="openCatalog()">🗂 Browse by section (The Stacks)</button></div>
     <input type="text" id="indexSearch" placeholder="Search titles and summaries…"
       value="${esc(state.indexSearch||'')}" oninput="setIndexSearch(this.value)" style="margin-top:12px">
     ${search ? `<div class="meta" style="margin:8px 0 0">
@@ -2230,6 +2231,86 @@ function renderIndex(){
         <div class="t">${i.kind==='library'?'📖':'📔'} ${esc(i.title)}${i.kind==='library'?` <span class="badge lic">${esc(i.license)}</span>`:''}${isRecentlyAdded(i.added)?' <span class="badge">NEW</span>':''}</div>
         <div class="s">${esc(i.sub||'')}</div>
       </div>`).join('') : `<p>${search?'Nothing matches that search.':'Nothing here yet.'}</p>`}`;
+}
+
+/* ================================================================
+   The Stacks — a hierarchical catalog for a Library that SCALES
+   (BETA-FEEDBACK #36; the user chose sections -> subsections). Physical
+   shelves stay a curated handful; this is how a *mass* of books is
+   actually browsed: Section -> Subsection -> books, driven by a taxonomy
+   config so re-sorting is a data edit, never code. Reuses the two axes
+   the data already has (`tradition` + `category`), with a category
+   fallback for anything not explicitly mapped.
+   ================================================================ */
+const LIBRARY_TAXONOMY = {
+  'Theravada':      {section:'Religion & Spirituality', sub:'Buddhism'},
+  'Mahayana':       {section:'Religion & Spirituality', sub:'Buddhism'},
+  'Tantra':         {section:'Religion & Spirituality', sub:'Hindu Tantra'},
+  'Hindu':          {section:'Religion & Spirituality', sub:'Hinduism'},
+  'Daoism':         {section:'Religion & Spirituality', sub:'Daoism'},
+  'Native American':{section:'Religion & Spirituality', sub:'Indigenous'},
+  'Practice':       {section:'Religion & Spirituality', sub:'Practice & Cross-tradition'},
+  'Classics':       {section:'Philosophy & Classics', sub:'Philosophy & Classics'},
+  'Science':        {section:'Science', sub:'Science'},
+  'Fiction':        {section:'Fiction', sub:'Fiction'},
+  'Non-fiction':    {section:'Non-fiction', sub:'Non-fiction'},
+};
+const SECTION_ORDER=['Religion & Spirituality','Philosophy & Classics','Science','Non-fiction','Fiction','Other'];
+function bookSection(d){
+  const t=LIBRARY_TAXONOMY[d.tradition];
+  if(t) return t;
+  const c=d.category;
+  if(c==='fiction') return {section:'Fiction', sub:'Fiction'};
+  if(c==='non-fiction') return {section:'Non-fiction', sub:'Non-fiction'};
+  if(c==='research') return {section:'Science', sub:'Research papers'};
+  return {section:'Other', sub:d.tradition||'Uncategorized'};
+}
+// attribute/JS-safe token for section & subsection names (they contain spaces &
+// ampersands, and a user-added tradition could contain anything).
+const encTok=s=>encodeURIComponent(String(s)).replace(/'/g,'%27');
+export function openCatalog(){ state.ui='catalog'; hideAllOv(); state.catalogView={section:null,sub:null}; renderCatalog(); showOv('catalogOv'); }
+export function catalogOpen(section,sub){
+  state.catalogView={ section: section?decodeURIComponent(section):null, sub: sub?decodeURIComponent(sub):null };
+  renderCatalog();
+}
+function renderCatalog(){
+  const v=state.catalogView||{section:null,sub:null};
+  const tree={};
+  Store.allDocs().forEach(d=>{ const {section,sub}=bookSection(d); (tree[section]=tree[section]||{}); (tree[section][sub]=tree[section][sub]||[]).push(d); });
+  const sections=SECTION_ORDER.filter(s=>tree[s]).concat(Object.keys(tree).filter(s=>!SECTION_ORDER.includes(s)));
+  const panel=document.getElementById('catalogPanel');
+  const header=`<button class="xbtn" onclick="closeUI()">Esc ✕</button><h2>🗂 The Stacks</h2>`;
+  if(!v.section){
+    panel.innerHTML = header
+      +`<div class="meta">The whole Library, by section — built to hold a lot of books. The physical
+        shelves are a curated handful; this is <i>everything</i>, sorted. Pick a section to drill in.</div>`
+      +`<div style="margin-top:12px">${sections.map(s=>{
+        const subs=tree[s], n=Object.values(subs).reduce((a,arr)=>a+arr.length,0);
+        return `<div class="card" onclick="catalogOpen('${encTok(s)}')"><div class="t">${esc(s)} <span class="badge">${n}</span></div>
+          <div class="s">${Object.keys(subs).sort().map(esc).join(' · ')}</div></div>`;
+      }).join('')}</div>
+      <div class="row" style="margin-top:16px"><button class="btn ghost" onclick="openIndex()">↔ The flat Index instead</button></div>`;
+    return;
+  }
+  const subs=tree[v.section]||{};
+  if(!v.sub){
+    const subNames=Object.keys(subs).sort();
+    panel.innerHTML = header
+      +`<div class="meta"><b>${esc(v.section)}</b> — ${subNames.length} subsection${subNames.length===1?'':'s'}</div>`
+      +`<div style="margin-top:10px">${subNames.map(sub=>`
+        <div class="card" onclick="catalogOpen('${encTok(v.section)}','${encTok(sub)}')"><div class="t">${esc(sub)} <span class="badge">${subs[sub].length}</span></div></div>`).join('')}</div>
+      <div class="row" style="margin-top:16px"><button class="btn ghost" onclick="catalogOpen()">← All sections</button></div>`;
+    return;
+  }
+  const books=(subs[v.sub]||[]).slice().sort((a,b)=>a.title.localeCompare(b.title));
+  panel.innerHTML = header
+    +`<div class="meta"><b>${esc(v.section)}</b> › <b>${esc(v.sub)}</b> · ${books.length} book${books.length===1?'':'s'}</div>`
+    +`<div style="margin-top:10px">${books.map(d=>`
+      <div class="card" onclick="openReader('${d.slug}')">
+        <div class="t">📖 ${esc(d.title)}${d.personal?' <span class="badge">👤</span>':''} <span class="badge lic">${esc(d.license)}</span>${isRecentlyAdded(d.added)?' <span class="badge">NEW</span>':''}</div>
+        <div class="s">${esc((d.doc.summary||'').slice(0,130))}</div>
+      </div>`).join('')}</div>
+    <div class="row" style="margin-top:16px"><button class="btn ghost" onclick="catalogOpen('${encTok(v.section)}')">← ${esc(v.section)}</button></div>`;
 }
 
 /* ----- read-aloud for the Library — the actual "have books be read to
@@ -3947,7 +4028,7 @@ const CURRICULUM = [
       {title:'Check what YOUR machine can run', body:"Open Task Manager (Ctrl+Shift+Esc) → Performance and note your RAM, and whether you have a real graphics card. Match it to a model size — pick smaller if unsure. Do this yourself first; it's the habit that makes all the rest make sense."},
       {title:'Install Ollama', body:"Get it from ollama.com (or, on Windows, `winget install Ollama.Ollama`). It runs quietly in your system tray afterward."},
       {title:'Pull your model', body:"In a terminal: `ollama pull llama3.2` (or the size your machine fits). Run `ollama list` to confirm it downloaded."},
-      {title:'Connect it to the Pavilion', body:"Desktop app: automatic. Browser: set OLLAMA_ORIGINS (the full lesson shows how). Look for the green ● Connected line on the title screen."},
+      {title:'Connect it to the Pavilion', body:"Desktop app: automatic. Browser: set OLLAMA_ORIGINS (the full lesson shows how). Look for the green ● Connected line on the title screen.", action:{label:'Open ⚙ Manage AI connections', fn:'openConnections'}},
       {title:'Say hello to Quill (the real test)', body:"Talk to Quill in the Library. If he answers in his own words, grounded in the actual books — your Pavilion has a beating heart."},
     ]},
   { id:'first-book', track:'Getting Started', level:101, prereqs:[],
@@ -3957,9 +4038,9 @@ const CURRICULUM = [
     steps:[
       {title:'Find a genuinely free book', body:"Project Gutenberg or Standard Ebooks. 'Free to read' isn't the same as 'free to keep' — look for public domain or a CC license. Pick something you truly want; that's the point."},
       {title:'Get it as .epub or .txt', body:"Most sites offer both. EPUB is fine — the game unpacks it itself, no conversion."},
-      {title:'Drop it on the Caravan Desk', body:"Workshop → face the Caravan Desk (press E) → '+ Add a text by hand' → drag your file onto the drop zone. Title and author fill themselves in."},
+      {title:'Drop it on the Caravan Desk', body:"Workshop → face the Caravan Desk (press E) → '+ Add a text by hand' → drag your file onto the drop zone. Title and author fill themselves in.", action:{label:'Open the Caravan Desk', fn:'openReviewQueue'}},
       {title:'Pick its shelf and add it', body:"Choose the shelf (tradition), confirm the license, and press '📚 Add to my Library now.' It appears on that shelf, marked 👤 as yours."},
-      {title:'Go read it', body:"Walk to the shelf you chose (or Your Shelf by the reading nook) and open your book. It's part of your Library now."},
+      {title:'Go read it', body:"Walk to the shelf you chose (or Your Shelf by the reading nook) and open your book. It's part of your Library now — and you can always find it in the Stacks.", action:{label:'Browse the Stacks', fn:'openCatalog'}},
     ]},
   { id:'library-storage', track:'Getting Started', level:201, prereqs:['first-book'],
     title:'Room for a Library — local storage with Docker (optional)',
@@ -3978,7 +4059,7 @@ const CURRICULUM = [
     steps:[
       {title:'Ask Quill about the shelves', body:"In the Library, ask Quill what's worth reading for something you actually care about. He's grounded in the real books."},
       {title:'Sit with the Monk', body:"In the Keep, bring the Monk a real question of meaning or practice — not trivia. He answers differently than the others."},
-      {title:'Plan a day with Sebastian', body:"In the Workshop, ask Sebastian for a schedule, then use '📋 Send this plan to today' to drop it straight onto your calendar and plan."},
+      {title:'Plan a day with Sebastian', body:"In the Workshop, ask Sebastian for a schedule, then use '📋 Send this plan to today' to drop it straight onto your calendar and plan.", action:{label:'Open the Calendar', fn:'openCalendar'}},
       {title:'Notice where it all happened', body:"Every one of those conversations ran on your own machine and left it never. That's the whole idea — help that's genuinely yours."},
     ]},
   // ---- Coding (the next track — shown so you can see the shape and what's missing) ----
@@ -4000,8 +4081,8 @@ const CURRICULUM = [
       {title:'The core idea: voltage, current, resistance', body:"Voltage pushes, current flows, resistance limits — and Ohm's law ties them together: V = I x R. Get this one idea solid before touching parts. Find a free primer yourself; All About Circuits has a free online textbook and SparkFun's tutorials are friendly."},
       {title:'Start with no hardware — a free simulator', body:"You don't need to buy anything to begin. The free Falstad circuit simulator (falstad.com/circuit) builds and runs circuits right in your browser — wire a battery, a resistor, and an LED and watch the current move."},
       {title:'Light an LED (the hello-world)', body:"In the simulator, or a cheap breadboard kit if you have one: battery -> resistor -> LED -> back to battery. The resistor keeps the LED from burning out. Getting it to glow is electronics' hello-world."},
-      {title:'Test it in the Lab', body:"Now use the Science & Research Hall as your lab: open a self-experiment or an investigation like 'does doubling the resistor roughly halve the brightness?' Predict first, then check in the simulator or with a meter. Letting the evidence settle it IS the lab working."},
-      {title:'Keep your notes and a datasheet', body:"Every component has a datasheet. Find your LED's, paste it into the Research Desk, and summarize it into notes you keep. Your growing electronics notes and ideas live there — private until you choose to share a build."},
+      {title:'Test it in the Lab', body:"Now use the Science & Research Hall as your lab: open a self-experiment or an investigation like 'does doubling the resistor roughly halve the brightness?' Predict first, then check in the simulator or with a meter. Letting the evidence settle it IS the lab working.", action:{label:'Open the Science & Research Hall', fn:'openScienceHall'}},
+      {title:'Keep your notes and a datasheet', body:"Every component has a datasheet. Find your LED's, paste it into the Research Desk, and summarize it into notes you keep. Your growing electronics notes and ideas live there — private until you choose to share a build.", action:{label:'Open the Research Desk', fn:'openResearchDesk'}},
     ]},
   { id:'electronics-201', track:'Electronics', level:201, prereqs:['electronics-101'], status:'planned',
     title:'Electronics 201 — read a schematic, measure for real',
@@ -4057,6 +4138,7 @@ function renderLearningTree(){
         return `<div class="card" style="cursor:pointer" onclick="toggleLessonStep('${node.id}',${i})">
           <div class="t">${on?'☑':'☐'} ${esc(s.title)}</div>
           <div class="s" style="margin-top:5px">${esc(s.body)}</div>
+          ${s.action?`<div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11.5px" onclick="event.stopPropagation(); ${s.action.fn}()">${esc(s.action.label)} →</button></div>`:''}
         </div>`;
       }).join('')}</div>
       ${done ? `<div class="card" style="cursor:default;margin-top:12px;border-color:#7fb069"><div class="t">✓ Lesson complete</div><div class="s" style="margin-top:5px">${next.length?'You\'ve unlocked: '+next.map(n=>esc(n.title)).join(', ')+'.':'That\'s the end of this branch — for now.'}</div></div>` : ''}
@@ -5355,6 +5437,7 @@ Object.assign(window, {
   openLocalAIPanel, renderLocalAIPanel,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
   openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
+  openCatalog, catalogOpen,
   openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
   openNotesLog, setNotesLogSource, setNotesLogFolder, setNotesLogSearch, toggleNotesLogItem,
   assignNoteFolder, setNoteTags, askSebastianReviewFolder,

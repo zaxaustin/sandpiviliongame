@@ -1,0 +1,35 @@
+Dev log — 2026-07-26
+====================
+
+Morning session. Two real-use findings from the user actively adding books +
+walking the Learning Tree, both actioned (BETA-FEEDBACK Round 5, #35/#36).
+
+#36 THE STACKS — a Library that scales (user chose "sections -> subsections")
+----------------------------------------------------------------------------
+Flat 9-tradition shelves + one Index list don't hold a mass of books. Built a
+hierarchical catalog: openCatalog/catalogOpen/renderCatalog (catalogOv), reached
+from the Index ("🗂 Browse by section"). Section -> Subsection -> books, driven by
+LIBRARY_TAXONOMY (tradition -> {section,sub}) with a `category` fallback, so
+re-sorting is a data edit not code. Section names are attr/JS-safe via
+encodeURIComponent tokens (encTok) + decode in catalogOpen. Seeded taxonomy:
+Religion & Spirituality {Buddhism, Hinduism, Hindu Tantra, Daoism, Indigenous,
+Practice & Cross-tradition}, Philosophy & Classics, Science, Non-fiction,
+Fiction, Other. Good news found in the data: two axes already existed (tradition
++ category; seed CATEGORIES already had fiction/non-fiction/research) — so this
+extends, not restarts. TRADITIONS gained Fiction + Non-fiction so the add-a-book
+dropdown offers them (no physical shelf needed — they live in the catalog + Your
+Shelf; SHELF_HUE/shelfTraditionFor have fallbacks). Physical shelves untouched.
+
+#35 LESSONS AS REAL TOOLS — action-linked (user chose "both, action-linked first")
+---------------------------------------------------------------------------------
+Lessons felt like static checklists. Steps can now carry action:{label,fn}; the
+lesson view renders a button that opens the REAL tool (event.stopPropagation so
+it doesn't tick the step). Wired: beating-heart "Connect" -> openConnections;
+first-book "Caravan Desk" -> openReviewQueue, "Go read it" -> openCatalog;
+meet-residents "Plan a day" -> openCalendar; electronics-101 "Test in the Lab" ->
+openScienceHall, "Keep notes" -> openResearchDesk. The lesson now DRIVES the app.
+Still to do: the Academy tutor inside a lesson (teach/quiz/answer) — the deeper
+half, PAVILION-ACADEMY-PLAN Phase 1.
+
+Verified throughout: node --check + smoke (9 scenes, 22 docs) + build clean.
+Docs: BETA-FEEDBACK #35/#36 marked; MANUAL gains The Stacks; this log.

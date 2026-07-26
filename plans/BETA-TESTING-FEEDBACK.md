@@ -1111,5 +1111,62 @@ daily use. A concrete checklist to run and report against:
 
 **The honest bar:** if after a week of real use it's the place you *reach for* to
 read and plan, the core is done and everything else is growth. Report friction
-here; that's how it gets to "close to perfect." All verified (check + smoke + build clean).
+here; that's how it gets to "close to perfect."
+
+## Round 5 — 2026-07-26, first real-use findings (adding books; learning)
+
+Two honest hits from actually using it:
+
+### 35. [~] The lessons feel like placeholders, not real tools
+
+**Action-linked half BUILT 2026-07-26 (user chose "both — action-linked first,
+then tutor").** Lesson steps can now carry an `action:{label,fn}` that renders a
+button opening the *real* tool the step is about — so the lesson **drives the
+app** instead of describing it: "Connect it" → ⚙ Manage AI connections; "Drop it
+on the Caravan Desk" → the Caravan Desk; "Go read it" → the Stacks; "Plan a day"
+→ the Calendar; "Test it in the Lab" → the Science Hall; "Keep notes" → the
+Research Desk. (`event.stopPropagation()` so the button doesn't also tick the
+step.) **Still to do:** the Academy tutor *inside* a lesson (teach/quiz/answer) —
+`PAVILION-ACADEMY-PLAN.md` Phase 1 — the deeper "useful tool" half.
+
+*The original finding, kept for the record:* Walking the Learning Tree, the
+lessons read as **static checklists** — text you
+tick off — rather than tools that *do* something or *teach back*. That's a fair
+read: today a lesson is a list of steps with copy, no interactivity. Two fixes,
+and they stack: **(a) action-linked steps** — a step opens the actual tool it's
+about (⚙ Manage AI connections, the hardware hint, the Caravan Desk), so the
+lesson *drives* the app instead of describing it; and **(b) the Academy tutor** —
+the AI actually teaches, quizzes, and answers within the lesson
+(`PAVILION-ACADEMY-PLAN.md` Phase 1), which is the real "useful tool" leap. The
+static checklist was always the Phase-0 scaffold; this is the note that it needs
+to become interactive to feel real. **Direction being confirmed with the user.**
+
+### 36. [~] The Library won't scale flat — needs sections & subsections
+
+**BUILT 2026-07-26 — The Stacks (user chose sections → subsections).** A
+hierarchical catalog: **Section → Subsection → books**, reached from the Index
+("🗂 Browse by section"). Driven by a `LIBRARY_TAXONOMY` config in `overlays.js`
+(tradition → {section, sub}, with a `category` fallback) — so **re-sorting is a
+data edit, never code.** Seeded taxonomy: Religion & Spirituality {Buddhism,
+Hinduism, Hindu Tantra, Daoism, Indigenous, Practice & Cross-tradition},
+Philosophy & Classics, Science, Non-fiction, Fiction, Other. `TRADITIONS` gained
+**Fiction** and **Non-fiction** so new books can be filed there from the
+add-a-book dropdown. Physical shelves untouched (still the curated handful);
+personal 👤 books fold into the catalog too. **Next (as it grows):** finer
+subsections (e.g. Classics → Greek/Roman) once books carry more specific tags,
+and letting the add form pick section+subsection directly. The original finding:
+
+Adding many books (classics, fiction) exposes that a flat set of ~9 tradition
+shelves + one Index list doesn't hold a *mass* of books. The user wants a real
+hierarchy: **Religion → Buddhism / Hinduism / Daoism…**, **Classics divided**,
+and top-level **Fiction / Non-fiction / Science**. **Good news from the code:**
+the data *already* has two axes — `tradition` (the shelf/lineage) **and**
+`category` (`seed.js` CATEGORIES already defines classical / non-fiction /
+fiction / research / ai-written / personal, currently all 'classical'). So this
+is *extending* an existing structure, not starting over. The real gaps: (1) a
+**hierarchical browse/catalog view** (Section → Subsection → books) since
+physical shelves can't scale; (2) a **clean agreed taxonomy**; (3) the
+**add-a-book flow** setting section + subsection so new books land right.
+**Taxonomy shape being confirmed with the user before building** (re-tagging a
+big library later is the costly mistake to avoid). All verified (check + smoke + build clean).
 
