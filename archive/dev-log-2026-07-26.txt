@@ -203,3 +203,29 @@ is still per-page/one-utterance (no continuous auto-advance yet) and there's no
 global floating audio player that roams EVERY screen — both are READING-ROOM
 Phase 0-1 (auto-advance + keep-alive + a persistent mini-player). Left for when
 the user wants it, to avoid re-engineering the TTS lifecycle late in a session.
+
+VISUAL POLISH — plan + a viewable mockup (can't see the live game from here)
+---------------------------------------------------------------------------
+User: make the visuals more appealing/professional — "a game that's not a game."
+Reconciled with the sleeper-car standing decision up front: professional =
+cohesive & INTENTIONAL, not high-res; nothing here spends CPU/GPU. Read the real
+style.css: coherent amber-on-dark-parchment + Courier mono, good bones (shadows,
+card/badge/phone patterns, reader = ink-on-parchment); what holds it back = no
+design tokens (hexes hardcoded in style.css AND inline in overlays.js),
+slightly inconsistent radii/borders/spacing, mono-everywhere (a type-pairing is
+the biggest cheap "pro" lever), minimal world art.
+Wrote plans/VISUAL-POLISH-PLAN.md: 5 phases, cheapest-first — (1) design tokens
+(:root palette + radius/spacing/type scales; start as a zero-visual-change
+refactor, then tune from one place), (2) component consistency + hover/focus/
+motion, (3) typography (mono for labels + a warm serif for body, web-safe/offline),
+(4) world & sprites (palette-locked, ambient light, title screen; pairs with
+CHARACTER-CUSTOMIZATION-PLAN), (5) motion & touches. Method stated honestly: I
+can't see the running game, so propose visually -> user approves -> apply to real
+CSS in small verifiable steps, never a blind restyle.
+Built a VIEWABLE MOCKUP (Artifact, since I can't screenshot the game): a faithful,
+tokenized style guide in the Pavilion's own palette (swatches, the two-face type
+specimen, and mocked real components — panel, bullet-journal log, cards, badges,
+the phone chip, an ✨ AI book note, the parchment reader). Single-world dark by
+deliberate choice. URL: claude.ai/code/artifact/47283baf-0c83-4767-8d5b-f4bb36283d6f
+Nothing in the live game changed yet — awaiting the user's read on the direction.
+Recommended first real step: Phase 1 tokens (safe).
