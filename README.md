@@ -449,6 +449,17 @@ rendering/input/adapters — the fuller manual QA checklist lives in
 
 ## What's next
 
+**The master roadmap (2026-07-12):** the whole vision and the ordered road to it
+— a *platform* where everyone holds their own library, local AI that genuinely
+helps daily life, and the "human conductor / abundance sandbox" philosophy
+(nothing happens unless you act; no background process, ever) — is written down
+in [`PLATFORM-ROADMAP.md`](plans/PLATFORM-ROADMAP.md). It's the spine that orders
+every other plan. Recommended first: streamline toward "close to perfect" (polish
++ AI reliability + human-like interactions, not new rooms), then ship the beta
+public on GitHub so real people fill their own libraries. Everything below feeds
+into that spine.
+
+
 **The actual north star, stated directly by the user (2026-07-08): "I
 want my day to be at ease where this place can help me find direction
 and the tools needed to make use of the knowledge provided — this
