@@ -117,6 +117,10 @@ still has scripted things to say, and every desk still works.
   add also gathers on **Your Shelf**, the small case by the reading nook, so
   you can always find your own additions in one place. Full guide:
   [`PROTOCOLS.md`](PROTOCOLS.md) Protocol 1.
+- **Tidy your own books** — on **Your Shelf**, press **⚙ Manage my books** to
+  fix a misfiled book (move it to the right shelf) or remove a duplicate.
+  Same-title duplicates are flagged for you. This only touches your own 👤
+  books, never the certified shelves.
 
 ---
 

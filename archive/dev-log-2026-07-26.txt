@@ -113,3 +113,21 @@ system into Notes too. Both built (additive, no new silos):
   second brain, now living.
 Handlers registered. Verified: check + smoke + build clean. Docs: plan Update
 marked both BUILT; MANUAL updated (Sebastian paths + Notes collections).
+
+MANAGE MY LIBRARY — fix duplicates + move misfiled personal books
+-----------------------------------------------------------------
+Real-use problem while the user added books: doubles (Paradise Lost x2) and
+books on the wrong shelf, with no in-game way to fix either (removePersonalBook
+existed but only via opening each book in the Reader; no re-file at all).
+Built openManageLibrary/renderManageLibrary: lists all data.personalLibrary
+(👤) books, each with a "Move to" shelf dropdown (TRADITIONS, now imported into
+overlays) -> movePersonalBook(slug,tradition) sets b.tradition (re-files on the
+shelves AND in The Stacks at once, since both sort by tradition), an Open, and a
+Remove. Same-title duplicates flagged (border + "possible duplicate" badge).
+removePersonalBook gained a `from` arg so it re-renders the manager instead of
+jumping to the shelf. Entry point: "⚙ Manage my books" on Your Shelf; new
+manageLibOv overlay. Certified books untouched (managed via the review pipeline).
+Verified: check + smoke + build clean. MANUAL §4 updated. Also confirmed to the
+user: I can't see their local library count (it lives on their machine — the
+privacy feature); The Stacks shows the live total. Obsidian decision: keep
+building ours (My Notes + collections), optional markdown export bridge later.

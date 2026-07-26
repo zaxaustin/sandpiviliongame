@@ -4,7 +4,7 @@ import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
-import { CATEGORIES } from '../data/seed.js';
+import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
 import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
 import { isLoggedIn, isSteward, userEmail, sendMagicLink, signOut, onAuthChange } from '../data/auth.js';
@@ -1213,7 +1213,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -1876,6 +1876,7 @@ function renderShelf(){
       <div class="row" style="margin-top:12px">
         <button class="btn" onclick="shelfOpenSelected()">Open book</button>
         <button class="btn ghost" onclick="openIndex()">📑 Full Index</button>
+        ${state.shelfTradition==='Personal'?'<button class="btn ghost" onclick="openManageLibrary()">⚙ Manage my books</button>':''}
       </div>
       <div class="blHint">◀ ▶ browse the shelf · Enter / E open</div>
     </div>` : (state.shelfTradition==='Personal'
@@ -5359,7 +5360,7 @@ export async function shelveManualFormNow(){
     setTimeout(()=>{ shelveNowCooldown=false; },5000);
   }
 }
-export function removePersonalBook(slug){
+export function removePersonalBook(slug, from){
   const b=data.personalLibrary.find(d=>d.slug===slug); if(!b) return;
   const sure=window.confirm('Take "'+b.title+'" off Your Shelf? Its stored text goes with it. '
     +'(Notes you took on it stay in your save.)');
@@ -5370,7 +5371,44 @@ export function removePersonalBook(slug){
   }
   data.personalLibrary=data.personalLibrary.filter(d=>d.slug!==slug);
   persist(); logActivity('Removed "'+b.title+'" from Your Shelf.');
-  openShelf('Personal');
+  if(from==='manage') renderManageLibrary(); else openShelf('Personal');
+}
+/* Manage my Library — the cleanup tool for your OWN 👤 books: fix duplicates
+   (remove) and misfiled ones (move to the right shelf), in one place, with
+   same-title duplicates flagged. Certified library books aren't shown — those
+   go through the review pipeline, not here. Moving just changes a book's
+   `tradition`, which is what the shelves and The Stacks sort by, so it re-files
+   everywhere at once. */
+export function openManageLibrary(){ state.ui='managelib'; hideAllOv(); renderManageLibrary(); showOv('manageLibOv'); }
+function renderManageLibrary(){
+  const books=data.personalLibrary||[];
+  const titleCount={}; books.forEach(b=>{ const t=(b.title||'').trim().toLowerCase(); titleCount[t]=(titleCount[t]||0)+1; });
+  const opts=b=>TRADITIONS.map(t=>`<option value="${esc(t)}"${b.tradition===t?' selected':''}>${esc(t)}</option>`).join('');
+  document.getElementById('manageLibPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>⚙ Manage my Library</h2>
+    <div class="meta">Your own 👤 books. Move a misfiled one to the right shelf, or remove a duplicate —
+      same-title duplicates are flagged. (Certified library books aren't listed here; those are handled
+      through the review pipeline.)</div>
+    ${books.length ? books.map(b=>{
+      const dupe=titleCount[(b.title||'').trim().toLowerCase()]>1;
+      return `<div class="card" style="cursor:default${dupe?';border-color:#e0a43c':''}">
+        <div class="t">${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
+        <div class="s">shelf: <b>${esc(b.tradition||'Personal')}</b> · ${esc(b.license||'')}</div>
+        <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="s" style="margin:0">Move to:</span>
+          <select onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto">${opts(b)}</select>
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="removePersonalBook('${esc(b.slug)}','manage')">Remove</button>
+        </div>
+      </div>`;
+    }).join('') : '<p>No personal books yet — add some at the Caravan Desk, then organize them here.</p>'}
+    <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="openShelf('Personal')">← Your Shelf</button></div>`;
+}
+export function movePersonalBook(slug, tradition){
+  const b=data.personalLibrary.find(d=>d.slug===slug); if(!b) return;
+  b.tradition=tradition; persist(); logActivity('Moved "'+b.title+'" to the '+tradition+' shelf.'); blip(660,.06);
+  renderManageLibrary();
 }
 /* ----- AI-assisted shelf copy — closes the real gap the batch generator
    always had: a promoted entry's summary/sections used to be pure "TODO"
@@ -5578,6 +5616,7 @@ Object.assign(window, {
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
   openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop,
   shelvePersonalBook, shelveManualFormNow, removePersonalBook, openWelcome,
+  openManageLibrary, movePersonalBook,
   toggleEventReminder, dismissButlerPing, butlerPingGo,
   searchSuttaCentral, fetchSuttaCentralText,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, draftSummaryForReviewItem, generateApprovedBatch, markBatchExported,
