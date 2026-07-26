@@ -1214,7 +1214,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
 function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
-export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
+export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); state.audioReturnSlug=null; persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
    works identically with no account at all; logging in adds cross-
@@ -1669,6 +1669,18 @@ export function openNotesLog(){
   if(!state.notesLogView.folder) state.notesLogView.folder='all';
   state.ui='notesLog'; hideAllOv(); renderNotesLog(); showOv('notesLogOv');
 }
+/* Listen while you jot: open Your Notes from the Reader WITHOUT stopping the
+   read-aloud (opening the log never calls stopSpeaking), remembering the book so
+   a banner can bring you back. The audio genuinely keeps playing while you
+   write — the "pocket a book like the phone" feel, for notes. */
+export function openNotesWhileListening(){
+  state.audioReturnSlug = state.currentDoc || null;
+  openNotesLog();
+}
+export function returnToBook(){
+  const slug=state.audioReturnSlug; state.audioReturnSlug=null;
+  if(slug) openReader(slug);
+}
 function notesLogFiltered(){
   const v=state.notesLogView, q=v.q.trim().toLowerCase();
   return gatherNotes().filter(n=>{
@@ -1699,12 +1711,22 @@ function renderNotesLog(){
   // needed, never swarmed with data he doesn't need."
   const sebBtn = (v.folder && v.folder!=='all' && v.folder!=='__unfiled')
     ? `<button class="btn ghost" onclick="askSebastianReviewFolder()" style="margin-bottom:10px;border-color:#7fa3c7;color:#a9c7e8">🎩 Ask Sebastian to tidy this folder</button>` : '';
+  // "Listen while you jot" — came here from a book (openNotesWhileListening) with
+  // the read-aloud still going; a tap-to-return banner so the audio isn't a dead
+  // end. Audio keeps playing because opening this log never stops it.
+  const returnDoc = state.audioReturnSlug ? Store.getDoc(state.audioReturnSlug) : null;
+  const listenBanner = returnDoc
+    ? `<div class="card" style="cursor:pointer;border-color:#8fb4d9;margin-bottom:10px" onclick="returnToBook()">
+        <div class="t">${isSpeaking()?'🔊 Still reading':'📖'} ${esc(returnDoc.title)} — ▸ back to the book</div>
+        <div class="s">Jot whatever you like here — ${isSpeaking()?'it keeps reading aloud while you do':'your book is waiting'}. Tap to return.</div>
+      </div>` : '';
   document.getElementById('notesLogPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>🗒 Your Notes</h2>
     <div class="meta">Every note you've written, gathered in one place. A window onto them, not a new
       drawer: each note is still kept, and still edited, where it lives. Open a note to file it in a
       folder or add tags — the folders are just for you (and for Sebastian, when you ask him to tidy one).</div>
+    ${listenBanner}
     <input type="text" id="notesLogSearch" placeholder="Search notes and tags…" value="${esc(v.q)}"
       oninput="setNotesLogSearch(this.value)" style="margin-bottom:10px">
     <div style="margin-bottom:6px">${chips}</div>
@@ -5694,7 +5716,7 @@ Object.assign(window, {
   openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openCatalog, catalogOpen,
   openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
-  openNotesLog, setNotesLogSource, setNotesLogFolder, setNotesLogSearch, toggleNotesLogItem,
+  openNotesLog, openNotesWhileListening, returnToBook, setNotesLogSource, setNotesLogFolder, setNotesLogSearch, toggleNotesLogItem,
   assignNoteFolder, setNoteTags, askSebastianReviewFolder,
   openComputer, saveLastChatReplyToArchive, sendSebastianPlanToToday,
   openRequests, addRequest, removeRequest,

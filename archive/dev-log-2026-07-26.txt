@@ -184,3 +184,22 @@ local model's context — never feeds the whole book. Buttons show only when AI 
 active (rdImpressionBtn in openReader, rdAnalyzeBtn in renderFullTextPage, both
 independent of TTS). isEmptyReply retry-guard messaging. Verified: check + smoke
 + build clean. MANUAL §4 updated.
+
+LISTEN WHILE YOU JOT — read-aloud survives opening Your Notes
+------------------------------------------------------------
+User: use the phone/pocket idea with books — listen, minimize, go to notes, jot,
+see notes in-game. Honest finding: you can ALREADY listen + jot on a book in the
+Reader (the note box is there; audio doesn't stop while you type). The gap was
+leaving the Reader for the separate notes screen — closeUI/Esc calls stopSpeaking.
+Safe fix (no touching the ~13 stopSpeaking sites): openNotesLog never stops audio,
+so added a Reader button "🗒 My notes (keeps playing)" -> openNotesWhileListening()
+sets state.audioReturnSlug + opens Your Notes with audio still going; a
+tap-to-return "▸ back to the book" banner (returnToBook -> openReader) shows in
+the notes log; closeUI clears audioReturnSlug. So: listen -> open all your notes ->
+jot -> audio keeps playing -> tap to return. Verified: check + smoke + build clean.
+MANUAL §4 updated.
+Honest limits (offered as the bigger Reading-Room next build, not done): read-aloud
+is still per-page/one-utterance (no continuous auto-advance yet) and there's no
+global floating audio player that roams EVERY screen — both are READING-ROOM
+Phase 0-1 (auto-advance + keep-alive + a persistent mini-player). Left for when
+the user wants it, to avoid re-engineering the TTS lifecycle late in a session.

@@ -101,6 +101,10 @@ still has scripted things to say, and every desk still works.
   page-by-page texts, not summaries.
 - **Read aloud:** the 🔊 button speaks the page; ±10-second skips work like
   a podcast. Voice and speed live in the pause menu's **🔊 Voice settings**.
+- **Listen while you jot:** start read-aloud, then use the note box right there
+  (the audio keeps going as you type). Want your *whole* notebook while it plays?
+  Press **🗒 My notes (keeps playing)** — it opens Your Notes without stopping the
+  reading, with a **▸ back to the book** banner to return. Listen, jot, come back.
 - **Let the AI read with you:** with a local AI connected, the Reader offers
   **✨ Overall impression** (its thoughtful take on the whole book) and, in the
   full text, **✨ Analyze this page** (a close read of the passage you're on).
