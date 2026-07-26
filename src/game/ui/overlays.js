@@ -275,6 +275,8 @@ document.getElementById('chatInput').addEventListener('keydown',e=>{
   sendCurrentChatMessage();
 });
 const MEMORY_CAP=20; // keep this a short, readable list, not a growing transcript
+const CHAT_HISTORY_SENT=24; // how many recent turns get sent to the model (BETA-FEEDBACK #21) — generous on purpose; the on-screen transcript keeps everything
+const TIMEOUT_LINE="…still with you — the thought just took longer than the clock allowed (a larger model can). Nothing was cut short on purpose. Ask again, pocket the chat and keep walking while it thinks, or pick a lighter model in ⚙ Manage AI connections.";
 function agentMemory(agent){ return data.agentMemory[agent]||(data.agentMemory[agent]=[]); }
 function remember(agent,text){
   const mem=agentMemory(agent);
@@ -801,7 +803,13 @@ async function sendChatMessage(q){
   let streamed=false;
   try{
     const systemPrompt=await agent.systemPrompt();
-    const messages=[{role:'system',content:systemPrompt}, ...d.history];
+    // Send the system prompt plus only the most recent stretch of the
+    // conversation, not an ever-growing transcript (BETA-FEEDBACK #21). The cap
+    // is deliberately generous — a normal chat is untouched; it only trims a
+    // very long session, and only what's *sent* to the model (the full
+    // transcript stays on screen), so we protect a small-context local model
+    // without doing anything to how it behaves in an ordinary conversation.
+    const messages=[{role:'system',content:systemPrompt}, ...d.history.slice(-CHAT_HISTORY_SENT)];
     const opts=chatOptsFor(d.agent);
     if(useStream) opts.onStream=(p)=>{
       if(!d.streaming||d.minimized) return;
@@ -821,7 +829,12 @@ async function sendChatMessage(q){
     remember(d.agent,q);
     logActivity('Asked '+agent.label+': "'+(q.length>60?q.slice(0,60)+'…':q)+'"'+elapsedTag());
   }catch(err){
-    d.transcript.push({from:'npc',text:agent.errorLine});
+    // Tell a timeout apart from a real connection failure (BETA-FEEDBACK #22).
+    // A timeout isn't "it broke" — the model was just slow — so say so kindly
+    // and never imply the thought was cut on purpose; the wall is already
+    // generous (see REPLY_TIMEOUT) and the pocket phone lets them walk away.
+    const aborted = err && (err.name==='AbortError' || /abort|timed?\s*out/i.test(String(err.message||'')));
+    d.transcript.push({from:'npc', text: aborted ? TIMEOUT_LINE : agent.errorLine});
   }
   d.thinking=false; d.streaming=null;
   if(d.minimized){
@@ -1295,9 +1308,46 @@ function renderDataPanel(){
       <button class="btn ghost" onclick="pruneOldPlannerDays()">Clear days before this date</button>
     </div>
     <div id="dataPruneMsg" class="meta"></div>
+    <h3 style="margin-top:18px">What residents remember about you</h3>
+    <div class="meta">Each resident keeps a short, private list of the topics you've raised with them —
+      pinned to their memory so they can pick up where you left off. It lives only on this device, and
+      it stores topics, not whole conversations. Sort it yourself: forget anything you'd rather a
+      resident not carry, so the list stays short and useful instead of crowded.</div>
+    <div style="margin-top:10px">${residentMemoryHtml()}</div>
     <h3 style="margin-top:18px">Removing a single project</h3>
     <div class="meta">A Research Desk or Grant Desk project has its own "Delete project" button right
       where you already work on it — nothing duplicated here.</div>`;
+}
+// Fix #23 (the user's part): the visitor can see and prune each resident's
+// memory, so they curate it rather than it silently overcrowding. The deeper
+// short-term -> long-term "converter" and the living village are planned
+// separately (LIVING-VILLAGE-PLAN.md), not built here.
+function residentMemoryHtml(){
+  const keys=Object.keys(data.agentMemory||{}).filter(k=>(data.agentMemory[k]||[]).length);
+  if(!keys.length) return '<div class="meta">Nothing remembered yet — talk with a resident and the topics you raise will collect here for you to manage.</div>';
+  return keys.map(k=>{
+    const label=(CHAT_AGENTS[k]&&CHAT_AGENTS[k].label)||k;
+    const items=data.agentMemory[k];
+    return `<div class="card" style="cursor:default">
+      <div class="t">${AGENT_AVATAR[k]||'💬'} ${esc(label)} <span class="badge">${items.length}</span></div>
+      <div style="margin-top:6px">${items.map((m,i)=>`
+        <div class="row" style="align-items:center;gap:8px;margin-top:3px">
+          <span class="s" style="flex:1;margin:0">${esc(m.ts)} — ${esc(m.text)}</span>
+          <button class="btn ghost" style="font-size:11px;padding:2px 9px" onclick="forgetMemoryItem('${k}',${i})">Forget</button>
+        </div>`).join('')}</div>
+      <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="forgetAllMemory('${k}')">Forget all from ${esc(label)}</button></div>
+    </div>`;
+  }).join('');
+}
+export function forgetMemoryItem(agent,idx){
+  const mem=data.agentMemory[agent]; if(!mem) return;
+  mem.splice(idx,1);
+  if(!mem.length) delete data.agentMemory[agent];
+  persist(); renderDataPanel();
+}
+export function forgetAllMemory(agent){
+  delete data.agentMemory[agent];
+  persist(); renderDataPanel();
 }
 export function pruneOldPlannerDays(){
   const cutoff=document.getElementById('dataPruneBefore').value;
@@ -5123,6 +5173,7 @@ Object.assign(window, {
   openIdeaCapture, saveIdea, deleteIdea,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
+  forgetMemoryItem, forgetAllMemory,
   openLocalAIPanel, renderLocalAIPanel,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
   openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,

@@ -120,7 +120,13 @@ async function ollamaStreamChat(chatUrl, payload, timeoutMs, onStream){
 // gets the best available model and real room to actually think,
 // regardless of what's fastest for everything else.
 const REPLY_TOKENS = { short:450, long:1600, deep:3000 };
-const REPLY_TIMEOUT = { short:45000, long:120000, deep:180000 };
+// Deliberately generous (bumped 2026-07-12 at the user's ask: "don't cut a
+// convo in the middle"). A local model on modest hardware — or one streaming a
+// long, thoughtful reply — can legitimately take a while, and the pocket/phone
+// already lets you walk away while it works, so a longer wall is nearly free
+// and far kinder than clipping a reply mid-thought. The Monk ('deep') gets the
+// most room of all, matching his standing rule.
+const REPLY_TIMEOUT = { short:90000, long:240000, deep:360000 };
 
 // Picks the largest-parameter model actually installed, reading the
 // "Nb" size Ollama tags conventionally end with (qwen3.5:9b,

@@ -1017,7 +1017,13 @@ logged not-yet-fixed, ranked by how much they'd move "human-like + reliable."
 Nothing here is a crash or a bug; it's polish, and each needs a real decision
 before code (per the streamline discipline — don't fix blind).
 
-### 21. [ ] Long conversations grow the prompt unbounded (reliability, local models)
+### 21. [x] Long conversations grow the prompt unbounded (reliability, local models)
+
+**Fixed 2026-07-12.** `sendChatMessage` now sends `d.history.slice(-CHAT_HISTORY_SENT)`
+(cap 24 turns, generous on purpose) plus the system prompt; the full transcript
+still shows on screen. A normal chat is untouched — only a very long session
+trims, and only what's *sent*. Verified: check + smoke + build clean.
+
 
 `d.history` accumulates every turn and the whole thing is re-sent each message.
 On a small-context local model a long chat eventually crowds out the reply
@@ -1028,7 +1034,17 @@ The decision to make first: N, and whether to keep the *system prompt* + last N
 Low risk, real payoff on exactly the long, human-like conversations we want more
 of.
 
-### 22. [ ] A timeout shows a dead-end error with no retry (reliability)
+### 22. [x] A timeout shows a dead-end error with no retry (reliability)
+
+**Fixed 2026-07-12 (the user's priority — "don't cut a convo in the middle").**
+Two changes: (a) `REPLY_TIMEOUT` bumped generously — short 45→90s, long
+120→240s, deep 180→360s (the pocket phone already lets you walk away, so a longer
+wall is nearly free and far kinder than clipping a reply); (b) a timeout is now
+told apart from a real failure (`err.name==='AbortError'`) and shows a kind,
+honest `TIMEOUT_LINE` ("nothing was cut short on purpose… pocket the chat, or
+pick a lighter model") instead of the "connection flickered" error. The thinking
+stream (which the user said "did a lot to make it better") is untouched. Verified.
+
 
 `isEmptyReply` triggers a one-shot retry with more room, but a genuine *timeout*
 (`REPLY_TIMEOUT`: 45s short) just throws → the resident's `errorLine`. On slow
@@ -1039,7 +1055,17 @@ smaller model in ⚙"), or one automatic retry at the `long` budget, or surfacin
 the pocket/phone ("keep walking, I'll buzz you") more prominently on a slow
 reply. Ties to the tiered-model guidance (Protocol 2).
 
-### 23. [ ] Memory remembers *topics*, not *substance* (the biggest "more human" lever)
+### 23. [~] Memory remembers *topics*, not *substance* (the biggest "more human" lever)
+
+**Partly addressed 2026-07-12; the rest is planned.** The user's immediate ask —
+"let the user organise their memory… sort it to avoid overcrowding" — is **built**:
+the Data panel now shows each resident's remembered topics with per-item "Forget"
+and "Forget all from [resident]" (`residentMemoryHtml`/`forgetMemoryItem`/
+`forgetAllMemory`). The deeper piece — a **short-term → long-term memory
+converter** (distill durable, user-approved facts) plus residents that **walk
+around, participate, and are interactable ("a village")** — is planned in
+`LIVING-VILLAGE-PLAN.md`, building on `AGENT-EMBODIMENT-PLAN.md`. Not built yet.
+
 
 `remember()` stores only the text of what you *asked* (last 20, 8 injected) — not
 what was concluded, learned, or decided. So a resident recalls "you asked about
@@ -1051,8 +1077,10 @@ design, not a bug to fix** — flagged here so it's on the streamline radar with
 its trade-offs (privacy, prompt size, staleness) named up front. See
 `AI-BACKEND-WALKTHROUGH.md` for how memory works today.
 
-**Not changed this round — assessment only, per the user's ask ("let's see
-what's going on").** Recommended order if we act: #21 (cheap, protects the long
-chats we want), then #22 (reliability polish), then #23 as a real "more human"
-feature when we choose to invest in it.
+**Update — all three actioned 2026-07-12 (same day).** The user asked to do the
+fixes, prioritising the timeout ("don't cut a convo in the middle") and keeping
+model interference minimal. Done: #21 (gentle history cap) and #22 (longer
+timeouts + kind timeout message) fixed; #23's user-facing half (prune your own
+memory) built, with the converter + living-village half planned in
+`LIVING-VILLAGE-PLAN.md`. All verified (check + smoke + build clean).
 

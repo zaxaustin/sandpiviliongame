@@ -267,3 +267,27 @@ SebastianPlanToToday turn them into events — the AI never touches the calendar
 how memory really works, and a "go learn more" list (the code itself, LEARNING-
 PATH stages 4/8/10/11, Ollama API docs, MDN incl. Web Speech API for the voice
 tangent). README doc-map points to it as LEARNING-PATH's companion.
+
+STREAMLINE FIXES APPLIED (talking + memory) + living-village plan
+-----------------------------------------------------------------
+User: do the fixes, prioritise the timeout ("don't cut a convo in the middle"),
+keep model interference minimal, and he loved the thinking stream (kept). Done:
+- #22 (priority): REPLY_TIMEOUT bumped short 45->90s, long 120->240s, deep
+  180->360s (provider.js); timeouts now told apart from real failures
+  (err.name==='AbortError') and show a kind TIMEOUT_LINE ("nothing was cut short
+  on purpose... pocket the chat or pick a lighter model") instead of the
+  connection-flickered error. Thinking stream untouched.
+- #21: sendChatMessage sends d.history.slice(-CHAT_HISTORY_SENT=24) + system
+  prompt; full transcript stays on screen. Generous cap so normal chats are
+  untouched — protects small-context local models on very long sessions only.
+- #23 (user's half): Data panel now lists each resident's remembered topics with
+  per-item Forget + "Forget all from X" (residentMemoryHtml/forgetMemoryItem/
+  forgetAllMemory) so the user curates memory to avoid overcrowding.
+Verified: node --check (overlays+provider) clean, smoke green, build compiles.
+Then wrote plans/LIVING-VILLAGE-PLAN.md for what he wants next (build later): (A)
+a short-term -> long-term memory CONVERTER distilling durable, USER-APPROVED
+facts (human-in-the-loop, capped, prunable); (B) residents that walk around with
+purpose, participate (read/fish/meditate), notice each other + you, and are
+interactable "to build a village" — built ON AGENT-EMBODIMENT-PLAN's action
+space, PRESENT-ONLY (lives while you're there, never a background job — honors
+the human-conductor rule). BETA-FEEDBACK Round 3 items 21/22/23 marked.
