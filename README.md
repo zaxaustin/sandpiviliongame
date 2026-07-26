@@ -472,14 +472,29 @@ plans/ created; 07-10 the Eightfold Path temple, three Workshop floors, the
 pocket phone, Course Board Stage 1, the Library at 49; 07-11 Sebastian's
 calendar and scheduler, the Monk re-grounded with live streaming, notes
 folders/tags, and **the beta actually built** (the `beta` branch, merged —
-see `plans/BETA-BUILD-PLAN.md`'s STATUS banner and `MANUAL.md`).
+see `plans/BETA-BUILD-PLAN.md`'s STATUS banner and `MANUAL.md`); 07-12
+**EPUB support** (drop an `.epub` straight on the Caravan Desk — unpacked
+in-game, no library), a one-step **"📚 Add to my Library now"** with the
+personal-book search bug fixed and books landing on their real shelf, a
+**visitor's handbook** and the **terminal toolkit** (`PROTOCOLS.md`
+Protocol 3), Sebastian's **reminder pings**, the **Hopes-and-Dreams roads**,
+the **Pavilion Academy** plan (a learn-a-subject teaching system), and the
+**Science & Research Hall** — the café Steward re-cast as an Investigator, a
+place that tests claims honestly (modern science and, optionally, the
+scriptures' own) and reaches one of four honest verdicts; **Phases 0–1 built**
+(a panel off the Research Desk, four exemplar Investigations, the Investigator
+as a live grounded chat under WORK_CHARTER), the rest planned in
+[`SCIENCE-RESEARCH-HALL-PLAN.md`](plans/SCIENCE-RESEARCH-HALL-PLAN.md).
 
 **The near gates, in order** — what actually stands between here and real
 testers, none of it big:
 
-1. **A live click-through of the new flows** — Sebastian's calendar, the
-   Caravan→Your Shelf→Reader path, the welcome panel — in a running window
-   (the user's own run; statically verified, never yet clicked).
+1. **Live click-through of the new flows** — Sebastian's calendar + reminder
+   pings, the Caravan→Add-to-Library→Reader path (EPUB drop included), the
+   welcome panel. **In progress by the user (2026-07-12):** adding books is
+   being actively dogfooded, which already surfaced and fixed real bugs
+   (the personal-book search gap, the wrong-shelf misfile). Keep going —
+   this is beta-testing round zero.
 2. **The clean-machine install test** — `release/Sand Pavilion Setup
    0.1.0-beta.1.exe` on hardware that never built it. The one genuinely
    unverified thing (BETA-BUILD-PLAN.md §6.8).
@@ -505,6 +520,25 @@ ordered sequence — is
 [`DAILY-HEAVY-LIFTING-PLAN.md`](plans/DAILY-HEAVY-LIFTING-PLAN.md)
 (written 2026-07-11, from the direct goal: *the Pavilion does the heavy
 lifting for someone's daily life*).
+
+**The two foundation pillars now in motion (2026-07-12):**
+
+- **The Science & Research Hall** — a place that *tests* claims honestly
+  (modern science and, optionally, the scriptures' own), reaching one of four
+  verdicts including "beyond what science can say." **Phases 0–2 + Dissect-a-
+  paper built:** a panel off the Research Desk, the method creed (no gatekeepers
+  of truth; evidence over volume), four exemplar Investigations, the
+  Investigator (the café Steward's second hat, under WORK_CHARTER), keep-your-
+  own Investigations with evidence + falsifier *required*, and a critical-
+  appraisal "Dissect a paper" box. Open: Phase 3 (self-experiments — "test what
+  you think is great"), 4 (Caravan paper-fetch as evidence), 5 (a real room).
+  See [`SCIENCE-RESEARCH-HALL-PLAN.md`](plans/SCIENCE-RESEARCH-HALL-PLAN.md).
+- **The Eightfold Path as a continuous-improvement pillar** — the interactive
+  layer for the Keep's Temple: each fold a *reflection ladder* ("where I am" +
+  "one way to push it further," kept, never finished/scored). **Shape decided,
+  not built** — see the build steps in
+  [`EIGHTFOLD-PATH-TEMPLE-PLAN.md`](plans/EIGHTFOLD-PATH-TEMPLE-PLAN.md). Both
+  pillars stand on the Library + Learning Paths as their foundation.
 
 **Longer-term, each with its real plan:**
 
@@ -595,7 +629,9 @@ lifting for someone's daily life*).
     genuinely long-term, named so it isn't lost, not promised. See
     "Hopes and dreams" below for the fuller vision.
 11. **A drag-and-drop book intake at the Caravan Desk — built 2026-07-10**
-    (see [`BOOK-DRAG-DROP-PLAN.md`](plans/done/BOOK-DRAG-DROP-PLAN.md)). Pick a
+    (see [`BOOK-DRAG-DROP-PLAN.md`](plans/done/BOOK-DRAG-DROP-PLAN.md); `.epub`
+    added 2026-07-12; **batching many at once** is planned in
+    [`BATCH-BOOK-UPLOAD-PLAN.md`](plans/BATCH-BOOK-UPLOAD-PLAN.md)). Pick a
     source website, drop a `.txt` file, and the Pavilion fills in the
     rest of the existing manual-entry form instead of retyping it by
     hand — title/author detected, license pre-filled per source, never

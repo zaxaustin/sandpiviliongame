@@ -550,3 +550,20 @@ adding books ("it works great!"), all in the Add-a-Text-by-Hand form:
   5s"), guarded by a shelveNowCooldown flag, so a stray double-click can't
   double-add. Re-enables itself after.
 Verified: node --check, smoke (22 docs), build all clean.
+
+Addendum 12 (2026-07-12): end-of-session docs true-up + one new plan.
+- README: "How it got here" gains a 07-12 line (EPUB, Add-to-Library +
+  search fix, the handbook + terminal toolkit, Sebastian reminders, the
+  Hopes roads, the Academy plan). Near-gate #1 updated to note the user is
+  actively dogfooding book-adding (round zero) and it's already found+fixed
+  real bugs. Caravan section points at the new batch plan.
+- plans/BATCH-BOOK-UPLOAD-PLAN.md written (user request): add many books at
+  once when they share a source. The hinge is "same source = one license
+  vouched once" — the thing that keeps batching honest, not a shortcut.
+  Small extension: handleBookDrop already gets the whole FileList, epubToText
+  + shelveAsPersonal already exist; the only new work is a review list + a
+  shelve loop with progress. Desktop is the real home (browser localStorage
+  can't hold many big books). Phased; not built.
+- plans/done/BOOK-DRAG-DROP-PLAN.md status note: .epub closed the format gap
+  07-12; batch + in-game .pdf are the two remaining extensions.
+This is a natural stopping point — the book pipeline is smooth end to end.

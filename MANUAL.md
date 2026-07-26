@@ -151,6 +151,23 @@ of the day, not three.
 - **The Research Desk** — freeform projects: notes, an AI assistant that
   helps turn an idea into concrete next steps, and chapter/paper
   summarizing for text you paste in (kept private, always).
+- **The Science & Research Hall** (a button on the Research Desk) — a place
+  that *tests* things rather than researches them. Bring a claim — an
+  everyday science headline, or, if you like, something meditation or the
+  scriptures put forward — and the **Investigator** (the café Steward wearing
+  a scientist's hat) weighs it against the actual evidence and reaches one of
+  four honest verdicts, including the honest *"beyond what science can
+  currently say."* It tests things; it never sets out to prove them. Questions
+  of *meaning* it sends up to the Mountain Monk. A few worked examples are
+  already on the shelf to show the tone — and you can **open your own
+  investigation** too. The method is written on the wall: no one here is the
+  gatekeeper of truth, so every claim is open to challenge — but the price of a
+  seat at the table is *evidence*, not volume. The form makes that real: to
+  file a finding you must state your sources and *what would change your mind.*
+  There's also a **Dissect a paper** box: paste a paper you disagree with and
+  the Investigator gives it a real critical appraisal — steelmanning it first,
+  then probing the method and the leaps — which you can turn into a kept
+  investigation of your own.
 - **The Caravan Desk** — where texts from outside enter (Protocol 1 lives
   here): drag-and-drop intake for **`.epub` and `.txt`** files (an EPUB —
   the format most free-book sites give you — is unpacked right in the game,

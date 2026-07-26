@@ -5,6 +5,13 @@
 > ends somewhere real: "👤 Shelve on Your Shelf" (the personal library,
 > built 07-11). Path B (.pdf + writing straight to library-inbox/ via
 > Electron) stays a later idea, recorded in README's longer-term list.
+>
+> **Update 2026-07-12 — the format gap closed further:** in-game drop now
+> also handles **`.epub`** (the format most sites give you), unpacked in the
+> browser itself via `DecompressionStream` + `DOMParser`, no library — see
+> `src/game/epub.js` and the dev log. The two live extensions still open:
+> **multiple books at once** (`plans/BATCH-BOOK-UPLOAD-PLAN.md`) and `.pdf`
+> in-game. `.txt`/`.epub` single-book is done.
 
 **Path A built and verified live, 2026-07-10** — see "Status" at the
 bottom. Path B (real filesystem integration) stays exactly as scoped

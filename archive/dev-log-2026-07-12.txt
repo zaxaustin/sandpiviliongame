@@ -1,0 +1,183 @@
+Dev log — 2026-07-12
+====================
+
+(Earlier today: EPUB drop support, one-step "Add to my Library now" with the
+personal-book search/misfile bugs fixed, the visitor's handbook + terminal
+toolkit, Sebastian's reminder pings, the Hopes-and-Dreams roads, and the
+Pavilion Academy plan — see the commit history and README recap for those.)
+
+SCIENCE & RESEARCH HALL — a plan, written not built
+---------------------------------------------------
+Zac's ask: the Pavilion stores a lot of knowledge but nothing actively
+*investigates* it. Give the café Steward — who is running empty while the
+Commons is dormant by choice — a real second role as the Pavilion's
+Investigator: a place that can test claims honestly. Modern-day science first,
+and — when you want it to — the truths meditation and the Hindu scriptures put
+forward, examined under a real scientific lens.
+
+Key clarification he made mid-session, and it settled the whole framing: "so we
+CAN test things, not that we HAVE to in the spiritual sense." So the Hall is a
+general testing instrument, not a spirituality-proving one; scriptural claims
+are simply *available* to aim it at, optionally, judged the same honest way as
+anything else. That resolved the one real fork (inquiry vs. vindication) in
+favor of inquiry — the only version that survives the open scrutiny this whole
+project is built on.
+
+What the plan actually decides:
+- WHO: the café Steward, re-cast as Investigator. Genuinely the under-loaded
+  resident (his Notice-Board job is dormant). Same NPC, second hat.
+- CHARTER (the load-bearing call): in the Hall he speaks under WORK_CHARTER
+  (neutral/secular), NOT the devotional CHARTER he uses at the café — a
+  scientist committed to the answer isn't doing science. Meaning questions
+  still hand off to the Monk; the Investigator only ever speaks to evidence.
+- THE UNIT: an "Investigation" — question / source / evidence / verdict /
+  what-would-change-the-verdict. Four honest verdicts, including "Beyond what
+  science can currently say," which is a respectable category, not a dodge.
+- TWO TRACKS: (A) modern-science literacy + method; (B) contemplative science,
+  a real peer-reviewed field, done the same honest way (follow real evidence;
+  first-person/experiential claims labeled as outside third-person test;
+  scripture and evidence allowed to coexist without one "winning").
+- THE CHECKABLE CORE: n-of-1 self-experiments — a daily sit via the existing
+  `M` postures, scheduled by Sebastian's calendar, reminded by the bell,
+  logged, then read honestly WITH you (including how an n-of-1 fools you). This
+  is where meditation + calendar + streaks + method already in the game all
+  meet, and it's fully honest because it claims nothing beyond your own weeks.
+
+Built on what exists: Science shelf (Darwin + first paper), Hindu shelf
+(Gita/Upanishads/etc.), `M` meditation, Sebastian's calendar/bell, the grounded
+chat stack, the Caravan paper connectors. Distinct from the Research Desk
+(private workbench) — the Hall is a shared, accumulating lab notebook.
+
+Phases 0–5: seed exemplar Investigations (content-first) -> Investigator chat
+mode -> create/keep Investigations as real data -> self-experiments ->
+fetch real papers inline via Caravan -> a real room (pairs with the Academy's
+Round Table: one learns known answers, the other tests open ones).
+
+Files: plans/SCIENCE-RESEARCH-HALL-PLAN.md (new). README "how it got here"
+07-12 recap updated with a pointer.
+
+...then, same session, Zac said "let's build it" — so Phases 0 and 1 are now
+actually in, not just planned:
+
+SCIENCE & RESEARCH HALL — Phases 0 + 1 BUILT
+--------------------------------------------
+The smallest honest slice that's genuinely usable:
+
+- CHAT_AGENTS.investigator (src/game/ui/overlays.js) — the café Steward's
+  second hat. Speaks under WORK_CHARTER (NOT the devotional CHARTER) — the
+  load-bearing call from the plan. Prompt enforces the four honest verdicts
+  (Supported / Unsupported / Mixed / Beyond-what-science-can-say), "prefer 'the
+  evidence is thin' over overreach," "never invent a study — route it to the
+  Request Board," and "questions of meaning go up to the Monk; I keep to the
+  evidence." Grounded live in the seed investigations + the Science & Hindu
+  shelves (hallShelfSummary filters Store.allDocs to those two traditions).
+  Memory keys off 'investigator' automatically via agentMemory().
+
+- Phase 0 content: INVESTIGATIONS[] — four hand-written exemplar cards, one of
+  each verdict, deliberately spanning both tracks so the honesty bar is set
+  before any AI writes one: (1) the "21-day habit" myth -> Unsupported (median
+  ~66 days, Lally 2010); (2) Darwin's selection accumulating into large change
+  -> Supported, grounded in Origin + the Beagle journal on the Science shelf;
+  (3) meditation & attention/stress -> Mixed (modest version holds, sweeping
+  claims don't); (4) atman=brahman from the Upanishads/Gita -> Beyond (the
+  experience is studiable, the metaphysics isn't a testable claim — and that's
+  an honest boundary, with meaning handed to the Monk). Each card carries a
+  "grounding" line that's honest about general-knowledge vs. shelved-text.
+
+- The Hall panel: openScienceHall() / renderScienceHall() in a new hallOv
+  overlay (index.html). Reads the four cards with colored verdict badges, a
+  "Talk to the Investigator" button (reuses openChatDialog with a synthetic
+  npc — zero new chat plumbing), and honest "no AI connected" fallback.
+
+- Entry point (per the plan, "start as a panel off the Research Desk"): a
+  "🔬 The Science & Research Hall" button on the Research Desk list view. Also
+  reachable back-and-forth (Hall <-> Research Desk).
+
+- Wiring: AGENT_AVATAR.investigator='🔬'; hallOv added to hideAllOv; handlers
+  openScienceHall + talkToInvestigator added to the window Object.assign block;
+  index.html overlay div.
+
+Verified: node --check src/game/ui/overlays.js clean; node test/smoke.mjs green
+(9 scenes, 22 docs). No live-browser test (house preference: don't pull in
+Playwright). Left for later phases: saving your OWN investigations (Phase 2),
+self-experiments tied to the M-meditation + Sebastian's calendar (Phase 3),
+Caravan paper-fetch as evidence (Phase 4), a real walkable room (Phase 5).
+
+Docs: plan STATUS banner added; README recap + What's-next updated; MANUAL.md
+given a Hall entry. The Steward is no longer "running empty."
+
+...then Zac: "tell people how to pursue it — we can't be the gatekeepers of
+truth, it should be up for debate like the First Amendment; but make people
+back claims with papers/evidence rather than screaming they're right. After
+that keep going." So, same session:
+
+SCIENCE & RESEARCH HALL — the method creed + Phase 2 (open your own)
+--------------------------------------------------------------------
+The ethos, made real in three places at once:
+- THE CREED on the Hall wall (renderScienceHall) — five numbered principles:
+  (1) no one here is the gatekeeper of truth, every claim challengeable incl.
+  the shelves and the Investigator's own verdicts — a marketplace of ideas;
+  (2) a seat at the table has a price: evidence — a source someone can check
+  beats any conviction, the loudest voice isn't the truest; (3) name what would
+  change your mind, hold verdicts provisionally; (4) argue the claim not the
+  person, steelman first, call an open question contested; (5) "beyond science"
+  is honest, some questions are the Monk's.
+- THE INVESTIGATOR PROMPT got the same stance in prose: say plainly you're not
+  an oracle, invite challenge, ask the visitor to back assertions with a
+  source rather than accept/argue volume, take the claim not the person,
+  steelman, and name genuine open debate as contested instead of forcing a
+  verdict.
+- STRUCTURAL ENFORCEMENT (Phase 2, the "keep going"): visitors can now open &
+  keep their OWN investigations. data.hall.investigations (added to freshData
+  + an older-save patch in entities.js). The compose form REQUIRES three fields
+  — the question, the evidence/sources, and the falsifier ("what would change
+  your mind") — so you literally can't file a verdict without a source and a
+  way to be wrong. That's the discipline enforced by shape, not a lecture.
+  createInvestigation / deleteInvestigation / newInvestigationForm /
+  backToHallList; state.hallView list<->compose like researchView. The
+  Investigator's grounding (investigationsForPrompt) now folds in the visitor's
+  own investigations, flagged as theirs, with the evidence they cited (or a
+  nudge to ask for a source when none was given).
+
+Verified again: node --check (overlays + entities) clean, smoke green (9
+scenes, 22 docs), full vite build compiles. Handlers registered. Left: Phase 3
+(self-experiments on the M-meditation + Sebastian's calendar), Phase 4 (Caravan
+paper-fetch as cited evidence), Phase 5 (a walkable room). Plan STATUS bumped to
+Phases 0-2 and a "The method" section added; MANUAL updated.
+
+SCIENCE & RESEARCH HALL — "Dissect a paper" (the user's next concrete ask)
+-------------------------------------------------------------------------
+Zac cast a bigger vision (see below) but named one concrete Hall want: "a place
+to dissect papers I disagree on." Built it. A paste-a-text box in the Hall (like
+the Research Desk summarizer) with a CRITICAL-APPRAISAL prompt that embodies the
+creed: steelman FIRST, then probe claim-vs-headline, method, sample/controls/
+confounds, statistical & logical leaps, evident conflicts of interest, supported
+-vs-overreach; close with a fair weighing (never a dunk), the one thing that'd
+change the assessment, and what to go check. Rules baked in: argue the claim not
+the authors; work ONLY from what was pasted (say "unstated" rather than invent);
+don't bluff. Output shows in-panel; "→ Open an investigation from this" carries
+the appraisal into the compose form's evidence field (prefill via
+state.hallView.prefill) so a dissection graduates into a kept, filed finding.
+Functions: dissectPaper / clearDissect / investigationFromDissect. Verified:
+check clean, smoke green, build compiles.
+
+THE VISION Zac stated (captured, not all built — "requires more foundation")
+----------------------------------------------------------------------------
+The connective architecture, in his words: the Sand Pavilion is THE FOUNDATION
+that makes the rest achievable. Four pillars on it:
+- THE EIGHTFOLD PATH as "a way forward and a pillar" — a scaffold for people to
+  say "no, this is not enough, I can keep improving this aspect." I.e. the Path
+  becomes a continuous-improvement spine: each fold an aspect of life you can
+  always push further, deliberately never "done." This is exactly the "real
+  interaction past reading a sign" the EIGHTFOLD-PATH-TEMPLE-PLAN flagged as the
+  open question — now given a direction. Shape not yet decided (reflection
+  ladder vs. commitment tracker vs. both) — asking before building.
+- THE SCIENCE HALL as a place to (a) dissect papers you disagree with [BUILT
+  today] and (b) test things you think are great [= Phase 3 self-experiments,
+  next].
+- THE LIBRARY + THE LEARNING PATHS as the FOUNDATION under both — the grounding
+  that makes you competent to dissect and test in the first place ("this will
+  require more of a foundation and that's what the library and learning paths
+  are for").
+Captured in memory (project_foundation_vision) + this log; Eightfold plan's
+"still open" section to be updated with the growth-pillar direction.

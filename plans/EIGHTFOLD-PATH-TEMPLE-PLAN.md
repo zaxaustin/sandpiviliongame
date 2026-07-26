@@ -137,11 +137,49 @@ statue worth a second pass instead of a placeholder blob.
 
 ## What's still actually open
 
-**Real interaction, past reading a sign.** The build above is
-deliberately visuals-only, per direct instruction this same session —
-walk up, read, that's the whole mechanic today. Whether each fold
-deserves something more (a keepsake, a small practice, a way to mark one
-"walked" today) is real, later design work, not assumed to be small.
+**Real interaction, past reading a sign — now given a direction
+(2026-07-12).** The build above is deliberately visuals-only, per direct
+instruction that session — walk up, read, that's the whole mechanic today.
+The user has since named what the interaction is *for*: **the Eightfold Path
+as a pillar of continuous improvement** — "a way forward, a pillar for people
+to say *no, this is not enough, I can keep improving this aspect.*" So each
+fold becomes not a station you complete but an **aspect you can always push
+further, deliberately never marked done** — a ladder with no top rung, which
+is the opposite of a checklist or a score (and must stay that way to fit the
+project's anti-gamification, anti-completion ethos).
+
+**The shape is decided (2026-07-12): the reflection ladder.** Walking up to a
+fold's sign opens a small panel where you can, any time, write a short
+reflection on where you actually are with that aspect and name **one concrete
+way you could push it further** — kept, dated, added to over time, and **never
+"finished," never scored, never a checklist** (a ladder with no top rung is the
+whole point; a completion mechanic would betray it). It leans on the tie-ins
+each fold already has (Right Intention → the planner's intention field; Right
+Effort → sparks/carry-forward; Right Mindfulness → the four postures), so a
+reflection can point at a real Pavilion practice, not just a resolution. The
+Monk, the Path's living teacher in the Keep, is the natural resident to help
+counsel on a fold when asked. This is a real feature, its own build — not
+assumed small — and sits alongside the Science Hall as the "keep improving"
+half of the same foundation (see `SCIENCE-RESEARCH-HALL-PLAN.md` and
+`project_foundation_vision` in memory).
+
+### The build, when picked up (not built yet — the honest next slice)
+
+1. **Data:** `data.temple.folds` (or similar) — a small map keyed by fold id,
+   each holding a dated list of `{where, next, ts}` entries. Add to `freshData()`
+   with an older-save patch, same pattern as `data.hall`.
+2. **Reach it:** the eight fold-signs in `buildKeep()` already render and are
+   walkable; make each one open a per-fold panel (a new `hallOv`-style overlay)
+   instead of only showing sign text. The sign's Dhammapada quote stays at the
+   top of the panel — reading and reflecting in one place.
+3. **The panel:** the fold's name (Pali + English), its shelved Dhammapada
+   verse, its existing tie-in as a live link, then the two open-ended fields
+   ("where I am," "one way to push further") and the kept, dated history below.
+   No score, no "mark done." An optional "ask the Monk about this fold" button
+   that opens his chat grounded in the fold (reuses the resident chat stack, the
+   same way `talkToInvestigator()` does).
+4. **Verify** the usual way (`node --check`, smoke, build), update MANUAL +
+   README + dev-log, same as the Science Hall pass.
 
 **The bare-bones-vs-Zac's-addition question, from `TOOL-COMMONS-PLAN.md`
 — still genuinely undecided.** Is this Temple something every fork of

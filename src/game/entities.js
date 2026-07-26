@@ -17,7 +17,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], hall:{investigations:[]}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -29,6 +29,7 @@ if(!data.notes) data.notes=[]; // older saves predate My Notes at the Writing De
 if(!data.calendar) data.calendar=[]; // older saves predate Sebastian's calendar (BUTLER-SEBASTIAN-PLAN.md)
 if(!data.noteMeta) data.noteMeta={}; // folder/tag layer over the notes log (NOTES-AND-LOG-ROOM-PLAN.md step 2) — a side-map keyed by note, touches no note itself
 if(!data.personalLibrary) data.personalLibrary=[]; // older saves predate the personal shelf (BETA-BUILD-PLAN.md)
+if(!data.hall) data.hall={investigations:[]}; // older saves predate the Science & Research Hall (SCIENCE-RESEARCH-HALL-PLAN.md)
 // The personal shelf rides along with the certified library everywhere docs
 // are read (shelves, the Index, Quill's grounding) — registered as a getter,
 // not a copy, so shelving/removing a book needs no re-registration.

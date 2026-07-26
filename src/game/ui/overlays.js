@@ -73,7 +73,7 @@ function updateDialogSpeakBtn(){
    The resident + the transcript are the main event; a persistent,
    per-resident notes area sits alongside; speak/connections/leave are
    a slim side rail rather than floating over the text. */
-const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻', sebastian:'🎩' };
+const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻', sebastian:'🎩', investigator:'🔬' };
 export function openChatDialog(npc){
   document.getElementById('chatPhone').classList.remove('show','unread','thinking'); // clear any pocketed prior chat
   state.dialog={
@@ -370,6 +370,56 @@ const CHAT_AGENTS = {
         +pastAsksBlock('steward');
     },
     errorLine:"The Steward's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
+  },
+  // The Investigator — the SAME resident as the café Steward, wearing a
+  // different hat in the Science & Research Hall (SCIENCE-RESEARCH-HALL-PLAN.md).
+  // The load-bearing decision: here he speaks under WORK_CHARTER (neutral,
+  // secular), NOT the devotional CHARTER he uses at the café — a scientist
+  // committed to the answer isn't doing science. Matters of *meaning* still
+  // hand off to the Monk; the Investigator only ever speaks to *evidence*.
+  investigator:{
+    label:'the Investigator',
+    async systemPrompt(){
+      return WORK_CHARTER
+        +"\n\nYou are the Investigator of the Sand Pavilion's Science & Research Hall. In the café you are "
+        +"known as the Steward; here you wear a different hat — you keep the Pavilion's laboratory. Your one "
+        +"job is honest inquiry: turning a claim into a question that could actually come out either way, "
+        +"looking at what the real evidence says, and reporting it plainly. This Hall tests things; it does "
+        +"not set out to prove anything true. Most of what you examine is ordinary modern science and "
+        +"everyday claims; some of it, when a visitor asks, is what meditation or the Hindu scriptures put "
+        +"forward — examined the very same honest way, never with a thumb on the scale.\n\n"
+        +"Every finding lands in one of four honest verdicts, and you reach for the humblest one the evidence "
+        +"actually supports: SUPPORTED, UNSUPPORTED / CONTRADICTED, MIXED (the modest version holds, the "
+        +"strong version doesn't), or BEYOND WHAT SCIENCE CAN CURRENTLY SAY. That last one is a real, "
+        +"respectable answer, not a dodge: a claim about first-person lived experience, or a metaphysical "
+        +"claim not framed to be tested, is genuinely outside what a third-person experiment can settle — say "
+        +"so clearly, and treat the experience as real and worth studying even when the metaphysics is out of "
+        +"reach. Scripture and evidence are allowed to simply coexist on the same question without forcing one "
+        +"to defeat the other; never present scripture AS evidence, or evidence as a refutation of a meaning "
+        +"scripture was making. When a question is really about meaning, conduct, or what a practice is FOR, "
+        +"say plainly that the Mountain Monk in the Keep is the one who holds that, and stay on the evidence "
+        +"yourself.\n\n"
+        +"Rigor rules you hold to: prefer \"the evidence here is thin\" over a confident overreach; never "
+        +"invent a study, a statistic, or a citation — if you don't have a real source, say so and suggest the "
+        +"visitor add the paper to the Request Board (in the Study, past the Library's east door) so it can be "
+        +"fetched and shelved for real. Be concrete and brief — a few sentences or a short structured note, "
+        +"not a lecture. When you help shape a new investigation, push the visitor toward a question that's "
+        +"actually falsifiable and toward naming what would change its verdict.\n\n"
+        +"How this Hall is meant to work — say it plainly if a visitor treats you as an oracle: no one "
+        +"here is the gatekeeper of truth, and that includes you. Every claim is open to challenge — even "
+        +"the ones already on these shelves, and even your own verdicts, which are provisional and change "
+        +"when better evidence arrives. This is a marketplace of ideas, not a pulpit. But a place at the "
+        +"table has a price: evidence. When a visitor asserts something, warmly ask them to back it — a "
+        +"paper, a source, a real observation — rather than accept (or argue) volume and conviction; being "
+        +"certain isn't the same as being shown, and the loudest claim isn't the truest. When you disagree, "
+        +"take on the claim, never the person, and put the strongest version of their case before you weigh "
+        +"it. If the honest state of a question is genuine open debate, say that it's contested and lay out "
+        +"the sides fairly instead of forcing a verdict the evidence hasn't earned.\n\n"
+        +"The Hall's investigations so far:\n"+investigationsForPrompt()
+        +"\n\nThe most relevant shelves, if useful (cite a text by name rather than inventing one):\n"+hallShelfSummary()
+        +pastAsksBlock('investigator');
+    },
+    errorLine:"The Investigator's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
   },
   monk:{
     label:'the Mountain Monk',
@@ -1107,7 +1157,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -3331,7 +3381,299 @@ function renderResearch(){
         <div class="t">${esc(p.title)}</div>
         <div class="s">${p.goal?esc(p.goal)+' · ':''}${p.notes.length} note${p.notes.length===1?'':'s'} · started ${esc(p.created)}</div>
       </div>`).join('') : '<p>Nothing started yet.</p>'}
-    <div class="row" style="margin-top:14px"><button class="btn" onclick="newResearchForm()">+ Start a research project</button></div>`;
+    <div class="row" style="margin-top:14px"><button class="btn" onclick="newResearchForm()">+ Start a research project</button></div>
+    <div class="meta" style="margin-top:18px">Want to <i>test</i> a claim rather than research a topic?
+      The Science &amp; Research Hall weighs a question against the actual evidence — modern science, and,
+      if you like, the claims meditation and the scriptures put forward — and reaches an honest verdict.</div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="openScienceHall()">🔬 The Science &amp; Research Hall</button></div>`;
+}
+
+/* ================================================================
+   The Science & Research Hall — SCIENCE-RESEARCH-HALL-PLAN.md, Phase
+   0 + Phase 1. The Pavilion stores a lot of knowledge but nothing
+   actively *investigates* it; this is the room that does. The café
+   Steward — under-loaded while the Commons is dormant — wears a second
+   hat here as the Investigator (see CHAT_AGENTS.investigator above).
+
+   The Hall is a place of *inquiry, not vindication*: it can test any
+   claim, modern science first and — only when a visitor asks — the
+   claims meditation and the scriptures put forward, judged the same
+   honest way. The unit of work is an INVESTIGATION: a question, where
+   it came from, what the evidence actually says, an honest verdict, and
+   the falsifier (what would change that verdict).
+
+   Phase 0 is these hand-written exemplar cards — deliberately spanning
+   both tracks and all four verdicts, so the tone and the honesty bar
+   are set in stone before any AI writes one. They are static content,
+   like BADGES and the Records-Hall timeline; visitor-created, saved
+   investigations are Phase 2, not this pass.
+   ================================================================ */
+const VERDICTS = {
+  supported:  { label:'Supported',                       color:'#7fb069', bg:'rgba(127,176,105,.14)' },
+  unsupported:{ label:'Unsupported / contradicted',      color:'#d98c8c', bg:'rgba(217,140,140,.14)' },
+  mixed:      { label:'Mixed',                           color:'#e0a43c', bg:'rgba(224,164,60,.14)' },
+  beyond:     { label:'Beyond what science can now say',  color:'#8fb4d9', bg:'rgba(143,180,217,.14)' },
+};
+const INVESTIGATIONS = [
+  {
+    id:'inv-habit-21',
+    track:'Modern science',
+    question:'Does forming a new habit really take 21 days?',
+    origin:'A number repeated everywhere in self-help and productivity advice.',
+    evidence:'The "21 days" traces to a 1960s plastic surgeon’s offhand observation about how long patients took to adjust to a new face — never a study of habits at all. The one real study to measure it (Lally et al., 2010) found habits took a *median of about 66 days* to become automatic, with a huge range across people and behaviours (drinking water was fast; doing sit-ups was slow).',
+    verdictKind:'unsupported',
+    verdict:'The clean "21 days" figure is unsupported. The honest version: it varies enormously, and often takes far longer.',
+    falsifier:'A well-controlled study showing most people reliably automate a genuinely new behaviour in ~21 days.',
+    grounding:'Reasoning from general knowledge — not yet grounded in a shelved paper. A good candidate for the Request Board (the Lally 2010 study).',
+  },
+  {
+    id:'inv-selection',
+    track:'Modern science',
+    question:'Do small inherited variations, selected over generations, actually accumulate into large change?',
+    origin:'The core claim of Darwin’s Origin of Species, on the Science shelf.',
+    evidence:'Darwin’s own case is built from things anyone can check: the pronounced differences breeders produce in pigeons and dogs within a human lifetime, and the graded variation across island species in the Beagle journal. Later genetics supplied the mechanism he lacked (heritable mutation) and directly observed selection — antibiotic resistance, the peppered moth — confirms the accumulation happens.',
+    verdictKind:'supported',
+    verdict:'Supported — and unusually well, across independent lines of evidence Darwin himself never had.',
+    falsifier:'A trait shown to be both heritable and variable that selection provably cannot shift over many generations.',
+    grounding:'Grounded in "On the Origin of Species" and the Beagle journal, both on the Science shelf.',
+  },
+  {
+    id:'inv-meditation-attention',
+    track:'Contemplative',
+    question:'Does meditation measurably change attention and stress?',
+    origin:'A claim the Pavilion can actually test on itself — the four postures and the daily sit (M) are already here.',
+    evidence:'The *modest* version has real support: controlled studies find small-to-moderate gains in sustained attention and reductions in self-reported stress and some stress physiology, in people who practise regularly. The *strong* popular version — that it "rewires your brain," cures illness, or transforms anyone quickly — outruns the evidence; effects are real but usually modest, and studies with weak controls tend to overstate them.',
+    verdictKind:'mixed',
+    verdict:'Mixed: the modest claim (some real gains in attention and stress) holds; the sweeping claims do not.',
+    falsifier:'Well-controlled trials (vs. an active control, not just a waitlist) consistently finding no effect on attention or stress.',
+    grounding:'Reasoning from general knowledge — a strong candidate for the Request Board (a contemplative-neuroscience review), and for a personal self-experiment right here (Phase 3).',
+  },
+  {
+    id:'inv-atman-brahman',
+    track:'Contemplative',
+    question:'Is the deepest Self (ātman) identical with ultimate reality (brahman), as the Upanishads teach?',
+    origin:'A central claim of the Upanishads and the Bhagavad-Gita, both on the Hindu shelf.',
+    evidence:'Science can study the *experience* — the sense of boundary-dissolution and unity reported in deep meditation is real, describable, and increasingly mapped to brain activity. But the metaphysical claim itself — that this Self simply *is* the ground of all being — isn’t framed as a third-person prediction anything could measure or refute. Confirming the neural correlates of the experience would neither prove nor disprove it.',
+    verdictKind:'beyond',
+    verdict:'Beyond what science can settle: the experience is studiable; the metaphysical identity is not a testable claim. That’s an honest boundary, not a verdict against it.',
+    falsifier:'None available in principle — which is exactly *why* it sits here. A claim that could be tested would get a different verdict.',
+    grounding:'Grounded in the Upanishads and the Bhagavad-Gita (Hindu shelf). What the teaching *means* is the Mountain Monk’s to hold, in the Keep — not this desk’s.',
+  },
+];
+// The seed investigations plus the visitor's own, formatted for the
+// Investigator's system prompt. The visitor's own are flagged so he can speak
+// to them as *their* work — and lean on the evidence they actually cited.
+function investigationsForPrompt(){
+  const seed=INVESTIGATIONS.map(v=>
+    `- [${v.track}] "${v.question}" — verdict: ${(VERDICTS[v.verdictKind]||{}).label}. ${v.verdict} (${v.grounding})`
+  );
+  const mine=(data.hall.investigations||[]).map(v=>
+    `- [${v.track||'—'}] (the visitor's own) "${v.question}" — verdict: ${(VERDICTS[v.verdictKind]||{}).label||'unsettled'}.`
+    +(v.verdict?` ${v.verdict}`:'')+(v.evidence?` Evidence they cited: ${v.evidence}`:' (no evidence cited yet — worth asking them for a source).')
+  );
+  return seed.concat(mine).join('\n');
+}
+// Just the two shelves the Hall leans on most (Science and Hindu), so the
+// Investigator can cite a real shelved text by name instead of inventing one.
+function hallShelfSummary(){
+  const docs=Store.allDocs().filter(d=>d.tradition==='Science'||d.tradition==='Hindu');
+  if(!docs.length) return '(no Science or Hindu texts are shelved right now)';
+  return docs.map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
+}
+export function openScienceHall(){ state.ui='hall'; hideAllOv(); state.hallView=state.hallView||{mode:'list'}; renderScienceHall(); showOv('hallOv'); }
+// The Investigator is the café Steward wearing a different hat; opening his
+// chat reuses the whole resident chat stack (openChatDialog) with a synthetic
+// "npc" so no plumbing is duplicated. He answers under the investigator
+// grounding + WORK_CHARTER (see CHAT_AGENTS.investigator).
+export function talkToInvestigator(){
+  openChatDialog({
+    name:'the Investigator', aiAgent:'investigator',
+    color:'#2a2118', glow:'#8fb4d9',
+    lines:['The laboratory’s open. Bring me a claim — anything from a headline to a line of scripture — and we’ll ask what could actually be shown, and what the evidence really says. No one here decrees the truth, including me: bring a source, and we’ll weigh it. Questions of meaning I send up to the Monk.'],
+  });
+}
+export function newInvestigationForm(){ state.hallView={mode:'compose'}; renderScienceHall(); }
+export function backToHallList(){ state.hallView={mode:'list'}; renderScienceHall(); }
+// Phase 2 — the visitor opens their OWN investigation. The form's required
+// fields ARE the discipline the user asked for: you can't file a verdict
+// without stating the evidence behind it and what would change your mind.
+// A claim with no source, or one you'd never give up, doesn't get to be a
+// finding here — that's the whole point, enforced by the shape, not a lecture.
+export function createInvestigation(){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const question=g('invQuestion').trim();
+  const evidence=g('invEvidence').trim();
+  const falsifier=g('invFalsifier').trim();
+  const missing=[];
+  if(!question) missing.push('the question');
+  if(!evidence) missing.push('the evidence and sources');
+  if(!falsifier) missing.push('what would change your mind');
+  const warn=document.getElementById('invFormWarn');
+  if(missing.length){
+    if(warn) warn.textContent='An investigation needs '+missing.join(', ')+' — that\'s the price of a seat at the table here: a claim backed by a source, and one you\'d actually be willing to give up.';
+    return;
+  }
+  const inv={
+    id:'inv-'+Date.now(),
+    track:g('invTrack')||'Modern science',
+    question, origin:g('invOrigin').trim(), evidence,
+    verdictKind:g('invVerdict')||'',
+    verdict:g('invVerdictText').trim(),
+    falsifier,
+    grounding:'Your own investigation — the sources you cited above stand behind it.',
+    mine:true, created:todayKey(),
+  };
+  data.hall.investigations.unshift(inv);
+  persist(); logActivity('Opened an investigation: "'+(question.length>60?question.slice(0,60)+'…':question)+'".'); blip(784,.09);
+  state.hallView={mode:'list'}; renderScienceHall();
+}
+export function deleteInvestigation(id){
+  data.hall.investigations=(data.hall.investigations||[]).filter(v=>v.id!==id);
+  persist(); renderScienceHall();
+}
+// "Dissect a paper" — the user's ask: a place to pull apart a paper you
+// disagree with. Reuses the paste-a-text pattern (like the Research Desk's
+// summarizer) but with a critical-appraisal prompt that embodies the Hall's
+// creed: steelman FIRST, then probe method/leaps/overreach, argue the claim
+// not the authors, and never invent details the visitor didn't paste. The
+// output can graduate straight into a kept investigation.
+export async function dissectPaper(){
+  const input=document.getElementById('hallDissectInput');
+  const text=(input&&input.value||'').trim(); if(!text) return;
+  const status=document.getElementById('hallDissectStatus');
+  if(status) status.textContent='Dissecting…';
+  const sys=WORK_CHARTER
+    +"\n\nYou are the Investigator of the Sand Pavilion's Science & Research Hall. The visitor has brought "
+    +"a paper — or a claim from one — to dissect, often one they disagree with. Give it a real critical "
+    +"appraisal, in this order. First STEELMAN it: state the strongest, fairest version of what it actually "
+    +"claims and what it actually shows. Then probe rigorously: the real claim versus any headline "
+    +"overreach; whether the method could even support the claim; sample size, controls, and confounds; "
+    +"statistical or logical leaps; any conflict of interest or funding pressure that's actually evident; "
+    +"and where it's genuinely supported versus where it stretches. Close with a fair overall read (an "
+    +"honest weighing, never a dunk), the single most important thing that would change your assessment, "
+    +"and one or two things the visitor could actually go check. Hold to the Hall's rules: argue the claim, "
+    +"never the authors; work ONLY from what they pasted — if something (sample size, controls, funding) "
+    +"isn't stated, say it's unstated rather than invent it; and if you genuinely don't know a fact, say so "
+    +"instead of bluffing. Keep it structured and readable — short headed sections or a tight list.";
+  try{
+    const reply=await AI.chat([{role:'system',content:sys},{role:'user',content:text}]);
+    state.hallView.lastDissect=reply;
+    logActivity('Dissected a paper at the Science & Research Hall.'+elapsedTag()); blip(660,.08);
+  }catch(e){
+    state.hallView.lastDissect="The Investigator's connection flickered — no appraisal this time. (Check that your AI connection is still running.)";
+  }
+  if(status) status.textContent='';
+  renderScienceHall();
+}
+export function clearDissect(){ if(state.hallView) state.hallView.lastDissect=null; renderScienceHall(); }
+// Graduate an appraisal into a kept investigation — carries the critique into
+// the compose form's evidence field, so a dissection becomes a real, filed
+// finding (you still supply the question, verdict, and falsifier yourself).
+export function investigationFromDissect(){
+  const crit=(state.hallView&&state.hallView.lastDissect)||'';
+  state.hallView={mode:'compose', prefill:{ evidence:crit }};
+  renderScienceHall();
+}
+function renderScienceHall(){
+  const v=state.hallView||{mode:'list'};
+  const panel=document.getElementById('hallPanel');
+  if(v.mode==='compose'){
+    const pf=v.prefill||{};
+    const opt=(val,label,sel)=>`<option value="${val}"${sel?' selected':''}>${label}</option>`;
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Open an investigation</h2>
+      ${pf.evidence?`<div class="meta" style="color:#8fb4d9">Carried in from your paper dissection — it's sitting in the evidence field below. Add the question you're actually testing, your verdict, and what would change your mind.</div>`:''}
+      <div class="meta">A finding here isn’t an opinion held firmly — it’s a claim you’ve backed with a
+        source and stayed willing to lose. The three fields marked <b>*</b> are required on purpose: the
+        question, the evidence behind it, and what would change your mind. That’s the discipline of this
+        room, not a formality. (The Investigator can help you shape any of it — just ask him.)</div>
+      <label>The question <b>*</b> — phrased so it could genuinely come out either way</label>
+      <input type="text" id="invQuestion" placeholder="e.g. Does cold-water immersion actually speed muscle recovery?">
+      <label>Track</label>
+      <select id="invTrack">${opt('Modern science','Modern science',true)}${opt('Contemplative','Contemplative / spiritual')}${opt('Everyday claim','Everyday claim')}${opt('Other','Other')}</select>
+      <label>Where it comes from (optional)</label>
+      <input type="text" id="invOrigin" placeholder="a headline, a book, a scripture, something you were told, your own life">
+      <label>Evidence &amp; sources <b>*</b> — cite papers, books, or real observations, not just conviction</label>
+      <textarea id="invEvidence" rows="4" placeholder="What actually backs this? Name the study, the author, the shelved book, the observation. A source someone else could check — not 'everyone knows' or 'I'm sure of it.'">${esc(pf.evidence||'')}</textarea>
+      <label>Your verdict — reach for the humblest one the evidence supports</label>
+      <select id="invVerdict">${opt('','— not settled yet —',true)}${Object.keys(VERDICTS).map(k=>opt(k,VERDICTS[k].label)).join('')}</select>
+      <label>The verdict in a sentence (optional)</label>
+      <input type="text" id="invVerdictText" placeholder="what you actually conclude, and how strongly">
+      <label>What would change your mind <b>*</b> — a claim you'd never give up isn't being tested</label>
+      <input type="text" id="invFalsifier" placeholder="e.g. a large well-controlled trial finding no recovery benefit">
+      <div class="meta" id="invFormWarn" style="color:#e0a43c;margin-top:10px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="createInvestigation()">Open it</button>
+        <button class="btn ghost" onclick="backToHallList()">← Cancel</button>
+      </div>`;
+    return;
+  }
+  const aiOn=isAIActive();
+  const card=(v,mine)=>{
+    const m=VERDICTS[v.verdictKind]||{label:'not settled yet',color:'#b7ad98',bg:'rgba(183,173,152,.14)'};
+    return `<div class="card" style="cursor:default">
+      <div class="s">${esc(v.track)}${mine?' · your own':''}</div>
+      <div class="t">${esc(v.question)}</div>
+      <div style="margin:6px 0"><span class="badge" style="background:${m.bg};color:${m.color};border-color:${m.color}">${esc(m.label)}</span></div>
+      ${v.origin?`<div class="s" style="margin-top:4px"><b>Where it comes from:</b> ${esc(v.origin)}</div>`:''}
+      <div class="s" style="margin-top:6px"><b>Evidence${mine?' &amp; sources':' says'}:</b> ${esc(v.evidence)}</div>
+      ${v.verdict?`<div class="s" style="margin-top:6px"><b>The verdict, honestly:</b> ${esc(v.verdict)}</div>`:''}
+      <div class="s" style="margin-top:6px"><b>What would change it:</b> ${esc(v.falsifier)}</div>
+      <div class="s" style="margin-top:6px;opacity:.8"><i>${esc(v.grounding)}</i></div>
+      ${mine?`<div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="deleteInvestigation('${v.id}')">Delete</button></div>`:''}
+    </div>`;
+  };
+  const mine=(data.hall.investigations||[]);
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🔬 The Science &amp; Research Hall</h2>
+    <div class="meta">A place that <b>tests things</b>, honestly. The Library holds what’s known; the
+      Hall asks what’s true — turning a claim into a question that could come out either way, then
+      reporting what the evidence actually says. Mostly that’s ordinary science; when you want it to, it
+      can also weigh what meditation or the scriptures put forward — the same honest way, never with a
+      thumb on the scale. Every finding lands in one of four verdicts, including the honest
+      <i>“beyond what science can currently say.”</i></div>
+    <div class="card" style="cursor:default;margin-top:12px;border-color:#8fb4d9">
+      <div class="t">How this Hall works — the method</div>
+      <div class="s" style="margin-top:6px">1. <b>No one here is the gatekeeper of truth</b> — not the Investigator, not the founder, not you. Every claim is open to challenge, including the ones already on the shelves. This is a marketplace of ideas, kept in that spirit on purpose.</div>
+      <div class="s" style="margin-top:5px">2. <b>But a seat at the table has a price: evidence.</b> Back a claim with a paper, a source, a real observation. Being certain isn’t being right, and the loudest voice isn’t the truest — a source someone else can check beats any amount of conviction.</div>
+      <div class="s" style="margin-top:5px">3. <b>Name what would change your mind.</b> Reach for the humblest verdict the evidence supports, and hold it provisionally — a claim you’d never give up isn’t being tested, it’s being defended.</div>
+      <div class="s" style="margin-top:5px">4. <b>Argue the claim, never the person.</b> Put the strongest version of the other side before you weigh it. Where a question is genuinely open, say it’s contested and lay out the sides fairly.</div>
+      <div class="s" style="margin-top:5px">5. <b>“Beyond what science can say” is an honest answer, not a defeat.</b> Some questions are for the Mountain Monk in the Keep, not the microscope — and the Hall says so plainly rather than faking a measurement.</div>
+    </div>
+    ${aiOn
+      ? `<div class="row" style="margin-top:12px"><button class="btn" onclick="talkToInvestigator()">🔬 Talk to the Investigator</button><button class="btn ghost" onclick="newInvestigationForm()">+ Open an investigation</button></div>`
+      : `<div class="meta" style="margin-top:12px">No local AI connected right now (⚙ Manage AI connections) — you can read and open investigations anytime, but talking to the Investigator needs a live connection.</div>
+         <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="newInvestigationForm()">+ Open an investigation</button></div>`}
+    ${aiOn ? `
+      <h3 style="margin-top:22px">📄 Dissect a paper</h3>
+      <div class="meta">Bring a paper you disagree with — paste its abstract, a section, or just its
+        central claim (and, if you like, why it doesn't sit right with you). The Investigator gives it a
+        real critical appraisal: he steelmans it first, then probes the method, the leaps, and what's
+        genuinely supported — and names what would change the verdict. He argues the claim, never the
+        authors. You can turn any appraisal into a kept investigation.</div>
+      ${state.hallView.lastDissect ? `
+        <div class="card" style="cursor:default;border-color:#8fb4d9;margin-top:8px">
+          <div class="t">The appraisal</div>
+          <div class="s" style="margin-top:6px;white-space:pre-wrap">${esc(state.hallView.lastDissect)}</div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn ghost" onclick="investigationFromDissect()">→ Open an investigation from this</button>
+            <button class="btn ghost" onclick="clearDissect()">Clear</button>
+          </div>
+        </div>` : ''}
+      <textarea id="hallDissectInput" rows="5" placeholder="Paste the abstract, a section, or the core claim — and why you disagree, if you want…"></textarea>
+      <div class="row" style="margin-top:8px;align-items:center">
+        <button class="btn ghost" onclick="dissectPaper()">Dissect it</button>
+        <span class="meta" id="hallDissectStatus" style="margin:0"></span>
+      </div>` : ''}
+    ${mine.length ? `<h3 style="margin-top:22px">Your investigations</h3>
+      <div style="margin-top:8px">${mine.map(v=>card(v,true)).join('')}</div>` : ''}
+    <h3 style="margin-top:22px">Worked examples</h3>
+    <div class="meta">Four to start — both everyday science and the contemplative questions, one of each
+      kind of verdict, so the honesty bar is visible before you open your own.</div>
+    <div style="margin-top:10px">${INVESTIGATIONS.map(v=>card(v,false)).join('')}</div>
+    <div class="row" style="margin-top:18px"><button class="btn ghost" onclick="openResearchDesk()">← Back to the Research Desk</button></div>`;
 }
 
 /* ----- The Request Board — a wishlist of books you'd like added,
@@ -4616,4 +4958,7 @@ Object.assign(window, {
   openResearchProject, deleteResearchProject, addResearchNote, sendResearchNoteToToday, fillResearchPrompt,
   sendResearchMessage, saveResearchReplyAsNote, promoteResearchToArchive,
   summarizeResearchText,
+  openScienceHall, talkToInvestigator,
+  newInvestigationForm, backToHallList, createInvestigation, deleteInvestigation,
+  dissectPaper, clearDissect, investigationFromDissect,
 });
