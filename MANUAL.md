@@ -193,6 +193,11 @@ of the day, not three.
   (book notes, chat notes, desk notes, research, grant documents) gathered
   into one log, with folders and tags — and a scoped "have Sebastian look
   over this folder" review.
+- **📓 The Log** (pause menu, or the 💡 button while walking) — a bullet-journal
+  quick-capture for *anything* on your mind, tagged by kind (💡 idea · • to-do ·
+  — note · ✦ to learn/try). The one place everything lands first: get it out
+  fast, digest it later. The foundation of the self-learning journal system
+  (`plans/SELF-LEARNING-JOURNAL-PLAN.md`).
 
 ---
 

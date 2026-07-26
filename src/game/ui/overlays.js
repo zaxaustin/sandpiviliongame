@@ -1249,7 +1249,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="openAccount()" style="margin-bottom:9px">👤 Account${isLoggedIn()?' · signed in':''}</button>
       <button class="btn ghost" onclick="openConnections()" style="margin-bottom:9px">⚙ Manage AI connections</button>
       <button class="btn ghost" onclick="openVoiceSettings()" style="margin-bottom:9px">🔊 Voice settings</button>
-      <button class="btn ghost" onclick="openIdeaCapture()" style="margin-bottom:9px">💡 Idea Jar${data.ideas.length?' · '+data.ideas.length:''}</button>
+      <button class="btn ghost" onclick="openIdeaCapture()" style="margin-bottom:9px">📓 The Log${data.ideas.length?' · '+data.ideas.length:''}</button>
       <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
       <button class="btn ghost" onclick="openStillOpen()" style="margin-bottom:9px">📋 Still Open${openSparks().length?' · '+openSparks().length:''}</button>
@@ -4645,31 +4645,50 @@ export function openIdeaCapture(){
   renderIdeaJar(); showOv('ideaOv');
   setTimeout(()=>document.getElementById('ideaInput')?.focus(),30);
 }
+/* The Log — bullet-journal-style "rapid logging" (SELF-LEARNING-JOURNAL-PLAN.md,
+   Phase 1). Formerly the Idea Jar; broadened into ONE frictionless capture point
+   for anything on your mind, tagged by kind (idea / to-do / note / to-learn) so
+   it can be organized and connected later — capture fast, digest later, the
+   research-backed core of every system that actually sticks. Old entries have no
+   `kind` and read as 'idea'. */
+const LOG_KINDS=[
+  {id:'idea',  label:'💡 Idea',           sig:'💡'},
+  {id:'todo',  label:'• To-do',           sig:'•'},
+  {id:'note',  label:'— Note',            sig:'—'},
+  {id:'learn', label:'✦ To learn / try',  sig:'✦'},
+];
+function logSig(k){ return (LOG_KINDS.find(x=>x.id===(k||'idea'))||LOG_KINDS[0]).sig; }
 function renderIdeaJar(){
-  const ideas=data.ideas;
+  const ideas=data.ideas, kind=state.logKind||'idea';
+  const curLabel=(LOG_KINDS.find(x=>x.id===kind)||LOG_KINDS[0]).label;
   document.getElementById('ideaPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>💡 The Idea Jar</h2>
-    <div class="meta">Get it down before it slips — nothing here needs to be tidy. Digest it later,
-      whenever you come back to read the jar.</div>
-    <textarea id="ideaInput" rows="3" placeholder="What's the idea?"></textarea>
+    <h2>📓 The Log</h2>
+    <div class="meta">Get it out before it slips — a bullet journal for whatever's on your mind: an idea,
+      a to-do, a note, or something you want to learn or try. Don't tidy it now; capture fast, digest
+      later. This is the one place everything lands first.</div>
+    <div class="row" style="margin-top:10px;flex-wrap:wrap">
+      ${LOG_KINDS.map(k=>`<button class="btn ${k.id===kind?'':'ghost'}" style="font-size:11.5px;padding:6px 12px" onclick="setLogKind('${k.id}')">${esc(k.label)}</button>`).join('')}
+    </div>
+    <textarea id="ideaInput" rows="3" placeholder="Capturing as ${esc(curLabel)} — what is it?" style="margin-top:8px"></textarea>
     <div class="row" style="margin-top:10px">
-      <button class="btn" onclick="saveIdea()">Drop it in the jar</button>
+      <button class="btn" onclick="saveIdea()">Capture it</button>
       <button class="btn ghost" onclick="closeUI()">← Back to what I was doing</button>
     </div>
-    ${ideas.length ? `<h3 style="margin-top:18px">${ideas.length} kept so far</h3>
+    ${ideas.length ? `<h3 style="margin-top:18px">${ideas.length} captured</h3>
       ${ideas.map(i=>`
         <div class="card" style="cursor:default">
-          <div class="s">${esc(i.ts)}</div>
-          <div>${esc(i.text)}</div>
+          <div class="s">${logSig(i.kind)} · ${esc(i.ts)}</div>
+          <div style="margin-top:2px">${esc(i.text)}</div>
           <div class="row" style="margin-top:6px"><button class="btn ghost" onclick="deleteIdea(${i.id})">Remove</button></div>
         </div>`).join('')}` : ''}`;
 }
+export function setLogKind(k){ state.logKind=k; renderIdeaJar(); setTimeout(()=>document.getElementById('ideaInput')?.focus(),20); }
 export function saveIdea(){
   const input=document.getElementById('ideaInput');
   const text=input.value.trim(); if(!text) return;
-  data.ideas.unshift({id:Date.now(),text,ts:todayKey()});
-  persist(); logActivity('Dropped an idea in the jar.'); blip(700,.06);
+  data.ideas.unshift({id:Date.now(),text,ts:todayKey(),kind:state.logKind||'idea'});
+  persist(); logActivity('Captured to the Log.'); blip(700,.06);
   renderIdeaJar();
   setTimeout(()=>document.getElementById('ideaInput')?.focus(),30);
 }
@@ -5430,7 +5449,7 @@ Object.assign(window, {
   openConnections, openMenu, returnToTitle, resetSave,
   openVoiceSettings, setTTSVoice, setTTSRate, previewTTSVoice,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
-  openIdeaCapture, saveIdea, deleteIdea,
+  openIdeaCapture, saveIdea, deleteIdea, setLogKind,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
   forgetMemoryItem, forgetAllMemory,

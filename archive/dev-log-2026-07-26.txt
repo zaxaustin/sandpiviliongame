@@ -33,3 +33,37 @@ half, PAVILION-ACADEMY-PLAN Phase 1.
 
 Verified throughout: node --check + smoke (9 scenes, 22 docs) + build clean.
 Docs: BETA-FEEDBACK #35/#36 marked; MANUAL gains The Stacks; this log.
+
+SELF-LEARNING JOURNAL — research + design + The Log (Phase 1)
+------------------------------------------------------------
+Big ask: make the Pavilion a daily-use bullet journal + second brain you can
+TALK to — capture ideas, AI organizes/connects them AFTER, a log of things to do
+tackled one by one, pick by mood/energy ("drawing today, electronics tomorrow"),
+a backlog of projects to log into, eventually community projects (feed the
+hungry / get power) — personal interface rock-solid FIRST. Plus: the daily-use
+unlock is an interactive VOICE assistant that's playful AND professional.
+
+Did the homework (WebSearch): why people abandon to-do/calendar apps (dumping-
+ground death spiral; fragmentation; reorganizing-instead-of-doing; passive not
+proactive; people change) and what works (Bullet Journal rapid logging +
+migration; Building a Second Brain CODE+PARA, capture-first with an inbox;
+energy/spoon-based selection). Distilled 6 design rules; the load-bearing one:
+DON'T FRAGMENT — the Pavilion already has 5 places thoughts land (Writing Desk,
+Idea Jar, Notes, sparks, Course Board/Research Desk); the job is to UNIFY them,
+not add a 6th.
+
+Wrote plans/SELF-LEARNING-JOURNAL-PLAN.md (research-grounded, unify-focused,
+7 phases, with sources cited). Roles made coherent: Log=capture inbox;
+Writing Desk=today; Notes=second brain; Threads=projects/interests; Sebastian=
+the playful+professional assistant.
+
+BUILT Phase 1 — The Log: reframed the Idea Jar into a universal bullet-journal
+capture. LOG_KINDS (💡 idea / • to-do / — note / ✦ to-learn); entries gain a
+`kind` (old entries read as idea); setLogKind picker; title/menu now "📓 The
+Log"; still zero-friction from the HUD 💡. MANUAL updated. Verified: check +
+smoke + build clean.
+
+Recommended NEXT build: voice-in (SpeechRecognition, desktop-first) + replies in
+Sebastian's voice — the daily-use unlock the user keeps naming. Then Phase 2
+(AI organizes the Log after capture), Phase 3 (Threads backlog), Phase 4 (mood
+picker — the anti-abandonment surface).
