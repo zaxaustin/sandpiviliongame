@@ -48,7 +48,7 @@ yet) and update `README.md`'s "What's next" section to match reality —
 future sessions (yours or anyone else's) depend on both staying honest,
 not aspirational.
 
-## Four standing decisions, stated plainly so they don't have to be re-derived
+## Five standing decisions, stated plainly so they don't have to be re-derived
 
 **The desktop app is the main focus going forward.** This project runs
 mainly as a real Electron app on the user's own machine now, not a
@@ -98,3 +98,31 @@ were resolved 2026-07-11: replies/reasoning now stream live, and the
 `bestLocalModel()` concern closed as guidance-not-downgrade — the Monk
 keeps the largest installed model by standing rule, and the tiered
 model-picking guide in `PROTOCOLS.md` Protocol 2 does the protecting.)
+
+**Local and self-hosted, off Supabase — and build the Library from
+scratch ourselves. Stated directly 2026-07-12.** The default backend is
+*this machine*: book text in local MinIO (Docker, a 100 GB reserve), the
+catalog local too, the whole Pavilion runnable with no cloud account at
+all. The user is **not a fan of Supabase**; the direction is *off* it, not
+toward it — see `plans/SELF-HOSTED-STACK-PLAN.md` (local Postgres + MinIO
+in Docker now; a self-hosted VPS running the *same* stack later, only if a
+shared Commons is ever actually wanted). Do **not** build a feature that
+*requires* Supabase, or reach for any third-party service, unless we
+genuinely cannot get it running ourselves in reasonable time — and say so
+plainly when that's the case (auth is the one honestly hard piece; named,
+not pretended away). This is the "build it ourselves" decision above,
+sharpened to a concrete backend direction. The Library is meant to be
+**built from scratch by its owner** — the Caravan tools, `library-inbox/`,
+and the manual/drag-and-drop add paths already make a from-nothing library
+the normal case, not a cloud you download; keep it that way.
+
+**Two Pavilions, kept distinct.** This dev machine is *the user's own*
+instance — a personal desktop environment he wants maximum freedom to play
+with, customize (display and all), and load up with a host of features
+that make it genuinely useful in real life. That is deliberately different
+from **"the Sand Pavilion for everyone"** — the shareable/forkable version,
+which will need its own good plan (the bare-foundation-vs-personal-additions
+seam in `plans/TOOL-COMMONS-PLAN.md`, the federation hopes). When building,
+know which one a change serves: the personal instance can be as rich and
+opinionated as he likes; the for-everyone version stays lean and neutral.
+Both are real goals; they are not the same goal.

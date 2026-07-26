@@ -509,10 +509,20 @@ testers, none of it big:
 5. Then: hand the installer to two or three real people and let
    `BETA-TESTING-FEEDBACK.md` fill up with things nobody imagined.
 
-**Backend, decided (2026-07-11):** keep Supabase for now; when outgrown,
-the hybrid — a small VPS running the same Postgres+MinIO Docker stack the
-dev machine already runs, Supabase kept for the social pieces. No server
-rented until the beta actually needs hosting.
+**Backend, direction sharpened (2026-07-12): local and self-hosted, off
+Supabase.** The book text already lives in local MinIO (Docker, a 100 GB
+reserve) and the whole Pavilion runs with no cloud account at all
+(seed/local catalog + MinIO). The user is not a fan of Supabase, so the
+direction is *off* it: move the catalog local (a file, then a local
+Postgres in the same Docker stack as MinIO), and — only if a shared
+Commons is ever actually wanted — a self-hosted VPS running that same
+Postgres+MinIO stack, not a hosted service. Don't build features that
+*require* Supabase or lean on any third party unless we genuinely can't
+run it ourselves (auth is the one honestly hard piece). The Library is
+built from scratch by its owner via the Caravan tools and the add-a-book
+paths — a from-nothing library is the normal case, not a cloud download.
+The full staging is [`SELF-HOSTED-STACK-PLAN.md`](plans/SELF-HOSTED-STACK-PLAN.md).
+No server rented until there's actually a second person/device to serve.
 
 **The comprehensive what-next** — the near gates above, the daily loop,
 the research walk (Protocol 3), and the tester round, gathered into one
