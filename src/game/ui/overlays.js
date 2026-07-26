@@ -2623,10 +2623,60 @@ const BUJO_KINDS=[
   {id:'note',  label:'— Note'},
 ];
 function bujoSig(e){ return e.kind==='task' ? (e.done?'✓':'•') : e.kind==='event' ? '○' : '—'; }
+/* Bullet-journal MIGRATION — the cornerstone the whole method turns on: an
+   unfinished task (•) doesn't silently fall into the past, it surfaces on today's
+   page to be pulled forward (>) or consciously let go. Only tasks migrate; events
+   and notes are date-anchored and stay on their own day. Mirrors the sparks
+   carry-forward already here, applied to the daily log the user asked for. */
+function migratableTasks(){
+  const today=todayKey(), out=[];
+  for(const k of Object.keys(data.planner).sort()){
+    if(k>=today) continue;
+    (data.planner[k].log||[]).forEach(e=>{ if(e.kind==='task' && !e.done) out.push({dayKey:k, id:e.id, text:e.text}); });
+  }
+  return out;
+}
+export function migrateLogTask(dayKey,id){
+  const src=data.planner[dayKey]; if(!src) return;
+  const e=(src.log||[]).find(x=>x.id===id); if(!e) return;
+  src.log=src.log.filter(x=>x.id!==id);
+  const day=plannerDay(); if(!day.log) day.log=[];
+  day.log.push({id:Date.now(), text:e.text, kind:'task', done:false});
+  persist(); logActivity('Carried a task forward to today.'); blip(660,.06); renderPlanLog(); setHud();
+}
+export function dropLogTask(dayKey,id){
+  const src=data.planner[dayKey]; if(!src) return;
+  const e=(src.log||[]).find(x=>x.id===id); if(!e) return;
+  e.done=true; // let it go, but keep the honest record on its own day (struck through)
+  persist(); renderPlanLog();
+}
+export function migrateAllLogTasks(){
+  const tasks=migratableTasks(); if(!tasks.length) return;
+  const day=plannerDay(); if(!day.log) day.log=[];
+  tasks.forEach((t,n)=>{
+    const src=data.planner[t.dayKey]; if(!src) return;
+    src.log=(src.log||[]).filter(x=>x.id!==t.id);
+    day.log.push({id:Date.now()+n, text:t.text, kind:'task', done:false}); // +n keeps ids unique across the loop
+  });
+  persist(); logActivity('Carried '+tasks.length+' unfinished task(s) forward to today.'); blip(660,.06); setTimeout(()=>blip(825,.08),90);
+  renderPlanLog(); setHud();
+}
 function renderPlanLog(){
   const el=document.getElementById('planLog'); if(!el) return;
   const day=plannerDay(), log=day.log||[], kind=state.planLogKind||'task';
-  el.innerHTML = `
+  const carried=migratableTasks();
+  const carriedBlock = carried.length ? `
+    <div class="card" style="cursor:default;margin-bottom:10px;border-color:#8fb4d9">
+      <div class="t">↩ ${carried.length} unfinished task${carried.length>1?'s':''} from earlier</div>
+      <div class="s" style="margin:2px 0 8px">The bullet-journal move: pull forward what still matters, and let the rest go — nothing falls through the cracks.</div>
+      ${carried.map(t=>`<div class="row" style="align-items:center;gap:8px;margin-top:3px">
+        <span style="flex:1">• ${esc(t.text)} <span class="badge lic">${esc(t.dayKey)}</span></span>
+        <button class="btn ghost" style="font-size:10px;padding:2px 8px" onclick="migrateLogTask('${t.dayKey}',${t.id})">→ today</button>
+        <button class="btn ghost" style="font-size:10px;padding:2px 8px" onclick="dropLogTask('${t.dayKey}',${t.id})" title="Let it go">✕</button>
+      </div>`).join('')}
+      ${carried.length>1?`<div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11px" onclick="migrateAllLogTasks()">→ Carry all to today</button></div>`:''}
+    </div>` : '';
+  el.innerHTML = carriedBlock + `
     <div class="meta" style="margin-top:4px">Today's log — a bullet journal: a <b>•</b> task, an <b>○</b> event, or a <b>—</b> note. Jot fast; tidy later.</div>
     <div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
       ${BUJO_KINDS.map(k=>`<button class="btn ${k.id===kind?'':'ghost'}" style="font-size:11px;padding:5px 10px" onclick="setPlanLogKind('${k.id}')">${esc(k.label)}</button>`).join('')}
@@ -6020,6 +6070,7 @@ Object.assign(window, {
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   openIdeaCapture, saveIdea, deleteIdea, setLogKind, sendLogEntryToToday,
   setPlanLogKind, addPlanLogEntry, togglePlanLogTask, removePlanLogEntry,
+  migrateLogTask, dropLogTask, migrateAllLogTasks,
   setSebMode,
   setNoteLogKind, addNoteLogEntry, toggleNoteLogItem, removeNoteLogItem,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,

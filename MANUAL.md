@@ -209,6 +209,12 @@ of the day, not three.
   **bullet journal**: jot a **•** task, an **○** event, or a **—** note in the
   day's log (tasks tick off when done), with the freeform paper below for longer
   writing.
+- **Migration — nothing falls through the cracks.** Open the Writing Desk on a
+  new day and any **unfinished tasks from earlier** appear at the top of the log:
+  **→ today** pulls one forward, **✕** lets it go, or **→ Carry all to today**
+  moves them in one tap. This is the Bullet Journal method's core ritual — you
+  decide each day what still matters, so a task is never quietly lost to a past
+  page. (Events and notes stay on their own day; only tasks migrate.)
 - **The Archive Desk** — your own writing: documents you keep, personal by
   default, submittable to review if you ever mean to shelve one.
 - **The Research Desk** — freeform projects: notes, an AI assistant that

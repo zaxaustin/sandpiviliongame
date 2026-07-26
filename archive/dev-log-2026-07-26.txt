@@ -325,3 +325,22 @@ if it can't handle that we'll figure something else out"):
   yes, even the small local model handles it. Installed models seen: llama3.2,
   deepseek-r1:8b, qwen3.5:9b, deepseek-v4-pro:cloud.
 Verified: node --check + smoke (9 scenes, 22 docs) + build all green. MANUAL updated.
+
+---
+
+Readiness check on notes + scheduling (user: anything glaring / more time-tested,
+wants to show friends). Honest audit found ONE genuinely glaring, time-tested gap:
+bullet-journal MIGRATION was missing. openSparks() carried reading-sparks forward
+but the daily LOG's unfinished • tasks did not — a task jotted today silently sank
+into a past day tomorrow, invisible. That's exactly the cornerstone ritual Ryder
+Carroll's Bullet Journal turns on.
+BUILT: migratableTasks() gathers unfinished task-kind log entries from days before
+today; the Writing Desk's log now shows "↩ N unfinished tasks from earlier" at the
+top with → today (migrate), ✕ (let go = mark done on its own day), and → Carry all
+to today. Only tasks migrate (events/notes are date-anchored). Mirrors the existing
+sparks carry-forward. MANUAL updated.
+Otherwise: notes are strong (unified hub, create/edit anywhere, folders/tags, book
+links, per-note BuJo logs, lesson plans); scheduling is strong (intention/ember,
+the daily BuJo log, rhythm blocks, sparks, calendar with timed events + reminders,
+Sebastian day-planning). Verdict: demo-ready. Verified: check + smoke (9 scenes, 22
+docs) + build all green.
