@@ -25,6 +25,21 @@ placeholder.
 
 ---
 
+> **STATUS — Phases 0+1 first slice BUILT 2026-07-12 (beta test).** A real
+> **Learning Tree** ships in-game, reached from the Course Board (🌳 Open the
+> Learning Tree): built-in curated curriculum (`CURRICULUM` in `overlays.js`,
+> progress in `data.curriculum`), rendered as a **prerequisite tree** —
+> available / locked-but-visible / complete / "being written." Seeded with the
+> real **"A Beating Heart"** lesson (from `lessons/01`) as the first 101 node,
+> plus "Make the Library yours" (independent) and "Meet the residents" (honestly
+> gated behind Beating Heart, to prove locking), and a **Coding 101** node shown
+> as *planned* so the branch and its gaps are visible to poke at. Both requested
+> philosophies are in: **self-first, AI-last** (steps tell you to do it yourself;
+> asking a resident is offered last), and a **privacy/sandbox** note up top.
+> `node --check` + smoke + build clean. **Next:** write the Coding track for
+> real, then Phase 2 (reading tied to shelved books) and Phase 3 (the Academy
+> tutor on a node). This is the "poke around, find what's missing" slice.
+
 ## What already exists to build on (so we don't reinvent)
 
 This is further along than a blank page — four real pieces fit:

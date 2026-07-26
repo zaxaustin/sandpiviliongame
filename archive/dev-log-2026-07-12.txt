@@ -339,3 +339,28 @@ Offered as a natural follow-up: an OPTIONAL in-app hardware hint (navigator.
 deviceMemory/hardwareConcurrency + WebGL GPU string -> recommend a model tier) so
 the app itself can help with Step 1 — small, feasible, not built (kept to the
 one-step-at-a-time pace).
+
+LEARNING TREE BUILT (in-game, beta test with the Beating Heart lesson)
+----------------------------------------------------------------------
+User: use the lesson to beta-test the learning platform in-game as a "learning
+tree"; if it works we do coding next; get it ready to poke at / find what's
+missing; self-first, AI-does-it-for-you LAST; privacy + sandbox feeling. Built
+COURSE-PROGRESSION Phase 0+1 first slice:
+- CURRICULUM (built-in, in overlays.js) rendered as a real PREREQUISITE TREE off
+  the Course Board (🌳 Open the Learning Tree); progress in data.curriculum
+  (freshData + patch). Node states: available / locked-but-visible (shows which
+  prereq to finish) / complete (auto when all steps checked) / "✎ being written".
+- Seeded nodes: beating-heart (101, real, from lessons/01, 5 steps) ; first-book
+  (101, independent, real, 5 steps) ; meet-residents (101, HONESTLY gated behind
+  beating-heart — proves locking) ; coding-101 (planned stub with the LEARNING-
+  PATH 1-6 outline shown, so the branch + gaps are visible to poke).
+- Self-first/AI-last: step copy tells you to do it yourself; a muted note offers
+  "prefer a hand? ask a resident — but reach for that last." Privacy/sandbox: a
+  blue card up top ("your own private sandbox — nothing leaves your machine").
+- Wiring: openLearningTree/openLesson/backToTree/toggleLessonStep; treeOv
+  overlay; Course Board button; window regs. Fixed one single-quote/apostrophe
+  syntax slip. Verified: check + smoke + build clean.
+User's machine (for the beating-heart lesson): i9-12900K, 32GB RAM, Intel Arc
+A770 16GB — top tier. Recommend llama3.1:8b default; can run ~14B comfortably;
+Arc GPU accel via Ollama is less turnkey than NVIDIA but 32GB RAM handles 8B on
+CPU fine.

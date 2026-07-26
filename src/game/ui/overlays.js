@@ -1188,7 +1188,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -2740,6 +2740,9 @@ function renderCourses(){
         }).join('')}
       </div>`}
       ${shown.map(card).join('') || `<p>${emptyMsg}</p>`}
+      <div class="meta" style="margin-top:16px">Want a guided path rather than one you set yourself? The
+        <b>Learning Tree</b> is the Pavilion's own curriculum — start at a 101 and climb.</div>
+      <div class="row" style="margin-top:6px"><button class="btn ghost" onclick="openLearningTree()">🌳 Open the Learning Tree</button></div>
       <div class="row" style="margin-top:14px">
         ${showArch
           ? `<button class="btn ghost" onclick="toggleArchivedView()">← Back to active courses</button>`
@@ -3916,6 +3919,141 @@ function renderFoldReflection(){
           <div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="deleteFoldReflection('${id}',${i})">Delete</button></div>
         </div>`).join('')}</div>`
       : '<div class="meta" style="margin-top:16px">No reflections kept yet — the first one is just an honest sentence about where you actually are.</div>'}`;
+}
+
+/* ================================================================
+   The Learning Tree — COURSE-PROGRESSION-PLAN.md, Phase 0+1, beta-
+   tested with the "A Beating Heart" lesson (lessons/01). Built-in,
+   curated curriculum (like the Hall's seed investigations), distinct
+   from the personal Course Board (data.courses). Nodes form a real
+   prerequisite tree: a node is available only once its prereqs are
+   done, locked-but-visible otherwise (you can see the whole climb).
+   Progress is per-node in data.curriculum, saved like everything else.
+
+   Two philosophies baked in at the user's ask:
+   - Self-first, AI-last: every step is written to have you FIND and DO
+     it yourself; asking a resident to help is offered only as the last
+     resort, never the first move.
+   - Privacy/sandbox: stated plainly at the top — nothing here leaves
+     your machine; the Pavilion is your own private sandbox.
+   ================================================================ */
+const CURRICULUM = [
+  // ---- Getting Started ----
+  { id:'beating-heart', track:'Getting Started', level:101, prereqs:[],
+    title:'A Beating Heart — get your local AI running',
+    summary:"Give the Pavilion its heartbeat: a free AI running on your own machine, so the residents actually talk back. No coding, about 20 minutes.",
+    more:'lessons/01-a-beating-heart.md',
+    steps:[
+      {title:'Check what YOUR machine can run', body:"Open Task Manager (Ctrl+Shift+Esc) → Performance and note your RAM, and whether you have a real graphics card. Match it to a model size — pick smaller if unsure. Do this yourself first; it's the habit that makes all the rest make sense."},
+      {title:'Install Ollama', body:"Get it from ollama.com (or, on Windows, `winget install Ollama.Ollama`). It runs quietly in your system tray afterward."},
+      {title:'Pull your model', body:"In a terminal: `ollama pull llama3.2` (or the size your machine fits). Run `ollama list` to confirm it downloaded."},
+      {title:'Connect it to the Pavilion', body:"Desktop app: automatic. Browser: set OLLAMA_ORIGINS (the full lesson shows how). Look for the green ● Connected line on the title screen."},
+      {title:'Say hello to Quill (the real test)', body:"Talk to Quill in the Library. If he answers in his own words, grounded in the actual books — your Pavilion has a beating heart."},
+    ]},
+  { id:'first-book', track:'Getting Started', level:101, prereqs:[],
+    title:'Make the Library yours — add your first book',
+    summary:"The Library grows because you grow it. Bring in a book you actually want to read. (No AI needed — this one stands on its own.)",
+    more:'PROTOCOLS.md',
+    steps:[
+      {title:'Find a genuinely free book', body:"Project Gutenberg or Standard Ebooks. 'Free to read' isn't the same as 'free to keep' — look for public domain or a CC license. Pick something you truly want; that's the point."},
+      {title:'Get it as .epub or .txt', body:"Most sites offer both. EPUB is fine — the game unpacks it itself, no conversion."},
+      {title:'Drop it on the Caravan Desk', body:"Workshop → face the Caravan Desk (press E) → '+ Add a text by hand' → drag your file onto the drop zone. Title and author fill themselves in."},
+      {title:'Pick its shelf and add it', body:"Choose the shelf (tradition), confirm the license, and press '📚 Add to my Library now.' It appears on that shelf, marked 👤 as yours."},
+      {title:'Go read it', body:"Walk to the shelf you chose (or Your Shelf by the reading nook) and open your book. It's part of your Library now."},
+    ]},
+  { id:'meet-residents', track:'Getting Started', level:101, prereqs:['beating-heart'],
+    title:'Meet the residents — put the heartbeat to work',
+    summary:"Now that your AI is running, actually work with the people who live here. This one needs a beating heart first.",
+    steps:[
+      {title:'Ask Quill about the shelves', body:"In the Library, ask Quill what's worth reading for something you actually care about. He's grounded in the real books."},
+      {title:'Sit with the Monk', body:"In the Keep, bring the Monk a real question of meaning or practice — not trivia. He answers differently than the others."},
+      {title:'Plan a day with Sebastian', body:"In the Workshop, ask Sebastian for a schedule, then use '📋 Send this plan to today' to drop it straight onto your calendar and plan."},
+      {title:'Notice where it all happened', body:"Every one of those conversations ran on your own machine and left it never. That's the whole idea — help that's genuinely yours."},
+    ]},
+  // ---- Coding (the next track — shown so you can see the shape and what's missing) ----
+  { id:'coding-101', track:'Coding', level:101, prereqs:['beating-heart'], status:'planned',
+    title:'Coding 101 — the terminal, and your first real change',
+    summary:"Where learning to code starts, built around this very project. Being written now — the outline below is the planned shape (drawn from LEARNING-PATH Stages 1–6), here so you can see the tree extend and tell me what's missing before we build it for real.",
+    steps:[
+      {title:"The terminal isn't scary, it's literal", body:"(planned) What a command line actually is, and the handful of commands you'll really use."},
+      {title:'HTML, CSS, and JS are three different jobs', body:"(planned) The three languages of a page, and which does what."},
+      {title:'How the files talk to each other', body:"(planned) Imports, the module graph, how this project is wired."},
+      {title:'What "local" and "API" mean, from the inside', body:"(planned) The same beating-heart pipeline you set up, understood."},
+      {title:'Make a real change yourself', body:"(planned) Edit something in this actual codebase and see it work — the capstone of the on-ramp."},
+    ]},
+];
+function curriculumNode(id){ return CURRICULUM.find(n=>n.id===id); }
+function lessonProgress(id){ return data.curriculum[id]||(data.curriculum[id]={steps:{}}); }
+function lessonDone(node){ if(!node||!node.steps.length||node.status==='planned') return false; const p=data.curriculum[node.id]; return !!p && node.steps.every((_,i)=>p.steps[i]); }
+function lessonAvailable(node){ return (node.prereqs||[]).every(pid=>lessonDone(curriculumNode(pid))); }
+function lessonCompletedCount(node){ const p=data.curriculum[node.id]; return p ? node.steps.filter((_,i)=>p.steps[i]).length : 0; }
+export function openLearningTree(){ state.ui='tree'; hideAllOv(); state.treeView={mode:'list'}; renderLearningTree(); showOv('treeOv'); }
+export function openLesson(id){
+  const node=curriculumNode(id); if(!node) return;
+  if(node.status==='planned' || !lessonAvailable(node)){ state.treeView={mode:'list'}; renderLearningTree(); return; } // locked/planned nodes don't open
+  state.treeView={mode:'lesson',id}; renderLearningTree();
+}
+export function backToTree(){ state.treeView={mode:'list'}; renderLearningTree(); }
+export function toggleLessonStep(id,i){
+  const node=curriculumNode(id); if(!node) return;
+  const p=lessonProgress(id); const wasDone=lessonDone(node);
+  p.steps[i]=!p.steps[i];
+  if(!wasDone && lessonDone(node)){ p.completedAt=todayKey(); logActivity('Finished a lesson: "'+node.title+'".'); blip(659,.1); setTimeout(()=>blip(880,.12),110); }
+  persist(); renderLearningTree();
+}
+function renderLearningTree(){
+  const v=state.treeView||{mode:'list'}, panel=document.getElementById('treePanel');
+  if(v.mode==='lesson'){
+    const node=curriculumNode(v.id); if(!node){ return backToTree(); }
+    const p=lessonProgress(node.id), done=lessonDone(node);
+    const next=CURRICULUM.filter(n=>(n.prereqs||[]).includes(node.id));
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>${esc(node.title)}</h2>
+      <div class="meta"><span class="badge">${node.track} · ${node.level}</span> ${done?'<span class="badge lic">✓ complete</span>':''}</div>
+      <div class="meta" style="margin-top:8px">${esc(node.summary)}</div>
+      <div style="margin-top:14px">${node.steps.map((s,i)=>{
+        const on=!!p.steps[i];
+        return `<div class="card" style="cursor:pointer" onclick="toggleLessonStep('${node.id}',${i})">
+          <div class="t">${on?'☑':'☐'} ${esc(s.title)}</div>
+          <div class="s" style="margin-top:5px">${esc(s.body)}</div>
+        </div>`;
+      }).join('')}</div>
+      ${done ? `<div class="card" style="cursor:default;margin-top:12px;border-color:#7fb069"><div class="t">✓ Lesson complete</div><div class="s" style="margin-top:5px">${next.length?'You\'ve unlocked: '+next.map(n=>esc(n.title)).join(', ')+'.':'That\'s the end of this branch — for now.'}</div></div>` : ''}
+      <div class="meta" style="margin-top:14px;opacity:.85">Try each step yourself first — that's how it sticks. Prefer a hand? If your local AI is connected, a resident can help — but reach for that last, not first.${node.more?` The fuller written version lives in <code>${esc(node.more)}</code>.`:''}</div>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="backToTree()">← Back to the tree</button></div>`;
+    return;
+  }
+  // tree list, grouped by track in order
+  const tracks=[]; CURRICULUM.forEach(n=>{ if(!tracks.includes(n.track)) tracks.push(n.track); });
+  const nodeCard=n=>{
+    const planned=n.status==='planned', done=lessonDone(n), avail=lessonAvailable(n);
+    const locked=!planned && !avail;
+    let badge, style='', click=`onclick="openLesson('${n.id}')" style="cursor:pointer"`;
+    if(planned){ badge='<span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">✎ being written</span>'; click='style="cursor:default;opacity:.7"'; }
+    else if(done){ badge='<span class="badge lic">✓ complete</span>'; }
+    else if(locked){ const missing=(n.prereqs||[]).filter(pid=>!lessonDone(curriculumNode(pid))).map(pid=>(curriculumNode(pid)||{}).title||pid); badge='<span class="badge">🔒 finish '+esc(missing.join(', '))+'</span>'; click='style="cursor:default;opacity:.6"'; }
+    else { const c=lessonCompletedCount(n); badge=`<span class="badge">${c}/${n.steps.length} steps</span>`; }
+    return `<div class="card" ${click}>
+      <div class="t">${esc(n.title)} ${badge}</div>
+      <div class="s" style="margin-top:4px">${esc(n.summary)}</div>
+    </div>`;
+  };
+  panel.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🌳 The Learning Tree</h2>
+    <div class="meta">Start at a 101 and climb — each course unlocks the next once you've walked it. The
+      board confers nothing; the walking is the whole credential. This is the first, small tree — here to
+      be poked at, so tell me what's missing before we grow the coding branch for real.</div>
+    <div class="card" style="cursor:default;margin-top:10px;border-color:#8fb4d9">
+      <div class="t">🔒 Your own private sandbox</div>
+      <div class="s" style="margin-top:5px">Everything here runs on your own machine. Nothing you do in a
+        lesson — what you read, check off, or try — ever leaves your computer or is sent anywhere. Learn
+        freely; it's yours alone.</div>
+    </div>
+    ${tracks.map(t=>`<h3 style="margin-top:20px">${esc(t)}</h3>
+      <div style="margin-top:6px">${CURRICULUM.filter(n=>n.track===t).map(nodeCard).join('')}</div>`).join('')}
+    <div class="row" style="margin-top:18px"><button class="btn ghost" onclick="openCourses()">← Back to the Course Board</button></div>`;
 }
 
 /* ----- The Request Board — a wishlist of books you'd like added,
@@ -5206,4 +5344,5 @@ Object.assign(window, {
   dissectPaper, clearDissect, investigationFromDissect,
   newExperimentForm, createExperiment, logExperimentToday, deleteExperiment, readExperimentWithInvestigator,
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
+  openLearningTree, openLesson, backToTree, toggleLessonStep,
 });

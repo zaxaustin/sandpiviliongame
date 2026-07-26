@@ -17,7 +17,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], hall:{investigations:[],experiments:[]}, temple:{folds:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], hall:{investigations:[],experiments:[]}, temple:{folds:{}}, curriculum:{}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -32,6 +32,7 @@ if(!data.personalLibrary) data.personalLibrary=[]; // older saves predate the pe
 if(!data.hall) data.hall={investigations:[],experiments:[]}; // older saves predate the Science & Research Hall (SCIENCE-RESEARCH-HALL-PLAN.md)
 if(!data.hall.experiments) data.hall.experiments=[]; // Phase 3 self-experiments came after Phases 0-2
 if(!data.temple) data.temple={folds:{}}; // older saves predate the Eightfold reflection ladder (EIGHTFOLD-PATH-TEMPLE-PLAN.md)
+if(!data.curriculum) data.curriculum={}; // older saves predate the Learning Tree (COURSE-PROGRESSION-PLAN.md)
 // The personal shelf rides along with the certified library everywhere docs
 // are read (shelves, the Index, Quill's grounding) — registered as a getter,
 // not a copy, so shelving/removing a book needs no re-registration.
