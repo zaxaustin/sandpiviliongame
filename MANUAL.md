@@ -105,11 +105,24 @@ still has scripted things to say, and every desk still works.
   (the audio keeps going as you type). Want your *whole* notebook while it plays?
   Press **🗒 My notes (keeps playing)** — it opens Your Notes without stopping the
   reading, with a **▸ back to the book** banner to return. Listen, jot, come back.
-- **Let the AI read with you:** with a local AI connected, the Reader offers
-  **✨ Overall impression** (its thoughtful take on the whole book) and, in the
-  full text, **✨ Analyze this page** (a close read of the passage you're on).
-  Both save straight into your book notes, marked ✨ as the AI's, never confused
-  with your own — a real, engaged use of your local model, not just chat.
+- **Pocket a book and walk around:** press **📕 Pocket & walk** to close the
+  reader and roam the grounds while it keeps reading aloud — exactly like
+  pocketing a conversation with the phone. A small card sits in the bottom-left
+  corner (it pulses while reading); tap it to drop back into the book, or ✕ to
+  put it down. Your place is held either way.
+- **Let the AI read with you:** the Reader always shows **✨ Overall impression**
+  (its thoughtful take on the whole book) and, in the full text, **✨ Analyze this
+  page** (a close read of the passage you're on). Click either with a local AI
+  connected and it writes its take straight into your book notes below, marked ✨
+  as the AI's, never confused with your own — a real, engaged use of your local
+  model, not just chat. No AI connected yet? The button tells you so and points
+  you to **⚙ Manage AI connections** rather than simply vanishing.
+- **Ask about the book while you read:** **💬 Ask about this book** (or, in the
+  full text, **💬 Ask about this page**) opens a conversation with **Sebastian**
+  grounded in exactly what's in front of you — the summary, or the page you're on.
+  Ask him to explain a passage, define a word, draw out an idea, or just talk it
+  through. **Pocket the chat** (the phone) to keep reading while he thinks, then
+  tap to read his answer. This is the fastest way to *digest* a book, not just read it.
 - **Take notes while reading:** the note box in the Reader files a note to
   that book (and that page, if you're mid-text). Every note has a
   **→ Bring to today's plan** button — one click and it lands on the
@@ -148,6 +161,23 @@ still has scripted things to say, and every desk still works.
   categorize (Practice / Study / Skill / Work / Health / Personal), search,
   and archive when finished. Quill and the Computer can draft one from a
   conversation; you always review before pinning.
+- **🌳 Lesson plans (the Learning Tree)** — the Pavilion's own guided
+  curriculum: start at a 101 and climb a tree of prerequisites (Getting
+  Started, and more as it grows). Open it fast from the **pause menu** (🌳
+  Lesson plans), or from the Course Board's Learning Tree link. To add your own
+  path alongside it, have **Sebastian, Quill, or the Computer draft a course**
+  from a conversation and pin it to the Course Board — you review it first.
+    - **Take a lesson with you.** Open any lesson and use **📓 Save to my Notes**
+      to pull its whole outline into your Notes (no AI — always works), or
+      **✨ Draft a lesson plan (AI)** to have your local AI turn it into a
+      personal, scheduled study plan (goal → timed sessions → a hands-on task
+      each → a self-check). Both land in **🗒 Your Notes**, editable and
+      book-linkable.
+    - **Turn any note into a plan.** In a note's editor, **✨ Make a lesson plan
+      from this note (AI)** shapes whatever you've written into the same kind of
+      plan. So the flow is: lesson → Notes → a plan you can actually follow.
+    - If the AI can't manage it (no model connected, an empty reply, a dropped
+      connection), it says so plainly — and 📓 Save to my Notes never needs one.
 - **The Computer** — a JARVIS-style terminal for practical planning with
   your AI; it can save a plan straight to the Archive Desk.
 - **The Request Board** — where a book you *want* but can't fetch in-game
@@ -212,12 +242,22 @@ of the day, not three.
   search, and the review queue where *you* stand behind what you shelve.
 - **The Records Hall** (one floor up) — the Pavilion's own hand-kept
   timeline.
-- **🗒 Your Notes** (pause menu) — every note you've taken *anywhere*
-  (book notes, chat notes, desk notes, research, grant documents) gathered
-  into one log, with folders and tags — and a scoped "have Sebastian look
-  over this folder" review. Each note can also keep its own **bullet-journal
-  log** (a **•** task, **○** event, **—** note), turning it into a living
-  *collection* for a topic, not just text.
+- **🗒 Your Notes** (pause menu) — the one home for notes. Every note you've
+  taken *anywhere* (book notes, chat notes, desk notes, research, grant
+  documents) is gathered here, with folders and tags and a scoped "have
+  Sebastian look over this folder" review. It's also a real **workspace**, not
+  just a viewer:
+    - **＋ New note** starts a fresh note right here (the same note also appears
+      in the Writing Desk's My Notes drawer — one store, two doors).
+    - Open one of your own notes and **✏ Open to edit / link a book** to edit its
+      title and body inline.
+    - **🔗 Link a book you're carrying** to a note, down to a **page** or a
+      **chapter** — then **▸ Open the book** jumps straight there. (Carry a book
+      first with 🎒 Take with you in the Reader.) Reading and note-taking stop
+      being separate rooms.
+    - Each note can also keep its own **bullet-journal log** (a **•** task,
+      **○** event, **—** note), turning it into a living *collection* for a
+      topic, not just text.
 - **📓 The Log** (pause menu, or the 💡 button while walking) — a bullet-journal
   quick-capture for *anything* on your mind, tagged by kind (💡 idea · • to-do ·
   — note · ✦ to learn/try). The one place everything lands first: get it out

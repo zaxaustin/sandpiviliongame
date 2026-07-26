@@ -64,6 +64,19 @@
   <div class="phoneDot" id="phoneDot"></div>
 </div>
 
+<!-- Pocketed book — the reader's version of the "phone": close the book and
+     walk the grounds while it reads aloud (or just to hold your place); tap to
+     return, ✕ to put it down. Parked bottom-LEFT so it never fights the chat
+     phone / butler ping on the right. -->
+<div id="bookPhone" title="Tap to return to the book">
+  <div class="phoneAvatar" style="background:#e0a43c" onclick="restoreReader()">📖</div>
+  <div class="phoneText" onclick="restoreReader()" style="cursor:pointer">
+    <div class="phoneName" id="bookPhoneName"></div>
+    <div class="phoneStatus" id="bookPhoneStatus"></div>
+  </div>
+  <button class="pingDismiss" onclick="dismissReaderPocket()" title="Put the book down">✕</button>
+</div>
+
 <!-- Sebastian's reminder ping — fires only for reminders YOU set (a 🔔 on a
      calendar event); a clock check, never an AI call, never a popup that
      blocks anything. The butler taps you on the shoulder; you keep walking. -->
@@ -94,6 +107,7 @@
       <button class="btn ghost" id="rdReadBtn" onclick="toggleReadAloud()">🔊 Read aloud</button>
       <button class="btn ghost" id="rdSummaryBtn" onclick="toggleSpokenSummary()">🔊 Summary aloud</button>
       <button class="btn ghost" id="rdImpressionBtn" onclick="aiBookImpression()" style="display:none">✨ Overall impression</button>
+      <button class="btn ghost" id="rdAskBtn" onclick="askSebastianAboutBook()" title="Ask Sebastian a question about this book">💬 Ask about this book</button>
     </div>
     <div class="meta" id="rdSpokenNote"></div>
     <div id="rdBody"></div>
@@ -102,6 +116,7 @@
       <button class="btn ghost" id="rdFullTextBtn" onclick="openFullText(currentDocSlug())" style="display:none">📖 Read the full text</button>
       <button class="btn ghost" id="rdCarryBtn" onclick="toggleInventory(currentDocSlug())">🎒 Take with you</button>
       <button class="btn ghost" onclick="openNotesWhileListening()">🗒 My notes (keeps playing)</button>
+      <button class="btn ghost" onclick="minimizeReader()" title="Close the book and walk around — it keeps reading aloud">📕 Pocket &amp; walk</button>
       <button class="btn ghost" onclick="backToShelf()">← Back to shelf</button>
     </div>
   </div>
@@ -110,6 +125,7 @@
     <div class="row" style="margin-top:6px;margin-bottom:10px">
       <button class="btn ghost" id="rdFullTextReadBtn" onclick="toggleFullTextReadAloud()">🔊 Read this page</button>
       <button class="btn ghost" id="rdAnalyzeBtn" onclick="aiAnalyzePage()" style="display:none">✨ Analyze this page</button>
+      <button class="btn ghost" onclick="askSebastianAboutBook()" title="Ask Sebastian about this page">💬 Ask about this page</button>
       <button class="btn ghost" id="rdSkipBack" onclick="skipReadAloud(-10)" title="Back 10 seconds" style="display:none">⏪ 10s</button>
       <button class="btn ghost" id="rdSkipFwd" onclick="skipReadAloud(10)" title="Forward 10 seconds" style="display:none">10s ⏩</button>
     </div>
@@ -118,6 +134,7 @@
       <button class="btn ghost" onclick="fullTextPrevPage()">← Prev</button>
       <span class="meta" id="rdFullTextPageNum" style="margin:0"></span>
       <button class="btn ghost" onclick="fullTextNextPage()">Next →</button>
+      <button class="btn ghost" onclick="minimizeReader()" title="Close the book and walk around — it keeps reading aloud">📕 Pocket &amp; walk</button>
       <button class="btn ghost" onclick="backToSummary()">← Back to the summary</button>
     </div>
   </div>

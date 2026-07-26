@@ -133,6 +133,20 @@ body { font-family:'Courier New', monospace; touch-action:none; }
   50% { box-shadow:0 6px 20px rgba(0,0,0,.45), 0 0 0 7px rgba(224,164,60,0); }
 }
 @media (prefers-reduced-motion:reduce){ #chatPhone.unread{ animation:none; } }
+/* the pocketed-book card — the reader's own "phone". Same small-card language,
+   parked bottom-LEFT so it never overlaps the chat phone / butler ping stack on
+   the right. Pulses gently while it's actually reading aloud. */
+#bookPhone {
+  position:fixed; left:14px; bottom:14px; z-index:10; display:none;
+  align-items:center; gap:10px; max-width:270px;
+  background:#241b12; color:#f5e9d4; border:2px solid #8a6a3a; border-radius:12px;
+  padding:9px 12px; font-family:inherit;
+  box-shadow:0 6px 20px rgba(0,0,0,.45);
+}
+#bookPhone.show { display:flex; }
+#bookPhone:hover { border-color:#e0a43c; }
+#bookPhone.reading { border-color:#e0a43c; animation:phonePulse 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion:reduce){ #bookPhone.reading{ animation:none; } }
 /* Sebastian's reminder ping — same small-card language as the pocket phone,
    parked above it so the two never overlap. Dismiss is its own button so a
    stray click doesn't silently eat a reminder. */

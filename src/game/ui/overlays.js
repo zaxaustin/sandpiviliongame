@@ -527,6 +527,23 @@ const CHAT_AGENTS = {
   sebastian:{
     label:'Sebastian',
     async systemPrompt(){
+      // Reading companion — set when the visitor opens "Ask about this book"
+      // from the Reader. He answers grounded in the book (and the exact page
+      // they're on), a focused reading conversation rather than the day-read.
+      const book=(state.dialog && state.dialog.agent==='sebastian' && state.dialog.book) ? state.dialog.book : null;
+      if(book){
+        return BUTLER_CHARTER
+          +"\n\nYou are Sebastian, the butler of the Sand Pavilion, sitting with the visitor while they read. "
+          +"They will ask you about this book — to explain a passage, define a word, draw out an idea, connect it to "
+          +"something, or just talk it through. Answer grounded strictly in the text given below (its summary and, when "
+          +"present, the exact page they're on). If they ask about something not in what you're given, say so plainly "
+          +"rather than inventing it, and offer what you can from what's here. Keep answers clear, warm, and to the "
+          +"point — written to be read while reading.\n\n"
+          +"BOOK: "+book.title+"\n"
+          +(book.summary?("SUMMARY: "+book.summary+"\n"):"")
+          +(book.where?("\n"+book.where+":\n"+book.text+"\n"):"")
+          +pastAsksBlock('sebastian');
+      }
       // scoped folder review — set only when the visitor hands him one folder
       // from the notes log; he sees just those notes, never the whole pile.
       const review=(state.dialog && state.dialog.agent==='sebastian' && state.dialog.review) ? state.dialog.review : null;
@@ -1214,7 +1231,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
 function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
-export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); state.audioReturnSlug=null; persist(); }
+export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); state.audioReturnSlug=null; state.notesLogEdit=null; persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
    works identically with no account at all; logging in adds cross-
@@ -1279,6 +1296,7 @@ function renderMenu(){
       <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
       <button class="btn ghost" onclick="openStillOpen()" style="margin-bottom:9px">📋 Still Open${openSparks().length?' · '+openSparks().length:''}</button>
       <button class="btn ghost" onclick="openNotesLog()" style="margin-bottom:9px">🗒 Your Notes</button>
+      <button class="btn ghost" onclick="openLearningTree()" style="margin-bottom:9px">🌳 Lesson plans (Learning Tree)</button>
       <button class="btn ghost" onclick="openBadges()" style="margin-bottom:9px">🏅 Badges</button>
       <button class="btn ghost" onclick="openInventory()" style="margin-bottom:9px">🎒 Inventory</button>
       <button class="btn ghost" onclick="openReviewQueue()" style="margin-bottom:9px">🛡 Steward Review</button>
@@ -1644,7 +1662,7 @@ function setNoteMeta(key, patch){
 function gatherNotes(){
   const out=[];
   for(const n of (data.notes||[]))
-    out.push({source:'mynotes', icon:'📓', where:'My Notes', title:n.title||'Untitled note', text:n.body||'', date:n.updated||n.created||'', key:'mynotes:'+n.id});
+    out.push({source:'mynotes', icon:'📓', where:'My Notes', title:n.title||'Untitled note', text:n.body||'', date:n.updated||n.created||'', key:'mynotes:'+n.id, id:n.id, book:n.book||null});
   const titleFor={}; try{ Store.allDocs().forEach(d=>{ titleFor[d.slug]=d.title; }); }catch(e){}
   for(const slug of Object.keys(data.bookNotes||{})){
     const bookTitle=titleFor[slug]||slug;
@@ -1667,6 +1685,7 @@ function gatherNotes(){
 export function openNotesLog(){
   state.notesLogView=state.notesLogView||{source:'all',folder:'all',q:'',expanded:null};
   if(!state.notesLogView.folder) state.notesLogView.folder='all';
+  state.notesLogEdit=null; // always land on the list, never a stale editor
   state.ui='notesLog'; hideAllOv(); renderNotesLog(); showOv('notesLogOv');
 }
 /* Listen while you jot: open Your Notes from the Reader WITHOUT stopping the
@@ -1692,7 +1711,45 @@ function notesLogFiltered(){
     return true;
   });
 }
+/* Your Notes is a real workspace now, not just a filtered view: you can start a
+   note here and edit it inline (renderNotesLogEditor), the same data.notes a
+   note at the Writing Desk uses. "make a new one at the note table" — one home
+   for notes, reachable from either door. */
+export function createNoteInLog(){
+  const note={id:newNoteId(), title:'Untitled note', body:'', created:todayKey(), updated:todayKey()};
+  data.notes.unshift(note); persist(); logActivity('Started a new note.'); awardBadge('first-note');
+  state.notesLogEdit=note.id; renderNotesLog();
+}
+export function editNoteInLog(id){ state.notesLogEdit=id; renderNotesLog(); }
+export function closeNotesLogEditor(){ state.notesLogEdit=null; renderNotesLog(); }
+export function deleteNoteFromLog(id){
+  const note=data.notes.find(n=>n.id===id); if(!note) return;
+  if(!window.confirm('Delete "'+(note.title||'Untitled note')+'"? This cannot be undone.')) return;
+  data.notes=data.notes.filter(n=>n.id!==id); persist(); state.notesLogEdit=null; renderNotesLog();
+}
+function renderNotesLogEditor(note){
+  document.getElementById('notesLogPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <button class="btn ghost" onclick="closeNotesLogEditor()">← All notes</button>
+      <button class="btn ghost" style="border-color:#b56f6f;color:#e0a0a0" onclick="deleteNoteFromLog('${note.id}')">✕ Delete</button>
+    </div>
+    <input type="text" id="noteTitleInput" placeholder="Note title" value="${esc(note.title)}"
+      oninput="updateNoteField('${note.id}','title',this.value)">
+    <textarea id="noteBodyInput" rows="9" style="margin-top:8px" placeholder="Write here…"
+      oninput="updateNoteField('${note.id}','body',this.value)">${esc(note.body)}</textarea>
+    <div class="meta" id="noteSaved" style="margin-top:6px"></div>
+    ${noteToolsHtml(note)}
+    ${noteBookLinkHtml(note)}
+    ${noteLogHtml(note)}`;
+}
 function renderNotesLog(){
+  // editing one of My Notes inline — the workspace, not the gathered list
+  if(state.notesLogEdit){
+    const note=data.notes.find(n=>n.id===state.notesLogEdit);
+    if(note){ renderNotesLogEditor(note); return; }
+    state.notesLogEdit=null;
+  }
   const v=state.notesLogView, all=gatherNotes();
   const counts={all:all.length}; all.forEach(n=>{ counts[n.source]=(counts[n.source]||0)+1; });
   const chips=NOTE_SOURCES.map(s=>{
@@ -1723,9 +1780,11 @@ function renderNotesLog(){
   document.getElementById('notesLogPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>🗒 Your Notes</h2>
-    <div class="meta">Every note you've written, gathered in one place. A window onto them, not a new
-      drawer: each note is still kept, and still edited, where it lives. Open a note to file it in a
-      folder or add tags — the folders are just for you (and for Sebastian, when you ask him to tidy one).</div>
+    <div class="meta">Every note you've written, gathered in one place. Start a fresh one here with
+      <b>＋ New note</b> (it's a My Note — writable, linkable to a book), or open any note to file it in
+      a folder, add tags, or (for your own notes) edit it. Notes from books, chats, and desks stay
+      living where they are; this is the one place they all meet.</div>
+    <div class="row" style="margin:2px 0 10px"><button class="btn" onclick="createNoteInLog()">＋ New note</button></div>
     ${listenBanner}
     <input type="text" id="notesLogSearch" placeholder="Search notes and tags…" value="${esc(v.q)}"
       oninput="setNotesLogSearch(this.value)" style="margin-bottom:10px">
@@ -1744,10 +1803,16 @@ function renderNotesLogList(){
   el.innerHTML=list.map(n=>{
     const open=v.expanded===n.key, folder=noteFolderOf(n.key), tags=noteTagsOf(n.key);
     const body=n.text ? (n.text.length>140 && !open ? esc(n.text.slice(0,140))+'…' : esc(n.text)) : '<i>(empty)</i>';
-    const badges=`${folder?`<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📁 ${esc(folder)}</span>`:''}${tags.map(t=>`<span class="badge lic">#${esc(t)}</span>`).join('')}`;
+    const bookChip = n.book ? `<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📖 ${esc((Store.getDoc(n.book.slug)||{}).title||'linked')}${n.book.page?' · p.'+n.book.page:''}</span>` : '';
+    const badges=`${folder?`<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📁 ${esc(folder)}</span>`:''}${bookChip}${tags.map(t=>`<span class="badge lic">#${esc(t)}</span>`).join('')}`;
+    // My Notes are editable right here (title/body/book link); other sources are
+    // shown read-only with a jump to where they actually live to edit them.
+    const editRow = (open && n.source==='mynotes')
+      ? `<div onclick="event.stopPropagation()" style="margin-top:10px"><button class="btn" style="font-size:11px" onclick="editNoteInLog('${n.id}')">✏ Open to edit / link a book</button></div>`
+      : '';
     // folder + tag editors live only in the expanded view, and stop their own
     // clicks so fiddling with them doesn't collapse the card.
-    const controls = open ? `<div onclick="event.stopPropagation()" style="margin-top:10px;border-top:1px solid #55432e;padding-top:9px">
+    const controls = open ? `${editRow}<div onclick="event.stopPropagation()" style="margin-top:10px;border-top:1px solid #55432e;padding-top:9px">
         <label style="margin:0 0 4px">Folder</label>
         <select onchange="assignNoteFolder('${n.key}',this.value)" style="${NOTE_SELECT_STYLE}">
           <option value=""${folder?'':' selected'}>Unfiled</option>
@@ -1927,6 +1992,8 @@ window.addEventListener('keydown',e=>{
 });
 export function openReader(slug){
   const d=Store.getDoc(slug); if(!d) return;
+  if(state.readerPocket && state.readerPocket.slug!==slug){ state.readerPocket=null; } // opening a different book retires any stale pocket
+  hideBookPhone(); // the card belongs to the pocketed state, not the open reader
   state.ui='reader'; state.currentDoc=slug; state.fullTextView=null; state.bookNotesShowAll=false; hideAllOv();
   document.getElementById('rdTitle').textContent=d.title;
   document.getElementById('rdMeta').innerHTML =
@@ -1939,7 +2006,10 @@ export function openReader(slug){
   document.getElementById('rdMark').textContent = data.read[slug] ? 'Read ✓' : 'Mark as read';
   document.getElementById('rdSpokenNote').textContent='';
   updateReaderSpeakBtns();
-  { const ib=document.getElementById('rdImpressionBtn'); if(ib) ib.style.display=isAIActive()?'inline-block':'none'; }
+  // Always shown so the feature is discoverable even before a local AI is
+  // connected — clicking without one gives a plain "connect a local AI" nudge
+  // (see aiBookImpression) rather than the button silently not existing.
+  { const ib=document.getElementById('rdImpressionBtn'); if(ib) ib.style.display='inline-block'; }
   const carryBtn=document.getElementById('rdCarryBtn');
   if(carryBtn) carryBtn.textContent = data.inventory.includes(slug) ? '🎒 Carrying' : '🎒 Take with you';
   document.getElementById('rdFullTextBtn').style.display = d.doc.fullText ? 'inline-block' : 'none';
@@ -2041,6 +2111,34 @@ function saveAiBookNote(slug, label, text, page){
   (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift(note);
   persist(); logActivity('The AI wrote a book note — '+label+'.'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
   renderBookNotes(slug);
+}
+/* Ask Sebastian about the book you're reading — a free-form, grounded chat, not
+   a one-shot note. Reuses the whole resident chat stack (streaming, the pocket
+   phone, transcript) via openChatDialog, then hands Sebastian the book as
+   grounding (state.dialog.book) the same way a folder review is handed over. If
+   you're in the full text, he gets the exact page you're on; from the summary, he
+   gets the summary + sections. Pocket the chat to keep reading while he thinks. */
+function readerBookGrounding(){
+  const slug=state.currentDoc; const d=slug&&Store.getDoc(slug); if(!d) return null;
+  const g={ title:d.title, summary:d.doc.summary };
+  const v=state.fullTextView;
+  if(v && v.slug===slug){ g.where='THE PAGE THEY ARE ON (page '+(v.page+1)+' of '+v.pages.length+')'; g.text=(v.pages[v.page]||''); }
+  else { g.where='THE BOOK\'S SECTIONS'; g.text=d.doc.sections.map(s=>s.heading+': '+s.body).join('\n\n'); }
+  return g;
+}
+export function askSebastianAboutBook(){
+  const g=readerBookGrounding(); if(!g) return;
+  if(!isAIActive()){
+    const note=document.getElementById('rdSpokenNote'), meta=document.getElementById('rdFullTextMeta');
+    const target=(state.fullTextView?meta:note);
+    if(target) target.textContent='Connect a local AI (⚙ Manage AI connections) to ask Sebastian about this book.';
+    return;
+  }
+  openChatDialog({ name:'SEBASTIAN · Butler', aiAgent:'sebastian', color:'#4a6a8a', glow:'#a9c7e8',
+    lines:['“'+g.title+'” — ask me anything about it, and I\'ll answer from the page in front of you.'] });
+  state.dialog.book=g;
+  logActivity('Asked Sebastian about "'+g.title+'".');
+  renderChatView();
 }
 export async function aiBookImpression(){
   const slug=state.currentDoc; if(!slug) return;
@@ -2170,7 +2268,7 @@ function renderFullTextPage(){
   document.getElementById('rdFullTextPageNum').textContent=`Page ${v.page+1} of ${v.pages.length}`;
   document.getElementById('rdFullTextBody').scrollTop=0;
   updateFullTextSpeakBtn();
-  { const ab=document.getElementById('rdAnalyzeBtn'); if(ab) ab.style.display=isAIActive()?'inline-block':'none'; }
+  { const ab=document.getElementById('rdAnalyzeBtn'); if(ab) ab.style.display='inline-block'; } // always shown; nudges to connect an AI if none (see aiAnalyzePage)
   renderBookNotes(v.slug); // the per-page note filter follows you as you turn pages
 }
 export function fullTextNextPage(){
@@ -2221,6 +2319,50 @@ export function markRead(){
   document.getElementById('rdMark').textContent='Read ✓';
 }
 export function backToShelf(){ stopSpeaking(); openShelf(state.shelfTradition||'Theravada'); }
+
+/* ---------- pocket a book, exactly like the chat "phone" ----------
+   Close the reader and keep walking the grounds while a book reads aloud
+   (or simply to hold your place); a small floating card in the corner
+   brings you back. Mirrors minimizeChat/restoreChat: only the overlay is
+   hidden — the read-aloud is NEVER stopped here, and state.ui is cleared so
+   the player is free to move (movement is gated on state.ui in main.js). */
+let bookPhoneTimer=null;
+export function minimizeReader(){
+  const slug=state.currentDoc; if(!slug) return;
+  state.readerPocket={ slug };
+  state.ui=null;                                  // free to walk
+  document.getElementById('readerOv').classList.remove('open');
+  renderBookPhone();
+  clearInterval(bookPhoneTimer);
+  bookPhoneTimer=setInterval(renderBookPhone,1000); // keep the "🔊 reading…" status honest as speech starts/ends
+  blip(520,.05,'sine',.03);
+}
+export function restoreReader(){
+  const p=state.readerPocket; if(!p) return;
+  state.readerPocket=null; hideBookPhone();
+  openReader(p.slug);                             // openReader never stops speech — audio carries straight through
+  blip(700,.05,'square',.03);
+}
+export function dismissReaderPocket(){
+  state.readerPocket=null; stopSpeaking(); hideBookPhone();
+  blip(392,.05,'sine',.03);
+}
+function hideBookPhone(){
+  clearInterval(bookPhoneTimer); bookPhoneTimer=null;
+  const el=document.getElementById('bookPhone'); if(el) el.classList.remove('show','reading');
+}
+function renderBookPhone(){
+  const el=document.getElementById('bookPhone'); if(!el) return;
+  const p=state.readerPocket;
+  if(!p){ hideBookPhone(); return; }
+  const d=Store.getDoc(p.slug);
+  document.getElementById('bookPhoneName').textContent = d ? d.title : 'Book';
+  const reading=isSpeaking();
+  el.classList.toggle('reading', reading);
+  document.getElementById('bookPhoneStatus').textContent =
+    reading ? '🔊 reading aloud · tap to return' : 'tap to return to the book';
+  el.classList.add('show');
+}
 
 /* ----- The Index — every text in one list, sorted by category rather
    than tradition: the Library's own shelves (all "classical" today)
@@ -2789,23 +2931,139 @@ function noteLogHtml(note){
       </div>`;
     }).join('')}</div>`:''}`;
 }
-export function setNoteLogKind(k){ state.noteLogKind=k; renderNotesBody(); setTimeout(()=>document.getElementById('noteLogInput')?.focus(),20); }
+/* A note is now edited in TWO places that share one data.notes store: the
+   Writing Desk's My Notes drawer (renderNotesBody) and the central Your Notes
+   hub's inline editor (renderNotesLogEditor). These note-mutating handlers are
+   fired from whichever is open, so they re-render through refreshNoteEditors()
+   rather than assuming one target — one note, editable from either door. */
+function refreshNoteEditors(){
+  if(state.ui==='notesLog') renderNotesLog();
+  else renderNotesBody();
+}
+export function setNoteLogKind(k){ state.noteLogKind=k; refreshNoteEditors(); setTimeout(()=>document.getElementById('noteLogInput')?.focus(),20); }
 export function addNoteLogEntry(noteId){
   const note=data.notes.find(n=>n.id===noteId); if(!note) return;
   const inp=document.getElementById('noteLogInput'); const text=(inp&&inp.value||'').trim(); if(!text) return;
   if(!note.log) note.log=[];
   note.log.push({id:Date.now(), text, kind:state.noteLogKind||'task', done:false});
-  note.updated=todayKey(); persist(); renderNotesBody();
+  note.updated=todayKey(); persist(); refreshNoteEditors();
   setTimeout(()=>document.getElementById('noteLogInput')?.focus(),20);
 }
 export function toggleNoteLogItem(noteId,id){
   const note=data.notes.find(n=>n.id===noteId); if(!note) return;
   const e=(note.log||[]).find(x=>x.id===id); if(!e||e.kind!=='task') return;
-  e.done=!e.done; note.updated=todayKey(); persist(); renderNotesBody();
+  e.done=!e.done; note.updated=todayKey(); persist(); refreshNoteEditors();
 }
 export function removeNoteLogItem(noteId,id){
   const note=data.notes.find(n=>n.id===noteId); if(!note) return;
-  note.log=(note.log||[]).filter(x=>x.id!==id); note.updated=todayKey(); persist(); renderNotesBody();
+  note.log=(note.log||[]).filter(x=>x.id!==id); note.updated=todayKey(); persist(); refreshNoteEditors();
+}
+/* ----- Link a note to a book you're carrying, down to a page or a chapter
+   (the user's ask). The link lives on the note (note.book={slug,page,chapter}),
+   points at a book in your Inventory, and "▸ Open the book" jumps straight to
+   that page (in the full text) or opens the book at its chapters. Shared by both
+   note editors via noteBookLinkHtml so the feature is identical wherever you
+   edit. Reading and note-taking stop being separate rooms. */
+function noteBookLinkHtml(note){
+  const inv=data.inventory.map(slug=>Store.getDoc(slug)).filter(Boolean);
+  if(note.book && note.book.slug){
+    const d=Store.getDoc(note.book.slug);
+    const title=d?d.title:note.book.slug;
+    const chapters=d?(d.doc.sections||[]).map(s=>s.heading):[];
+    const pageBit = note.book.page ? ' · page '+note.book.page : '';
+    const chapBit = note.book.chapter ? ' · '+note.book.chapter : '';
+    return `<div style="margin-top:14px;border-top:1px solid #55432e;padding-top:10px">
+      <div class="meta">🔗 Linked book</div>
+      <div class="card" style="cursor:default;margin-top:6px;border-color:#8fb4d9">
+        <div class="t">📖 ${esc(title)}${esc(pageBit)}${esc(chapBit)}</div>
+        <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost" style="font-size:11px" onclick="openLinkedBook('${note.id}')">▸ Open the book</button>
+          <button class="btn ghost" style="font-size:11px;border-color:#b56f6f;color:#e0a0a0" onclick="unlinkNoteBook('${note.id}')">✕ Unlink</button>
+        </div>
+        <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap;align-items:center">
+          <label style="margin:0">Page</label>
+          <input type="number" min="1" value="${note.book.page||''}" placeholder="—" style="width:78px"
+            onchange="setNoteBookPage('${note.id}',this.value)">
+          ${chapters.length?`<label style="margin:0 0 0 10px">Chapter</label>
+          <select onchange="setNoteBookChapter('${note.id}',this.value)" style="max-width:220px">
+            <option value="">— none —</option>
+            ${chapters.map(h=>`<option${h===note.book.chapter?' selected':''}>${esc(h)}</option>`).join('')}
+          </select>`:''}
+        </div>
+      </div>
+    </div>`;
+  }
+  if(!inv.length) return `<div style="margin-top:14px;border-top:1px solid #55432e;padding-top:10px">
+    <div class="meta">🔗 Link a book — you're not carrying one yet. Open a book and press <b>🎒 Take with you</b>, then it can be linked to this note.</div></div>`;
+  return `<div style="margin-top:14px;border-top:1px solid #55432e;padding-top:10px">
+    <div class="meta">🔗 Link this note to a book you're carrying</div>
+    <div class="row" style="margin-top:6px;gap:6px;align-items:center;flex-wrap:wrap">
+      <select id="noteBookPick_${note.id}" style="max-width:240px">
+        ${inv.map(d=>`<option value="${esc(d.slug)}">${esc(d.title)}</option>`).join('')}
+      </select>
+      <button class="btn ghost" style="font-size:11px" onclick="linkNoteBook('${note.id}')">Link</button>
+    </div>
+  </div>`;
+}
+/* The general pathway the user asked for: a lesson saved into Notes (or any note
+   you've written) can be handed to the local AI to shape into a LESSON PLAN.
+   "get them out into notes, then build a pathway for the local AI to make lesson
+   plans out of them." Shared by both note editors via noteToolsHtml. Graceful
+   throughout — no model, empty reply, or dropped connection each say so plainly. */
+function noteToolsHtml(note){
+  return `<div style="margin-top:12px"><button class="btn ghost" style="font-size:11.5px" onclick="draftLessonPlanFromNote('${note.id}')">✨ Make a lesson plan from this note (AI)</button></div>`;
+}
+export async function draftLessonPlanFromNote(noteId){
+  const note=data.notes.find(n=>n.id===noteId); if(!note) return;
+  const el=document.getElementById('noteSaved');
+  const text=(note.body||'').trim();
+  if(!text){ if(el) el.textContent='Write something in the note first — then I can shape a plan from it.'; return; }
+  if(!isAIActive()){ if(el) el.textContent='Connect a local AI (⚙ Manage AI connections) to draft a plan from this note.'; return; }
+  if(el) el.textContent='Your local AI is drafting a lesson plan from this note…';
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nTurn the learner\'s note below into a concrete, personal LESSON PLAN they can follow: a '
+        +'one-line goal, a short sequence of study sessions (each with what to do and roughly how long), one small hands-on task per session, '
+        +'and a simple way to check understanding at the end. Practical and encouraging, grounded strictly in the note. Plain readable text.'},
+      {role:'user', content:(note.title?note.title+'\n\n':'')+text},
+    ], {long:true});
+    if(isEmptyReply(reply)){ if(el) el.textContent='The model came back empty — a lighter model may do better.'; return; }
+    const plan={id:newNoteId(), title:'Lesson plan — '+(note.title||'note'),
+      body:'✨ Drafted by your local AI from your note.\n\n'+String(reply).trim(), created:todayKey(), updated:todayKey()};
+    data.notes.unshift(plan); persist();
+    logActivity('AI drafted a lesson plan from a note.'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
+    if(el) el.textContent='✨ Saved a new "Lesson plan" note — find it at the top of 🗒 Your Notes / My Notes.';
+  }catch(e){ if(el) el.textContent='The connection flickered — no plan this time (is your local AI still running?).'; }
+}
+export function linkNoteBook(noteId){
+  const note=data.notes.find(n=>n.id===noteId); if(!note) return;
+  const sel=document.getElementById('noteBookPick_'+noteId); const slug=sel&&sel.value; if(!slug) return;
+  note.book={slug, page:null, chapter:null}; note.updated=todayKey(); persist();
+  const d=Store.getDoc(slug); logActivity('Linked a note to "'+(d?d.title:slug)+'".');
+  refreshNoteEditors();
+}
+export function setNoteBookPage(noteId,val){
+  const note=data.notes.find(n=>n.id===noteId); if(!note||!note.book) return;
+  const p=parseInt(val,10); note.book.page=(p>0)?p:null; note.updated=todayKey(); persist(); refreshNoteEditors();
+}
+export function setNoteBookChapter(noteId,val){
+  const note=data.notes.find(n=>n.id===noteId); if(!note||!note.book) return;
+  note.book.chapter=val||null; note.updated=todayKey(); persist(); refreshNoteEditors();
+}
+export function unlinkNoteBook(noteId){
+  const note=data.notes.find(n=>n.id===noteId); if(!note) return;
+  delete note.book; note.updated=todayKey(); persist(); refreshNoteEditors();
+}
+export async function openLinkedBook(noteId){
+  const note=data.notes.find(n=>n.id===noteId); if(!note||!note.book) return;
+  const slug=note.book.slug, d=Store.getDoc(slug); if(!d) return;
+  state.notesLogEdit=null; state.plannerNoteView={mode:'list'}; // stepping out of the editor into the book
+  openReader(slug);
+  if(note.book.page && d.doc.fullText){
+    await openFullText(slug);
+    const v=state.fullTextView;
+    if(v){ v.page=Math.min(Math.max(0,note.book.page-1), v.pages.length-1); renderFullTextPage(); }
+  }
 }
 let noteSaveTimer=null;
 export function updateNoteField(id, field, value){
@@ -2836,15 +3094,18 @@ function renderNotesBody(){
       <textarea id="noteBodyInput" rows="10" style="margin-top:8px" placeholder="Write here…"
         oninput="updateNoteField('${note.id}','body',this.value)">${esc(note.body)}</textarea>
       <div class="meta" id="noteSaved" style="margin-top:6px"></div>
+      ${noteToolsHtml(note)}
+      ${noteBookLinkHtml(note)}
       ${noteLogHtml(note)}`;
     return;
   }
   el.innerHTML = `
-    <div class="meta">A filing cabinet for anything that isn't tied to one specific day — separate from today's page above.</div>
+    <div class="meta">A filing cabinet for anything that isn't tied to one specific day — separate from today's page above.
+      The same notes appear in <b>🗒 Your Notes</b> (pause menu), where they can also be searched, filed, and linked to books.</div>
     <div class="row" style="margin:8px 0"><button class="btn" onclick="createNote()">+ New note</button></div>
     ${data.notes.length ? data.notes.map(n=>`
       <div class="card" onclick="openNote('${n.id}')">
-        <div class="t">${esc(n.title||'Untitled note')}</div>
+        <div class="t">${esc(n.title||'Untitled note')}${n.book?' <span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📖 linked</span>':''}</div>
         <div class="s">${esc((n.body||'').length>110?n.body.slice(0,110)+'…':(n.body||'(empty)'))} · updated ${esc(n.updated)}</div>
       </div>`).join('') : '<p>No notes filed yet — start one above.</p>'}`;
 }
@@ -4307,6 +4568,49 @@ export function openLesson(id){
   state.treeView={mode:'lesson',id}; renderLearningTree();
 }
 export function backToTree(){ state.treeView={mode:'list'}; renderLearningTree(); }
+/* Lessons live in the codebase (CURRICULUM + lessons/*.md). Two pathways OUT of
+   them, at the user's ask (2026-07-26): (1) plainly SAVE a lesson into your Notes
+   so it's yours to keep, edit, and link to a book — no AI, always works; (2) have
+   the local AI DRAFT A LESSON PLAN from it (a personal, scheduled study plan),
+   saved as a note too. The AI path degrades gracefully — no model, an empty
+   reply, or a dropped connection all fall back to "📓 Save to my Notes always
+   works." Both land in the unified Notes hub, so a lesson becomes a real note. */
+function lessonAsText(node){
+  return node.steps.map((s,i)=>`${i+1}. ${s.title}\n   ${s.body}`).join('\n\n');
+}
+export function saveLessonToNotes(id){
+  const node=curriculumNode(id); if(!node) return;
+  const body=node.summary+'\n\n'+lessonAsText(node)+(node.more?`\n\n(Fuller written version: ${node.more})`:'');
+  const note={id:newNoteId(), title:'Lesson — '+node.title, body, created:todayKey(), updated:todayKey()};
+  data.notes.unshift(note); persist();
+  logActivity('Saved the lesson "'+node.title+'" to Notes.'); blip(660,.08);
+  const el=document.getElementById('lessonNoteMsg'); if(el) el.textContent='📓 Saved to your Notes — open 🗒 Your Notes (pause menu) to work with it.';
+}
+export async function draftLessonPlanFromLesson(id){
+  const node=curriculumNode(id); if(!node) return;
+  const el=document.getElementById('lessonNoteMsg');
+  if(!isAIActive()){ if(el) el.textContent='Connect a local AI (⚙ Manage AI connections) to draft a plan — or use 📓 Save to my Notes, which needs no AI.'; return; }
+  const btns=document.querySelectorAll('#lessonPlanRow button'); btns.forEach(b=>b.disabled=true);
+  if(el) el.textContent='Your local AI is drafting a lesson plan… (a slower model may take a moment)';
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nYou turn a lesson outline into a concrete, personal LESSON PLAN the learner can actually '
+        +'follow. Given the lesson below, produce: a one-line goal; a short sequence of study sessions (each with what to do and roughly how '
+        +'long); one small hands-on task per session; and a simple way to check understanding at the end. Keep it practical and encouraging, '
+        +'grounded strictly in the lesson — invent no tools or steps that contradict it. Plain readable text.'},
+      {role:'user', content:'LESSON: '+node.title+'\n\n'+node.summary+'\n\n'+lessonAsText(node)},
+    ], {long:true});
+    if(isEmptyReply(reply)){ if(el) el.textContent='The model came back empty — a lighter model may do better, or use 📓 Save to my Notes (no AI needed).'; }
+    else {
+      const note={id:newNoteId(), title:'Lesson plan — '+node.title,
+        body:'✨ Drafted by your local AI from the lesson "'+node.title+'".\n\n'+String(reply).trim(), created:todayKey(), updated:todayKey()};
+      data.notes.unshift(note); persist();
+      logActivity('AI drafted a lesson plan from "'+node.title+'".'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
+      if(el) el.textContent='✨ A lesson plan is now in 🗒 Your Notes — yours to edit and link to a book.';
+    }
+  }catch(e){ if(el) el.textContent='The connection flickered — no plan this time (is your local AI still running?). 📓 Save to my Notes always works without one.'; }
+  btns.forEach(b=>b.disabled=false);
+}
 export function toggleLessonStep(id,i){
   const node=curriculumNode(id); if(!node) return;
   const p=lessonProgress(id); const wasDone=lessonDone(node);
@@ -4335,6 +4639,15 @@ function renderLearningTree(){
       }).join('')}</div>
       ${done ? `<div class="card" style="cursor:default;margin-top:12px;border-color:#7fb069"><div class="t">✓ Lesson complete</div><div class="s" style="margin-top:5px">${next.length?'You\'ve unlocked: '+next.map(n=>esc(n.title)).join(', ')+'.':'That\'s the end of this branch — for now.'}</div></div>` : ''}
       <div class="meta" style="margin-top:14px;opacity:.85">Try each step yourself first — that's how it sticks. Prefer a hand? If your local AI is connected, a resident can help — but reach for that last, not first.${node.more?` The fuller written version lives in <code>${esc(node.more)}</code>.`:''}</div>
+      <div class="card" style="cursor:default;margin-top:12px;border-color:#8fb4d9">
+        <div class="t">Take this lesson with you</div>
+        <div class="s" style="margin-top:5px">Pull it into your Notes to keep and edit, or let your local AI draft a personal, scheduled plan from it. Both land in <b>🗒 Your Notes</b>.</div>
+        <div class="row" id="lessonPlanRow" style="margin-top:10px;flex-wrap:wrap;gap:8px">
+          <button class="btn ghost" onclick="saveLessonToNotes('${node.id}')">📓 Save to my Notes</button>
+          <button class="btn ghost" onclick="draftLessonPlanFromLesson('${node.id}')">✨ Draft a lesson plan (AI)</button>
+        </div>
+        <div class="meta" id="lessonNoteMsg" style="margin-top:8px"></div>
+      </div>
       <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="backToTree()">← Back to the tree</button></div>`;
     return;
   }
@@ -5690,7 +6003,8 @@ export async function generateQuillReport(){
 Object.assign(window, {
   closeUI, openReader, markRead, backToShelf, addBookNote, sendNoteToToday, removeSpark, toggleBookNotesFilter,
   openFullText, backToSummary, fullTextNextPage, fullTextPrevPage, toggleFullTextReadAloud, skipReadAloud,
-  aiBookImpression, aiAnalyzePage,
+  aiBookImpression, aiAnalyzePage, askSebastianAboutBook,
+  minimizeReader, restoreReader, dismissReaderPocket,
   selectBook, shelfOpenSelected,
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
   fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention,
@@ -5718,6 +6032,8 @@ Object.assign(window, {
   openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
   openNotesLog, openNotesWhileListening, returnToBook, setNotesLogSource, setNotesLogFolder, setNotesLogSearch, toggleNotesLogItem,
   assignNoteFolder, setNoteTags, askSebastianReviewFolder,
+  createNoteInLog, editNoteInLog, closeNotesLogEditor, deleteNoteFromLog,
+  linkNoteBook, setNoteBookPage, setNoteBookChapter, unlinkNoteBook, openLinkedBook, draftLessonPlanFromNote,
   openComputer, saveLastChatReplyToArchive, sendSebastianPlanToToday,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
@@ -5745,5 +6061,5 @@ Object.assign(window, {
   dissectPaper, clearDissect, investigationFromDissect,
   newExperimentForm, createExperiment, logExperimentToday, deleteExperiment, readExperimentWithInvestigator,
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
-  openLearningTree, openLesson, backToTree, toggleLessonStep,
+  openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,
 });

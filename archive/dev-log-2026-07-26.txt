@@ -229,3 +229,99 @@ the phone chip, an ✨ AI book note, the parchment reader). Single-world dark by
 deliberate choice. URL: claude.ai/code/artifact/47283baf-0c83-4767-8d5b-f4bb36283d6f
 Nothing in the live game changed yet — awaiting the user's read on the direction.
 Recommended first real step: Phase 1 tokens (safe).
+
+---
+
+Later — three reader fixes from real use (user feedback):
+1. "Can't close the book and walk around, like the phone." True gap: chats had
+   a pocket phone; the reader had none. Added a BOOK POCKET mirroring
+   minimizeChat/restoreChat — 📕 Pocket & walk (in both the summary and full-text
+   rows) closes the reader, clears state.ui so you can roam, and leaves the
+   read-aloud running. A small card sits bottom-LEFT (own #bookPhone, so it never
+   overlaps the chat phone / butler ping on the right), pulses while reading, taps
+   to return, ✕ to put down. A 1s interval keeps its "🔊 reading…" status honest.
+   Session-scoped (lives on state, not data). openReader retires a stale pocket.
+2. "How do I see book review notes / analyze a page?" The ✨ Overall impression
+   and ✨ Analyze this page buttons were HIDDEN whenever no AI was connected —
+   invisible feature. Now always shown; clicking without a model gives the
+   existing "connect a local AI (⚙ Manage AI connections)" nudge instead of the
+   button silently not existing. Their output still saves into the book's own
+   notes list at the bottom of the reader (marked ✨).
+3. "Review my old notes." Already existed (pause menu → 🗒 Your Notes, and the
+   reader's 🗒 My notes button opens the same searchable log) — this was
+   discoverability, addressed in the MANUAL rather than code.
+Verified: node --check + smoke (9 scenes, 22 docs) + build all green. MANUAL updated.
+
+---
+
+Notes, unified (user: "the note table should be integrated to Your Notes, make a
+new one there, and link a note to a book in my inventory — to a page or a chapter"):
+- Your Notes is now a real WORKSPACE, not just a gathered read-only view. ＋ New
+  note creates a data.notes note and opens an inline editor (renderNotesLogEditor);
+  your own notes get "✏ Open to edit / link a book" from their expanded card.
+  Same data.notes the Writing Desk's My Notes drawer uses — one store, two doors.
+  Note-log mutators now re-render through refreshNoteEditors() so they work from
+  either editor.
+- BOOK LINKS on a note: note.book = {slug, page, chapter}. noteBookLinkHtml()
+  (shared by both editors) links a note to a book you're CARRYING (data.inventory),
+  optionally pins a page (number) and/or a chapter (a doc.sections heading), and
+  "▸ Open the book" jumps straight there — page → full text at that page; else the
+  reader's chapters. A 📖 chip shows the link in both note lists. gatherNotes()
+  carries n.book/n.id for My Notes so the hub can show/edit it.
+- Broader direction the user set: "clean up the rooms — not just aspects of a game
+  but useful tools for daily life; this front end is what other people will use."
+  Notes was the room they detailed, so it went first. Next candidates, room by room:
+  the Writing Desk (today's page), the Library/Reader, the Café/desks. Awaiting a
+  steer on order.
+Verified: node --check + smoke (9 scenes, 22 docs) + build all green. MANUAL updated.
+
+---
+
+Library / Reader — digest books better + find the lessons (user asks):
+- "Ask Sebastian a question about the book while I'm reading." Added
+  💬 Ask about this book (summary view) and 💬 Ask about this page (full text) in
+  the Reader. Reuses the whole resident chat stack via openChatDialog, then hands
+  Sebastian the book as grounding (state.dialog.book) the same way a folder review
+  is handed over — summary+sections from the summary view, the EXACT current page
+  from the full text. Sebastian's systemPrompt gets a focused reading-companion
+  branch when a book is set (skips the day-read noise). No AI connected → a plain
+  "connect a local AI" nudge. Pocket the chat to keep reading while he thinks.
+- "Where are the lesson plans?" The Learning Tree was buried inside the Course
+  Board overlay only. Added 🌳 Lesson plans (Learning Tree) to the pause menu.
+  Adding your own path = have Sebastian/Quill/Computer draft a course → pin to the
+  Course Board (existing flow), documented in the MANUAL.
+- "Look at / take notes on the book I'm holding": already works — Inventory
+  (pause menu 🎒) → tap a carried book → the full Reader opens with the note box,
+  ✨ impression/analyze, and now 💬 Ask. Clarified in the MANUAL, no code needed.
+
+Backend status (answered live, 2026-07-26): sand-pavilion-minio container Up 8h,
+127.0.0.1:9000-9001, /minio/health/live → 200. So the local Docker/MinIO storage
+is running. The deliberate split still holds (README "where book data actually
+lives"): full book TEXT → local MinIO in Docker on this machine (100 GB reserved,
+a few MB used); catalog card (title/license/source/summary/search) → Supabase, or
+the local seed when Supabase isn't configured; PERSONAL books → plain files in the
+desktop app's own data folder, no services at all. Cloud never holds the text.
+Verified: node --check + smoke (9 scenes, 22 docs) + build all green. MANUAL updated.
+
+---
+
+Lessons → Notes → AI lesson plans (user: "have lessons in the codebase, get them
+out into notes, then a pathway for the local AI to make lesson plans out of them;
+if it can't handle that we'll figure something else out"):
+- Lessons stay in the codebase (CURRICULUM + lessons/*.md). Added two pathways OUT
+  on the lesson view: 📓 Save to my Notes (plain, no AI, always works — dumps the
+  lesson outline into data.notes) and ✨ Draft a lesson plan (AI) (WORK_CHARTER;
+  turns the lesson into a goal → timed sessions → hands-on task each → self-check,
+  saved as a ✨ note). Both land in the unified Notes hub.
+- General pathway too: ✨ Make a lesson plan from this note (AI) in BOTH note
+  editors (noteToolsHtml) — so a saved lesson (or any note) becomes a plan. Exactly
+  the flow the user described: lesson → Notes → AI plan.
+- Graceful degradation everywhere: no model / empty reply / dropped connection each
+  give a plain message and point back to the no-AI save.
+- CAN the local model handle it? Tested live: llama3.2:latest (3B) produced a
+  well-structured, usable plan in ~10.5s (mild spec drift — invented "voice
+  commands" — which is why plans save as EDITABLE notes to review, not gospel).
+  Bigger installed models (qwen3.5:9b, deepseek-r1:8b) available if wanted. Answer:
+  yes, even the small local model handles it. Installed models seen: llama3.2,
+  deepseek-r1:8b, qwen3.5:9b, deepseek-v4-pro:cloud.
+Verified: node --check + smoke (9 scenes, 22 docs) + build all green. MANUAL updated.
