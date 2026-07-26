@@ -148,10 +148,11 @@ further, deliberately never marked done** — a ladder with no top rung, which
 is the opposite of a checklist or a score (and must stay that way to fit the
 project's anti-gamification, anti-completion ethos).
 
-**The shape is decided (2026-07-12): the reflection ladder.** Walking up to a
-fold's sign opens a small panel where you can, any time, write a short
-reflection on where you actually are with that aspect and name **one concrete
-way you could push it further** — kept, dated, added to over time, and **never
+**BUILT 2026-07-12 — the reflection ladder.** Walking up to any of the eight
+fold-signs in the Keep now opens a per-fold panel (each sign carries a `fold`
+id; `openFoldReflection` in `overlays.js`, saved at `data.temple.folds`) where
+you can, any time, write a short reflection on where you actually are with that
+aspect and name **one concrete way you could push it further** — kept, dated, added to over time, and **never
 "finished," never scored, never a checklist** (a ladder with no top rung is the
 whole point; a completion mechanic would betray it). It leans on the tie-ins
 each fold already has (Right Intention → the planner's intention field; Right
@@ -163,23 +164,26 @@ assumed small — and sits alongside the Science Hall as the "keep improving"
 half of the same foundation (see `SCIENCE-RESEARCH-HALL-PLAN.md` and
 `project_foundation_vision` in memory).
 
-### The build, when picked up (not built yet — the honest next slice)
+### The build, as shipped (2026-07-12)
 
-1. **Data:** `data.temple.folds` (or similar) — a small map keyed by fold id,
-   each holding a dated list of `{where, next, ts}` entries. Add to `freshData()`
-   with an older-save patch, same pattern as `data.hall`.
-2. **Reach it:** the eight fold-signs in `buildKeep()` already render and are
-   walkable; make each one open a per-fold panel (a new `hallOv`-style overlay)
-   instead of only showing sign text. The sign's Dhammapada quote stays at the
-   top of the panel — reading and reflecting in one place.
-3. **The panel:** the fold's name (Pali + English), its shelved Dhammapada
-   verse, its existing tie-in as a live link, then the two open-ended fields
-   ("where I am," "one way to push further") and the kept, dated history below.
-   No score, no "mark done." An optional "ask the Monk about this fold" button
-   that opens his chat grounded in the fold (reuses the resident chat stack, the
-   same way `talkToInvestigator()` does).
-4. **Verify** the usual way (`node --check`, smoke, build), update MANUAL +
-   README + dev-log, same as the Science Hall pass.
+1. **Data:** `data.temple.folds` — a map keyed by fold id, each a dated list of
+   `{where, next, ts}` entries. In `freshData()` with an older-save patch, same
+   pattern as `data.hall`.
+2. **Reach it:** each of the eight `buildKeep()` fold-signs gained a `fold` id;
+   `main.js`'s sign dispatch opens `openFoldReflection(sign)` for those instead
+   of the plain text dialog. Its own `foldOv` overlay.
+3. **The panel:** the fold's name + its Dhammapada-cited sign text at the top, a
+   "keep climbing" note (never scored, never done), the two open-ended fields,
+   the kept dated history, and **"🧘 Ask the Monk about this fold"** — which opens
+   his chat tagged with `state.dialog.foldContext` so his prompt meets the
+   visitor on that one fold (the same context mechanism Sebastian's folder-review
+   uses).
+4. **Verified:** `node --check`, smoke, build all clean.
+
+**Still open (later):** Phase 3b — surfacing a fold's "next step named" as a
+spark on the Writing Desk, so a resolution on the Path can flow into the daily
+plan; and whether a fold should ever show a gentle "last tended N days ago"
+without tipping into a streak/score.
 
 **The bare-bones-vs-Zac's-addition question, from `TOOL-COMMONS-PLAN.md`
 — still genuinely undecided.** Is this Temple something every fork of

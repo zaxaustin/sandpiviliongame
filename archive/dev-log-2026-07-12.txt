@@ -181,3 +181,47 @@ that makes the rest achievable. Four pillars on it:
   are for").
 Captured in memory (project_foundation_vision) + this log; Eightfold plan's
 "still open" section to be updated with the growth-pillar direction.
+
+EIGHTFOLD REFLECTION LADDER — BUILT (the "keep climbing" pillar)
+---------------------------------------------------------------
+Shape decided by the user (reflection ladder, not a score/checklist), then
+built. Each of the 8 fold-signs in buildKeep() got a `fold` id; main.js's sign
+dispatch now opens openFoldReflection(sign) for those instead of the plain text
+dialog. Per-fold panel (foldOv): the fold's Dhammapada-cited sign text, a "keep
+climbing — never finished, never scored" note, two open-ended fields ("where I
+am now" / "one way to push it further"), kept dated history, delete. Saved at
+data.temple.folds (freshData + older-save patch). "Ask the Monk about this
+fold" opens his chat tagged with state.dialog.foldContext, which his
+systemPrompt reads to meet you on that one fold (same mechanism as Sebastian's
+folder-review). Anti-gamification held: no completion, no streak, no number.
+Verified: node --check (overlays/scenes/main/entities) clean, smoke, build.
+
+SCIENCE HALL PHASE 3 — self-experiments BUILT ("test what you think is great")
+-----------------------------------------------------------------------------
+data.hall.experiments[]. Define a practice + a 1-5 daily measure -> log day by
+day (one entry/day, re-logging updates) -> "Read my data with the Investigator"
+opens his chat tagged with state.dialog.experimentContext; his prompt reads the
+n-of-1 honestly and names how it fools you (placebo/expectation, too few days,
+confounds, doesn't generalise). No background timer — a day counts only when you
+log it (no-background rule kept). Calendar/bell scheduling deferred to Phase 3b.
+newExperimentForm/createExperiment/logExperimentToday/deleteExperiment/
+readExperimentWithInvestigator. Verified same way.
+
+REASSESS SESSION (2026-07-12, late) — user stepped back for a big take-stock
+---------------------------------------------------------------------------
+User asked to: reassess where the project is / what's undone; do easy fixes then
+commit; update LEARNING-PATH with a long-term DEVELOPER + PROJECT-LEADER track
+(he found doing it alone hard — wants the plan to fix that); plan the
+course-progression tree (101 -> tree of higher courses behind prerequisites;
+upload books then self-study even if books aren't there yet; later, users make/
+pioneer their own lessons — "crucial, not a placeholder"); understand the
+local-AI background pipeline + "what am I missing"; understand space/capacity
+limits ("don't wanna glitch out"); and, eventually, voice in/out ("if I can
+just speak and have things get done... I'll be a happy camper").
+Deliverables this session: LEARNING-PATH Track II (dev + leader); new
+plans/COURSE-PROGRESSION-PLAN.md; new plans/CAPACITY-AND-PIPELINES.md (honest
+answers on storage limits + the AI pipeline, grounded in store.js/provider.js).
+Real finding logged in the capacity doc: resident systemPrompts concatenate
+ALL library docs (Store.allDocs) — fine at ~50 books, a context-bloat/perf risk
+as the Library grows large; flagged, not yet fixed. Voice = already planned
+(Academy Phase 3 / Hopes Road 5); pointed there, not built.

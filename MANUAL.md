@@ -54,7 +54,12 @@ screen tells you plainly whether saving to this device is working.
   the Residents' Board, the Hearth Corner, and the Grant Desk.
 - **The Keep** (north of the Grounds) — the Pavilion's temple: the Buddha
   and Ganesha shrines, the eight signs of the Eightfold Path walked south
-  to north, and the Mountain Monk's own quarters.
+  to north, and the Mountain Monk's own quarters. Walk up to any of the eight
+  fold-signs and it opens as a **reflection ladder** — write where you honestly
+  are with that aspect of your life and one way to push it further, kept and
+  added to over time. It's never scored and never "done" on purpose: the point
+  is that you can always keep climbing. The Monk can be asked about any single
+  fold right from its panel.
 
 ---
 
@@ -167,7 +172,11 @@ of the day, not three.
   There's also a **Dissect a paper** box: paste a paper you disagree with and
   the Investigator gives it a real critical appraisal — steelmanning it first,
   then probing the method and the leaps — which you can turn into a kept
-  investigation of your own.
+  investigation of your own. And **self-experiments**: pick a practice and one
+  honest thing to measure (1–5), log it day by day, then have the Investigator
+  read your own data back to you — including all the ways a study of one can
+  fool you. Nothing runs when you're not there; a day only counts when you log
+  it.
 - **The Caravan Desk** — where texts from outside enter (Protocol 1 lives
   here): drag-and-drop intake for **`.epub` and `.txt`** files (an EPUB —
   the format most free-book sites give you — is unpacked right in the game,

@@ -24,8 +24,13 @@ that we *have to* in the spiritual sense").
 > paper you disagree with and the Investigator gives a real critical appraisal
 > (steelman first, then probe method/leaps/overreach, argue the claim not the
 > authors, work only from what's pasted), which can graduate into a kept
-> investigation. `node --check` clean, smoke green, full build compiles.
-> **Open:** Phase 3 (self-experiments — "test things you think are great"),
+> investigation. **Phase 3 (self-experiments) built 2026-07-12** — define a
+> practice + a 1–5 daily measure, log it honestly day by day
+> (`data.hall.experiments`), then "🔬 Read my data with the Investigator," who
+> reads the n-of-1 honestly including how it fools you (placebo, too few days,
+> confounds). No background timer — a day counts only when you log it. `node
+> --check` clean, smoke green, full build compiles.
+> **Open:** Phase 3b (schedule the daily block on Sebastian's calendar + bell),
 > Phase 4 (fetch real papers via
 > the Caravan), Phase 5 (a real room in the world). The rest of this doc is the
 > original plan, kept as written.

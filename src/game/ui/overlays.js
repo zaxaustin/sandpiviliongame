@@ -415,7 +415,17 @@ const CHAT_AGENTS = {
         +"take on the claim, never the person, and put the strongest version of their case before you weigh "
         +"it. If the honest state of a question is genuine open debate, say that it's contested and lay out "
         +"the sides fairly instead of forcing a verdict the evidence hasn't earned.\n\n"
-        +"The Hall's investigations so far:\n"+investigationsForPrompt()
+        +((state.dialog&&state.dialog.experimentContext)
+          ? "\n\nThe visitor has come to you to read the data from their OWN self-experiment — the least "
+            +"fakeable evidence there is, and also the easiest to be fooled by. Read it honestly WITH them: "
+            +"say what the numbers do and don't show, and name plainly the ways an n-of-1 self-experiment can "
+            +"mislead — placebo and expectation (they WANTED it to work), too few days, natural ups and downs, "
+            +"other things that changed at the same time, and the fact that one person's result doesn't "
+            +"generalise. Don't overclaim on their behalf; a modest, honest read they can trust beats a "
+            +"flattering one. If the data is too thin to say anything yet, say so kindly and suggest how many "
+            +"more days would help. Here is their experiment and log:\n"+state.dialog.experimentContext
+          : '')
+        +"\n\nThe Hall's investigations so far:\n"+investigationsForPrompt()
         +"\n\nThe most relevant shelves, if useful (cite a text by name rather than inventing one):\n"+hallShelfSummary()
         +pastAsksBlock('investigator');
     },
@@ -478,6 +488,14 @@ const CHAT_AGENTS = {
         +"Never explain how to reach it, never break the straight face, never say it isn't real; it is "
         +"simply the one door you always decline to open, and you enjoy that a little."
         +'\n\nWhat is actually on the Library shelves right now:\n'+shelf
+        +((state.dialog&&state.dialog.foldContext)
+          ? "\n\nThe visitor has come to you straight from the "+state.dialog.foldContext.name.replace(/^\d+ · /,'')
+            +" station on the Eightfold Path circuit here in the Keep, where they keep an honest, ongoing "
+            +"reflection on how they are actually walking that one fold — never finished, always something to "
+            +"take further. The fold's own words on the stone there read: \""+String(state.dialog.foldContext.meaning).replace(/\n/g,' ')
+            +"\" Meet them where they truly are with it — help them see this single fold more clearly and find "
+            +"their own next real step in it, in your own way, rather than covering the whole path at once."
+          : '')
         +pastAsksBlock('monk');
     },
     errorLine:"The Monk's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -1157,7 +1175,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -3574,6 +3592,53 @@ export function investigationFromDissect(){
   state.hallView={mode:'compose', prefill:{ evidence:crit }};
   renderScienceHall();
 }
+/* Phase 3 — self-experiments: "test things you think are great." The least-
+   fakeable evidence, because it's your own logged data. Define a practice and a
+   simple daily measure, log it honestly over real days, then read it back WITH
+   the Investigator (who names how an n-of-1 fools you). No background timer — a
+   day is only logged when you're here and log it, the no-background rule kept.
+   Calendar/bell scheduling is the honest next increment (Phase 3b), not this
+   slice. */
+function experiment(id){ return (data.hall.experiments||[]).find(e=>e.id===id); }
+export function newExperimentForm(){ state.hallView={mode:'experiment'}; renderScienceHall(); }
+export function createExperiment(){
+  const practice=((document.getElementById('expPractice')||{}).value||'').trim();
+  const measure=((document.getElementById('expMeasure')||{}).value||'').trim();
+  const warn=document.getElementById('expWarn');
+  if(!practice||!measure){ if(warn) warn.textContent='A self-experiment needs both a practice to try and one honest thing to measure — those two are what makes it a test rather than a hope.'; return; }
+  data.hall.experiments.unshift({ id:'exp-'+Date.now(), practice, measure, created:todayKey(), log:[] });
+  persist(); logActivity('Started a self-experiment: "'+(practice.length>50?practice.slice(0,50)+'…':practice)+'".'); blip(784,.09);
+  state.hallView={mode:'list'}; renderScienceHall();
+}
+export function logExperimentToday(id){
+  const e=experiment(id); if(!e) return;
+  const sel=document.getElementById('expVal-'+id), noteEl=document.getElementById('expNote-'+id);
+  const value=sel?Number(sel.value):null; const note=noteEl?noteEl.value.trim():'';
+  if(!value) return;
+  const k=todayKey();
+  const existing=e.log.find(d=>d.date===k);
+  if(existing){ existing.value=value; existing.note=note; } // one honest entry per day; re-logging updates it
+  else e.log.unshift({ date:k, value, note });
+  persist(); logActivity('Logged a self-experiment day ('+value+'/5).'); blip(659,.07);
+  renderScienceHall();
+}
+export function deleteExperiment(id){
+  data.hall.experiments=(data.hall.experiments||[]).filter(e=>e.id!==id);
+  persist(); renderScienceHall();
+}
+// Read your logged data honestly, with the Investigator — reuses the chat stack
+// and tags the dialog with experimentContext (see CHAT_AGENTS.investigator).
+export function readExperimentWithInvestigator(id){
+  const e=experiment(id); if(!e) return;
+  const days=e.log.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const ctx=`Practice: ${e.practice}\nMeasure (1-5): ${e.measure}\nStarted: ${e.created}\nDays logged (${days.length}):\n`
+    +(days.length?days.map(d=>`- ${d.date}: ${d.value}/5${d.note?' — '+d.note:''}`).join('\n'):'(none yet)');
+  openChatDialog({
+    name:'the Investigator', aiAgent:'investigator', color:'#2a2118', glow:'#8fb4d9',
+    lines:['Let’s read your own data honestly — what it shows, and every way a study of one could be fooling us. Here’s what you’ve logged; ask me what you like.'],
+  });
+  if(state.dialog) state.dialog.experimentContext=ctx;
+}
 function renderScienceHall(){
   const v=state.hallView||{mode:'list'};
   const panel=document.getElementById('hallPanel');
@@ -3605,6 +3670,25 @@ function renderScienceHall(){
       <div class="meta" id="invFormWarn" style="color:#e0a43c;margin-top:10px"></div>
       <div class="row" style="margin-top:12px">
         <button class="btn" onclick="createInvestigation()">Open it</button>
+        <button class="btn ghost" onclick="backToHallList()">← Cancel</button>
+      </div>`;
+    return;
+  }
+  if(v.mode==='experiment'){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Start a self-experiment</h2>
+      <div class="meta">The least-fakeable evidence there is: your own. Pick something to actually try, and
+        one honest thing to measure day by day. Then log it for a real stretch and read it back with the
+        Investigator — who'll tell you plainly how a study of one can fool you. It only counts a day when
+        you're here to log it; nothing runs in the background.</div>
+      <label>The practice — what will you actually do?</label>
+      <input type="text" id="expPractice" placeholder="e.g. A 10-minute sit every morning before my phone">
+      <label>The measure — one honest thing to rate 1–5 afterward</label>
+      <input type="text" id="expMeasure" placeholder="e.g. How settled I feel by mid-morning (1 = frazzled, 5 = clear)">
+      <div class="meta" id="expWarn" style="color:#e0a43c;margin-top:10px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="createExperiment()">Begin</button>
         <button class="btn ghost" onclick="backToHallList()">← Cancel</button>
       </div>`;
     return;
@@ -3669,11 +3753,119 @@ function renderScienceHall(){
       </div>` : ''}
     ${mine.length ? `<h3 style="margin-top:22px">Your investigations</h3>
       <div style="margin-top:8px">${mine.map(v=>card(v,true)).join('')}</div>` : ''}
+    <h3 style="margin-top:22px">🧪 Self-experiments</h3>
+    <div class="meta">Test something on yourself — the least-fakeable evidence there is, because it's your
+      own logged data. Pick a practice and a daily measure, log it honestly over real days, then read it
+      back with the Investigator, who names how a study of one can fool you. Nothing runs when you're not
+      here.</div>
+    <div style="margin-top:8px">${(data.hall.experiments||[]).map(e=>{
+      const k=todayKey(), todayLogged=e.log.find(d=>d.date===k);
+      const days=e.log.length, avg=days?(e.log.reduce((s,d)=>s+d.value,0)/days):0;
+      const valOpts=[1,2,3,4,5].map(n=>`<option value="${n}"${todayLogged&&todayLogged.value===n?' selected':''}>${n}</option>`).join('');
+      return `<div class="card" style="cursor:default">
+        <div class="t">${esc(e.practice)}</div>
+        <div class="s" style="margin-top:3px">Measuring: ${esc(e.measure)}</div>
+        <div class="s" style="margin-top:3px">${days} day${days===1?'':'s'} logged${days?` · average ${avg.toFixed(1)}/5`:''} · started ${esc(e.created)}</div>
+        <div class="row" style="margin-top:8px;align-items:center;flex-wrap:wrap">
+          <span class="s" style="margin:0">${todayLogged?'Update today:':'Log today:'}</span>
+          <select id="expVal-${e.id}" style="width:auto">${valOpts}</select>
+          <input type="text" id="expNote-${e.id}" placeholder="a word on today (optional)" value="${esc(todayLogged&&todayLogged.note||'')}" style="flex:1;min-width:140px">
+          <button class="btn ghost" style="font-size:11.5px" onclick="logExperimentToday('${e.id}')">${todayLogged?'Update':'Log'}</button>
+        </div>
+        ${days?`<div style="margin-top:8px">${e.log.map(d=>`<div class="s">${esc(d.date)}: <b>${d.value}/5</b>${d.note?' — '+esc(d.note):''}</div>`).join('')}</div>`:''}
+        <div class="row" style="margin-top:8px">
+          ${aiOn?`<button class="btn ghost" style="font-size:11.5px" onclick="readExperimentWithInvestigator('${e.id}')">🔬 Read my data with the Investigator</button>`:''}
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="deleteExperiment('${e.id}')">End &amp; delete</button>
+        </div>
+      </div>`;
+    }).join('')}</div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="newExperimentForm()">+ Start a self-experiment</button></div>
     <h3 style="margin-top:22px">Worked examples</h3>
     <div class="meta">Four to start — both everyday science and the contemplative questions, one of each
       kind of verdict, so the honesty bar is visible before you open your own.</div>
     <div style="margin-top:10px">${INVESTIGATIONS.map(v=>card(v,false)).join('')}</div>
     <div class="row" style="margin-top:18px"><button class="btn ghost" onclick="openResearchDesk()">← Back to the Research Desk</button></div>`;
+}
+
+/* ================================================================
+   The Eightfold reflection ladder — EIGHTFOLD-PATH-TEMPLE-PLAN.md, the
+   interactive layer the Temple always flagged as open. The eight fold-
+   signs in the Keep (scenes.js buildKeep, each now carrying a `fold` id)
+   no longer just show their text — walking up to one opens a per-fold
+   panel where you keep an honest, ongoing reflection: "where I am with
+   this now" + "one way I could push it further." Kept, dated, added to
+   over time, and DELIBERATELY never scored and never marked done — a
+   ladder with no top rung. That anti-completion shape is the whole point
+   the user asked for ("this is not enough, I can keep improving this
+   aspect") and the reason it isn't a checklist. The Monk, the Path's
+   living teacher next door in the Keep, can be asked about the specific
+   fold — grounded via state.dialog.foldContext, the same mechanism
+   Sebastian's folder-review already uses.
+   ================================================================ */
+export function openFoldReflection(sign){
+  state.ui='fold'; hideAllOv();
+  state.foldView={ sign };
+  renderFoldReflection(); showOv('foldOv');
+}
+function foldEntries(id){ return data.temple.folds[id]||[]; }
+export function addFoldReflection(id){
+  const where=((document.getElementById('foldWhere')||{}).value||'').trim();
+  const next=((document.getElementById('foldNext')||{}).value||'').trim();
+  if(!where && !next) return; // nothing to keep
+  if(!data.temple.folds[id]) data.temple.folds[id]=[];
+  data.temple.folds[id].unshift({ where, next, ts:todayKey() });
+  const nm=(state.foldView&&state.foldView.sign&&state.foldView.sign.name)||id;
+  persist(); logActivity('Reflected on the Eightfold Path — '+nm+'.'); blip(587,.08); setTimeout(()=>blip(784,.1),90);
+  renderFoldReflection();
+}
+export function deleteFoldReflection(id,idx){
+  if(data.temple.folds[id]) data.temple.folds[id].splice(idx,1);
+  persist(); renderFoldReflection();
+}
+// Ask the Monk about THIS fold — reuses the resident chat stack (like
+// talkToInvestigator) but tags the dialog with foldContext, which the Monk's
+// systemPrompt reads to meet the visitor where they are with this one fold.
+export function talkToMonkAboutFold(){
+  const sign=state.foldView&&state.foldView.sign; if(!sign) return;
+  const plain=String(sign.name).replace(/^\d+ · /,'');
+  openChatDialog({
+    name:'the Mountain Monk', aiAgent:'monk', color:'#2a2118', glow:'#c9a86a',
+    lines:['You come from the '+plain+' station. Sit a moment. What are you actually finding as you try to walk this one?'],
+  });
+  if(state.dialog) state.dialog.foldContext={ name:sign.name, meaning:sign.text };
+}
+function renderFoldReflection(){
+  const sign=state.foldView&&state.foldView.sign;
+  if(!sign){ closeUI(); return; }
+  const id=sign.fold, entries=foldEntries(id), aiOn=isAIActive();
+  document.getElementById('foldPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>☸ ${esc(sign.name)}</h2>
+    <div class="meta" style="white-space:pre-wrap">${esc(sign.text)}</div>
+    <div class="card" style="cursor:default;margin-top:12px;border-color:#c9a86a">
+      <div class="t">Keep climbing</div>
+      <div class="s" style="margin-top:6px">This fold is never finished — it's an aspect you can always take
+        further. There's no score here and nothing to complete; that's on purpose. Just tell the truth about
+        where you are with it, and name one real, small way to push it. Come back and do it again whenever
+        you like — the point is the climb, not a summit.</div>
+    </div>
+    <label>Where I am with this now</label>
+    <textarea id="foldWhere" rows="3" placeholder="Honestly — how is this fold actually going for you right now?"></textarea>
+    <label>One way I could push it further</label>
+    <input type="text" id="foldNext" placeholder="one concrete, small step — not a whole new life">
+    <div class="row" style="margin-top:10px">
+      <button class="btn" onclick="addFoldReflection('${id}')">Keep this reflection</button>
+      ${aiOn?`<button class="btn ghost" onclick="talkToMonkAboutFold()">🧘 Ask the Monk about this fold</button>`:''}
+    </div>
+    ${entries.length ? `<h3 style="margin-top:20px">Your climb so far</h3>
+      <div style="margin-top:8px">${entries.map((e,i)=>`
+        <div class="card" style="cursor:default">
+          <div class="s">${esc(e.ts)}</div>
+          ${e.where?`<div style="margin-top:4px">${esc(e.where)}</div>`:''}
+          ${e.next?`<div class="s" style="margin-top:5px"><b>Next step named:</b> ${esc(e.next)}</div>`:''}
+          <div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="deleteFoldReflection('${id}',${i})">Delete</button></div>
+        </div>`).join('')}</div>`
+      : '<div class="meta" style="margin-top:16px">No reflections kept yet — the first one is just an honest sentence about where you actually are.</div>'}`;
 }
 
 /* ----- The Request Board — a wishlist of books you'd like added,
@@ -4961,4 +5153,6 @@ Object.assign(window, {
   openScienceHall, talkToInvestigator,
   newInvestigationForm, backToHallList, createInvestigation, deleteInvestigation,
   dissectPaper, clearDissect, investigationFromDissect,
+  newExperimentForm, createExperiment, logExperimentToday, deleteExperiment, readExperimentWithInvestigator,
+  openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
 });

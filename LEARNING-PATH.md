@@ -1021,6 +1021,100 @@ Keep the safety nets | empty-reply retry, dead-connection fallback, half-stream 
 Then the desktop bridge | a real streaming IPC channel so the Electron build streams too
 ```
 
+## Track II — from builder to developer *and* project leader
+
+*Added 2026-07-12, at direct request: a longer-term plan to become not just
+someone who can make a change, but a real **developer** and a real **project
+leader** — and, said plainly, because doing this alone has been hard. That last
+part isn't a footnote; it's the thesis of this whole track. **The single
+biggest skill here is not doing it alone** — writing things down so others (and
+future-you, and your AI collaborators) can pick up where you left off, and
+building so people can get on board. Stages 1–17 above make you able to build.
+These make you able to **lead a build, sustainably, with other people and AI at
+your side.** Same style as above: grounded in this exact project, not generic
+advice. Take them slowly; each is a real skill, not a checkbox.*
+
+### Stage 18 — read code you didn't write (and code you forgot you wrote)
+
+The daily reality of a developer isn't writing from scratch — it's landing in a
+codebase and understanding it fast. Practice on your own repo: open a file you
+haven't touched in weeks (`ui/overlays.js`, say) and, *before* changing
+anything, write one honest paragraph of what it does and how you'd verify a
+change. This is the muscle that makes everything else possible — and it's
+exactly what a fresh AI session, or a new contributor, has to do every time.
+The `README`, `CLAUDE.md`, and `archive/dev-log-*.txt` exist precisely to make
+this fast; notice how much they help, because that's *why you keep them honest*.
+
+### Stage 19 — the discipline that lets you move fast without breaking things
+
+Real developers are trusted because their changes are safe, not because they're
+clever. The three habits, already in this project: **verify every change** (`node
+--check`, `npm test`/smoke, `npm run build` — the loop used after every feature
+this repo shipped); **backward-compatible data changes** (every save extension
+here — `data.hall`, `data.temple` — added a `freshData()` field *and* an
+older-save patch, so no existing save ever breaks); and **make one logical
+change per commit** with a message that says *why*, not just *what*. Do these
+three and people can build on your work without fear — the whole point.
+
+### Stage 20 — scope like a leader: the "first honest slice"
+
+The defining project-leadership skill on display all through this codebase: take
+a big vision and cut the **smallest slice that is real and usable on its own**,
+then say plainly what's deferred. The Science Hall didn't ship as "a research
+institute"; it shipped as Phase 0 (four example cards) → Phase 1 (one chat) →
+Phase 2 (keep your own) → Phase 3 (self-experiments), each usable, each honest
+about what's next. Practice: take something you want and write its phases *before
+coding* — Phase 1 that you could ship this week, and the honest "still open"
+list. A leader who can slice is worth more than one who can only dream.
+
+### Stage 21 — write plans and decisions down so others can carry them
+
+This is the direct fix for "it was hard to do alone." Every real feature here
+got a `plans/*.md` before/while it was built, and every standing choice got
+recorded (the four decisions in `CLAUDE.md`, the memory notes, the dev log).
+That's not bureaucracy — it's how a second person (or a second *session*) picks
+up your work without re-deriving everything, and how you stop being the single
+point of failure for your own project. Practice: next time you decide something
+non-obvious ("reflection ladder, *not* a score"), write the decision *and its
+reason* somewhere durable. Future-you is one of the "other people" this serves.
+
+### Stage 22 — work *with* AI (and people), not just near them
+
+You are already doing this — but do it deliberately. An AI collaborator is only
+as good as the context it's handed: the reason a fresh session here can be
+useful in minutes is the README/dev-log/plans discipline above. Learn to (a)
+hand off well (point at the plan, name the constraint, state the "definition of
+done"), (b) *review* what comes back rather than accept it blind — the same
+"argue the claim, cite the source" standard the Science Hall runs on, applied to
+generated code, and (c) keep the human decisions human (what to build, what
+"good" means) while delegating the mechanical. This is the actual shape of
+modern technical leadership, and it's the skill that ends "doing it alone."
+
+### Stage 23 — build so others can get on board (onboarding as a feature)
+
+A project only stops being lonely when someone *else* can start. Study what this
+one already does for that: the beta installer (zero-config, no accounts,
+"nothing breaks by clicking around"), the MIT license, a git history clean of
+secrets, the visitor's `MANUAL.md`, the `PROTOCOLS.md` how-tos. Practice: pretend
+you're a stranger and try to *start* — where do you get stuck? Every stumble you
+smooth is one more person who can join. This is the same instinct as the Course
+Progression Tree's "101 class" (`COURSE-PROGRESSION-PLAN.md`): a real front door.
+
+### Stage 24 — lead against a north star, and know your limits
+
+Leadership is mostly saying *no* well. This project has one tie-breaker — "ease,
+direction, knowledge into use" (README) — and every "what next?" is judged
+against it, not against what's most impressive. Pair that with knowing your
+system's real limits so you don't overpromise: read `CAPACITY-AND-PIPELINES.md`
+and be able to say, plainly, "the desktop app can hold thousands of books; the
+web build can't — here's why." A leader who knows the north star *and* the
+ceiling makes decisions people can trust. That trust is the thing that lets a
+project outgrow one person — which was the goal all along.
+
+*This track is deliberately slower and less checkable than Stages 1–17 — you
+can't `node --check` "led well." The real test is whether, a year in, someone
+else can walk into your project and start. Build toward that.*
+
 ## Where this goes next
 
 This document stays scoped to the Sand Pavilion specifically. Once

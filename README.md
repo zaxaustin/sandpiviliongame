@@ -530,13 +530,16 @@ lifting for someone's daily life*).
   of truth; evidence over volume), four exemplar Investigations, the
   Investigator (the café Steward's second hat, under WORK_CHARTER), keep-your-
   own Investigations with evidence + falsifier *required*, and a critical-
-  appraisal "Dissect a paper" box. Open: Phase 3 (self-experiments — "test what
-  you think is great"), 4 (Caravan paper-fetch as evidence), 5 (a real room).
-  See [`SCIENCE-RESEARCH-HALL-PLAN.md`](plans/SCIENCE-RESEARCH-HALL-PLAN.md).
-- **The Eightfold Path as a continuous-improvement pillar** — the interactive
-  layer for the Keep's Temple: each fold a *reflection ladder* ("where I am" +
-  "one way to push it further," kept, never finished/scored). **Shape decided,
-  not built** — see the build steps in
+  appraisal "Dissect a paper" box, **and Phase 3 self-experiments** (define a
+  practice + a 1–5 daily measure, log it, and the Investigator reads your n-of-1
+  data honestly — the least-fakeable evidence). Open: Phase 3b (schedule the
+  daily block on Sebastian's calendar), 4 (Caravan paper-fetch as evidence), 5
+  (a real room). See [`SCIENCE-RESEARCH-HALL-PLAN.md`](plans/SCIENCE-RESEARCH-HALL-PLAN.md).
+- **The Eightfold Path as a continuous-improvement pillar — built 2026-07-12.**
+  Walk up to any of the eight fold-signs in the Keep and it opens a *reflection
+  ladder*: "where I am with this" + "one way to push it further," kept and dated,
+  **never finished or scored** on purpose. The Monk can be asked about any single
+  fold from its panel. See
   [`EIGHTFOLD-PATH-TEMPLE-PLAN.md`](plans/EIGHTFOLD-PATH-TEMPLE-PLAN.md). Both
   pillars stand on the Library + Learning Paths as their foundation.
 
