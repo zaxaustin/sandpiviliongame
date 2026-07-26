@@ -122,6 +122,49 @@ answered by "only near you, only while open."
 
 ---
 
+## Part C — oversight without puppeteering ("parental controls," done right)
+
+Added 2026-07-12 at the user's ask: as residents gain autonomy, he wants to *see
+what's going on* and be able to *correct* — but **without editing the personality
+they're building.** No reaching into a resident's charter, prompt, or memory to
+"fix" them. Only **in-world corrective outlets** — "go self-reflect," "write an
+apology once you've calmed down," a cooldown — the way you'd guide a person, not
+reprogram a machine. This is a genuinely good governance model and it fits the
+project's soul exactly (the human conductor guides; he doesn't rewrite the
+players).
+
+**How it works — two halves:**
+
+1. **Visibility (the "see what's going on").** Every autonomous action a resident
+   takes is already logged (`activityLog`); the village surfaces that as a
+   readable, per-resident feed — *what they chose to do, and (optionally) the
+   one-line reason the model gave.* Nothing a resident does is invisible. This is
+   the audit trail, and it's cheap because the logging already exists.
+
+2. **Correction as an in-world *action*, never a *edit*.** The conductor can issue
+   a small, fixed set of **corrective outlets**, each of which is just a
+   transient instruction handed to the resident's *next* decision — exactly the
+   same mechanism as `foldContext`/`experimentContext` (a temporary line in the
+   prompt for one turn), **not** a permanent change to who they are:
+   - *"Go and sit with this a while"* → the resident's next action is steered to
+     self-reflection (meditate, or write a private reflection note).
+   - *"Make it right"* → prompts them to write an apology / a repair, in their own
+     voice, when ready.
+   - *"Take a breath"* → a cooldown: they pause autonomous action for a stretch.
+   The resident responds **in their own developing personality** — you've given a
+   nudge, not a rewrite. Their charter, long-term memory, and voice are untouched.
+
+**Why this is the right shape:** it keeps the personality the user is investing in
+intact (correction is relational, not surgical), it's fully transparent (you see
+everything), and it never crosses into "the AI acts on you or without you" —
+correction is always *your* deliberate act, in response to something you *saw*.
+It's also very feasible: it's the existing activity log + a handful of transient
+prompt-context nudges, not a new AI system.
+
+**The line to hold:** guide like a gardener or a parent, never like a programmer
+editing a save file. The corrective outlets shape *behavior in the moment*; they
+never touch *who the resident is becoming*.
+
 ## Why the two parts belong in one plan
 
 Memory and the village are the same goal from two sides: **residents that feel

@@ -291,3 +291,26 @@ purpose, participate (read/fish/meditate), notice each other + you, and are
 interactable "to build a village" — built ON AGENT-EMBODIMENT-PLAN's action
 space, PRESENT-ONLY (lives while you're there, never a background job — honors
 the human-conductor rule). BETA-FEEDBACK Round 3 items 21/22/23 marked.
+
+AUTONOMY OVERSIGHT + THE WEB VESSEL (design conversation, plans written)
+-----------------------------------------------------------------------
+User asked two things + "what do you think?": (1) more AI autonomy but with
+VISIBILITY and gentle CORRECTION ("parental controls") that DON'T edit the
+personality — only in-world corrective outlets (go self-reflect, write an apology
+when calm, cooldown); (2) the Pavilion as "a vessel for a ship growing through
+the internet" — pull the web in via drag-drop, copy-paste, or fetching a page you
+point at ("how they did X").
+Checked the real constraint: electron/main.cjs's desktop-fetch is DELIBERATELY
+localhost-only (isLocalhost guard). So web-fetch isn't a research risk — the
+Node main process CAN fetch anything; it's a deliberate capability we haven't
+opened. Browser can't (CORS) -> desktop-only, fits desktop-first.
+Wrote: LIVING-VILLAGE-PLAN.md Part C (oversight without puppeteering — visibility
+via the existing activityLog + correction as a TRANSIENT prompt nudge, same
+mechanism as foldContext/experimentContext, never a charter/memory edit; guide
+like a parent, not a programmer). New WEB-VESSEL-PLAN.md: intake is the new part
+(processing already exists — Research summarizer, Hall dissect, book notes); 3
+ways aboard in feasibility order (paste everywhere -> richer drops -> desktop
+fetch-a-chosen-page via a new deliberate bridge, user-directed one page at a
+time, NOT a crawler); provenance stays at the door (personal notes fine, shared
+library needs license). My read: highest-leverage direction for "a daily tool
+that really helps," and genuinely feasible now. Both build later.
