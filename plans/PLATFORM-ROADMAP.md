@@ -143,6 +143,11 @@ Real plans, tackled as the above allows:
   (`COURSE-PROGRESSION-PLAN.md`) + the Academy tutor (`PAVILION-ACADEMY-PLAN.md`).
 - **Reading Room** — books on repeat, present-only (`READING-ROOM-PLAN.md`).
 - **Agent embodiment** — a resident that *acts* when you ask (`AGENT-EMBODIMENT-PLAN.md`).
+- **Local coding agents as collaborators (future)** — capable, private local AI
+  agents that actually help build real projects. Named 2026-07-12 as the one use
+  case worth scaling hardware for; until then keep models modest (cooling is the
+  real limit — see `feedback_compute_and_coding_agents`). The "AI worth everyone
+  having" vision (README Hopes) pointed at building, not just conversing.
 - **The Workshop rooms, the Greenhouse, character customization** — the long tail
   in README "What's next" and `HOPES-AND-DREAMS-ROADS.md`.
 

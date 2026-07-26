@@ -364,3 +364,23 @@ User's machine (for the beating-heart lesson): i9-12900K, 32GB RAM, Intel Arc
 A770 16GB — top tier. Recommend llama3.1:8b default; can run ~14B comfortably;
 Arc GPU accel via Ollama is less turnkey than NVIDIA but 32GB RAM handles 8B on
 CPU fine.
+
+COMPUTE CONSTRAINT + CODING-AGENTS GOAL, and the DOCKER/library lesson
+---------------------------------------------------------------------
+User clarified: cooling is limited, "no need to go overboard" on model size —
+keep it modest (llama3.1:8b, not 14B+ casually). Heavy compute is reserved for a
+FUTURE goal he named: LOCAL CODING AGENTS as project collaborators. Captured in
+memory feedback_compute_and_coding_agents + PLATFORM-ROADMAP (added the coding-
+agents pillar under longer-term).
+Then: "help people set up Docker for library space — good size? can they make it
+bigger? thinking ~32GB, as big as a game." Wrote lessons/02-room-for-a-library.md
++ a Learning Tree node 'library-storage' (Getting Started, level 201, prereq
+first-book — shows a real 101->201 progression + locking). Key honest answer:
+book text is tiny (<1MB each, so 1GB ~= 1,000 books), you DON'T pre-carve a fixed
+size — MinIO just grows in the folder you point it at; ~32GB is a great generous
+default (tens of thousands of texts, or hundreds of PDFs); grow by moving the -v
+folder to a bigger drive or raising Docker Desktop's disk image. Also honest that
+personal books need NO Docker (files) — this is only for a big certified library
+(the self-hosted, own-your-library path). Verified: check + smoke + build clean.
+Still queued (not built): converting coding-101 from planned stub to a real
+lesson node.

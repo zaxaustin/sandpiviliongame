@@ -17,6 +17,7 @@ do X), it's said plainly.
 | # | Lesson | What you'll be able to do |
 | --- | --- | --- |
 | 01 | [A Beating Heart — get your local AI running](01-a-beating-heart.md) | Install Ollama, check what *your* machine can run, pull the right model, and connect it so the residents actually talk back |
+| 02 | [Room for a Library — local storage with Docker](02-room-for-a-library.md) | (Optional, advanced) Set up Docker + MinIO to hold the full text of a big, growing library on your own machine — how much space, and how to grow it |
 
 More to come — the next foundations are the Library (finding and shelving real
 books yourself) and the first real study course. The aim, stated plainly by the
