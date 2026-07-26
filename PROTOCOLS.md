@@ -170,10 +170,13 @@ is the shape:
 
 ## Protocol 2 — Connecting your own local AI
 
-So Quill, the Monk, and the others actually talk back. Full beginner's walk-
-through (installing Ollama, the `OLLAMA_ORIGINS` step, troubleshooting) is in
-the main [`README.md`](README.md#setting-up-local-ai--a-beginners-guide);
-the short version:
+So Quill, the Monk, and the others actually talk back. **The gentlest,
+step-by-step version — including how to check what *your* machine can run — is
+now its own lesson: [`lessons/01-a-beating-heart.md`](lessons/01-a-beating-heart.md).
+Point a newcomer there first.** The full reference walk-through (installing
+Ollama, the `OLLAMA_ORIGINS` step, troubleshooting) is in the main
+[`README.md`](README.md#setting-up-local-ai--a-beginners-guide); the short
+version:
 
 1. Install [Ollama](https://ollama.com) and pull a model —
    `ollama pull llama3.2` (fast, reliable; see the picking guide below).

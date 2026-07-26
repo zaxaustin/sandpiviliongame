@@ -314,3 +314,28 @@ fetch-a-chosen-page via a new deliberate bridge, user-directed one page at a
 time, NOT a crawler); provenance stays at the door (personal notes fine, shared
 library needs license). My read: highest-leverage direction for "a daily tool
 that really helps," and genuinely feasible now. Both build later.
+
+FOUNDATIONS: the first lesson — "A Beating Heart" (getting local AI running)
+---------------------------------------------------------------------------
+User: slow down, set solid foundations one step at a time. The missing basic is
+onboarding — install Ollama, CHECK YOUR HARDWARE to know which model you can run,
+connect it to give the Pavilion "a beating heart." The pieces were scattered
+(README setup guide + PROTOCOLS Protocol 2's tier table) and reference-style, not
+a single followable lesson; and the genuinely-missing piece was the hardware
+self-check (how do I find my RAM/GPU?).
+Built (content, no code): new lessons/ folder as the school's curriculum home
+(lessons/README.md index, tied to COURSE-PROGRESSION-PLAN) + lessons/
+01-a-beating-heart.md — beginner-proof, ~20 min, no coding: Step 1 CHECK YOUR
+MACHINE (Windows Task Manager / Mac About-This-Mac, RAM + real-GPU, mapped to a
+model tier — the previously-missing bit), Step 2 install Ollama, Step 3 pull the
+model, Step 4 connect (desktop = automatic; browser = OLLAMA_ORIGINS), Step 5 say
+hello to Quill as the real test, troubleshooting, what's next. Self-contained but
+cross-links PROTOCOLS/README/AI-BACKEND-WALKTHROUGH/LEARNING-PATH rather than
+duplicating. Pointers added: PROTOCOLS Protocol 2 ("point a newcomer here first")
++ README doc list.
+Next foundation per the user: iron out the Library + Learning Path into a real
+school (COURSE-PROGRESSION-PLAN) — "make the paywalled ones look like a joke."
+Offered as a natural follow-up: an OPTIONAL in-app hardware hint (navigator.
+deviceMemory/hardwareConcurrency + WebGL GPU string -> recommend a model tier) so
+the app itself can help with Step 1 — small, feasible, not built (kept to the
+one-step-at-a-time pace).
