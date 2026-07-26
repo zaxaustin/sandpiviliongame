@@ -41,7 +41,7 @@ fuller orientation; this is the quick map.*
 - **This README** — current state: what's built, what's next. The source of truth for *now*.
 - **`archive/dev-log-*.txt`** — the narrative of how it got here, session by session. Skim the latest one or two.
 - **`plans/*.md`** — every open plan; `plans/done/` for closed ones; `plans/BETA-TESTING-FEEDBACK.md` for real issues found by using it.
-- **`LEARNING-PATH.md`** — the self-paced curriculum; answer "why/how does this work" questions at the stage the user's actually reached.
+- **`LEARNING-PATH.md`** — the self-paced curriculum; answer "why/how does this work" questions at the stage the user's actually reached. **`AI-BACKEND-WALKTHROUGH.md`** is its focused companion: a plain-English trace of a message becoming a reply (the API) and a local AI filling the calendar, with the real files named.
 - **`MANUAL.md`** — the visitor's handbook: every room, desk, resident, and where your data lives — the "how do I use this place" layer, written for someone non-technical.
 - **`PROTOCOLS.md`** — the how-to manual for filling your own Pavilion: adding a book (both paths), connecting your own AI, more to come.
 - **Code map:** `src/game/` — `main.js` (loop, input, onAction dispatch), `scenes.js` (every room + NPCs/stations/warps), `render.js` (pixel drawing, `drawStation`), `entities.js` (data model + `freshData()` + `dueSoon`/`upcomingItems`/`openSparks`), `ui/overlays.js` (**the big one** — every panel, chat, `CHAT_AGENTS`), `ai/provider.js` (Ollama/cloud adapters), `data/` (`charter.js`, `seed.js`, `store.js`, `supabase.js`). Tools in `tools/caravan/`. Memory lives outside the repo in the user's `.claude` memory dir.

@@ -225,3 +225,45 @@ Real finding logged in the capacity doc: resident systemPrompts concatenate
 ALL library docs (Store.allDocs) — fine at ~50 books, a context-bloat/perf risk
 as the Library grows large; flagged, not yet fixed. Voice = already planned
 (Academy Phase 3 / Hopes Road 5); pointed there, not built.
+
+TAKE-STOCK + MASTER ROADMAP (user very happy; "we're building a platform")
+--------------------------------------------------------------------------
+User took stock, happy overall, reframed the goal: NOT an app for one person
+(that's the bare minimum) — a PLATFORM where everyone holds their own library,
+with local AI genuinely helping daily life. Philosophy stated as the soul: a
+true sandbox with a HUMAN CONDUCTOR — nothing gets done unless you act, no
+background process ever (a moral stance, not a limitation), an abundance system.
+Backend reconciliation: own-library needs NO central backend (local-first
+already does it); only the optional connective layer (accounts/sync/commons/
+federation) needs a "Supabase-like" thing — self-hosted our way, hosted Supabase
+only as a fast beta bare-minimum. Considering: post beta on GitHub + take repo
+public (his trigger to pull; prep can be readied).
+Wrote plans/PLATFORM-ROADMAP.md (the master spine ordering every plan) + memories
+project_platform_and_conductor, project_two_pavilions. README What's-next now
+opens on the roadmap. Recommended first: (1) streamline toward "close to
+perfect" (polish + AI reliability + human-like interactions, NOT new rooms),
+(2) ship beta public, (3) voice in/out, (4) connective backend.
+Also: standing decision #5 added to CLAUDE.md (local + self-hosted, off Supabase,
+build the Library from scratch ourselves; minimize 3rd parties unless
+unbuildable) + plans/SELF-HOSTED-STACK-PLAN.md; memories feedback_prefer_local_
+over_supabase + project_two_pavilions.
+
+STREAMLINE PASS BEGINS — talking + memory reviewed; AI backend walkthrough
+-------------------------------------------------------------------------
+Started PLATFORM-ROADMAP step 1. Read the chat + memory + calendar-AI code end to
+end. Verdict: talking and memory are SOLID and deliberately simple, not broken.
+Logged 3 streamline opportunities (assessment only, not fixed — user asked "see
+what's going on") into BETA-TESTING-FEEDBACK.md Round 3: #21 unbounded chat
+history sent every turn (cap the sent history, protect local models on long
+chats); #22 a timeout throws a dead-end errorLine with no retry (gentler msg or
+one retry at long budget); #23 memory stores TOPICS not SUBSTANCE — the biggest
+"more human" lever, a feature to design not a bug. Recommended order 21 -> 22 ->
+23.
+Wrote AI-BACKEND-WALKTHROUGH.md (root, learning-styled, for the user's own
+tangent): the one idea (AI only turns text->text; everything else is app code),
+Journey 1 (message -> reply, the API + the desktop CORS bridge), Journey 2 (local
+AI fills the calendar = Sebastian writes timed lines, parseScheduleTime + send
+SebastianPlanToToday turn them into events — the AI never touches the calendar),
+how memory really works, and a "go learn more" list (the code itself, LEARNING-
+PATH stages 4/8/10/11, Ollama API docs, MDN incl. Web Speech API for the voice
+tangent). README doc-map points to it as LEARNING-PATH's companion.

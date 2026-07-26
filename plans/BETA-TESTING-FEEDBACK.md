@@ -1007,6 +1007,52 @@ desktop via `npm run electron:dev` — left to the user (no browser harness
 pulled in). The **tiered model curation** (BETA-LAUNCH-PLAN #1) stays the
 separate reliability half.
 
+## Round 3 — 2026-07-12, streamline pass: talking + memory reviewed
 
+The start of the "close to perfect" streamline (`PLATFORM-ROADMAP.md` step 1).
+Read the chat and memory code end to end (`sendChatMessage`, `CHAT_AGENTS`,
+`remember`/`pastAsksBlock`, `provider.js`). **Headline: neither is broken —
+both are solid and deliberately simple.** These are streamline *opportunities*,
+logged not-yet-fixed, ranked by how much they'd move "human-like + reliable."
+Nothing here is a crash or a bug; it's polish, and each needs a real decision
+before code (per the streamline discipline — don't fix blind).
 
+### 21. [ ] Long conversations grow the prompt unbounded (reliability, local models)
+
+`d.history` accumulates every turn and the whole thing is re-sent each message.
+On a small-context local model a long chat eventually crowds out the reply
+budget → slower, or truncated, answers. **Fix candidate:** cap the history sent
+to the last N turns (keep the full transcript on screen; only trim what's sent).
+The decision to make first: N, and whether to keep the *system prompt* + last N
+(almost certainly yes) vs. any summarisation of older turns (probably later).
+Low risk, real payoff on exactly the long, human-like conversations we want more
+of.
+
+### 22. [ ] A timeout shows a dead-end error with no retry (reliability)
+
+`isEmptyReply` triggers a one-shot retry with more room, but a genuine *timeout*
+(`REPLY_TIMEOUT`: 45s short) just throws → the resident's `errorLine`. On slow
+hardware or a big model, a normal reply can exceed 45s and read as "it failed"
+even though the model was fine. **Fix candidates (pick one):** a gentler,
+honest message ("still thinking — your model may be large; try again or pick a
+smaller model in ⚙"), or one automatic retry at the `long` budget, or surfacing
+the pocket/phone ("keep walking, I'll buzz you") more prominently on a slow
+reply. Ties to the tiered-model guidance (Protocol 2).
+
+### 23. [ ] Memory remembers *topics*, not *substance* (the biggest "more human" lever)
+
+`remember()` stores only the text of what you *asked* (last 20, 8 injected) — not
+what was concluded, learned, or decided. So a resident recalls "you asked about
+X" but not "we figured out Y about your situation." This is honest and
+documented (LEARNING-PATH Stage 8) and it never leaks — but it's the single most
+obvious source of a *more human* feeling if we ever pull the thread: remember a
+few durable facts/gist per resident, not just topics. **Explicitly a feature to
+design, not a bug to fix** — flagged here so it's on the streamline radar with
+its trade-offs (privacy, prompt size, staleness) named up front. See
+`AI-BACKEND-WALKTHROUGH.md` for how memory works today.
+
+**Not changed this round — assessment only, per the user's ask ("let's see
+what's going on").** Recommended order if we act: #21 (cheap, protects the long
+chats we want), then #22 (reliability polish), then #23 as a real "more human"
+feature when we choose to invest in it.
 
