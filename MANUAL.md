@@ -84,7 +84,10 @@ The division is clean and worth knowing on day one:
 - **Butler Sebastian** (the Workshop) — **works with you.** He reads the
   honest shape of your day (today's plan, what's due, what's still open),
   keeps the calendar at his desk, and can draft a schedule in conversation
-  and drop it — timed events and all — straight into your day.
+  and drop it — timed events and all — straight into your day. Pick his
+  **path** for the day: **🌱 Ease in** (one meaningful thing, kept light) or
+  **🎯 Work mode** (a real schedule he'll hold you to) — meet yourself where
+  your energy is.
 
 They only talk once an AI connection exists (§7). Before that, everyone
 still has scripted things to say, and every desk still works.
@@ -195,7 +198,9 @@ of the day, not three.
 - **🗒 Your Notes** (pause menu) — every note you've taken *anywhere*
   (book notes, chat notes, desk notes, research, grant documents) gathered
   into one log, with folders and tags — and a scoped "have Sebastian look
-  over this folder" review.
+  over this folder" review. Each note can also keep its own **bullet-journal
+  log** (a **•** task, **○** event, **—** note), turning it into a living
+  *collection* for a topic, not just text.
 - **📓 The Log** (pause menu, or the 💡 button while walking) — a bullet-journal
   quick-capture for *anything* on your mind, tagged by kind (💡 idea · • to-do ·
   — note · ✦ to learn/try). The one place everything lands first: get it out

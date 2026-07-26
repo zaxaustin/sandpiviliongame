@@ -96,12 +96,16 @@ The steward's steer: consolidate what exists; don't sprawl. Concrete decisions:
   keep growing My Notes as the in-house second brain; offer an **optional Obsidian
   vault export/link later** (a bridge, not a dependency) for those who want it.
   Not built now.
-- **Sebastian gets modes/paths.** The user's ask: an "ease in — one thing a day,
-  early" path and a "work mode — a schedule to actually stick to today" path.
-  This is a bounded improvement to an existing resident (a `data.settings.sebMode`
-  + a matching line in his day-read + scripted advisory), not a new system.
-  Recommended as the next small build. Fits the north star: meet the person where
-  their energy is.
+- **Sebastian's modes/paths. [BUILT 2026-07-26]** Two paths, toggled in his chat:
+  **🌱 Ease in** (commit to one meaningful thing, early; keep it light) and **🎯
+  Work mode** (a real timed schedule, held to, kindly but firmly). A
+  `data.settings.sebMode` + a `sebModeBlock()` line in his prompt — same resident,
+  met to your energy, not a new system.
+- **Notes are bullet-journal collections now. [BUILT 2026-07-26]** Each note can
+  hold its own • task / ○ event / — note log (`note.log`) alongside its freeform
+  text — the BuJo "collection" idea (a topic you keep entries under), the same
+  vocabulary as the Writing Desk. My Notes stays the in-house second brain; this
+  makes it a *living* one.
 - **Voice: deferred, on purpose.** The button (read-aloud) exists; voice-*in*
   waits until the steward has a mic set up **and** understands the backend (their
   stated reason). Not a blocker — the journal works fully typed.

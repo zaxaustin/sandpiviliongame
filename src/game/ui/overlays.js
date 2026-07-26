@@ -233,6 +233,10 @@ function renderChatQuickActions(d){
   if(d.agent==='quill') html+=`<button class="btn ghost" id="chatTrainBtn" onclick="draftTrainingPlanFromChat()">📋 Draft a plan from this conversation</button>`;
   if(d.agent==='computer' && hasReply) html+=`<button class="btn ghost" onclick="saveLastChatReplyToArchive()">💾 Save last reply to Archive Desk</button>`;
   if(d.agent==='sebastian'){ // two doors, one spot: talk to him, or open the grid he keeps
+    const m=(data.settings&&data.settings.sebMode)||'ease';
+    html+=`<div class="meta" style="margin:0 0 6px">Today's path:
+      <button class="btn ${m==='ease'?'':'ghost'}" style="font-size:11px;padding:4px 10px" onclick="setSebMode('ease')">🌱 Ease in</button>
+      <button class="btn ${m==='work'?'':'ghost'}" style="font-size:11px;padding:4px 10px" onclick="setSebMode('work')">🎯 Work mode</button></div>`;
     html+=`<button class="btn ghost" onclick="openCalendar()">📅 Open the calendar</button>`;
     if(hasReply) html+=`<button class="btn ghost" id="sebPlanBtn" onclick="sendSebastianPlanToToday()">📋 Send this plan to today</button>`;
   }
@@ -553,6 +557,7 @@ const CHAT_AGENTS = {
         +"is the honest state of the visitor's day right now; speak from it, and never invent items that "
         +"aren't here:\n"
         +butlerDayRead()
+        +sebModeBlock()
         +reviewBlock
         +pastAsksBlock('sebastian');
     },
@@ -565,6 +570,26 @@ const CHAT_AGENTS = {
    today's timed events get their own line here so he can speak to the
    actual shape of the day. Computed only when he's actually spoken to —
    never on a timer, the no-background-polling rule. */
+/* Sebastian's modes (the user's "multiple paths"): a gentle ease-in path (one
+   meaningful thing a day) and a work path (a real schedule, held to). It's a
+   prompt stance + a UI toggle, not a new system — same resident, met to your
+   energy. Stored at data.settings.sebMode. */
+function sebModeBlock(){
+  const m=(data.settings&&data.settings.sebMode)||'ease';
+  if(m==='work') return "\n\nToday the visitor has chosen WORK MODE: help them set a real, timed schedule "
+    +"for the day and hold them to it — kindly but firmly. Favour a concrete plan they'll actually keep over "
+    +"a long wish-list; if they're drifting, say so plainly and steer them back to the blocks they committed to. "
+    +"Accountability, with warmth.";
+  return "\n\nToday the visitor has chosen to EASE IN: help them pick and commit to ONE meaningful thing, "
+    +"early, and keep everything else light — one clear win beats a full list, and starting is the whole "
+    +"battle. Don't pile on tasks. If they've done their one thing, celebrate it plainly and let the rest of "
+    +"the day be genuinely optional.";
+}
+export function setSebMode(m){
+  if(!data.settings) data.settings={};
+  data.settings.sebMode=m; persist();
+  if(state.dialog && state.dialog.agent==='sebastian') renderChatQuickActions(state.dialog);
+}
 function butlerDayRead(){
   const k=todayKey();
   const day=data.planner[k];
@@ -2661,6 +2686,45 @@ export function deleteNote(id){
   state.plannerNoteView={mode:'list'};
   renderNotesBody();
 }
+/* A note can hold its own bullet-journal log too (the user's ask) — turning a
+   note into a living "collection" (a topic you keep tasks/events/notes under),
+   the BuJo idea beyond the daily page. Same • task / ○ event / — note vocabulary
+   as the Writing Desk, stored per note in note.log. */
+function noteLogHtml(note){
+  const log=note.log||[], kind=state.noteLogKind||'task';
+  return `<div style="margin-top:14px;border-top:1px solid #55432e;padding-top:10px">
+    <div class="meta">A bullet-journal log for this note — a <b>•</b> task, an <b>○</b> event, a <b>—</b> note. Makes it a living collection, not just text.</div>
+    <div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
+      ${BUJO_KINDS.map(k=>`<button class="btn ${k.id===kind?'':'ghost'}" style="font-size:11px;padding:5px 10px" onclick="setNoteLogKind('${k.id}')">${esc(k.label)}</button>`).join('')}
+      <input type="text" id="noteLogInput" placeholder="add a ${esc(kind)} — Enter to log" style="flex:1;min-width:150px" onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteLogEntry('${note.id}');}">
+      <button class="btn ghost" style="font-size:11px" onclick="addNoteLogEntry('${note.id}')">Add</button>
+    </div>
+    ${log.length?`<div style="margin-top:8px">${log.map(e=>{
+      const isTask=e.kind==='task';
+      return `<div class="row" style="align-items:center;gap:8px;margin-top:3px">
+        <span style="flex:1;${e.done?'opacity:.55;text-decoration:line-through':''}"><b style="cursor:${isTask?'pointer':'default'};color:#e0a43c" ${isTask?`onclick="toggleNoteLogItem('${note.id}',${e.id})"`:''}>${bujoSig(e)}</b> ${esc(e.text)}</span>
+        <button class="btn ghost" style="font-size:10px;padding:2px 8px" onclick="removeNoteLogItem('${note.id}',${e.id})">✕</button>
+      </div>`;
+    }).join('')}</div>`:''}`;
+}
+export function setNoteLogKind(k){ state.noteLogKind=k; renderNotesBody(); setTimeout(()=>document.getElementById('noteLogInput')?.focus(),20); }
+export function addNoteLogEntry(noteId){
+  const note=data.notes.find(n=>n.id===noteId); if(!note) return;
+  const inp=document.getElementById('noteLogInput'); const text=(inp&&inp.value||'').trim(); if(!text) return;
+  if(!note.log) note.log=[];
+  note.log.push({id:Date.now(), text, kind:state.noteLogKind||'task', done:false});
+  note.updated=todayKey(); persist(); renderNotesBody();
+  setTimeout(()=>document.getElementById('noteLogInput')?.focus(),20);
+}
+export function toggleNoteLogItem(noteId,id){
+  const note=data.notes.find(n=>n.id===noteId); if(!note) return;
+  const e=(note.log||[]).find(x=>x.id===id); if(!e||e.kind!=='task') return;
+  e.done=!e.done; note.updated=todayKey(); persist(); renderNotesBody();
+}
+export function removeNoteLogItem(noteId,id){
+  const note=data.notes.find(n=>n.id===noteId); if(!note) return;
+  note.log=(note.log||[]).filter(x=>x.id!==id); note.updated=todayKey(); persist(); renderNotesBody();
+}
 let noteSaveTimer=null;
 export function updateNoteField(id, field, value){
   const note=data.notes.find(n=>n.id===id); if(!note) return;
@@ -2689,7 +2753,8 @@ function renderNotesBody(){
         oninput="updateNoteField('${note.id}','title',this.value)">
       <textarea id="noteBodyInput" rows="10" style="margin-top:8px" placeholder="Write here…"
         oninput="updateNoteField('${note.id}','body',this.value)">${esc(note.body)}</textarea>
-      <div class="meta" id="noteSaved" style="margin-top:6px"></div>`;
+      <div class="meta" id="noteSaved" style="margin-top:6px"></div>
+      ${noteLogHtml(note)}`;
     return;
   }
   el.innerHTML = `
@@ -5496,6 +5561,8 @@ Object.assign(window, {
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   openIdeaCapture, saveIdea, deleteIdea, setLogKind,
   setPlanLogKind, addPlanLogEntry, togglePlanLogTask, removePlanLogEntry,
+  setSebMode,
+  setNoteLogKind, addNoteLogEntry, toggleNoteLogItem, removeNoteLogItem,
   toggleDialogSpeak, toggleReadAloud, toggleSpokenSummary, openActivity,
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
   forgetMemoryItem, forgetAllMemory,

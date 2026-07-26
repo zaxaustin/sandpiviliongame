@@ -94,3 +94,22 @@ Decisions recorded in SELF-LEARNING-JOURNAL-PLAN.md (Update 2026-07-26):
 - Voice: DEFERRED on purpose until the user has a mic + understands the backend
   (their stated reason). Journal works fully typed.
 Recommended next small build: Sebastian modes.
+
+SEBASTIAN MODES + NOTES AS BULLET-JOURNAL COLLECTIONS (adding life, iron-out)
+----------------------------------------------------------------------------
+User: give Sebastian the two paths (adds life), and put the bullet-journal
+system into Notes too. Both built (additive, no new silos):
+
+- Sebastian modes: data.settings.sebMode ('ease' default | 'work'); sebModeBlock()
+  appends a stance to his prompt — Ease in = commit to ONE meaningful thing,
+  light; Work mode = a real timed schedule, held to kindly-but-firmly. Toggle
+  buttons (🌱 Ease in / 🎯 Work mode) in his chat quick-actions; setSebMode
+  re-renders them. Fallback 'ease' so old saves need no migration.
+- Notes = BuJo collections: each note gains an optional note.log of • task /
+  ○ event / — note (same BUJO_KINDS/bujoSig as the Writing Desk), rendered under
+  the freeform body in the note editor; tasks toggle done. noteLogHtml +
+  setNoteLogKind/addNoteLogEntry/toggleNoteLogItem/removeNoteLogItem. Makes a
+  note a living topical collection, not just text — My Notes stays the in-house
+  second brain, now living.
+Handlers registered. Verified: check + smoke + build clean. Docs: plan Update
+marked both BUILT; MANUAL updated (Sebastian paths + Notes collections).
