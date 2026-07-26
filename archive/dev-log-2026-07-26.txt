@@ -151,3 +151,16 @@ Kept the wall firmly on the SHARED review queue (certified commons still needs a
 real redistributable license). MANUAL §4 + PROTOCOLS Protocol 1 provenance rule
 clarified with the personal exception. Verified: check + smoke + build clean.
 (unrecognizedDropProject now unused; left in place, harmless.)
+
+LOG -> TODAY BRIDGE (closing the capture->organize seam)
+--------------------------------------------------------
+User picked this. sendLogEntryToToday(id): a Log entry MIGRATES onto today's
+bullet-journal page (day.log) — todo/learn -> • task, else -> — note — and is
+REMOVED from the Log (true BuJo migration, keeps the inbox clean, anti-dumping-
+ground). "→ Today's page" button on each Log entry; Log meta hints it; window-
+registered. Now capture (HUD Log) flows to the day in one tap instead of being a
+parallel list — the one open seam from the journal plan, closed. Verified: check
++ smoke + build clean. Plan Update marked BUILT.
+Also noted to the user: the "upright in the public square" value (don't take away
+people's ability, but stay honest in the commons) — the personal-vs-commons split
+embodies it; aligns with existing no-poison/truth-seeking ethos.

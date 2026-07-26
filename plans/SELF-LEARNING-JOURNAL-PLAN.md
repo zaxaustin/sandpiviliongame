@@ -83,11 +83,13 @@ The steward's steer: consolidate what exists; don't sprawl. Concrete decisions:
   — note** (`day.log`), tasks toggle done, right above the freeform paper (which
   stays, for longer writing). This is the "make the writing area the bullet
   journal" ask, done additively.
-- **The Log vs. the Writing Desk log — how they relate (avoid a 2nd silo):**
-  The Log (HUD 💡) is the *capture-anywhere inbox*; the Writing Desk log is
-  *today's page*. The ironing-out ahead: a one-tap "send to today" from a Log
-  entry (like sparks already do), so capture flows to the day rather than
-  becoming a parallel list. Designed, not yet built.
+- **The Log flows to the day. [BUILT 2026-07-26]** The Log (HUD 💡) is the
+  *capture-anywhere inbox*; the Writing Desk log is *today's page*. Each Log
+  entry now has **→ Today's page**, which **migrates** it onto the day's
+  bullet-journal log (a to-do/to-learn becomes a • task, anything else a — note)
+  and *removes it from the Log* — true bullet-journal migration, so the inbox
+  stays clean and never becomes a dumping ground. Capture → day is now one tap,
+  not a parallel silo.
 - **Second brain — build our own, keep the door open to Obsidian.** Honest
   assessment: Obsidian is *local markdown files in a folder* — genuinely aligned
   with local-first/own-your-data, and the desktop app *could* read/link a vault

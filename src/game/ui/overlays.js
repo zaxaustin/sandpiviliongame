@@ -4777,7 +4777,7 @@ function renderIdeaJar(){
     <h2>📓 The Log</h2>
     <div class="meta">Get it out before it slips — a bullet journal for whatever's on your mind: an idea,
       a to-do, a note, or something you want to learn or try. Don't tidy it now; capture fast, digest
-      later. This is the one place everything lands first.</div>
+      later. This is the one place everything lands first — when something belongs on your day, send it <b>→ Today's page</b>.</div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap">
       ${LOG_KINDS.map(k=>`<button class="btn ${k.id===kind?'':'ghost'}" style="font-size:11.5px;padding:6px 12px" onclick="setLogKind('${k.id}')">${esc(k.label)}</button>`).join('')}
     </div>
@@ -4791,7 +4791,10 @@ function renderIdeaJar(){
         <div class="card" style="cursor:default">
           <div class="s">${logSig(i.kind)} · ${esc(i.ts)}</div>
           <div style="margin-top:2px">${esc(i.text)}</div>
-          <div class="row" style="margin-top:6px"><button class="btn ghost" onclick="deleteIdea(${i.id})">Remove</button></div>
+          <div class="row" style="margin-top:6px">
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="sendLogEntryToToday(${i.id})">→ Today's page</button>
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="deleteIdea(${i.id})">Remove</button>
+          </div>
         </div>`).join('')}` : ''}`;
 }
 export function setLogKind(k){ state.logKind=k; renderIdeaJar(); setTimeout(()=>document.getElementById('ideaInput')?.focus(),20); }
@@ -4806,6 +4809,21 @@ export function saveIdea(){
 export function deleteIdea(id){
   data.ideas=data.ideas.filter(i=>i.id!==id);
   persist(); renderIdeaJar();
+}
+/* The Log -> the day (SELF-LEARNING-JOURNAL-PLAN.md — closing the capture ->
+   organize seam). A captured entry MIGRATES onto today's bullet-journal page:
+   a to-do or to-learn becomes a • task, anything else a — note. It LEAVES the
+   Log when it does (true bullet-journal migration), so the inbox stays clean
+   and never becomes a dumping ground. */
+export function sendLogEntryToToday(id){
+  const idx=data.ideas.findIndex(x=>x.id===id); if(idx<0) return;
+  const entry=data.ideas[idx];
+  const bujoKind=(entry.kind==='todo'||entry.kind==='learn') ? 'task' : 'note';
+  const day=plannerDay(); if(!day.log) day.log=[];
+  day.log.push({ id:Date.now(), text:entry.text, kind:bujoKind, done:false });
+  data.ideas.splice(idx,1); // migrate: it moves to the day, it doesn't duplicate
+  persist(); logActivity('Moved a Log capture to today\'s page.'); blip(784,.08); setHud();
+  renderIdeaJar();
 }
 
 /* ----- The Residents' Board (the café) — the agent-notes commons: the
@@ -5604,7 +5622,7 @@ Object.assign(window, {
   openConnections, openMenu, returnToTitle, resetSave,
   openVoiceSettings, setTTSVoice, setTTSRate, previewTTSVoice,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
-  openIdeaCapture, saveIdea, deleteIdea, setLogKind,
+  openIdeaCapture, saveIdea, deleteIdea, setLogKind, sendLogEntryToToday,
   setPlanLogKind, addPlanLogEntry, togglePlanLogTask, removePlanLogEntry,
   setSebMode,
   setNoteLogKind, addNoteLogEntry, toggleNoteLogItem, removeNoteLogItem,
