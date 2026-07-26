@@ -42,6 +42,14 @@ This is the one step nothing here can automate, because it isn't data entry —
 it's a person standing behind a claim. Every existing book on the shelves
 passed this bar; so does yours.
 
+**One exception, and it's important: Your Shelf (personal, 👤) needs none of
+this.** A book you add just for *yourself* — your own copy, never redistributed —
+is your business, not the commons'. Leave license and source blank, pick any
+shelf, and add it. Provenance is required only for the **shared, certified**
+path (the review queue), where you're vouching for something *others* will rely
+on. The wall protects the commons; it was never meant to stop you keeping your
+own books.
+
 ### Where to get legitimately-free books (the index)
 
 Fuller list with license notes in

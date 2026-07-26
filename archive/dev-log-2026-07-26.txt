@@ -131,3 +131,23 @@ Verified: check + smoke + build clean. MANUAL §4 updated. Also confirmed to the
 user: I can't see their local library count (it lives on their machine — the
 privacy feature); The Stacks shows the live total. Obsidian decision: keep
 building ours (My Notes + collections), optional markdown export bridge later.
+
+NO-SOURCE PERSONAL ADDS — Your Shelf needs no license/provenance
+----------------------------------------------------------------
+User: I want to add books to my PERSONAL shelf even with no source / unknown
+copyright (my own copies, not shared). The code already allowed it (shelveManual
+FormNow requires only title+body; shelveAsPersonal defaults blank license to
+"Personal — license not certified") — the friction was framing + two real gaps:
+- fillDropForm routed UNKNOWN-source drops to a Research Desk "Caravan Drops"
+  note instead of the form, blocking the legitimate "add my own book" case. Now
+  an unknown source FILLS the form (title+body) so you can pick a shelf and Add
+  to Your Shelf; message says no license/source needed for personal.
+- The add-form shelf dropdown was hardcoded to 6 traditions — now uses all
+  TRADITIONS (Fiction/Non-fiction/Hindu/Native American/Tantra included).
+- Copy/labels updated: License/Source marked optional for Your Shelf; form intro
+  + drop-zone copy say a personal copy needs no provenance; "Not listed" now
+  means "goes to Your Shelf," not "filed away in Research Desk."
+Kept the wall firmly on the SHARED review queue (certified commons still needs a
+real redistributable license). MANUAL §4 + PROTOCOLS Protocol 1 provenance rule
+clarified with the personal exception. Verified: check + smoke + build clean.
+(unrecognizedDropProject now unused; left in place, harmless.)

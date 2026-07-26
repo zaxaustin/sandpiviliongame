@@ -4955,13 +4955,19 @@ function fillDropForm(title, author, body, msg){
       +'License pre-filled for '+known.label+' — review everything below before adding to the '
       +'queue, nothing here is confirmed automatically.';
   } else {
-    const proj=unrecognizedDropProject();
-    proj.notes.unshift({ts:todayKey(), text:(author?title+' — '+author:title)+'\n\n'+body});
-    persist();
-    logActivity('Filed "'+title+'" as a personal note (unrecognized source) instead of the shared queue.');
-    msg.textContent='No listed source picked, so this went to your own notes instead of the shared '
-      +'queue — filed under the Research Desk\'s "Caravan Drops" project, nothing shelved. Pick a '
-      +'listed source above instead if this text actually is from one of them.';
+    // Unknown / unlisted source = your own copy for your own shelf. Fill the
+    // form so you can add it to Your Shelf (personal) — a personal book needs no
+    // license or source; that's YOUR business, not the commons'. (It just can't
+    // go to the shared, certified queue without a real license.) The old
+    // behavior filed unknown drops away in a Research Desk note, which blocked
+    // the legitimate "add my own book" case — so it fills the form now instead.
+    document.getElementById('rmTitle').value=title;
+    document.getElementById('rmBody').value=body;
+    if(author){ const s=document.getElementById('rmSource'); if(s && !s.value) s.value=author; }
+    msg.textContent='Detected "'+title+'"'+(author?' by '+author:'')+' ('+size+' characters). '
+      +'No listed source — so this is a personal copy: pick a shelf and press "📚 Add to my Library '
+      +'now" to put it on Your Shelf. No license or source needed for your own shelf. (Only the shared '
+      +'review queue requires a certified license.)';
   }
 }
 export async function handleBookDrop(event){
@@ -5036,10 +5042,11 @@ function renderReviewQueue(){
     panel.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>Add a Text by Hand</h2>
-      <div class="meta">Have something real — a book, a paper, a chapter you have permission to keep?
-        Drop or paste it below, pick its shelf, and <b>📚 Add to my Library now</b> puts it straight
-        on that shelf, marked 👤 as your own. (Or send it to the shared review queue instead, if
-        you're curating a certified commons for others.)</div>
+      <div class="meta">A book, a paper, a chapter — anything you want on your own shelf. Drop or paste
+        it below, pick its shelf, and <b>📚 Add to my Library now</b> puts it straight there, marked 👤
+        as your own. <b>Your Shelf is yours: no license or source required</b> — a personal copy for your
+        own reading is your business, not the commons'. (Only if you <b>Send to the shared review queue</b>
+        — a certified library for others — does a real, redistributable license matter.)</div>
       <label>Where did it come from?</label>
       <select id="rmDropSource" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
         <option value="">Not listed / unknown source</option>
@@ -5050,18 +5057,18 @@ function renderReviewQueue(){
         style="margin-top:8px;border:2px dashed #55432e;border-radius:8px;padding:22px;text-align:center;color:#a8926c;font-size:13px">
         📄 Drag a <code>.txt</code> or <code>.epub</code> file here — an EPUB is unpacked right here
         in the game, no conversion needed. Title, author, and (for a listed source above) the
-        license get filled in below automatically. Nothing's added to any queue until you review
-        and submit. Picking "Not listed" instead files it as a personal note in the Research Desk,
-        never the shared queue.
+        license get filled in below automatically. Nothing's added to any shelf until you press Add.
+        Picking "Not listed / unknown" just means it goes to <b>Your Shelf as a personal copy</b> —
+        no license needed.
       </div>
       <div id="dropMsg" class="meta"></div>
       <label style="margin-top:10px;color:#e0a43c">📚 Which shelf? — pick this first, so the book lands in the right place</label>
       <select id="rmTradition" style="width:100%;background:#1b140d;border:2px solid #8a6a3a;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
-        ${['Theravada','Mahayana','Daoism','Practice','Science','Classics'].map(t=>`<option value="${t}">${t}</option>`).join('')}
+        ${TRADITIONS.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}
       </select>
       <label style="margin-top:10px">Title</label><input type="text" id="rmTitle" placeholder="e.g. On the Duty of Civil Disobedience">
-      <label>License</label><input type="text" id="rmLicense" placeholder="e.g. Public Domain, CC0, CC-BY 4.0">
-      <label>Source (URL or citation)</label><input type="text" id="rmSource" placeholder="Where this actually came from">
+      <label>License <span style="color:#a8926c;font-weight:normal">(optional for Your Shelf — required only for the shared queue)</span></label><input type="text" id="rmLicense" placeholder="Leave blank for your own copy; e.g. Public Domain / CC0 if sharing">
+      <label>Source <span style="color:#a8926c;font-weight:normal">(optional for Your Shelf)</span></label><input type="text" id="rmSource" placeholder="Where it came from — not needed for your own shelf">
       <label>Full text</label><textarea id="rmBody" rows="8" placeholder="Paste the whole thing — this is what gets shelved."></textarea>
       <div id="reviewManualMsg" class="meta"></div>
       <div class="row" style="margin-top:14px">

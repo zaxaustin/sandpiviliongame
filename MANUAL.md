@@ -110,7 +110,11 @@ still has scripted things to say, and every desk still works.
   pause menu's Inventory.
 - **The Index** (📑, from any shelf) — every text in one searchable list.
 - **Your own books** — add them at the **Caravan Desk** (Workshop): drop an
-  `.epub` or `.txt`, pick a shelf, press **📚 Add to my Library now**. The
+  `.epub` or `.txt`, pick a shelf, press **📚 Add to my Library now**. **Your
+  Shelf is yours — no license or source needed.** A personal copy for your own
+  reading is your business; leave those fields blank, pick any shelf, and it's
+  in. (Only the shared **review queue** — a certified library for others —
+  requires a real, redistributable license.) The
   book appears **on the shelf you chose** (e.g. *Paradise Lost* on Classics,
   under P), marked **👤** as your own addition, and readable like any other
   text — findable by walking to that shelf or by Index search. Every book you
