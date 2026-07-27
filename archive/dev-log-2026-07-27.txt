@@ -54,3 +54,18 @@ Status recap given: interface redo is launch-ready with a polish tail (spacing/r
 more serif surfaces, sprite variety, motion); Science Hall core already exists
 (investigations, paper-dissection, self-experiments) — the NEW ask is physics/
 electricity sandboxes (next).
+
+Polish + Science Hall paper-analysis (user: finish polish a bit, then the Hall —
+paper analysis matters more than the physics room).
+- POLISH (Phase 5 start): gentle panel-open motion — overlays rise+fade in
+  (panelIn ~.18s), reader keeps bookOpen, reduced-motion respected. style.css.
+- SCIENCE HALL paper analysis strengthened (the priority): dissectPaper now uses
+  {long:true} (a full appraisal won't time out); analyses are now KEEPABLE and
+  REVIEWABLE — new data.hall.dissections store (migration-safe), "💾 Keep this
+  analysis" on the appraisal, a "Kept analyses" list (click to re-read, remove).
+  So the Hall is a place you RETURN to your paper analyses, not read-once. New
+  fns keepDissection/reviewDissection/deleteDissection, exported. The physics/
+  electricity sandbox stays the fun-but-later half, deferred by the user.
+Verified: node --check + build + smoke (10 scenes, 24 docs) green. (Kept-list UI
+verified by code + build; the screenshot harness can't inject internal state to
+picture it, since data/state aren't globals — only handlers are.)

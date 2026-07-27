@@ -4283,7 +4283,7 @@ export async function dissectPaper(){
     +"isn't stated, say it's unstated rather than invent it; and if you genuinely don't know a fact, say so "
     +"instead of bluffing. Keep it structured and readable — short headed sections or a tight list.";
   try{
-    const reply=await AI.chat([{role:'system',content:sys},{role:'user',content:text}]);
+    const reply=await AI.chat([{role:'system',content:sys},{role:'user',content:text}], {long:true}); // a paper appraisal is long — give it room
     state.hallView.lastDissect=reply;
     logActivity('Dissected a paper at the Science & Research Hall.'+elapsedTag()); blip(660,.08);
   }catch(e){
@@ -4293,6 +4293,27 @@ export async function dissectPaper(){
   renderScienceHall();
 }
 export function clearDissect(){ if(state.hallView) state.hallView.lastDissect=null; renderScienceHall(); }
+/* Keep an appraisal so the Hall is a place you can RETURN to your paper analyses,
+   not just read one and lose it. Stored on data.hall.dissections; titled by the
+   paper's name (asked for) so a shelf of past dissections stays legible. */
+export function keepDissection(){
+  const text=(state.hallView&&state.hallView.lastDissect)||''; if(!text) return;
+  let title=window.prompt('Name this analysis (the paper or claim):','');
+  if(title===null) return;
+  title=(title||'').trim()||('Analysis · '+todayKey());
+  if(!data.hall.dissections) data.hall.dissections=[];
+  data.hall.dissections.unshift({ id:'dis-'+Date.now(), ts:todayKey(), title, text });
+  persist(); logActivity('Kept a paper analysis: "'+title+'".'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
+  renderScienceHall();
+}
+export function reviewDissection(id){
+  const d=(data.hall.dissections||[]).find(x=>x.id===id); if(!d) return;
+  state.hallView.lastDissect=d.text; renderScienceHall();
+  const el=document.getElementById('hallDissectStatus'); if(el) el.textContent='Showing "'+d.title+'" above.';
+}
+export function deleteDissection(id){
+  data.hall.dissections=(data.hall.dissections||[]).filter(x=>x.id!==id); persist(); renderScienceHall();
+}
 // Graduate an appraisal into a kept investigation — carries the critique into
 // the compose form's evidence field, so a dissection becomes a real, filed
 // finding (you still supply the question, verdict, and falsifier yourself).
@@ -4451,6 +4472,7 @@ function renderScienceHall(){
           <div class="t">The appraisal</div>
           <div class="s" style="margin-top:6px;white-space:pre-wrap">${esc(state.hallView.lastDissect)}</div>
           <div class="row" style="margin-top:8px">
+            <button class="btn ghost" onclick="keepDissection()">💾 Keep this analysis</button>
             <button class="btn ghost" onclick="investigationFromDissect()">→ Open an investigation from this</button>
             <button class="btn ghost" onclick="clearDissect()">Clear</button>
           </div>
@@ -4459,7 +4481,14 @@ function renderScienceHall(){
       <div class="row" style="margin-top:8px;align-items:center">
         <button class="btn ghost" onclick="dissectPaper()">Dissect it</button>
         <span class="meta" id="hallDissectStatus" style="margin:0"></span>
-      </div>` : ''}
+      </div>
+      ${(data.hall.dissections||[]).length ? `<h4 style="margin-top:16px;color:#8fb4d9">Kept analyses</h4>
+        <div style="margin-top:6px">${data.hall.dissections.map(d=>`
+          <div class="card" style="cursor:pointer" onclick="reviewDissection('${d.id}')">
+            <div class="t">📄 ${esc(d.title)} <span class="badge lic">${esc(d.ts)}</span></div>
+            <div class="s" style="margin-top:4px">${esc(d.text.slice(0,120))}…</div>
+            <div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="event.stopPropagation();deleteDissection('${d.id}')">✕ Remove</button></div>
+          </div>`).join('')}</div>` : ''}` : ''}
     ${mine.length ? `<h3 style="margin-top:22px">Your investigations</h3>
       <div style="margin-top:8px">${mine.map(v=>card(v,true)).join('')}</div>` : ''}
     <h3 style="margin-top:22px">🧪 Self-experiments</h3>
@@ -6344,7 +6373,7 @@ Object.assign(window, {
   summarizeResearchText,
   openScienceHall, talkToInvestigator,
   newInvestigationForm, backToHallList, createInvestigation, deleteInvestigation,
-  dissectPaper, clearDissect, investigationFromDissect,
+  dissectPaper, clearDissect, investigationFromDissect, keepDissection, reviewDissection, deleteDissection,
   newExperimentForm, createExperiment, logExperimentToday, deleteExperiment, readExperimentWithInvestigator,
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
   openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,

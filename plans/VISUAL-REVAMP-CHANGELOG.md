@@ -167,3 +167,12 @@ yet. Adding `author` to the data model + the add-a-book form, then switching
 `shelfSortKey` to prefer it, flips this to true by-author shelving.
 
 **Verification:** `node --check` ✓, smoke ✓ (10 scenes), build ✓.
+
+## 2026-07-27 · Phase 5 (start) — a gentle panel-open motion
+
+**Files:** `src/game/style.css`
+
+Overlays now rise+fade in on open (`@keyframes panelIn`, `.overlay.open
+.panel:not(.bookPanel)`, ~.18s) — the "made with care" motion touch. The reader
+keeps its own book-opening animation; reduced-motion users get none. First Phase-5
+increment; build verified.

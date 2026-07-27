@@ -31,6 +31,7 @@ if(!data.noteMeta) data.noteMeta={}; // folder/tag layer over the notes log (NOT
 if(!data.personalLibrary) data.personalLibrary=[]; // older saves predate the personal shelf (BETA-BUILD-PLAN.md)
 if(!data.hall) data.hall={investigations:[],experiments:[]}; // older saves predate the Science & Research Hall (SCIENCE-RESEARCH-HALL-PLAN.md)
 if(!data.hall.experiments) data.hall.experiments=[]; // Phase 3 self-experiments came after Phases 0-2
+if(!data.hall.dissections) data.hall.dissections=[]; // kept paper analyses came later still
 if(!data.temple) data.temple={folds:{}}; // older saves predate the Eightfold reflection ladder (EIGHTFOLD-PATH-TEMPLE-PLAN.md)
 if(!data.curriculum) data.curriculum={}; // older saves predate the Learning Tree (COURSE-PROGRESSION-PLAN.md)
 if(!data.paths) data.paths=[]; // older saves predate Paths — ideas you pick up and walk (PHONE-APPS/daily-use)

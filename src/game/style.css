@@ -271,6 +271,12 @@ body { font-family:var(--font-mono); touch-action:none; }
   padding:22px 14px; overflow-y:auto;
 }
 .overlay.open { display:flex; }
+/* a gentle rise+fade as a panel opens — the "made with care" motion touch
+   (Phase 5). The reader keeps its own book-opening animation; reduced-motion
+   users get none. */
+@keyframes panelIn { from { opacity:0; transform:translateY(8px) scale(.994); } to { opacity:1; transform:none; } }
+.overlay.open .panel:not(.bookPanel) { animation:panelIn .18s ease-out; }
+@media (prefers-reduced-motion:reduce){ .overlay.open .panel:not(.bookPanel) { animation:none; } }
 #connOv { z-index:11; } /* reachable from the title screen (z-index:10), must render above it */
 .panel {
   background:var(--parchment); border:3px solid var(--gold); border-radius:var(--r-lg);
