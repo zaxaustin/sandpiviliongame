@@ -418,3 +418,23 @@ NO creature/pet system for now. And created plans/VISUAL-REVAMP-CHANGELOG.md as 
 concrete, revertible record of Phase 0 + Phase 1 (the "documented written
 changes" the user asked for). Verified: build + smoke (10 scenes, 22 docs) green.
 Next: Phase 2 interface chrome — propose via an updated style-guide mockup first.
+
+---
+
+Got EYES on the game (big unlock). Set up a screenshot pipeline: puppeteer-core
+(installed in scratchpad, not the project) driving the SYSTEM Chrome against
+`vite preview` on :4173 — click #startBtn, closeUI(), then call window.* overlay
+fns and capture PNGs I can actually read. Documented in memory
+reference_screenshotting_the_game. From now on visual work is verified by looking,
+not guessing.
+Saw the real UI: the world is genuinely cohesive; overlays render clean; Phase-1
+tokens caused ZERO regressions (reader parchment skin, panels, buttons all
+correct); Phase-0 shelf bays confirmed (alphabetical, "the/a/an" ignored, letter-
+range caption A–S).
+Phase 2 (start) BUILT + verified by screenshot: the pause menu was ~19 identical
+stacked ghost buttons — regrouped into labelled sections (Your day / Library /
+Local AI / Account & data / Save & session) in a 2-column grid, prominent solid
+▸ Resume, danger-red Reset. Much more scannable; fits the viewport. CSS:
+.menuResume/.menuSection/.menuGrid/.menuItem/.menuDanger. Changelog + plan updated.
+Next Phase 2: unify card/badge/button hover+focus states + spacing/radii onto the
+scale across the other panels. Good point for the user to review in-app.

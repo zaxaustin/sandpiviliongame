@@ -312,6 +312,15 @@ input[type=text], textarea {
 input[type=text]:focus, textarea:focus { outline:none; border-color:var(--gold); }
 label { display:block; color:var(--muted-light); font-size:12px; margin:12px 0 5px; letter-spacing:.5px; }
 
+/* Pause menu — grouped sections in a two-column grid (Phase 2). */
+.menuResume { width:100%; margin:14px 0 6px; }
+.menuSection { color:var(--muted); font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+  font-weight:bold; margin:16px 2px 8px; }
+.menuGrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.menuItem { text-align:left; }
+.menuDanger { border-color:var(--danger); color:var(--danger-soft); }
+@media (max-width:520px){ .menuGrid { grid-template-columns:1fr; } }
+
 /* Sebastian's calendar — a deliberately cheap-to-render month grid (the
    sleeper-car point: the machine's real resources go to his reading of
    the day, not the pixels). */

@@ -6,6 +6,29 @@ understood, reproduced, or reverted later. Newest first.
 
 ---
 
+## 2026-07-26 · Phase 2 (start) — Pause menu grouped + screenshot pipeline
+
+**Files:** `src/game/ui/overlays.js` (`renderMenu`), `src/game/style.css`
+(`.menuResume/.menuSection/.menuGrid/.menuItem/.menuDanger`)
+
+**What:** The pause menu was one long stack of ~19 identical ghost buttons.
+Regrouped into **labelled sections** (Your day · Library · Local AI · Account &
+data · Save & session) laid out in a **two-column grid**, with a prominent solid
+**▸ Resume** at top and the reset in danger red. Same buttons/handlers, real
+hierarchy — the first visible "pro" jump, and it now fits the viewport.
+
+**Verified visually** (see below) via a new screenshot pipeline: `puppeteer-core`
+driving the *system* Chrome (no browser download) against `vite preview`, calling
+the game's `window.*` overlay functions and capturing PNGs. This is how visual
+work is checked from now on — the running game can finally be *seen*, not guessed.
+Recorded for reuse in memory `reference_screenshotting_the_game`.
+
+**Verification:** build ✓, smoke ✓; screenshots of menu/shelf/reader confirm the
+grouped menu and that Phase-1 tokens caused **no regressions** (reader parchment
+skin, panels, buttons all correct).
+
+---
+
 ## 2026-07-26 · Phase 1 — Design tokens (zero visual change)
 
 **Files:** `src/game/style.css`

@@ -1281,32 +1281,44 @@ export function signOutOfAccount(){ signOut(); renderAccount(); }
 /* ----- Pause menu — reachable with Esc from the open world, or the ☰ HUD button ----- */
 export function openMenu(){ state.ui='menu'; hideAllOv(); renderMenu(); showOv('menuOv'); awardBadge('first-menu'); }
 function renderMenu(){
+  // Grouped into labelled sections in a two-column grid — a scannable menu with
+  // real hierarchy, rather than one long identical stack (VISUAL-POLISH Phase 2).
+  const item=(fn,label,extra='')=>`<button class="btn ghost menuItem${extra}" onclick="${fn}">${label}</button>`;
+  const section=(title,items)=>`<div class="menuSection">${title}</div><div class="menuGrid">${items.join('')}</div>`;
   document.getElementById('menuPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>Menu</h2>
     <div class="meta">Arrows / WASD move · E interacts and fishes · Esc closes a panel, or opens
       this one from the open world.</div>
-    <div class="row" style="margin-top:14px;flex-direction:column;align-items:stretch">
-      <button class="btn ghost" onclick="closeUI()" style="margin-bottom:9px">Resume</button>
-      <button class="btn ghost" onclick="openAccount()" style="margin-bottom:9px">👤 Account${isLoggedIn()?' · signed in':''}</button>
-      <button class="btn ghost" onclick="openConnections()" style="margin-bottom:9px">⚙ Manage AI connections</button>
-      <button class="btn ghost" onclick="openVoiceSettings()" style="margin-bottom:9px">🔊 Voice settings</button>
-      <button class="btn ghost" onclick="openIdeaCapture()" style="margin-bottom:9px">📓 The Log${data.ideas.length?' · '+data.ideas.length:''}</button>
-      <button class="btn ghost" onclick="openWaypoints()" style="margin-bottom:9px">🔗 Waypoints</button>
-      <button class="btn ghost" onclick="openActivity()" style="margin-bottom:9px">📜 Activity Log</button>
-      <button class="btn ghost" onclick="openStillOpen()" style="margin-bottom:9px">📋 Still Open${openSparks().length?' · '+openSparks().length:''}</button>
-      <button class="btn ghost" onclick="openNotesLog()" style="margin-bottom:9px">🗒 Your Notes</button>
-      <button class="btn ghost" onclick="openLearningTree()" style="margin-bottom:9px">🌳 Lesson plans (Learning Tree)</button>
-      <button class="btn ghost" onclick="openBadges()" style="margin-bottom:9px">🏅 Badges</button>
-      <button class="btn ghost" onclick="openInventory()" style="margin-bottom:9px">🎒 Inventory</button>
-      <button class="btn ghost" onclick="openReviewQueue()" style="margin-bottom:9px">🛡 Steward Review</button>
-      <button class="btn ghost" onclick="openDataPanel()" style="margin-bottom:9px">📊 Your Data</button>
-      <button class="btn ghost" onclick="openLocalAIPanel()" style="margin-bottom:9px">🧠 Local AI</button>
-      <button class="btn ghost" onclick="exportSave()" style="margin-bottom:9px">⬇ Export save (.json)</button>
-      <button class="btn ghost" onclick="triggerImportSave()" style="margin-bottom:9px">⬆ Import save…</button>
-      <button class="btn ghost" onclick="returnToTitle()" style="margin-bottom:9px">← Return to title screen</button>
-      <button class="btn ghost" onclick="resetSave()" style="border-color:#b56f6f;color:#e0a0a0">⚠ Reset all progress</button>
-    </div>`;
+    <button class="btn menuResume" onclick="closeUI()">▸ Resume</button>
+    ${section('Your day', [
+      item('openIdeaCapture()', `📓 The Log${data.ideas.length?' · '+data.ideas.length:''}`),
+      item('openStillOpen()', `📋 Still Open${openSparks().length?' · '+openSparks().length:''}`),
+      item('openNotesLog()', '🗒 Your Notes'),
+      item('openLearningTree()', '🌳 Lesson plans'),
+      item('openBadges()', '🏅 Badges'),
+    ])}
+    ${section('Library', [
+      item('openInventory()', '🎒 Inventory'),
+      item('openReviewQueue()', '🛡 Steward Review'),
+    ])}
+    ${section('Local AI', [
+      item('openConnections()', '⚙ Manage AI connections'),
+      item('openLocalAIPanel()', '🧠 Local AI'),
+      item('openVoiceSettings()', '🔊 Voice settings'),
+    ])}
+    ${section('Account & data', [
+      item('openAccount()', `👤 Account${isLoggedIn()?' · signed in':''}`),
+      item('openWaypoints()', '🔗 Waypoints'),
+      item('openActivity()', '📜 Activity Log'),
+      item('openDataPanel()', '📊 Your Data'),
+    ])}
+    ${section('Save & session', [
+      item('exportSave()', '⬇ Export save'),
+      item('triggerImportSave()', '⬆ Import save…'),
+      item('returnToTitle()', '← Title screen'),
+      item('resetSave()', '⚠ Reset progress', ' menuDanger'),
+    ])}`;
 }
 
 /* ----- USER-DATA-MANAGEMENT-PLAN.md steps 1-2 — visibility first (what's

@@ -67,7 +67,13 @@ paddings, and the many one-off hexes in `#dialog`, the chat view, the phone
 cards, the calendar, and spines — those get pointed at tokens as each area is
 touched in Phase 2.
 
-**Phase 2 — The interface chrome (where "pro" is felt).** With tokens in place:
+**Phase 2 — The interface chrome (where "pro" is felt). ◀ IN PROGRESS.** First
+piece **done 2026-07-26: the pause menu** — regrouped from one long identical
+stack into labelled sections (Your day / Library / Local AI / Account & data /
+Save & session) in a two-column grid, prominent Resume, danger-red reset;
+verified by screenshot. Still to do: unify card/badge/button states across the
+other panels, hover/focus-visible, spacing normalised onto `--sp-*`, radii onto
+`--r-*`, consistent empty states. With tokens in place:
 normalize radii/borders/spacing to the scale; unify card/button/badge styling;
 add considered **hover** and **focus-visible** states + gentle transitions;
 consistent, nicely-done empty states everywhere; a cohesive panel header
@@ -98,15 +104,17 @@ language. The small stuff that separates "made with care" from "functional."
 
 ## How we actually do it (the honest method)
 
-Visuals need *eyes*, and the running game can't be seen from here. So:
-1. For look-changing steps, propose a direction you can **see** — a
-   self-contained style-guide mockup (the published artifact "The Sand Pavilion
-   — Visual System"), not blind CSS edits.
-2. You react — keep / kill / tweak.
-3. Apply the approved direction to the **real** `style.css` in **small,
-   verifiable steps**; you run the app to confirm each. Never a big blind
-   restyle of a working app. (Logic/organization steps like Phase 0 are safe to
-   just build + verify with the smoke test/build.)
+Visuals need *eyes* — and as of 2026-07-26 the running game **can** be seen from
+here: `puppeteer-core` drives the system Chrome against `vite preview`, opens any
+overlay via its `window.*` function, and captures a PNG that gets reviewed
+directly (see `reference_screenshotting_the_game`). So the method is now:
+1. Make the change, **screenshot it**, and look — catching regressions and ugly
+   spots before they ship. A style-guide mockup is still useful for proposing a
+   *direction* to the user up front (the published artifact "The Sand Pavilion —
+   Visual System").
+2. The user reviews in the real app when they want — keep / kill / tweak.
+3. Apply in **small, verifiable steps**; never a big blind restyle. Screenshots +
+   `build`/smoke verify each step.
 
 ## What this is NOT
 - Not a language rewrite (see §0). Not high-res, 3D, or anything that spends the
