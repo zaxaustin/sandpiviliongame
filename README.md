@@ -450,6 +450,29 @@ rendering/input/adapters — the fuller manual QA checklist lives in
 
 ## What's next
 
+**Latest — 2026-07-26/27 (a big two days).** Landed: personal books stored in
+local **Docker MinIO** (the durable fix for drag-drop data loss; falls back to an
+app-data file with no Docker); a **second Library floor** (Hindu / Native American
+/ Fiction / Non-fiction) with alphabetical shelf bays; **unified Notes**
+(create/edit anywhere, link a note to a book down to page/chapter);
+**lessons → Notes → AI lesson plans**; bullet-journal **task migration**; **bulk
+book import**; the whole **visual revamp** (design tokens, grouped menu, hover/
+focus states, a serif Reader + a redesigned title screen, world vignette, a
+seasonal **breeze**, softened characters, the café hearth moved outdoors, gentle
+panel-open motion); the welcome packet gained **the Bhagavad Gita** (full, PD) and
+**the Buddha's first sermon** (CC0); the **Academy Tutor** (teach / quiz / review /
+plan-a-lesson, on your local model); **Paths** (ideas kept as cards you pick up and
+continue — no calendar guilt); and the **Science Hall's paper-analysis** made
+keepable + reviewable. Version bumped to **0.1.0-beta.2**.
+
+**Immediate next:** (1) cut the fresh desktop build — `npm run electron:build:beta`
+(user's machine) — then the clean-machine install test; (2) the **physics/
+electricity sandbox** for the Science Hall (the fun half, deferred); (3) the visual
+**polish tail** (spacing/radii onto the scale, serif on more surfaces, sprite
+variety); (4) fill more full-text books (only 6/24 seed texts read in full — ship
+the marquee classics as bundled assets or a MinIO package). Data safety is a
+standing gate before shipping the beta (all migrations are field-safe).
+
 **The master roadmap (2026-07-12):** the whole vision and the ordered road to it
 — a *platform* where everyone holds their own library, local AI that genuinely
 helps daily life, and the "human conductor / abundance sandbox" philosophy
