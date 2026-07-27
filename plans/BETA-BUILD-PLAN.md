@@ -1,14 +1,32 @@
 # The Beta Build — what ships, how it's packaged, and what to iron out first
 
-> **STATUS (2026-07-11, same day): BUILT — on the `beta` branch.** Phases 0–4
-> below were walked end to end: storage fork resolved as §5(A) (Electron-native
-> personal library, built), welcome packet = the 21-text seed as-is, provenance
-> split built (👤 Your Shelf), local-only mode via `.env.beta` +
-> `electron:build:beta` (bundle verified key-free), first-arrival orientation
-> built, tiered model guide written (PROTOCOLS.md P2 + Connections panel), and
-> a real installer produced: `release/Sand Pavilion Setup 0.1.0-beta.1.exe`.
-> **Still open:** §6.8's clean-machine install test, and a live click-through
-> of the shelve→read flow. Details in `archive/dev-log-2026-07-11.txt`.
+> **STATUS (2026-07-11): BUILT — on the `beta` branch.** Phases 0–4 walked end
+> to end; installer produced (`Sand Pavilion Setup 0.1.0-beta.1.exe`).
+>
+> **READINESS RE-VERIFIED 2026-07-26 (on `main`, for a fresh build).** `main` has
+> moved far past the 0.1.0-beta.1 build — the whole visual revamp (tokens,
+> grouped menu, interaction states, serif reader + title, world vignette, breeze,
+> softened characters, café hearth moved outdoors), the second-floor Library +
+> ordered shelf bays, unified Notes (create/edit/link-a-book), lessons→notes→AI
+> plans, bullet-journal task migration, bulk book import, and **personal books in
+> local MinIO**. Pre-build checks done this session:
+> - **Save migrations safe (§6.7):** every new field has a default or lazy patch
+>   (`personalLibrary/hall/temple/curriculum` patched; `day.log/note.book/
+>   note.log/settings.sebMode` lazily created/defaulted) — a tester's save
+>   survives the update.
+> - **No-Docker graceful:** a tester has no `.env.local`, so `minioWrite` returns
+>   `no-minio-config` and personal books fall back to the app-data **file** path
+>   (durable on desktop, no Docker). MinIO is the dev/host path only.
+> - **Local-only intact:** `.env.beta` is key-free; `npm run build:beta` compiles
+>   clean and the bundle carries **no** Supabase URL, MinIO endpoint, or creds
+>   (re-verified by grep — only the localStorage save-key name appears).
+>
+> **Remaining to cut the fresh beta (user's machine):** (1) decide the welcome
+> packet (§6.3) — ship lean, or seed curated books (now also shippable as a MinIO
+> **package**, see SELF-HOSTED-STACK-PLAN.md); (2) bump the version and run
+> `npm run electron:build:beta`; (3) **§6.8 clean-machine install test** + a live
+> shelve→read / drop-a-book click-through. The code is ready; these three are the
+> gates.
 
 Written 2026-07-11, at direct request: a full build plan for a Pavilion
 someone can **download and run on their own computer** for their own use.

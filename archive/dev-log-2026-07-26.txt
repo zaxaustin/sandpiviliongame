@@ -531,3 +531,22 @@ rewritten from straight-line polygons to quadratic curves — draping sleeves wi
 rounded cuffs, rounded shoulders, a gently flared curved hem. Verified via a 2x
 close-crop screenshot (figures read as cloth now, feet grounding them, topknot
 cap intact). build + smoke green. Next: the build plan (beta).
+
+---
+
+Build plan — pre-build readiness pass (user: "lets go with the build plan"). The
+0.1.0-beta.1 build (2026-07-11, beta branch) is far behind main now. Verified main
+is ready to cut a fresh beta:
+- Save migrations safe: all new fields defaulted/lazily patched (personalLibrary,
+  hall, temple, curriculum; day.log, note.book, note.log, settings.sebMode) — a
+  tester's save survives an update (§6.7).
+- No-Docker graceful: no .env.local on a tester machine -> minioWrite returns
+  no-minio-config -> personal books fall back to the app-data file path (durable,
+  no Docker). MinIO stays the dev/host path.
+- Local-only intact: .env.beta key-free; `npm run build:beta` compiles clean; the
+  bundle grep shows NO supabase.co / host.docker / creds (only the localStorage
+  save-key "sandPavilion" constant). Bundle is key-free.
+Remaining gates (user's machine): decide welcome packet (§6.3; could ship a MinIO
+package), bump version + `npm run electron:build:beta`, then §6.8 clean-machine
+install test + a live drop-a-book/shelve->read click-through. Updated
+BETA-BUILD-PLAN.md STATUS with this readiness pass. build:beta green.
