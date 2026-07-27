@@ -9,6 +9,7 @@
 const { app, BrowserWindow, ipcMain, shell, dialog, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
+const { spawn } = require('child_process');
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
 
@@ -179,6 +180,73 @@ ipcMain.handle('desktop-library-delete', async (event, { name }) => {
     await fs.unlink(path.join(libraryDir(), name));
     return { ok:true };
   }catch(e){ return { ok:false, error:String(e) }; }
+});
+
+/* SELF-HOSTED-STACK-PLAN.md — personal books in the local Docker MinIO (the
+   100 GB space), the durable home for their full text instead of the fragile
+   localStorage save. Uploads run exactly like tools/caravan/push-fulltext.py:
+   `mc` inside a throwaway container, `mc pipe` over stdin, host reached via
+   host.docker.internal. Credentials are read from the environment or .env.local
+   (the same non-sensitive-on-this-machine MINIO_* values) — never from the
+   renderer. Returns a clear failure so the caller falls back to a plain file. */
+let _minioCfg;
+async function minioConfig(){
+  if(_minioCfg !== undefined) return _minioCfg;
+  const cfg = {
+    endpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
+    user: process.env.MINIO_ROOT_USER || '',
+    password: process.env.MINIO_ROOT_PASSWORD || '',
+    bucket: process.env.MINIO_BUCKET || 'sand-pavilion-library',
+  };
+  if(!cfg.user || !cfg.password){
+    for(const p of [path.join(process.cwd(), '.env.local'), path.join(__dirname, '..', '.env.local')]){
+      try{
+        const txt = await fs.readFile(p, 'utf-8');
+        for(const line of txt.split(/\r?\n/)){
+          const m = /^\s*(MINIO_[A-Z_]+)\s*=\s*(.*?)\s*$/.exec(line);
+          if(!m) continue;
+          const v = m[2].replace(/^["']|["']$/g,'');
+          if(m[1]==='MINIO_ENDPOINT' && v) cfg.endpoint = v;
+          else if(m[1]==='MINIO_ROOT_USER' && !cfg.user) cfg.user = v;
+          else if(m[1]==='MINIO_ROOT_PASSWORD' && !cfg.password) cfg.password = v;
+          else if(m[1]==='MINIO_BUCKET' && v) cfg.bucket = v;
+        }
+        if(cfg.user && cfg.password) break;
+      }catch(e){ /* try the next candidate path */ }
+    }
+  }
+  _minioCfg = (cfg.user && cfg.password) ? cfg : null;
+  return _minioCfg;
+}
+function mcRun(cfg, mcCommand, stdinBuf){
+  // from inside mc's own container, "localhost" is that container — the host's
+  // published MinIO port is reached via host.docker.internal (Docker Desktop).
+  const endpoint = cfg.endpoint.replace(/:\/\/(localhost|127\.0\.0\.1)([:/]|$)/, '://host.docker.internal$2');
+  const shellCmd = `mc alias set local ${endpoint} ${cfg.user} ${cfg.password} >/dev/null && ${mcCommand}`;
+  return new Promise((resolve)=>{
+    let p;
+    try{ p = spawn('docker', ['run','-i','--rm','--entrypoint','sh','minio/mc','-c', shellCmd], { windowsHide:true }); }
+    catch(e){ return resolve({ ok:false, error:String(e) }); }
+    let err='';
+    p.stderr.on('data', d=>{ err += d.toString(); });
+    p.on('error', e=>resolve({ ok:false, error:String(e) })); // e.g. docker not installed/running
+    p.on('close', code=>resolve(code===0 ? { ok:true } : { ok:false, error:(err.trim()||('exit '+code)) }));
+    try{ if(stdinBuf!==undefined) p.stdin.write(stdinBuf); p.stdin.end(); }catch(e){ /* 'error' handler resolves */ }
+  });
+}
+ipcMain.handle('desktop-minio-write', async (event, { name, content }) => {
+  if(!safeLibraryName(name) || typeof content !== 'string') return { ok:false, error:'bad name or content' };
+  const cfg = await minioConfig();
+  if(!cfg) return { ok:false, error:'no-minio-config' };
+  const key = 'personal/' + name;
+  const res = await mcRun(cfg, `mc pipe local/${cfg.bucket}/${key}`, Buffer.from(content, 'utf-8'));
+  return res.ok ? { ok:true, bucket:cfg.bucket, key } : res;
+});
+ipcMain.handle('desktop-minio-delete', async (event, { key }) => {
+  if(typeof key !== 'string' || key.includes('..') || !/^personal\/[a-z0-9][a-z0-9._-]{0,120}\.txt$/i.test(key)) return { ok:false, error:'bad key' };
+  const cfg = await minioConfig();
+  if(!cfg) return { ok:false, error:'no-minio-config' };
+  return mcRun(cfg, `mc rm local/${cfg.bucket}/${key}`);
 });
 
 app.whenReady().then(createWindow);

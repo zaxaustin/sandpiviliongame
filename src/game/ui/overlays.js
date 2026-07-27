@@ -5830,11 +5830,21 @@ async function shelveAsPersonal({title, body, license, source, tradition, summar
   while(Store.getDoc(slug)) slug+='-2'; // never collide with a certified slug or an earlier personal copy
   const lic=license||'Personal — license not certified';
   const fullText={ license:lic, source_url:source||'' };
-  let storedAsFile=false;
-  if(bridge && bridge.libraryWrite){
+  let storedAsFile=false, storedWhere='';
+  // Preferred: the local Docker MinIO (the 100 GB space) — the durable home for
+  // the text, out of the fragile localStorage save, and readable by the Reader
+  // over plain HTTP just like the certified library. Falls back to a plain
+  // app-data file, then to inline, so no single service is ever required.
+  if(bridge && bridge.minioWrite){
+    try{
+      const res=await bridge.minioWrite(slug+'.txt', body);
+      if(res && res.ok){ fullText.storage={ bucket:res.bucket, key:res.key }; fullText.chars=body.length; storedAsFile=true; storedWhere=', stored in local MinIO'; }
+    }catch(e){ /* fall through to a file / inline */ }
+  }
+  if(!storedAsFile && bridge && bridge.libraryWrite){
     try{
       const res=await bridge.libraryWrite(slug+'.txt', body);
-      if(res && res.ok){ fullText.storage={ personal:slug+'.txt' }; fullText.chars=body.length; storedAsFile=true; }
+      if(res && res.ok){ fullText.storage={ personal:slug+'.txt' }; fullText.chars=body.length; storedAsFile=true; storedWhere=', stored on this device'; }
     }catch(e){ /* falls back to inline below */ }
   }
   if(!storedAsFile){
@@ -5851,7 +5861,7 @@ async function shelveAsPersonal({title, body, license, source, tradition, summar
     doc:{ summary:sum, sections:sections||[], fullText },
   });
   persist();
-  logActivity('Shelved "'+(title||'untitled')+'" in your Library ('+shelf+', personal'+(storedAsFile?', stored on this device':'')+').');
+  logActivity('Shelved "'+(title||'untitled')+'" in your Library ('+shelf+', personal'+storedWhere+').');
   blip(784,.09);
   return { ok:true, slug, shelf, storedAsFile };
 }
@@ -5913,8 +5923,11 @@ export function removePersonalBook(slug, from){
     +'(Notes you took on it stay in your save.)');
   if(!sure) return;
   const st=b.doc && b.doc.fullText && b.doc.fullText.storage;
-  if(st && st.personal && window.desktopBridge && window.desktopBridge.libraryDelete){
-    window.desktopBridge.libraryDelete(st.personal); // best-effort — a leftover file is harmless
+  const bridge=window.desktopBridge;
+  if(st && st.personal && bridge && bridge.libraryDelete){
+    bridge.libraryDelete(st.personal); // best-effort — a leftover file is harmless
+  } else if(st && st.key && bridge && bridge.minioDelete){
+    bridge.minioDelete(st.key); // best-effort — a leftover MinIO object is harmless
   }
   data.personalLibrary=data.personalLibrary.filter(d=>d.slug!==slug);
   persist(); logActivity('Removed "'+b.title+'" from Your Shelf.');

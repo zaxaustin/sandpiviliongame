@@ -455,3 +455,33 @@ screenshot (the eyes-on-the-game pipeline).
   now (zero fetch, ships on Win/Mac, serif fallback on Linux).
 Screenshots confirmed: menu hover wash reads clean; reader shows serif prose vs
 mono chrome, elegant. Changelog + plan updated. build + smoke (10 scenes) green.
+
+---
+
+Backend direction chosen (user): local Postgres + MinIO, and specifically "put my
+drag-drop books in the Docker 100 GB space." Diagnosed the data loss first: since
+Supabase left, localStorage IS the DB; personal book TEXT inlined there in the
+browser, and a bulk drop blew the ~5 MB quota -> persist() failed -> books gone on
+reload. (Desktop app already wrote texts to app-data files; MinIO only held seed
+texts, never personal ones.)
+
+BUILT — personal books -> local MinIO (desktop app path):
+- Proved the mechanism live first: `docker run minio/mc ... mc pipe
+  local/sand-pavilion-library/personal/_selftest.txt`, then curl over
+  http://localhost:9000/... -> HTTP 200 with ANONYMOUS read (what the Reader uses).
+- electron/main.cjs: desktop-minio-write / desktop-minio-delete IPC handlers using
+  the same mc-in-a-container pattern as push-fulltext.py; host via
+  host.docker.internal; creds from env or .env.local (MINIO_*), never the renderer;
+  key prefix personal/. + minioConfig() loader, mcRun() helper (child_process spawn).
+- electron/preload.cjs: exposes minioWrite/minioDelete on desktopBridge.
+- overlays.js shelveAsPersonal(): prefers MinIO -> app-data file -> inline; stores
+  storage:{bucket,key}; the Reader already loads that over HTTP. removePersonalBook
+  cleans up the MinIO object too.
+- This moves heavy text OUT of localStorage, so the catalog stays tiny and the
+  quota loss is fixed at the root (desktop). Web build unchanged (no bridge).
+CANNOT drive Electron from the harness — needs in-app verification: npm run
+electron:dev + Docker running, drop a book, confirm read-back + survives restart.
+Creds live in .env.local (MINIO_ROOT_USER=sandpavilion, bucket sand-pavilion-library).
+Recorded in SELF-HOSTED-STACK-PLAN.md ("Built 2026-07-26"), incl. the user's idea
+to ship curated book/lesson PACKAGES in MinIO with the beta.
+Verified here: node --check (main/preload/overlays) + build + smoke (10 scenes) green.

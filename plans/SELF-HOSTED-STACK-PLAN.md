@@ -165,3 +165,44 @@ a real second person/device to serve — no server rented before the need.
 **One line to hold onto:** the books are already yours and local; this plan
 makes the *whole* backend yours and local, one honest slice at a time — and
 never rents a server before there's actually someone on the other end of it.
+
+---
+
+## Built 2026-07-26 — personal books stored in local MinIO (the 100 GB space)
+
+The first real slice, chosen by the user (over desktop-files and localStorage):
+drag-and-drop personal books now store their **full text in the local Docker
+MinIO**, not in the fragile localStorage save. This fixes the reported data loss
+at its root — the save stays tiny (just the catalog card + a `storage:{bucket,key}`
+pointer), so a bulk import can't blow the ~5 MB localStorage quota.
+
+**How it works (desktop app only — the standing "desktop is the focus" decision):**
+- `electron/main.cjs` gains `desktop-minio-write` / `desktop-minio-delete` IPC
+  handlers that upload/remove via `mc` in a throwaway container (`docker run
+  minio/mc … mc pipe`), exactly like `tools/caravan/push-fulltext.py`. Host
+  reached via `host.docker.internal`; creds read from env or `.env.local`
+  (`MINIO_ROOT_USER/PASSWORD/ENDPOINT/BUCKET`), never from the renderer. Objects
+  land under a `personal/` key prefix in the `sand-pavilion-library` bucket.
+- `electron/preload.cjs` exposes `minioWrite`/`minioDelete` on `desktopBridge`.
+- `shelveAsPersonal()` now prefers MinIO → falls back to an app-data file →
+  falls back to inline. The Reader already loads `storage:{bucket,key}` over
+  plain HTTP (`VITE_MINIO_ENDPOINT`), the same path as the certified texts —
+  verified anonymous GET returns 200.
+- Round-trip proven from the CLI before wiring (upload via mc → curl 200).
+
+**Needs in-app verification** (can't drive Electron from the dev harness): run
+`npm run electron:dev` with Docker running, drop a book, confirm it reads back and
+survives a restart; check the object with `mc ls local/sand-pavilion-library/personal/`.
+
+**Fallbacks / limits:** if Docker/MinIO isn't running, the write fails cleanly and
+the book falls back to an app-data file (still durable on desktop). The **web
+build** has no bridge, so it stays localStorage/inline (quota-limited) — unchanged.
+
+**Bonus direction the user raised:** because the library text lives in MinIO, we
+can **ship curated packages** (classic-book bundles, lesson-plan sets) *with the
+beta* by seeding a MinIO bucket/prefix — a real "starter library" a tester gets
+on day one. Worth its own small plan when we get to beta packaging.
+
+**Next slices (unchanged from the plan above):** local Postgres for the catalog +
+logs (so data is queryable and inspectable, not just localStorage JSON); a tiny
+local API; then the web build can point at the same self-hosted stack.

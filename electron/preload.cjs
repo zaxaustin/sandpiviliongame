@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld('desktopBridge', {
   libraryWrite: (name, content) => ipcRenderer.invoke('desktop-library-write', { name, content }),
   libraryRead: (name) => ipcRenderer.invoke('desktop-library-read', { name }),
   libraryDelete: (name) => ipcRenderer.invoke('desktop-library-delete', { name }),
+  // Personal-Library text in the local Docker MinIO (the 100 GB space) —
+  // SELF-HOSTED-STACK-PLAN.md. Preferred over libraryWrite when Docker/MinIO is
+  // available; returns {ok,bucket,key} so the catalog stores a storage pointer
+  // and the Reader loads it over plain HTTP, same as the certified texts.
+  minioWrite: (name, content) => ipcRenderer.invoke('desktop-minio-write', { name, content }),
+  minioDelete: (key) => ipcRenderer.invoke('desktop-minio-delete', { key }),
   // Live-streaming variant of fetchJSON, so the desktop app can stream a
   // local model's reply/reasoning instead of buffering the whole response
   // (BETA-TESTING-FEEDBACK.md #35 — "the thought slips away"). onChunk is
