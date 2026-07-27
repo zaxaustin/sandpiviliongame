@@ -660,13 +660,28 @@ function drawRobedFigure(x,y,dir,color,bobb){
   // wide sleeves, draping down from the shoulder rather than sticking
   // straight out — drawn first so the torso overlaps their inner edge
   ctx.fillStyle=color;
-  ctx.beginPath(); ctx.moveTo(x+S*.27,top); ctx.lineTo(x+S*.1,y+S*.6+bobb); ctx.lineTo(x+S*.33,y+S*.58+bobb); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x+S*.73,top); ctx.lineTo(x+S*.9,y+S*.6+bobb); ctx.lineTo(x+S*.67,y+S*.58+bobb); ctx.closePath(); ctx.fill();
-  // the robe itself: shoulders -> gathered waist -> flared hem
+  // wide sleeves — soft draping curves with rounded cuffs, not sharp triangles
   ctx.beginPath();
-  ctx.moveTo(x+S*.28,top); ctx.lineTo(x+S*.72,top);
-  ctx.lineTo(x+S*.62,waist); ctx.lineTo(x+S*.8,hem);
-  ctx.lineTo(x+S*.2,hem); ctx.lineTo(x+S*.38,waist);
+  ctx.moveTo(x+S*.30, top+S*.03);
+  ctx.quadraticCurveTo(x+S*.11, y+S*.46+bobb, x+S*.15, y+S*.63+bobb);
+  ctx.quadraticCurveTo(x+S*.24, y+S*.68+bobb, x+S*.36, y+S*.58+bobb);
+  ctx.quadraticCurveTo(x+S*.31, waist-S*.06, x+S*.30, top+S*.03);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x+S*.70, top+S*.03);
+  ctx.quadraticCurveTo(x+S*.89, y+S*.46+bobb, x+S*.85, y+S*.63+bobb);
+  ctx.quadraticCurveTo(x+S*.76, y+S*.68+bobb, x+S*.64, y+S*.58+bobb);
+  ctx.quadraticCurveTo(x+S*.69, waist-S*.06, x+S*.70, top+S*.03);
+  ctx.closePath(); ctx.fill();
+  // the robe: rounded shoulders -> gathered waist -> a softly curved, flared hem
+  ctx.beginPath();
+  ctx.moveTo(x+S*.30, top+S*.02);
+  ctx.quadraticCurveTo(x+S*.5, top-S*.04, x+S*.70, top+S*.02);   // rounded shoulders
+  ctx.quadraticCurveTo(x+S*.66, waist-S*.04, x+S*.60, waist);    // in to the waist
+  ctx.quadraticCurveTo(x+S*.74, hem-S*.10, x+S*.77, hem);        // flare out, curved
+  ctx.quadraticCurveTo(x+S*.5, hem+S*.045, x+S*.23, hem);        // curved hem with a gentle dip
+  ctx.quadraticCurveTo(x+S*.26, hem-S*.10, x+S*.40, waist);      // left flare up
+  ctx.quadraticCurveTo(x+S*.34, waist-S*.04, x+S*.30, top+S*.02);// up to the shoulder
   ctx.closePath(); ctx.fill();
   // depth: a soft shoulder highlight and a centre seam (the robe's front
   // opening), so the figure reads as folded cloth, not a flat cutout

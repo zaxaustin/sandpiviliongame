@@ -525,3 +525,9 @@ cafe fire outside).
 Verified by screenshot: THE HEARTH fire pit visible outdoors near spawn; petals
 drifting across the grounds; figures grounded with feet; vignette framing it.
 node --check (render+scenes) + build + smoke (10 scenes) green.
+
+Outfits softened (user: "a bit too pointy"): drawRobedFigure sleeves + robe hem
+rewritten from straight-line polygons to quadratic curves — draping sleeves with
+rounded cuffs, rounded shoulders, a gently flared curved hem. Verified via a 2x
+close-crop screenshot (figures read as cloth now, feet grounding them, topknot
+cap intact). build + smoke green. Next: the build plan (beta).

@@ -40,7 +40,10 @@ Costs the renderer nothing. Verified by screenshot (centre stays bright, HUD cri
 - **Characters** (`drawRobedFigure`): a soft shoulder highlight + a centre seam so
   the robe reads as folded cloth; **feet** that plant when still and take a small
   alternating **stride** when walking (driven by the walk bob) — steps under the
-  hem instead of a gliding bob.
+  hem instead of a gliding bob. **Softened 2026-07-26** (user: "a bit too pointy"):
+  the sharp triangle sleeves and angular hem became **quadratic curves** — draping
+  sleeves with rounded cuffs, rounded shoulders, a gently flared curved hem.
+  Verified by a 2× close-crop screenshot.
 - **The café fire moved outside** (`scenes.js`): the `hearth` station left the café
   interior for the grounds' **plaza** (`22,22`), beside the path where people
   gather; the overworld gained its first `stations` array and the café sign now
