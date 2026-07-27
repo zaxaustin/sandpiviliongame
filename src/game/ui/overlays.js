@@ -73,7 +73,7 @@ function updateDialogSpeakBtn(){
    The resident + the transcript are the main event; a persistent,
    per-resident notes area sits alongside; speak/connections/leave are
    a slim side rail rather than floating over the text. */
-const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻', sebastian:'🎩', investigator:'🔬' };
+const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻', sebastian:'🎩', investigator:'🔬', tutor:'🎓' };
 export function openChatDialog(npc){
   document.getElementById('chatPhone').classList.remove('show','unread','thinking'); // clear any pocketed prior chat
   state.dialog={
@@ -523,6 +523,38 @@ const CHAT_AGENTS = {
         +pastAsksBlock('computer');
     },
     errorLine:"…connection lost. (Check that your AI connection is still running.)",
+  },
+  /* The Pavilion Academy's Tutor (PAVILION-ACADEMY-PLAN.md Phase 1). One
+     resident, four jobs — teach, quiz, review, and help teachers plan a lesson —
+     under WORK_CHARTER (a subject is served on its own terms, never the dharma).
+     General by default (learn/teach anything); grounded in a specific Learning
+     Tree lesson when opened via studyLessonWithTutor(). */
+  tutor:{
+    label:'the Tutor',
+    async systemPrompt(){
+      const lesson=(state.dialog && state.dialog.agent==='tutor' && state.dialog.lesson) ? state.dialog.lesson : null;
+      return WORK_CHARTER
+        +"\n\nYou are the Tutor of the Pavilion Academy — a patient, encouraging teacher who helps the "
+        +"visitor genuinely LEARN, and helps teachers TEACH. Follow the visitor's lead across four jobs:\n"
+        +"1. TEACH a subject clearly — from first principles, in small steps, with a concrete example, "
+        +"checking understanding as you go and inviting questions. A conversation, not a wall of lecture.\n"
+        +"2. QUIZ — when asked, or when it would help, pose a few focused questions or a small exercise on "
+        +"what was just covered, then grade the answer with specific, kind feedback that explains WHY, not "
+        +"merely right or wrong.\n"
+        +"3. REVIEW work the visitor pastes — an answer, an essay, code, a lesson draft: what is strong, "
+        +"what to fix, and the reasoning behind each note.\n"
+        +"4. PLAN LESSONS — when the visitor is a teacher (for example a language teacher planning a "
+        +"class), help design a lesson or unit: clear objectives, a warm-up, core activities, guided then "
+        +"independent practice, a check for understanding, and homework — practical and ready to use.\n"
+        +"Meet the visitor where they are: before launching in, ask what they want to learn or teach, and "
+        +"at roughly what level. Keep replies focused and readable. Be honest — if you are unsure, or "
+        +"something is outside what you reliably know, say so and suggest checking a source rather than "
+        +"bluffing; you are a patient study aid, not an accredited teacher. Encourage; never condescend."
+        +(lesson?("\n\nThe visitor is studying this lesson — stay grounded in it; teach and quiz from it, "
+          +"and if they are stuck, help with THIS specifically:\n"+lesson):"")
+        +pastAsksBlock('tutor');
+    },
+    errorLine:"…the Tutor's connection flickered. (Check that your local AI is still running.)",
   },
   sebastian:{
     label:'Sebastian',
@@ -1296,6 +1328,7 @@ function renderMenu(){
       item('openStillOpen()', `📋 Still Open${openSparks().length?' · '+openSparks().length:''}`),
       item('openNotesLog()', '🗒 Your Notes'),
       item('openLearningTree()', '🌳 Lesson plans'),
+      item('openAcademy()', '🎓 The Academy'),
       item('openBadges()', '🏅 Badges'),
     ])}
     ${section('Library', [
@@ -4656,6 +4689,24 @@ export function openLesson(id){
   state.treeView={mode:'lesson',id}; renderLearningTree();
 }
 export function backToTree(){ state.treeView={mode:'list'}; renderLearningTree(); }
+/* The Academy Tutor (PAVILION-ACADEMY-PLAN.md Phase 1) — a conversation with the
+   Tutor over the existing chat stack. openAcademy() is the general door (learn
+   or teach anything); studyLessonWithTutor() grounds it in one Learning Tree
+   lesson. Both reuse streaming, the pocket phone, and read-aloud for free. */
+export function openAcademy(){
+  openChatDialog({ name:'THE ACADEMY · Tutor', aiAgent:'tutor', color:'#5f8a4e', glow:'#bfe3a3',
+    lines:["Welcome to the Academy. What shall we work on — learn a subject, be quizzed on one, have me "
+      +"review something you wrote, or plan a lesson for a class? Tell me the topic and roughly your level, "
+      +"and we'll begin."] });
+  if(!isAIActive() && state.dialog){ state.dialog.transcript.push({from:'npc', text:"(Connect a local AI first — ⚙ Manage AI connections — and I can actually teach back.)"}); renderChatView(); }
+}
+export function studyLessonWithTutor(id){
+  const node=curriculumNode(id); if(!node) return;
+  const lessonText=node.title+'\n'+node.summary+'\n\n'+lessonAsText(node);
+  openChatDialog({ name:'THE ACADEMY · Tutor', aiAgent:'tutor', color:'#5f8a4e', glow:'#bfe3a3',
+    lines:['We’re on “'+node.title+'”. Want me to teach it, quiz you on it, or help where you’re stuck? Ask me anything about it.'] });
+  if(state.dialog){ state.dialog.lesson=lessonText; renderChatView(); }
+}
 /* Lessons live in the codebase (CURRICULUM + lessons/*.md). Two pathways OUT of
    them, at the user's ask (2026-07-26): (1) plainly SAVE a lesson into your Notes
    so it's yours to keep, edit, and link to a book — no AI, always works; (2) have
@@ -4731,6 +4782,7 @@ function renderLearningTree(){
         <div class="t">Take this lesson with you</div>
         <div class="s" style="margin-top:5px">Pull it into your Notes to keep and edit, or let your local AI draft a personal, scheduled plan from it. Both land in <b>🗒 Your Notes</b>.</div>
         <div class="row" id="lessonPlanRow" style="margin-top:10px;flex-wrap:wrap;gap:8px">
+          <button class="btn ghost" onclick="studyLessonWithTutor('${node.id}')">🎓 Study with the Tutor</button>
           <button class="btn ghost" onclick="saveLessonToNotes('${node.id}')">📓 Save to my Notes</button>
           <button class="btn ghost" onclick="draftLessonPlanFromLesson('${node.id}')">✨ Draft a lesson plan (AI)</button>
         </div>
@@ -6204,4 +6256,5 @@ Object.assign(window, {
   newExperimentForm, createExperiment, logExperimentToday, deleteExperiment, readExperimentWithInvestigator,
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
   openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,
+  openAcademy, studyLessonWithTutor,
 });

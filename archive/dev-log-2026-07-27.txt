@@ -22,3 +22,20 @@ visual revamp, Gita + first sermon). Captured the user's "phone as an app launch
 apps unlocked by visiting the physical location" idea in plans/PHONE-APPS-PLAN.md.
 Noted the seed's real gap: only 6/24 texts readable in full (the discourses + the
 Gita); the classics are summary-only — a seed-strategy decision pending.
+
+Academy Tutor BUILT (PAVILION-ACADEMY-PLAN Phase 1) — user's top ask: a tutor for
+his teacher friend's LANGUAGE lesson planning AND for his own learning (electricity).
+- New CHAT_AGENTS.tutor (WORK_CHARTER, 🎓): four jobs — teach / quiz / review /
+  plan-a-lesson-for-a-teacher — conversational, honesty guardrail (admit unsure,
+  not an accredited teacher). Broader than coding-only per the user's need.
+- Entry points: pause menu "🎓 The Academy" (openAcademy — general door) and a
+  Learning Tree lesson's "🎓 Study with the Tutor" (studyLessonWithTutor grounds
+  it in that lesson via state.dialog.lesson). Reuses the whole chat stack
+  (streaming, pocket phone, read-aloud, per-resident notes) — no new plumbing.
+- Verified by screenshot: opens as "THE ACADEMY · Tutor", connected to Ollama
+  (llama3.2). node --check + build + smoke (10 scenes, 24 docs) green.
+Next per the user's arc: fill the books (he'll add his Downloads; some seed entries
+are props, not full — 6/24 full today), then the Science & Research Hall (dissect
+papers + scientific method + physics/electricity sandboxes, possibly a 3rd-party
+theory course), learning electricity there with the Tutor. Data-safety-before-beta
+stands (migrations safe, MinIO storage).

@@ -118,11 +118,19 @@ already have paste-ready blocks. Deliverable: you can pin "The terminal,"
 lessons as steps. This alone makes the Board a curriculum, before any tutor
 work.
 
-**Phase 1 — The Tutor mode (reuses the whole chat stack).**
-A "Study with the tutor" button on a pinned course opens a chat grounded in
-the *current lesson*, WORK_CHARTER, read-aloud on. It teaches and it counsels
-("I'm stuck" passes the lesson + your last message). No new plumbing — a new
-grounding + a new entry point. First real usable slice of the whole idea.
+**Phase 1 — The Tutor mode (reuses the whole chat stack). ✅ BUILT 2026-07-26.**
+The `tutor` resident (WORK_CHARTER, 🎓, `CHAT_AGENTS`) does all four jobs
+conversationally — teach, quiz, review, and (broadened at the user's request)
+**help a teacher plan a lesson**, so it serves both a language teacher's class
+planning and the user's own learning (e.g. electricity), not only coding.
+Entry points: **🎓 The Academy** on the pause menu (general door — learn/teach
+anything), and **🎓 Study with the Tutor** on a Learning Tree lesson
+(`studyLessonWithTutor` grounds it in that lesson via `state.dialog.lesson`).
+Reuses streaming, the pocket phone, read-aloud, and per-resident notes for free;
+honesty guardrail in the prompt ("say you're unsure, don't bluff; a study aid,
+not an accredited teacher"). Verified by screenshot — opens connected to the
+local model. **Next (Phase 2):** explicit Quiz/Review quick-action buttons + a
+saved lesson result for real progress.
 
 **Phase 2 — Test & Review.**
 Two grounded modes on the Tutor: "Quiz me on this lesson" (generate → you
