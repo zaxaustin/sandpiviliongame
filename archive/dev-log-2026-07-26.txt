@@ -373,3 +373,30 @@ Bulk import (many at a time):
   zone copy updated ("one, or a whole pile at once") + "📁 Choose files…" button.
 Verified: check (overlays+scenes) + smoke (10 scenes, 22 docs) + build all green.
 MANUAL updated (Library second floor; bulk add).
+
+---
+
+Visual revamp — plan reframed + Phase 0 executed (user: interface is what's
+lacking, make it pro-game-like; raised a stack question).
+
+Stack question settled in the plan (VISUAL-POLISH-PLAN.md §0): KEEP the current
+stack, don't rewrite. It's vanilla JS (not TS) on Vite, already running as BOTH
+the Electron desktop app AND the live web app — so "one day an interactive
+website" is already true. Java would be desktop-only, throw away everything, and
+not help the local-first/local-AI story at all. "More game-like" is a craft
+problem (the HTML/CSS overlays + the cheap canvas world), solved in-stack, never
+a language change.
+
+Plan is now a sequenced "execute one by one" revamp: Phase 0 shelf organization
+(done), 1 design tokens (foundation, invisible), 2 interface chrome (the big pro
+jump — panels/buttons/cards/badges, hover/focus/spacing), 3 typography (two-face
+system), 4 world/sprites/title, 5 motion. Honest method kept: mockup → react →
+small verified CSS steps.
+
+Phase 0 BUILT: shelves now sort alphabetically (leading the/a/an ignored) and
+break into bays of <=20 with letter-range captions (A–D · 1–20). Sort at open, so
+state.shelfDocs is the ordered list and selectBook/shelfNav indices stay honest.
+By TITLE for now — no stored author field yet; noted as a small follow-up to add
+`author` and flip shelfSortKey to by-author. CSS: .shelfRow/.shelfRowCap added.
+Verified: check + smoke (10 scenes, 22 docs) + build all green. Next: Phase 1
+tokens (or Phase 2 chrome) — awaiting the user's go on order.

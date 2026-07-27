@@ -292,6 +292,12 @@ input[type=time]:focus, input[type=date]:focus { outline:none; border-color:#e0a
 .pagePaper:focus { border-color:#e0a43c; }
 
 /* shelf — book-spine carousel */
+/* A shelf is now one or more bays (rows of <=20), each with a letter-range
+   caption — an ordered stack instead of one endless scroll. */
+.shelfRow { margin-bottom:2px; }
+.shelfRowCap { color:#9c8b74; font-size:11px; letter-spacing:1.5px; font-weight:bold;
+  padding:10px 4px 0; border-top:1px solid #3a2e20; }
+.shelfRow:first-child .shelfRowCap { border-top:none; padding-top:2px; }
 .shelfCase { display:flex; gap:8px; align-items:flex-end; padding:16px 4px 28px; overflow-x:auto; }
 .spine {
   --hue:38; flex:none; width:46px; height:150px; border-radius:4px 4px 2px 2px;

@@ -1935,6 +1935,15 @@ export function shelfTraditionFor(x,y){
 }
 const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Classics:150, Personal:46,
   Hindu:20, 'Native American':90, Fiction:315, 'Non-fiction':230, Tantra:330 };
+// A real library is ordered. Books on a shelf are sorted alphabetically (leading
+// "the/a/an" ignored, the way a librarian shelves), then broken into rows of at
+// most SHELF_ROW_MAX so no single shelf runs endlessly — each row captioned with
+// its letter range, like a bay in a real stack. Sorting happens once at open, so
+// state.shelfDocs IS the ordered list and every index (selectBook/shelfNav) lines
+// up with what's shown. (Sort by title for now — a book has no stored author
+// field yet; adding one later switches this to by-author, see VISUAL-POLISH-PLAN.)
+const SHELF_ROW_MAX = 20;
+function shelfSortKey(d){ return String(d.title||'').replace(/^(the|a|an)\s+/i,'').trim().toLowerCase(); }
 export function openShelf(tradition){
   state.ui='shelf'; state.shelfTradition=tradition; state.shelfIndex=0; hideAllOv();
   document.getElementById('shelfTitle').textContent = tradition==='Personal' ? 'Shelf · Your Shelf' : 'Shelf · '+tradition;
@@ -1942,7 +1951,8 @@ export function openShelf(tradition){
   // under — a book filed as Classics shows both there and here. Every other
   // shelf is its tradition, certified and personal side by side (personal
   // ones wear the 👤 mark).
-  state.shelfDocs = tradition==='Personal' ? Store.allDocs().filter(d=>d.personal) : Store.listDocs(tradition);
+  const list = tradition==='Personal' ? Store.allDocs().filter(d=>d.personal) : Store.listDocs(tradition);
+  state.shelfDocs = list.slice().sort((a,b)=>shelfSortKey(a).localeCompare(shelfSortKey(b)));
   renderShelf();
   showOv('shelfOv'); blip(700,.05,'square',.03);
 }
@@ -1950,16 +1960,25 @@ function renderShelf(){
   const docs=state.shelfDocs||[];
   const hue=SHELF_HUE[state.shelfTradition]||38;
   const sel=docs[state.shelfIndex];
-  document.getElementById('shelfList').innerHTML = docs.length ? `
-    <div class="shelfCase">
-      ${docs.map((d,i)=>`
+  const spine=(d,i)=>`
         <div class="spine ${i===state.shelfIndex?'sel':''}" style="--hue:${hue+i*4}" onclick="selectBook(${i})">
           ${data.read[d.slug]?'<span class="spineRead">✓</span>':''}
           ${isRecentlyAdded(d.added)?'<span class="spineNew">NEW</span>':''}
           ${d.personal?'<span class="spineNew" title="Your own addition">👤</span>':''}
           <span class="spineTitle">${esc(d.title)}</span>
-        </div>`).join('')}
-    </div>
+        </div>`;
+  // break into bays of at most SHELF_ROW_MAX, each labelled with its letter range
+  const rows=[];
+  for(let start=0; start<docs.length; start+=SHELF_ROW_MAX){
+    const row=docs.slice(start, start+SHELF_ROW_MAX);
+    const a=(shelfSortKey(row[0])[0]||'').toUpperCase();
+    const b=(shelfSortKey(row[row.length-1])[0]||'').toUpperCase();
+    const range = a && b ? (a===b ? a : a+'–'+b) : '';
+    const count = docs.length>SHELF_ROW_MAX ? ` · ${start+1}–${start+row.length}` : '';
+    rows.push(`<div class="shelfRow"><div class="shelfRowCap">${range}${count}</div>
+      <div class="shelfCase">${row.map((d,i)=>spine(d, start+i)).join('')}</div></div>`);
+  }
+  document.getElementById('shelfList').innerHTML = docs.length ? rows.join('') + `
     <div class="bookLabel">
       <div class="blTitle">${esc(sel.title)}
         ${data.read[sel.slug]?'<span class="badge">read ✓</span>':''}
