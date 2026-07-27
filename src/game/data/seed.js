@@ -7,6 +7,8 @@ import { dhammapadaFullText } from './library-texts/dhammapada.js';
 import { satipatthanaFullText } from './library-texts/satipatthana.js';
 import { mettaFullText } from './library-texts/metta.js';
 import { anapanasatiFullText } from './library-texts/anapanasati.js';
+import { firstSermonFullText } from './library-texts/first-sermon.js';
+import { bhagavadGitaFullText } from './library-texts/bhagavad-gita.js';
 
 export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice','Science','Classics','Native American','Hindu','Tantra','Fiction','Non-fiction'];
 /* Categories are a second, orthogonal axis to tradition — "what kind of
@@ -72,6 +74,14 @@ const RAW_SEED_LIBRARY = [
        {heading:'For a daily sit', body:'Most daily practice lives in the first four steps for years. That is not slowness — that is the method working as designed.'}],
      fullText:{ text:anapanasatiFullText, translator:'Bhikkhu Sujato',
        source_url:'https://suttacentral.net/mn118', license:'CC0 1.0' }}},
+ { slug:'first-sermon', tradition:'Theravada', title:'The First Sermon — Setting the Wheel of Dhamma Turning', added:'2026-07-27',
+   license:'CC0 1.0', source_url:'https://suttacentral.net/sn56.11', attribution:'SuttaCentral',
+   doc:{ summary:'The Buddha’s very first teaching after his awakening — the middle way, the four noble truths, and the turning of the wheel of Dhamma.',
+     sections:[
+       {heading:'What it is', body:'Spoken to the five ascetics in the deer park at Isipatana. In a few paragraphs it lays out the whole frame of the teaching: the two extremes to avoid, the middle way between them, and the four noble truths — suffering, its origin, its cessation, and the path.'},
+       {heading:'Why it matters', body:'Everything else in the canon unfolds from this discourse. To read it is to stand at the source of the entire tradition — the moment the wheel first turned.'}],
+     fullText:{ text:firstSermonFullText, translator:'Bhikkhu Sujato',
+       source_url:'https://suttacentral.net/sn56.11', license:'CC0 1.0' }}},
  // ---- Mahayana ----
  { slug:'dzogchen-note', tradition:'Mahayana', title:'A Note on the Luminous Nature of Mind',
    license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'Pavilion stewards',
@@ -92,6 +102,16 @@ const RAW_SEED_LIBRARY = [
      sections:[
        {heading:'The map', body:'Seven chapters: free wandering, the equality of things, nourishing life, the human world, the sign of full virtue, the great source as teacher, and responding to emperors and kings.'},
        {heading:'A steward’s suggestion', body:'Begin with chapter three, Nourishing Life. It is the shortest, and the butcher story inside it is the whole book in miniature.'}]}},
+ // ---- Hindu ----
+ { slug:'bhagavad-gita', tradition:'Hindu', title:'The Bhagavad Gita', added:'2026-07-27',
+   license:'Public Domain', source_url:'https://www.gutenberg.org/ebooks/2388', attribution:'Sir Edwin Arnold · “The Song Celestial” (1885)',
+   doc:{ summary:'A dialogue on the eve of battle: Krishna counsels Arjuna on duty, action without attachment, and the nature of the self — the heart of the Mahabharata, and one of the most beloved teachings in the world.',
+     sections:[
+       {heading:'What it is', body:'Seven hundred verses across eighteen chapters, set on the field of Kurukshetra. The warrior Arjuna, unwilling to fight his own kin, lays down his bow; Krishna’s reply to his despair becomes a complete map of the spiritual life.'},
+       {heading:'The central teaching', body:'Act because the act is right, not for its reward — action without attachment to its fruit. Around this turn three paths to the same freedom: devotion (bhakti), knowledge (jnana), and disciplined action (karma).'},
+       {heading:'How to read it', body:'Slowly, a chapter at a sitting. Arnold’s Victorian verse is stately and musical; where it feels ornate, read for the argument beneath the music. Many keep the second chapter especially close.'}],
+     fullText:{ text:bhagavadGitaFullText, translator:'Sir Edwin Arnold — “The Song Celestial” (1885)',
+       source_url:'https://www.gutenberg.org/ebooks/2388', license:'Public Domain (Project Gutenberg)' }}},
  // ---- Practice ----
  { slug:'hearth-logbook', tradition:'Practice', title:'A Practice Logbook — Crucible Trial No. 1',
    license:'Original — Pavilion Commons', source_url:'https://suttacentral.net', attribution:'The first user',

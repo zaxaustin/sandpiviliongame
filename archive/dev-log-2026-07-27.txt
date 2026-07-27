@@ -1,0 +1,17 @@
+2026-07-27 — Welcome packet expanded (user's hope): the Bhagavad Gita + the
+Buddha's first sermon added to the seed.
+- Fetched public-domain / CC0 full texts from the dev machine (server-side, the
+  Caravan way): the Gita = Sir Edwin Arnold's "The Song Celestial" (1885, Project
+  Gutenberg #2388, Public Domain, ~124k chars); the first sermon = SN56.11
+  Dhammacakkappavattana, Bhikkhu Sujato, CC0, via the SuttaCentral bilara API
+  (~5.8k chars). Cleaned (Gutenberg boilerplate stripped; bilara assembled by
+  paragraph) into src/game/data/library-texts/bhagavad-gita.js and first-sermon.js.
+- seed.js: imports + two entries — bhagavad-gita on the Hindu shelf (fills the
+  second floor's Hindu bay with its foundational text), first-sermon on Theravada.
+  Both with real summary/sections + inline fullText, license/source/attribution
+  honest. The Buddha's discourses were already represented (Dhammapada, MN10, MN118,
+  Snp1.8); this adds the canonical first turning of the wheel.
+- Smoke now: 24 library docs (was 22). Gita reads in full — Page 1 of 101 in the
+  serif reader, verified by screenshot; works offline/inline, no MinIO needed.
+- Bundle grew ~150k (Gita inline) to 819k / gzip 255k — acceptable for the packet.
+Verified: node --check + smoke (10 scenes, 24 docs) + build green.
