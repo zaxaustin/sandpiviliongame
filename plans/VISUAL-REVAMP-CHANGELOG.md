@@ -27,6 +27,11 @@ composed threshold:
 - A gentle `titleRise` fade-in on load (respects `prefers-reduced-motion`).
 Verified by screenshot — reads as a real, reverent entrance. build ✓.
 
+**World vignette (same phase):** added `#vignette` — a single fixed radial-gradient
+overlay above the canvas but below the HUD (`z-index:2`, `pointer-events:none`),
+darkening the corners so the world reads as composed lamplight, not a flat grid.
+Costs the renderer nothing. Verified by screenshot (centre stays bright, HUD crisp).
+
 ---
 
 ## 2026-07-26 · Phase 2 interaction states + Phase 3 (start) reading serif

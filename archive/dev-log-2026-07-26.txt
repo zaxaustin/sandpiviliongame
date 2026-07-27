@@ -503,3 +503,8 @@ now; quiet coloured status lines (green save/blue AI/muted library); centred
 button stack, Enter with a faint glow; gentle titleRise fade-in (respects reduced
 motion). Verified by screenshot: reads as a real, reverent entrance. build + smoke
 (10 scenes) green.
+
+World VIGNETTE added (#vignette): one fixed radial-gradient over the canvas,
+below the HUD (z-2, pointer-events:none), softly darkening the corners so the
+world reads as composed lamplight. Zero renderer cost. Verified by screenshot —
+centre bright, HUD crisp. build + smoke green.

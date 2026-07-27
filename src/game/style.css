@@ -59,6 +59,13 @@
 html,body { height:100%; background:var(--void); overflow:hidden; }
 body { font-family:var(--font-mono); touch-action:none; }
 #game { display:block; width:100vw; height:100vh; image-rendering:pixelated; }
+/* A soft vignette over the world — the scene reads as composed lamplight, not a
+   flat grid. Sits above the canvas but below the HUD (z-5) and every panel, and
+   never eats a click. Cheap: one gradient, no cost to the renderer. */
+#vignette {
+  position:fixed; inset:0; z-index:2; pointer-events:none;
+  background:radial-gradient(ellipse 92% 92% at 50% 46%, transparent 58%, rgba(9,6,3,.46) 100%);
+}
 
 #hud {
   position:fixed; top:10px; left:10px; z-index:5;
