@@ -32,6 +32,20 @@ overlay above the canvas but below the HUD (`z-index:2`, `pointer-events:none`),
 darkening the corners so the world reads as composed lamplight, not a flat grid.
 Costs the renderer nothing. Verified by screenshot (centre stays bright, HUD crisp).
 
+**World life — breeze, characters, the hearth outdoors (Phase 4, 2026-07-26):**
+- **A breeze** (`drawBreeze` in `render.js`): ~14 petals/leaves drift on the wind,
+  tinted to the season's own flowers/canopy (`SPAL`), positions derived from
+  `state.time` (no state), outdoor scenes only. The eastern "blossoms on the wind"
+  feel, ~a dozen sprites, no renderer cost.
+- **Characters** (`drawRobedFigure`): a soft shoulder highlight + a centre seam so
+  the robe reads as folded cloth; **feet** that plant when still and take a small
+  alternating **stride** when walking (driven by the walk bob) — steps under the
+  hem instead of a gliding bob.
+- **The café fire moved outside** (`scenes.js`): the `hearth` station left the café
+  interior for the grounds' **plaza** (`22,22`), beside the path where people
+  gather; the overworld gained its first `stations` array and the café sign now
+  says the hearth burns out in the plaza. Verified by screenshot.
+
 ---
 
 ## 2026-07-26 · Phase 2 interaction states + Phase 3 (start) reading serif

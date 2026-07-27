@@ -508,3 +508,20 @@ World VIGNETTE added (#vignette): one fixed radial-gradient over the canvas,
 below the HUD (z-2, pointer-events:none), softly darkening the corners so the
 world reads as composed lamplight. Zero renderer cost. Verified by screenshot —
 centre bright, HUD crisp. build + smoke green.
+
+---
+
+World life — breeze + characters + café fire moved outside (user: work on the
+characters and the feel of walking, keep the eastern feel, add a breeze, move the
+cafe fire outside).
+- render.js drawBreeze(): ~14 season-tinted petals drifting on the wind (SPAL
+  flower/flower2/canopy), positions from state.time, outdoor-only, called in the
+  outdoor block after the day/night gradient. "Blossoms on the wind", cheap.
+- render.js drawRobedFigure: shoulder highlight + centre seam (folded-cloth depth)
+  + feet that plant when still and stride (alternate) when the walk bob is active.
+- scenes.js: café 'hearth' station removed from the interior; overworld gained a
+  stations:[{x:22,y:22,kind:'hearth'}] in the plaza beside the path; overworld
+  café sign updated to say the hearth is out in the plaza now.
+Verified by screenshot: THE HEARTH fire pit visible outdoors near spawn; petals
+drifting across the grounds; figures grounded with feet; vignette framing it.
+node --check (render+scenes) + build + smoke (10 scenes) green.

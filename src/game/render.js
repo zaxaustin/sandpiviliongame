@@ -668,6 +668,10 @@ function drawRobedFigure(x,y,dir,color,bobb){
   ctx.lineTo(x+S*.62,waist); ctx.lineTo(x+S*.8,hem);
   ctx.lineTo(x+S*.2,hem); ctx.lineTo(x+S*.38,waist);
   ctx.closePath(); ctx.fill();
+  // depth: a soft shoulder highlight and a centre seam (the robe's front
+  // opening), so the figure reads as folded cloth, not a flat cutout
+  ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(x+S*.3,top,S*.4,S*.03);
+  ctx.fillStyle='rgba(0,0,0,.12)'; ctx.fillRect(x+S*.485,top,S*.03,hem-top);
   // the sash — a contrasting band at the waist, the sect-color marker
   ctx.fillStyle='#1c1620';
   ctx.fillRect(x+S*.32,waist-S*.035,S*.36,S*.065);
@@ -682,6 +686,12 @@ function drawRobedFigure(x,y,dir,color,bobb){
   if(dir==='down'){ ctx.fillRect(x+S*.42,y+S*.29+bobb,e,e*1.4); ctx.fillRect(x+S*.54,y+S*.29+bobb,e,e*1.4); }
   else if(dir==='left'){ ctx.fillRect(x+S*.38,y+S*.29+bobb,e,e*1.4); }
   else if(dir==='right'){ ctx.fillRect(x+S*.58,y+S*.29+bobb,e,e*1.4); }
+  // feet — planted when still, a small alternating stride when walking (bobb!=0),
+  // so movement reads as steps under the hem rather than a gliding bob
+  const stride = bobb!==0 ? Math.sin(state.time*22)*S*.05 : 0;
+  ctx.fillStyle='#2a2118';
+  ctx.fillRect(x+S*.4, hem-S*.01-stride, S*.09, S*.08);
+  ctx.fillRect(x+S*.51, hem-S*.01+stride, S*.09, S*.08);
 }
 function drawPerson(px,py,dir,color,glow,isPlayer,ox,oy){
   const x=(px-ox)*S, y=(py-oy)*S;
@@ -738,6 +748,27 @@ function drawPrompt(ox,oy){
   ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText('E',px+S*.5,py-S*.27+bob);
 }
+/* A drifting breeze — a handful of petals/leaves carried on the wind, tinted to
+   the season's own flowers/canopy. Pure atmosphere: ~14 sprites, positions
+   derived from state.time so it needs no persistent state, and outdoor-only.
+   The eastern "blossoms on the wind" feel, kept cheap (the sleeper car). */
+function drawBreeze(){
+  const W=canvas.width, H=canvas.height, t=state.time, n=14;
+  const cols=[SPAL.flower, SPAL.flower2, SPAL.canopy];
+  for(let i=0;i<n;i++){
+    const vx=12+(i%5)*4, vy=7+(i%3)*3; // each petal its own drift speed
+    const x=(((i*W)/n + i*41 + t*vx) % (W+60)) - 30 + Math.sin(t*1.4+i)*16; // drift + a fluttering wobble
+    const y=(((i*H)/n + i*57 + t*vy) % (H+60)) - 30;
+    const size=S*(0.05+(i%3)*0.02);
+    ctx.save();
+    ctx.translate(x,y); ctx.rotate(t*1.1+i);
+    ctx.globalAlpha=0.42;
+    ctx.fillStyle=cols[i%3];
+    ctx.beginPath(); ctx.ellipse(0,0,size,size*0.5,0,0,7); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+}
 export function render(){
   SPAL=seasonPalette(currentSeason());
   const {cx,cy}=camera(), s=scene();
@@ -763,5 +794,6 @@ export function render(){
     g.addColorStop(0,'transparent'); g.addColorStop(1,night?'rgba(10,10,38,.6)':'rgba(20,14,28,.35)');
     ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
     if(night){ ctx.fillStyle='rgba(12,14,40,.28)'; ctx.fillRect(0,0,canvas.width,canvas.height); } // the Grounds actually darken at night
+    drawBreeze(); // petals on the wind, above the world
   }
 }

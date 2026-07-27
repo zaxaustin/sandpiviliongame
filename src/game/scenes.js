@@ -66,11 +66,14 @@ function buildOverworld(){
       {x:24,y:15,to:'cafe',sx:6,sy:8},{x:25,y:15,to:'cafe',sx:7,sy:8},
       {x:13,y:15,to:'study',sx:6,sy:8},{x:14,y:15,to:'study',sx:7,sy:8},
     ],
+    // An open-air hearth in the plaza — the café's fire moved outside, where
+    // people actually gather, beside the path between the buildings.
+    stations:[{x:22,y:22,kind:'hearth',name:'THE HEARTH'}],
     signs:[
       {x:17,y:9, name:'WOODEN SIGN', text:"PAVILION KEEP\nThe guild's charter rests here. All are welcome.\nNothing here is owned — only kept, and passed on."},
       {x:5,y:16, name:'WOODEN SIGN', text:"THE LIBRARY\nOpen to all. No gate, no fee, no ledger of debts.\nThe Study stands just beside it now, its own door — no\nneed to pass through the shelves to reach a desk."},
       {x:34,y:16,name:'WOODEN SIGN', text:"THE WORKSHOP\nThree desks stand finished on the ground floor. Climb\nthe stairs: the Records Hall is real too, one floor up.\nFive more rooms wait above that, still just framing\nand good intentions. — The Stewards"},
-      {x:27,y:16,name:'HAND-LETTERED SIGN', text:"THE CAFE\nWhere the Pavilion looks outward. A notice board, a\nhearth corner, a grant desk. — The Stewards"},
+      {x:27,y:16,name:'HAND-LETTERED SIGN', text:"THE CAFE\nWhere the Pavilion looks outward. A notice board and a\ngrant desk inside; the hearth burns out here in the plaza,\nwhere people gather. — The Stewards"},
       {x:24,y:25,name:'OLD DOCK',    text:"The pond is older than the Pavilion.\nThe koi remember everything.\n(Stand on the dock, face the water, press E.)"},
     ],
     npcs:[
@@ -370,7 +373,6 @@ function buildCafe(){
     stations:[
       {x:6,y:3,kind:'notice',name:'THE NOTICE BOARD'},
       {x:2,y:3,kind:'residents',name:"THE RESIDENTS' BOARD"},
-      {x:10,y:6,kind:'hearth',name:'THE HEARTH CORNER'},
       {x:2,y:6,kind:'grantdesk',name:'THE GRANT DESK'},
       {x:11,y:3,kind:'coffee',name:'THE COUNTER'},
     ],
