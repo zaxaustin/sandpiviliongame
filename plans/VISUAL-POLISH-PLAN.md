@@ -92,11 +92,14 @@ want one exact type everywhere. Still to do: extend the serif to other real
 reading surfaces (dialogue text, chat bubbles) if it reads well there, and settle
 a related **type scale** (sizes/line-heights).
 
-**Phase 4 — The world, sprites & title screen.** Palette-locked tiles/sprites so
-the world reads as one composed scene; gentle ambient light/vignette; per-room
-accent identity; a stronger **title screen** (the first impression a friend
-gets). Bigger — needs pixel-art passes; pairs with
-`CHARACTER-CUSTOMIZATION-PLAN.md`. Still low-res, still cheap.
+**Phase 4 — The world, sprites & title screen. ◀ STARTED 2026-07-26.** The
+**title screen** is redesigned as a threshold — a warm hearth-glow + vignette, the
+mono name as the "sign" with a soft glow, an ornamental rule, and a serif
+invitation beneath (two-face system as a welcome); quiet coloured status lines; a
+gentle fade-in. Verified by screenshot. Still to do here: palette-locked
+tiles/sprites so the world reads as one composed scene; gentle ambient
+light/vignette in-world; per-room accent identity. Bigger — needs pixel-art
+passes; pairs with `CHARACTER-CUSTOMIZATION-PLAN.md`. Still low-res, still cheap.
   - **Art constraint, stated 2026-07-26:** keep the warm walk-around **RPG feel**
     the user likes — but **all art is original**, resembling **no existing game's
     characters, sprites, tilesets, logos, or names** (no legal exposure, ever),

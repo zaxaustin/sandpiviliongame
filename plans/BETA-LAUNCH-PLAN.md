@@ -148,3 +148,43 @@ technical outlet in the whole Pavilion.
 5. **Welcome packet finish** — full text pushed for the catalog-only books so
    the first shelf a stranger opens is whole.
 6. **First-arrival orientation** — the minimal "you are here" pass.
+
+---
+
+## Next beta-test round — the plan (captured 2026-07-26, so it isn't forgotten)
+
+To run once the visual-polish pass is done. This is the "real daily-use" beta —
+give a tester the desktop app and see if it holds up unobserved.
+
+**A. Package the build**
+- [ ] Fresh `npm run build` + `npm run electron:build:beta`; installer version bump.
+- [ ] Ship a **starter library package**: seed a MinIO prefix (or bundle) with a
+  handful of curated classics + the lesson-plan set, so a tester opens to a real
+  library on day one (the user's "ship packages with the beta" idea — see
+  SELF-HOSTED-STACK-PLAN.md "Built 2026-07-26").
+- [ ] Decide the local-only vs Docker story for testers: the app runs with **no
+  Docker** (personal books fall back to app-data files); Docker/MinIO is the
+  power path. Document both plainly in the welcome packet.
+
+**B. Must-verify before handing it out (things the dev harness can't check)**
+- [ ] **Clean-machine install** — installs and launches with nothing preinstalled.
+- [ ] **MinIO personal-book storage** end to end: with Docker up, drop a book →
+  it reads back → survives a restart → shows under
+  `mc ls local/sand-pavilion-library/personal/`. Then the **no-Docker** path:
+  same drop falls back to an app-data file and still persists.
+- [ ] **Bulk import** many books at once (drag a pile) — all land, none silently lost.
+- [ ] Local AI connect (Ollama) → a resident replies; reader "Ask about this book".
+- [ ] The daily loop: Writing Desk log + task **migration** across days; The Log
+  capture; Notes create/edit/link-to-book; lesson → notes → AI lesson plan.
+- [ ] Second-floor library + shelf bays; visuals on a fresh machine/theme.
+
+**C. Distribution + feedback**
+- [ ] Where it goes: GitHub release (consider making the repo public), or a direct
+  installer hand-off to a few trusted testers first.
+- [ ] Every finding lands in `BETA-TESTING-FEEDBACK.md` (the running log), triaged
+  into fix-now / plan / won't-do, same as prior rounds.
+- [ ] One page of "how to install + what to try first" for a non-technical tester.
+
+**D. Known open gates (from prior rounds / memory)**
+- [ ] Clean-machine install test + live click-throughs were the remaining gate on
+  the beta build (see memory `project_sebastian_beta_gate`). Close them here.

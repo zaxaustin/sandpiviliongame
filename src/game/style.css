@@ -489,16 +489,47 @@ body.touchmode .touch { display:block; }
   font-size:26px; font-weight:bold; display:flex; align-items:center; justify-content:center; }
 #abtn:active { background:#e0a43c; color:#2a2118; }
 
+/* The title screen — the threshold. A warm hearth-glow over the dark, the
+   mono "sign" of the name, an ornamental rule, and a serif invitation beneath:
+   the two-face system used to make an entrance, not a wall of text. */
 #title {
-  position:fixed; inset:0; z-index:10; background:rgba(20,14,10,.93);
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
-  color:#f5e9d4; text-align:center; padding:20px;
+  position:fixed; inset:0; z-index:10; overflow-y:auto;
+  background:
+    radial-gradient(ellipse 72% 55% at 50% 34%, rgba(224,164,60,.16), transparent 62%),
+    radial-gradient(ellipse at 50% 118%, rgba(0,0,0,.55), transparent 55%),
+    rgba(17,12,8,.96);
+  display:flex; align-items:center; justify-content:center; color:var(--ink); padding:24px;
 }
-#title h1 { color:#e0a43c; font-size:clamp(26px,6vw,44px); letter-spacing:3px; text-shadow:0 3px 0 #6b4a2f; }
-#title p { max-width:540px; line-height:1.6; color:#cbb79a; font-size:14px; }
-#title .keys { font-size:12px; color:#9c8b74; }
-#saveMode { font-size:11.5px; color:#7fa36b; }
-#aiMode { font-size:11.5px; color:#7fa9c9; }
+.titleInner {
+  display:flex; flex-direction:column; align-items:center; gap:15px; text-align:center;
+  max-width:640px; animation:titleRise .8s ease-out both;
+}
+@keyframes titleRise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce){ .titleInner { animation:none; } }
+#title h1 {
+  color:var(--gold); font-size:clamp(30px,6.5vw,52px); letter-spacing:4px; line-height:1.1; margin:0;
+  text-shadow:0 2px 0 var(--edge-gold), 0 0 26px rgba(224,164,60,.35);
+}
+/* an ornamental rule with a small centred glyph — a rose in the rafters */
+.titleRule { display:flex; align-items:center; gap:14px; width:min(360px,80%); color:var(--gold); }
+.titleRule::before, .titleRule::after {
+  content:''; height:1px; flex:1;
+  background:linear-gradient(90deg, transparent, rgba(224,164,60,.55), transparent);
+}
+.titleRule span { font-size:15px; opacity:.85; }
+.titleTag {
+  font-family:var(--font-read); font-style:italic; color:var(--ink-soft);
+  font-size:16.5px; line-height:1.75; max-width:46ch; text-wrap:balance; margin:0;
+}
+#title .keys { font-size:12px; color:var(--muted); letter-spacing:.3px; margin:0; max-width:52ch; }
+.titleStatus { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
+.titleStatus p { font-size:11.5px; margin:0; }
+#saveMode { color:var(--green); }
+#aiMode { color:var(--blue); }
+#libMode { color:var(--muted); }
+.titleBtns { display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:10px; }
+#startBtn { font-size:16px; padding:12px 40px; box-shadow:0 3px 0 var(--gold-deep), 0 0 30px rgba(224,164,60,.22); }
+.titleBtns .btn.ghost { font-size:12px; padding:6px 16px; }
 
 /* badge unlock toast */
 #badgeToast {

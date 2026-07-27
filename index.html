@@ -273,15 +273,22 @@
 <div class="touch dbtn" id="abtn">E</div>
 
 <div id="title">
-  <h1>THE SAND PAVILION</h1>
-  <p>The Library now holds real texts — face a shelf and press E to browse the spines, then step into a book to read it. Behind its east door is the Study: a writing desk for planning your day, and a course board for building your own paths of practice. The Workshop's doors are open too, now — an Archive Desk inside for keeping your own writing, the same way the Library keeps everyone else's. A Café stands between the Library and the Workshop now, too — a notice board for looking outward, a hearth, and a grant desk.</p>
-  <p class="keys">Move: Arrows / WASD · Interact & fish: E · Meditate: M (sit / lie / stand) · Close menus: Esc · Pause menu: Esc, or ☰ in the corner</p>
-  <p id="saveMode"></p>
-  <p id="aiMode"></p>
-  <p id="libMode"></p>
-  <button class="btn" id="startBtn" style="font-size:16px;padding:12px 34px">Enter the Grounds</button>
-  <button class="btn ghost" id="connBtn" style="font-size:12px;padding:6px 16px">⚙ Manage AI connections</button>
-  <button class="btn ghost" id="welcomeBtn" style="font-size:12px;padding:6px 16px">🧭 New here? Start here</button>
+  <div class="titleInner">
+    <h1>THE SAND PAVILION</h1>
+    <div class="titleRule" aria-hidden="true"><span>&#10086;</span></div>
+    <p class="titleTag">A small world for reading, thinking, and the quiet work of a day &mdash; kept entirely on your own machine, and slowly made your own.</p>
+    <p class="keys">Move: Arrows / WASD &middot; Interact &amp; fish: E &middot; Meditate: M &middot; Menus: Esc, or &#9776; in the corner</p>
+    <div class="titleStatus">
+      <p id="saveMode"></p>
+      <p id="aiMode"></p>
+      <p id="libMode"></p>
+    </div>
+    <div class="titleBtns">
+      <button class="btn" id="startBtn">Enter the Grounds</button>
+      <button class="btn ghost" id="connBtn">&#9881; Manage AI connections</button>
+      <button class="btn ghost" id="welcomeBtn">&#129517; New here? Start here</button>
+    </div>
+  </div>
 </div>
 
 <script type="module" src="/src/game/main.js"></script>

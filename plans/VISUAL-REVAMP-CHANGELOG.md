@@ -6,6 +6,29 @@ understood, reproduced, or reverted later. Newest first.
 
 ---
 
+## 2026-07-26 · Phase 4 (start) — the title screen, redesigned as a threshold
+
+**Files:** `index.html` (`#title` markup), `src/game/style.css` (`#title` + new
+`.titleInner/.titleRule/.titleTag/.titleStatus/.titleBtns`)
+
+**What:** The entrance was a wall of monospace over a flat dark. Redesigned as a
+composed threshold:
+- A **warm hearth-glow** background (layered radial gradients) with a soft bottom
+  vignette, over near-black — candlelight, not a black curtain.
+- The mono name kept as the **"sign"** (larger `clamp(30–52px)`, letter-spaced, a
+  soft gold text-glow).
+- An **ornamental rule** with a small centred floret (&#10086;) — a rose in the
+  rafters.
+- The old descriptive paragraph replaced with a one-line **serif invitation**
+  (`--font-read`, italic, balanced) — the two-face system used to *welcome*, not
+  to explain. Orientation moved fully to the "New here?" button.
+- Quiet, coloured **status lines** (green save / blue AI / muted library) and a
+  centred button stack; the Enter button gets a faint glow.
+- A gentle `titleRise` fade-in on load (respects `prefers-reduced-motion`).
+Verified by screenshot — reads as a real, reverent entrance. build ✓.
+
+---
+
 ## 2026-07-26 · Phase 2 interaction states + Phase 3 (start) reading serif
 
 **Files:** `src/game/style.css`

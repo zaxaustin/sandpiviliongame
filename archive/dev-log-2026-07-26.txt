@@ -485,3 +485,21 @@ Creds live in .env.local (MINIO_ROOT_USER=sandpavilion, bucket sand-pavilion-lib
 Recorded in SELF-HOSTED-STACK-PLAN.md ("Built 2026-07-26"), incl. the user's idea
 to ship curated book/lesson PACKAGES in MinIO with the beta.
 Verified here: node --check (main/preload/overlays) + build + smoke (10 scenes) green.
+
+---
+
+Visual polish, cathedral mindset (user: make it gorgeous, worthy of unseen
+scrutiny; sat with the Ganesha telling first, per CLAUDE.md, before this
+undertaking). Also captured the next beta-test round plan in BETA-LAUNCH-PLAN.md
+so it isn't forgotten ("packages in MinIO", must-verify list incl. MinIO book
+storage + clean-machine install, distribution + feedback loop).
+
+Phase 4 (start) — TITLE SCREEN redesigned as a threshold (index.html #title +
+style.css). Warm hearth-glow radial + bottom vignette over near-black; the mono
+name as the "sign" (clamp 30-52px, soft gold glow); an ornamental rule with a
+centred floret; the old wall-of-text paragraph replaced by a one-line SERIF
+invitation (--font-read, italic) — orientation lives on the "New here?" button
+now; quiet coloured status lines (green save/blue AI/muted library); centred
+button stack, Enter with a faint glow; gentle titleRise fade-in (respects reduced
+motion). Verified by screenshot: reads as a real, reverent entrance. build + smoke
+(10 scenes) green.
