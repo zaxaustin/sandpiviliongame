@@ -6,6 +6,35 @@ understood, reproduced, or reverted later. Newest first.
 
 ---
 
+## 2026-07-26 · Phase 2 interaction states + Phase 3 (start) reading serif
+
+**Files:** `src/game/style.css`
+
+**Interaction states (Phase 2):** every button now gives feedback and every
+focus is visible.
+- `.btn` — smooth `filter/transform/box-shadow` transition + `:hover
+  brightness(1.07)` (keeps its existing press-down `:active`).
+- `.btn.ghost` — a faint warm wash + brighter edge on hover
+  (`background:rgba(224,164,60,.12); border-color:var(--gold-bright)`) that works
+  regardless of the button's own accent, plus a subtle `:active` nudge.
+- `.menuDanger:hover` — a danger-red wash instead of gold.
+- `.xbtn` — transition added.
+- One consistent keyboard **focus ring** (`outline:2px solid var(--gold-bright)`)
+  on buttons, links, cards, spines — accessibility + polish.
+- `.card:hover` — border gold **and** a slightly lifted background.
+Verified by screenshot (hover wash on a menu item reads clearly, not garish).
+
+**Reading serif (Phase 3 start):** added `--font-read` (Georgia → Palatino →
+serif; web-safe, no fetch). The Reader's **prose** — book title, section
+headings, summary, and full-text page — now renders in the serif at a comfier
+`15.5px/1.8`, while all surrounding chrome (buttons, meta, the notes column)
+stays in `--font-mono`. A book now reads like a book; the two-face system is the
+biggest single "pro" lever and this is its first, contained application.
+Verified: the reader screenshot shows serif prose against mono chrome — clean and
+intentional. build ✓, smoke ✓.
+
+---
+
 ## 2026-07-26 · Phase 2 (start) — Pause menu grouped + screenshot pipeline
 
 **Files:** `src/game/ui/overlays.js` (`renderMenu`), `src/game/style.css`

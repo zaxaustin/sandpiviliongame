@@ -438,3 +438,20 @@ Local AI / Account & data / Save & session) in a 2-column grid, prominent solid
 .menuResume/.menuSection/.menuGrid/.menuItem/.menuDanger. Changelog + plan updated.
 Next Phase 2: unify card/badge/button hover+focus states + spacing/radii onto the
 scale across the other panels. Good point for the user to review in-app.
+
+---
+
+Phase 2 interaction states + Phase 3 (start) reading serif — both verified by
+screenshot (the eyes-on-the-game pipeline).
+- Interaction states (style.css): .btn hover brightens (+ smooth transitions,
+  keeps press :active); .btn.ghost gets a faint warm wash + brighter edge on
+  hover (works for any accent) + subtle :active; .menuDanger a red wash; one
+  consistent keyboard focus ring (outline gold-bright) on buttons/links/cards/
+  spines; .card:hover now lifts its background too. Whole UI feels responsive now.
+- Reading serif (Phase 3): new --font-read (Georgia->Palatino->serif, web-safe,
+  no fetch). Reader prose — book title, section headings, summary, full-text page
+  — now serif at 15.5px/1.8; all chrome (buttons/meta/notes column) stays mono.
+  A book reads like a book. Chose web-safe stack over an embedded @font-face for
+  now (zero fetch, ships on Win/Mac, serif fallback on Linux).
+Screenshots confirmed: menu hover wash reads clean; reader shows serif prose vs
+mono chrome, elegant. Changelog + plan updated. build + smoke (10 scenes) green.

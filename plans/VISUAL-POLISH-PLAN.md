@@ -68,23 +68,29 @@ cards, the calendar, and spines — those get pointed at tokens as each area is
 touched in Phase 2.
 
 **Phase 2 — The interface chrome (where "pro" is felt). ◀ IN PROGRESS.** First
-piece **done 2026-07-26: the pause menu** — regrouped from one long identical
-stack into labelled sections (Your day / Library / Local AI / Account & data /
-Save & session) in a two-column grid, prominent Resume, danger-red reset;
-verified by screenshot. Still to do: unify card/badge/button states across the
-other panels, hover/focus-visible, spacing normalised onto `--sp-*`, radii onto
-`--r-*`, consistent empty states. With tokens in place:
+pieces **done 2026-07-26:** (a) the **pause menu** regrouped into labelled
+sections in a two-column grid (prominent Resume, danger-red reset); (b)
+**interaction states** across the whole UI — button hover feedback (solid
+brightens, ghost gets a warm wash), a consistent keyboard focus ring, card hover
+lift, smooth transitions. Both verified by screenshot. Still to do: normalise
+spacing onto `--sp-*` and radii onto `--r-*`, and consistent empty states. With
+tokens in place:
 normalize radii/borders/spacing to the scale; unify card/button/badge styling;
 add considered **hover** and **focus-visible** states + gentle transitions;
 consistent, nicely-done empty states everywhere; a cohesive panel header
 treatment. This is the overlays — the part the user means by "the interface is
 everything." The single biggest jump from "functional" to "pro."
 
-**Phase 3 — Typography (the biggest single "professional" lever).** A real type
-scale (sizes/line-heights that relate) and a **two-face system**: keep the
-typewriter mono for labels, badges, the Computer, and code; introduce a clean,
-warm face for body/reading — inlined as a `@font-face` data URI (CSP/offline-safe,
-no external fetch). Keeps the soul, lifts the readability.
+**Phase 3 — Typography (the biggest single "professional" lever). ◀ STARTED
+2026-07-26.** The **two-face system** is in: `--font-mono` (chrome — labels,
+buttons, the terminal) + `--font-read` (a warm serif for prose). First applied to
+the **Reader** — book title/headings/summary/full-text now read in the serif at
+15.5px/1.8, chrome stays mono. Chosen a **web-safe stack** (Georgia → Palatino →
+serif) rather than a bundled `@font-face` data URI for now — zero fetch, ships on
+Windows/Mac, graceful serif fallback on Linux; revisit an embedded face only if we
+want one exact type everywhere. Still to do: extend the serif to other real
+reading surfaces (dialogue text, chat bubbles) if it reads well there, and settle
+a related **type scale** (sizes/line-heights).
 
 **Phase 4 — The world, sprites & title screen.** Palette-locked tiles/sprites so
 the world reads as one composed scene; gentle ambient light/vignette; per-room

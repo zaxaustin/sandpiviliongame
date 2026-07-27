@@ -38,8 +38,11 @@
   --green:#7fa36b; --green-soft:#a9cf90;
   --danger:#b56f6f; --danger-soft:#e0a0a0;
 
-  /* type */
+  /* type — two faces: mono is the Pavilion's "chrome" voice (labels, buttons,
+     the terminal); the serif is for READING long-form prose, so a book reads
+     like a book. Web-safe stacks, no external fetch (CSP/offline-safe). */
   --font-mono:'Courier New', monospace;
+  --font-read:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
 
   /* spacing scale (defined now; scales get normalised onto it in Phase 2) */
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px;
@@ -282,20 +285,34 @@ body { font-family:var(--font-mono); touch-action:none; }
 .xbtn {
   float:right; background:none; border:2px solid var(--gold); color:var(--gold);
   border-radius:var(--r-sm); padding:2px 10px; cursor:pointer; font-family:inherit; font-size:13px;
+  transition:background-color .14s, color .14s;
 }
 .xbtn:hover { background:var(--gold); color:var(--parchment); }
 .btn {
   background:var(--gold); color:var(--parchment); border:none; border-radius:7px;
   padding:9px 18px; font-family:inherit; font-weight:bold; font-size:13px;
   cursor:pointer; box-shadow:0 3px 0 var(--gold-deep);
+  transition:filter .12s, transform .06s, box-shadow .06s;
 }
+.btn:hover { filter:brightness(1.07); }
 .btn:active { transform:translateY(2px); box-shadow:0 1px 0 var(--gold-deep); }
-.btn.ghost { background:none; color:var(--gold); border:2px solid var(--gold); box-shadow:none; }
+.btn.ghost { background:none; color:var(--gold); border:2px solid var(--gold); box-shadow:none;
+  transition:background-color .14s, border-color .14s, color .14s, transform .06s; filter:none; }
+/* ghost buttons hold their own accent colour (gold, danger, etc.) — a faint warm
+   wash + brighter edge on hover reads as interactive without repainting them. */
+.btn.ghost:hover { background:rgba(224,164,60,.12); border-color:var(--gold-bright); }
+.btn.ghost:active { transform:translateY(1px); }
+.menuDanger:hover { background:rgba(181,111,111,.14); border-color:var(--danger-soft); }
+/* one consistent keyboard-focus ring everywhere (accessibility + polish) */
+.btn:focus-visible, .btn.ghost:focus-visible, .xbtn:focus-visible,
+.card:focus-visible, a.link:focus-visible, .spine:focus-visible {
+  outline:2px solid var(--gold-bright); outline-offset:2px;
+}
 .card {
   background:var(--surface); border:2px solid var(--edge); border-radius:var(--r-md);
-  padding:12px 14px; margin-bottom:10px; cursor:pointer; transition:border-color .15s;
+  padding:12px 14px; margin-bottom:10px; cursor:pointer; transition:border-color .15s, background-color .15s;
 }
-.card:hover { border-color:var(--gold); }
+.card:hover { border-color:var(--gold); background:#261d13; }
 #dropZone { transition:border-color .15s,background-color .15s; }
 #dropZone.over { border-color:var(--gold); background-color:rgba(224,164,60,.08); color:#f2c97a; }
 .card .t { color:var(--ink); font-weight:bold; font-size:14px; }
@@ -397,8 +414,12 @@ input[type=time]:focus, input[type=date]:focus { outline:none; border-color:#e0a
 .bookPanel h2 { color:#5a3a12; }
 .bookPanel .meta { color:#8a7350; }
 .bookPanel .meta b { color:#6b4a1f; }
-.bookPanel h3 { color:#8a5a1f; }
+.bookPanel h3 { color:#8a5a1f; font-family:var(--font-read); }
 .bookPanel p { color:#3a2e1c; }
+/* The book's prose reads in the serif — its title/section headings too — while
+   the surrounding buttons and notes stay in the mono chrome voice. */
+.bookPanel h2, .bookPanel p, .bookPanel .rdSummary, .bookPanel .fullTextPage { font-family:var(--font-read); }
+.bookPanel .fullTextPage { font-size:15.5px; line-height:1.8; }
 .bookPanel .rdSummary { font-style:italic; color:#7a5a28; border-left:3px solid #d8c393; padding-left:10px; }
 .bookPanel .xbtn { border-color:#8a6423; color:#6b4a1f; }
 .bookPanel .xbtn:hover { background:#8a6423; color:#f3e6c8; }
