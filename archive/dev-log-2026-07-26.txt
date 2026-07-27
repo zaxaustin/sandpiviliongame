@@ -344,3 +344,32 @@ links, per-note BuJo logs, lesson plans); scheduling is strong (intention/ember,
 the daily BuJo log, rhythm blocks, sparks, calendar with timed events + reminders,
 Sebastian day-planning). Verdict: demo-ready. Verified: check + smoke (9 scenes, 22
 docs) + build all green.
+
+---
+
+Library second floor + bulk personal import (user asks; friend test: liked it,
+visuals need work — noted for VISUAL-POLISH-PLAN, not this pass).
+
+Second floor:
+- New scene buildLibraryFloor2() (scenes.js) — W16xH11, two shelf rows (four
+  blocks): Hindu (front-west), Native American (front-east), Fiction (back-west),
+  Non-fiction (back-east). Signposted spiral staircase at the back-east of the
+  ground floor (warp {14,3}->libraryfloor2 {8,8}; a "A SPIRAL STAIRCASE" sign at
+  {14,2}); floor2 down-warp {8,9}->library {14,4}. Landing/shelf signs upstairs;
+  a reading nook + a candle. Quill's line updated to point up the stairs. Unlike
+  the secret basement, this is meant to be found.
+- shelfTraditionFor() gains a libraryfloor2 branch (same row/side math). SHELF_HUE
+  gains Hindu/Native American/Fiction/Non-fiction (+Tantra) so spines are colored.
+  These four were the TRADITIONS with no physical shelf yet — now they have one.
+- Smoke test now reports 10 scenes (was 9).
+
+Bulk import (many at a time):
+- The drop handler was files[0] only. Refactored: handleBookDrop + a new file
+  picker (handleBookFilePick, hidden <input multiple>) both funnel through
+  intakeBookFiles. ONE file -> fills the form (fillFromSingleFile). MANY files ->
+  bulkShelveDroppedFiles: parse each (parseBookFile, shared), shelveAsPersonal on
+  the chosen #rmTradition shelf, progress line, per-file failures collected not
+  fatal. Personal copies need no license, which is what makes a batch safe. Drop
+  zone copy updated ("one, or a whole pile at once") + "📁 Choose files…" button.
+Verified: check (overlays+scenes) + smoke (10 scenes, 22 docs) + build all green.
+MANUAL updated (Library second floor; bulk add).

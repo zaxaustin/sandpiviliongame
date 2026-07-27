@@ -39,10 +39,13 @@ screen tells you plainly whether saving to this device is working.
 - **The Grounds** — the outdoor world that connects everything. A fishing
   pond (face the water, press E), wandering deer and bunnies, and doors to
   every building. North leads to the Keep.
-- **The Library** (south) — nine shelves of real, readable books, a shrine
-  by the door, a bean-bag reading nook, and **Your Shelf** (see §4). It is
-  bigger inside than outside. There may be more to this room than is
-  written here.
+- **The Library** (south) — shelves of real, readable books, a shrine by the
+  door, a bean-bag reading nook, and **Your Shelf** (see §4). It is bigger
+  inside than outside. The ground floor holds six lineage shelves; a **spiral
+  staircase at the back (east side)** climbs to a **second floor** — Hindu and
+  Native American traditions, and the **Fiction** and **Non-fiction** wings —
+  so the collection can grow past one room. There may be more to this room than
+  is written here.
 - **The Study** (through the Library's east door, or its own south door) —
   the day-planning room: the Writing Desk, the Course Board, the Computer,
   and the Request Board.
@@ -143,6 +146,12 @@ still has scripted things to say, and every desk still works.
   add also gathers on **Your Shelf**, the small case by the reading nook, so
   you can always find your own additions in one place. Full guide:
   [`PROTOCOLS.md`](PROTOCOLS.md) Protocol 1.
+- **Add many books at once** — at the Caravan Desk, **drop a whole pile of
+  `.epub`/`.txt` files together**, or use **📁 Choose files… (one or many)**.
+  One file fills the form to review; **many files go straight to Your Shelf** on
+  the shelf you picked, each marked 👤 as yours (personal copies, no license
+  needed). A progress line counts them in, one bad file never stops the rest,
+  and you can re-file any of them afterward under **⚙ Manage my books**.
 - **Tidy your own books** — on **Your Shelf**, press **⚙ Manage my books** to
   fix a misfiled book (move it to the right shelf) or remove a duplicate.
   Same-title duplicates are flagged for you. This only touches your own 👤

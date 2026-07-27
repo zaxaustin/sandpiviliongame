@@ -1922,12 +1922,19 @@ export function shelfTraditionFor(x,y){
   // The basement's two shelves both hold the one tradition kept down
   // there — no row/side math needed for a single-tradition room.
   if(state.scene==='librarybasement') return 'Tantra';
-  // six shelf blocks, three rows deep → six lineages
+  // second floor — two rows, four blocks: the broader collection
+  if(state.scene==='libraryfloor2'){
+    const row = y<=4 ? 0 : 1;
+    const side = x<8 ? 0 : 1;
+    return [['Hindu','Native American'],['Fiction','Non-fiction']][row][side];
+  }
+  // ground floor — six shelf blocks, three rows deep → six lineages
   const row = y<=4 ? 0 : y<=7 ? 1 : 2;
   const side = x<8 ? 0 : 1;
   return [['Theravada','Mahayana'],['Daoism','Practice'],['Science','Classics']][row][side];
 }
-const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Classics:150, Personal:46 };
+const SHELF_HUE={ Theravada:36, Mahayana:275, Daoism:112, Practice:200, Science:8, Classics:150, Personal:46,
+  Hindu:20, 'Native American':90, Fiction:315, 'Non-fiction':230, Tantra:330 };
 export function openShelf(tradition){
   state.ui='shelf'; state.shelfTradition=tradition; state.shelfIndex=0; hideAllOv();
   document.getElementById('shelfTitle').textContent = tradition==='Personal' ? 'Shelf · Your Shelf' : 'Shelf · '+tradition;
@@ -5432,50 +5439,88 @@ function fillDropForm(title, author, body, msg){
       +'review queue requires a certified license.)';
   }
 }
-export async function handleBookDrop(event){
+/* One file fills the form (so you can name its shelf, add a license if you're
+   sharing it, and eyeball the text). MANY files at once skip straight to Your
+   Shelf as personal copies on the chosen shelf — the bulk path the user asked
+   for. Both drag-drop (handleBookDrop) and the file picker (handleBookFilePick)
+   funnel through intakeBookFiles so the two behave identically. */
+export function handleBookDrop(event){
   event.preventDefault();
   document.getElementById('dropZone')?.classList.remove('over');
-  const file=event.dataTransfer.files[0];
-  const msg=document.getElementById('dropMsg');
-  if(!file || !msg) return;
+  intakeBookFiles(event.dataTransfer.files, document.getElementById('dropMsg'));
+}
+export function handleBookFilePick(event){
+  intakeBookFiles(event.target.files, document.getElementById('dropMsg'));
+  event.target.value=''; // let the same files be re-picked if needed
+}
+async function intakeBookFiles(fileList, msg){
+  const files=[...(fileList||[])];
+  if(!files.length || !msg) return;
+  if(files.length>1) return bulkShelveDroppedFiles(files, msg);
+  return fillFromSingleFile(files[0], msg);
+}
+// Parse one .txt/.epub into {title, body, author}. Throws with a short reason so
+// the bulk loop can record which files failed without stopping the rest.
+async function parseBookFile(file){
   const name=file.name.toLowerCase();
-  // EPUB — the format most free-book sites hand you. Unpacked in the browser
-  // itself (src/game/epub.js), no terminal, no conversion step, no upload.
   if(name.endsWith('.epub')){
-    msg.textContent='Unpacking the EPUB… a long book can take a few seconds.';
-    let res;
-    try{ res=await epubToText(file); }
-    catch(err){
-      const m=String(err&&err.message||'');
-      msg.textContent = m.includes('NO_DECOMPRESSION')
-        ? "This browser can't unpack an EPUB on its own. Use the desktop app, or convert it with "
-          +"tools/caravan/epub-to-text.py and drop the resulting .txt here."
-        : "Couldn't read that EPUB ("+(m||'unknown error')+"). If it's an unusual file, try "
-          +"tools/caravan/epub-to-text.py, which prints a clearer reason.";
-      return;
-    }
-    if(!res.body || !res.body.trim()){
-      msg.textContent="That EPUB held no readable text — it may be image-only (scanned pages), which "
-        +"needs OCR the Pavilion doesn't do. Try a text-based edition.";
-      return;
-    }
-    fillDropForm(res.title||file.name.replace(/\.epub$/i,''), res.author, res.body, msg);
-    return;
+    const res=await epubToText(file); // may throw (e.g. NO_DECOMPRESSION)
+    if(!res.body || !res.body.trim()) throw new Error('no readable text (image-only?)');
+    return { title:res.title||file.name.replace(/\.epub$/i,''), body:res.body, author:res.author||null };
   }
-  if(!name.endsWith('.txt')){
+  if(name.endsWith('.txt')){
+    const text=await file.text();
+    const titleMatch=DROP_TITLE_RE.exec(text), authorMatch=DROP_AUTHOR_RE.exec(text);
+    return { title:titleMatch?titleMatch[1].trim():file.name.replace(/\.txt$/i,''), body:text, author:authorMatch?authorMatch[1].trim():null };
+  }
+  throw new Error('not a .txt or .epub');
+}
+async function fillFromSingleFile(file, msg){
+  const name=file.name.toLowerCase();
+  if(name.endsWith('.epub')) msg.textContent='Unpacking the EPUB… a long book can take a few seconds.';
+  else if(!name.endsWith('.txt')){
     msg.textContent='Drop a .txt or .epub file here. (For a PDF, convert it first with '
       +'tools/caravan/pdf-to-text.py, then drop the .txt.)';
     return;
   }
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const text=String(reader.result||'');
-    const titleMatch=DROP_TITLE_RE.exec(text);
-    const authorMatch=DROP_AUTHOR_RE.exec(text);
-    const title=titleMatch ? titleMatch[1].trim() : file.name.replace(/\.txt$/i,'');
-    fillDropForm(title, authorMatch?authorMatch[1].trim():null, text, msg);
-  };
-  reader.readAsText(file);
+  let b;
+  try{ b=await parseBookFile(file); }
+  catch(err){
+    const m=String(err&&err.message||'');
+    msg.textContent = m.includes('NO_DECOMPRESSION')
+      ? "This browser can't unpack an EPUB on its own. Use the desktop app, or convert it with "
+        +"tools/caravan/epub-to-text.py and drop the resulting .txt here."
+      : "Couldn't read that file ("+(m||'unknown error')+"). If it's an unusual EPUB, try "
+        +"tools/caravan/epub-to-text.py, which prints a clearer reason.";
+    return;
+  }
+  fillDropForm(b.title, b.author, b.body, msg);
+}
+/* Bulk add — many personal books in one drop/pick. Each lands on the shelf
+   chosen in #rmTradition, marked 👤 as yours; personal copies need no license or
+   source, which is exactly what makes a batch safe to do unattended. One bad file
+   never stops the rest — failures are collected and reported at the end. */
+async function bulkShelveDroppedFiles(files, msg){
+  const tradition=document.getElementById('rmTradition')?.value || 'Personal';
+  const supported=files.filter(f=>/\.(epub|txt)$/i.test(f.name));
+  const skipped=files.length-supported.length;
+  if(!supported.length){ msg.textContent='None of those are .txt or .epub, so there was nothing to add. (For PDFs, convert first with tools/caravan/pdf-to-text.py.)'; return; }
+  let added=0; const failed=[];
+  for(let i=0;i<supported.length;i++){
+    const f=supported[i];
+    msg.textContent=`Adding ${i+1} of ${supported.length} to the ${tradition} shelf… (${added} shelved so far) — “${f.name}”`;
+    try{
+      const b=await parseBookFile(f);
+      const res=await shelveAsPersonal({ title:b.title, body:b.body, license:'', source:b.author||'', tradition });
+      if(res && res.ok) added++; else failed.push(f.name+(res&&res.reason?' — '+res.reason:''));
+    }catch(e){ failed.push(f.name+' — '+String(e&&e.message||'unreadable')); }
+  }
+  logActivity('Bulk-added '+added+' personal book(s) to the '+tradition+' shelf.');
+  const parts=[`✓ Added <b>${added}</b> book${added===1?'':'s'} to Your Shelf on the <b>${esc(tradition)}</b> shelf, marked 👤 as yours.`];
+  if(skipped) parts.push(`${skipped} file${skipped===1?'':'s'} skipped (not .txt/.epub).`);
+  if(failed.length) parts.push(`Couldn't add ${failed.length}: ${esc(failed.slice(0,4).join('; '))}${failed.length>4?'…':''}.`);
+  parts.push('Tidy or re-file any of them under ⚙ Manage my books.');
+  msg.innerHTML=parts.join(' ');
 }
 export function openReviewQueue(){ state.ui='review'; hideAllOv(); state.reviewView=state.reviewView||{mode:'list'}; renderReviewQueue(); showOv('reviewOv'); }
 export function newReviewImportForm(){ state.reviewView={mode:'import'}; renderReviewQueue(); }
@@ -5517,12 +5562,14 @@ function renderReviewQueue(){
       <div id="dropZone" ondragover="event.preventDefault();this.classList.add('over')"
         ondragleave="this.classList.remove('over')" ondrop="handleBookDrop(event)"
         style="margin-top:8px;border:2px dashed #55432e;border-radius:8px;padding:22px;text-align:center;color:#a8926c;font-size:13px">
-        📄 Drag a <code>.txt</code> or <code>.epub</code> file here — an EPUB is unpacked right here
-        in the game, no conversion needed. Title, author, and (for a listed source above) the
-        license get filled in below automatically. Nothing's added to any shelf until you press Add.
-        Picking "Not listed / unknown" just means it goes to <b>Your Shelf as a personal copy</b> —
-        no license needed.
+        📄 Drag <code>.txt</code> or <code>.epub</code> files here — <b>one, or a whole pile at once</b>.
+        An EPUB is unpacked right here in the game, no conversion needed.<br>
+        <b>One file</b> fills the form below to review before adding. <b>Many files</b> go straight to
+        Your Shelf on the shelf you pick below, each marked 👤 as your own (personal copies need no
+        license — re-file any later under ⚙ Manage my books).
       </div>
+      <input type="file" id="bulkFilePick" accept=".txt,.epub" multiple style="display:none" onchange="handleBookFilePick(event)">
+      <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:12px" onclick="document.getElementById('bulkFilePick').click()">📁 Choose files… (one or many)</button></div>
       <div id="dropMsg" class="meta"></div>
       <label style="margin-top:10px;color:#e0a43c">📚 Which shelf? — pick this first, so the book lands in the right place</label>
       <select id="rmTradition" style="width:100%;background:#1b140d;border:2px solid #8a6a3a;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
@@ -6088,7 +6135,7 @@ Object.assign(window, {
   openComputer, saveLastChatReplyToArchive, sendSebastianPlanToToday,
   openRequests, addRequest, removeRequest,
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
-  openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop,
+  openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop, handleBookFilePick,
   shelvePersonalBook, shelveManualFormNow, removePersonalBook, openWelcome,
   openManageLibrary, movePersonalBook,
   toggleEventReminder, dismissButlerPing, butlerPingGo,
