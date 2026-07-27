@@ -278,6 +278,17 @@ of the day, not three.
   — note · ✦ to learn/try). The one place everything lands first: get it out
   fast, digest it later. The foundation of the self-learning journal system
   (`plans/SELF-LEARNING-JOURNAL-PLAN.md`).
+- **🧭 Paths** (pause menu) — for the things you mean to pursue but don't want on
+  a calendar. A **path** is an idea or intention kept as a card you *pick up and
+  continue* — no due date, no guilt. Each keeps a running log of the steps you've
+  taken, so returning to it shows exactly where you left off; a path left resting
+  is *waiting*, not failing. Start one directly, or in **The Log** press
+  **🧭 Walk this** to turn a captured idea into a path. Mark it **walked** when
+  you've gone as far as you meant to.
+- **🎓 The Academy** (pause menu) — a patient AI **Tutor** who will teach you a
+  subject, quiz you, review your work, or help a teacher plan a lesson. Tell it
+  the topic and your level and it begins; on a Learning Tree lesson, **🎓 Study
+  with the Tutor** grounds it in that lesson. Runs on your own local model.
 
 ---
 

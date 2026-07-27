@@ -1262,7 +1262,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); state.audioReturnSlug=null; state.notesLogEdit=null; persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -1326,6 +1326,7 @@ function renderMenu(){
     ${section('Your day', [
       item('openIdeaCapture()', `📓 The Log${data.ideas.length?' · '+data.ideas.length:''}`),
       item('openStillOpen()', `📋 Still Open${openSparks().length?' · '+openSparks().length:''}`),
+      item('openPaths()', `🧭 Paths${(data.paths||[]).filter(p=>!p.walked).length?' · '+(data.paths||[]).filter(p=>!p.walked).length:''}`),
       item('openNotesLog()', '🗒 Your Notes'),
       item('openLearningTree()', '🌳 Lesson plans'),
       item('openAcademy()', '🎓 The Academy'),
@@ -5327,6 +5328,7 @@ function renderIdeaJar(){
           <div style="margin-top:2px">${esc(i.text)}</div>
           <div class="row" style="margin-top:6px">
             <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="sendLogEntryToToday(${i.id})">→ Today's page</button>
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="startPathFromIdea(${i.id})" title="Keep it as a path to pick up and continue — no due date">🧭 Walk this</button>
             <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="deleteIdea(${i.id})">Remove</button>
           </div>
         </div>`).join('')}` : ''}`;
@@ -5343,6 +5345,95 @@ export function saveIdea(){
 export function deleteIdea(id){
   data.ideas=data.ideas.filter(i=>i.id!==id);
   persist(); renderIdeaJar();
+}
+
+/* ----- Paths — the daily-use heart the user asked for: an idea or intention
+   kept NOT as a dated calendar item (which only accrues guilt when missed) but
+   as a card you pick up and continue — "a path not yet walked, waiting for you
+   to go further." No due dates. Each path keeps a running log of the steps you
+   took, so picking it up again shows exactly where you left off. Its own small
+   store (data.paths); The Log can promote a captured idea straight into one. */
+let pathSaveTimer=null;
+function newPathId(){ return 'path-'+Date.now()+'-'+Math.random().toString(36).slice(2,6); }
+export function openPaths(){ state.ui='paths'; state.pathView={mode:'list'}; hideAllOv(); renderPaths(); showOv('pathsOv'); }
+export function backToPaths(){ state.pathView={mode:'list'}; renderPaths(); }
+export function createPath(seed){
+  const p={ id:newPathId(), title:(seed&&seed.slice(0,60))||'A new path', seed:seed||'', steps:[], created:todayKey(), updated:todayKey(), walked:false };
+  data.paths.unshift(p); persist(); logActivity('Set out on a new path.'); blip(740,.08);
+  state.pathView={mode:'one', id:p.id}; renderPaths();
+}
+export function startPathFromIdea(id){
+  const idx=data.ideas.findIndex(x=>x.id===id); if(idx<0) return;
+  const idea=data.ideas[idx];
+  const p={ id:newPathId(), title:idea.text.slice(0,60), seed:idea.text, steps:[], created:todayKey(), updated:todayKey(), walked:false };
+  data.paths.unshift(p); data.ideas.splice(idx,1); // migrate out of the Log — it becomes a path, it doesn't duplicate
+  persist(); logActivity('Turned a captured idea into a path to walk.'); blip(740,.08);
+  state.ui='paths'; state.pathView={mode:'one', id:p.id}; hideAllOv(); renderPaths(); showOv('pathsOv');
+}
+export function openPath(id){ state.pathView={mode:'one', id}; renderPaths(); }
+export function addPathStep(id){
+  const p=(data.paths||[]).find(x=>x.id===id); if(!p) return;
+  const inp=document.getElementById('pathStepInput'); const text=(inp&&inp.value||'').trim(); if(!text) return;
+  p.steps.push({ts:todayKey(), text}); p.updated=todayKey(); p.walked=false; // taking a step means you're walking it again
+  persist(); logActivity('Walked a path a little further.'); blip(660,.06); renderPaths();
+  setTimeout(()=>document.getElementById('pathStepInput')?.focus(),20);
+}
+export function updatePathField(id, field, val){
+  const p=(data.paths||[]).find(x=>x.id===id); if(!p) return;
+  p[field]=val; p.updated=todayKey(); clearTimeout(pathSaveTimer); pathSaveTimer=setTimeout(persist,500);
+}
+export function togglePathWalked(id){
+  const p=(data.paths||[]).find(x=>x.id===id); if(!p) return;
+  p.walked=!p.walked; p.updated=todayKey(); persist();
+  if(p.walked) logActivity('A path walked: "'+p.title+'".');
+  renderPaths();
+}
+export function deletePath(id){
+  const p=(data.paths||[]).find(x=>x.id===id); if(!p) return;
+  if(!window.confirm('Let go of the path “'+(p.title||'untitled')+'”? Its steps go with it.')) return;
+  data.paths=data.paths.filter(x=>x.id!==id); persist(); state.pathView={mode:'list'}; renderPaths();
+}
+function renderPaths(){
+  const el=document.getElementById('pathsPanel'); if(!el) return;
+  const v=state.pathView||{mode:'list'}, paths=data.paths||[];
+  if(v.mode==='one'){
+    const p=paths.find(x=>x.id===v.id); if(!p){ state.pathView={mode:'list'}; return renderPaths(); }
+    el.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <button class="btn ghost" onclick="backToPaths()">← All paths</button>
+        <button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="deletePath('${p.id}')">✕ Let it go</button>
+      </div>
+      <input type="text" value="${esc(p.title)}" oninput="updatePathField('${p.id}','title',this.value)" style="font-size:16px;font-weight:bold">
+      ${p.seed?`<div class="meta" style="margin-top:6px">Set out from: “${esc(p.seed)}”</div>`:''}
+      <h3 style="margin-top:14px">The way so far${p.steps.length?` · ${p.steps.length} step${p.steps.length>1?'s':''}`:''}</h3>
+      ${p.steps.length ? p.steps.map(s=>`<div class="card" style="cursor:default"><div class="s">${esc(s.ts)}</div><div style="white-space:pre-wrap">${esc(s.text)}</div></div>`).join('')
+        : '<p class="meta">No steps yet — the path is fresh. Take one below whenever you pick it up.</p>'}
+      <div class="row" style="margin-top:10px;gap:6px">
+        <input type="text" id="pathStepInput" placeholder="Pick it up — what did you do, or what’s the next step?" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addPathStep('${p.id}');}">
+        <button class="btn" onclick="addPathStep('${p.id}')">＋ Step</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost" onclick="togglePathWalked('${p.id}')">${p.walked?'↩ Still walking it':'✓ This path is walked'}</button>
+      </div>`;
+    setTimeout(()=>document.getElementById('pathStepInput')?.focus(),30);
+    return;
+  }
+  const open=paths.filter(p=>!p.walked), walked=paths.filter(p=>p.walked);
+  const card=p=>{ const last=p.steps[p.steps.length-1];
+    return `<div class="card" onclick="openPath('${p.id}')">
+      <div class="t">🧭 ${esc(p.title)}${p.walked?' <span class="badge lic">walked ✓</span>':''}</div>
+      <div class="s">${p.steps.length?esc(p.steps.length+' step'+(p.steps.length>1?'s':'')+' · last '+last.ts+': '+last.text.slice(0,72)):'not yet begun — pick it up when you like'}</div>
+    </div>`; };
+  el.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🧭 Paths</h2>
+    <div class="meta">Not a schedule, and not a to-do list with a due date. Each path is a thread of your own
+      making — an idea or intention you pick up and walk a little further whenever you have the energy. A
+      path left resting is waiting, not failing. Pick one up.</div>
+    <div class="row" style="margin:10px 0"><button class="btn" onclick="createPath('')">＋ Start a path</button></div>
+    ${open.length ? open.map(card).join('') : '<p class="meta">No paths yet. Start one above — or in 📓 The Log, turn a captured idea into a path to walk.</p>'}
+    ${walked.length ? `<h3 style="margin-top:16px">Walked</h3>${walked.map(card).join('')}` : ''}`;
 }
 /* The Log -> the day (SELF-LEARNING-JOURNAL-PLAN.md — closing the capture ->
    organize seam). A captured entry MIGRATES onto today's bullet-journal page:
@@ -6212,6 +6303,7 @@ Object.assign(window, {
   openVoiceSettings, setTTSVoice, setTTSRate, previewTTSVoice,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   openIdeaCapture, saveIdea, deleteIdea, setLogKind, sendLogEntryToToday,
+  openPaths, backToPaths, createPath, startPathFromIdea, openPath, addPathStep, updatePathField, togglePathWalked, deletePath,
   setPlanLogKind, addPlanLogEntry, togglePlanLogTask, removePlanLogEntry,
   migrateLogTask, dropLogTask, migrateAllLogTasks,
   setSebMode,

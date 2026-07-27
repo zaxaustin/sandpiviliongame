@@ -39,3 +39,18 @@ are props, not full — 6/24 full today), then the Science & Research Hall (diss
 papers + scientific method + physics/electricity sandboxes, possibly a 3rd-party
 theory course), learning electricity there with the Tutor. Data-safety-before-beta
 stands (migrations safe, MinIO storage).
+
+Paths BUILT — the daily-use heart (user: undone calendar items are guilt; he wants
+ideas as CARDS you pick up and continue, "a path not yet walked, waiting to go
+further"). New data.paths store (migration-safe). A Path = {title, seed, steps[],
+walked}: pick it up, add a step (the running "way so far"), mark walked when done —
+NO due date. Entry points: pause menu "🧭 Paths" (with open-count badge), and The
+Log's "🧭 Walk this" promotes a captured idea straight into a path (migrates it out
+of the Log). Its own overlay (pathsOv), list + single-path views, framed as
+invitation not obligation. Verified by screenshot (list + single view render).
+node --check + build + smoke (10 scenes, 24 docs) green. MANUAL updated (Paths +
+the Academy Tutor entry).
+Status recap given: interface redo is launch-ready with a polish tail (spacing/radii,
+more serif surfaces, sprite variety, motion); Science Hall core already exists
+(investigations, paper-dissection, self-experiments) — the NEW ask is physics/
+electricity sandboxes (next).
