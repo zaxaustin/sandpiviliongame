@@ -50,14 +50,22 @@ happens once at open, so indices stay honest. *By title for now* — a book has 
 stored `author` field yet; adding one flips this to by-author (small follow-up:
 add `author` to the data model + the add form, then change `shelfSortKey`).
 
-**Phase 1 — Design tokens (the foundation, invisible, safe).** Extract one
-`:root` system in `style.css`: named **palette** (`--gold`, `--ink`,
-`--parchment`, `--muted`, `--edge`, the blue/green/red accents), a **spacing
-scale** (4/8/12/16/24), a **radius scale** (one small, one medium), **border**
-and **shadow** tokens, **type** tokens. Swap the core components
-(`.panel/.btn/.card/.badge/.xbtn`/inputs) to use them. Values start *identical to
-today* → zero visual change → then the whole look tunes from ten lines. Highest
-leverage, lowest risk; everything after builds on it.
+**Phase 1 — Design tokens (the foundation, invisible, safe). ✅ DONE 2026-07-26.**
+Extracted one `:root` system at the top of `style.css`: a named **palette**
+(surfaces `--void/--ground/--field/--surface/--surface-raised/--parchment`, ink
+`--ink/--ink-soft/--muted/--muted-light/--muted-card`, the gold `--gold/
+--gold-bright/--gold-deep`, edges `--edge/--edge-faint/--edge-gold/--edge-warm`,
+and semantic accents `--blue*/--green*/--danger*`), a **spacing scale**
+(`--sp-1..6` = 4/8/12/16/24), a **radius scale** (`--r-sm/md/lg` = 6/9/12),
+**shadow** tokens, and a **type** token (`--font-mono`). The core components
+(`body`, `.panel` + headings/meta/p, `.btn`/`.btn.ghost`, `.xbtn`, `.card` +
+`.t`/`.s`, `.badge`, inputs/textarea, `label`) now read from them. **Every value
+is identical to before → zero visual change**; the look is now tunable from one
+block. Full mapping recorded in `VISUAL-REVAMP-CHANGELOG.md`. *Still literal for
+now (normalised in Phase 2):* the odd radii (7/8/10px) and per-component
+paddings, and the many one-off hexes in `#dialog`, the chat view, the phone
+cards, the calendar, and spines — those get pointed at tokens as each area is
+touched in Phase 2.
 
 **Phase 2 — The interface chrome (where "pro" is felt).** With tokens in place:
 normalize radii/borders/spacing to the scale; unify card/button/badge styling;
@@ -77,6 +85,12 @@ the world reads as one composed scene; gentle ambient light/vignette; per-room
 accent identity; a stronger **title screen** (the first impression a friend
 gets). Bigger — needs pixel-art passes; pairs with
 `CHARACTER-CUSTOMIZATION-PLAN.md`. Still low-res, still cheap.
+  - **Art constraint, stated 2026-07-26:** keep the warm walk-around **RPG feel**
+    the user likes — but **all art is original**, resembling **no existing game's
+    characters, sprites, tilesets, logos, or names** (no legal exposure, ever),
+    and **no creature-collecting / pet system for now**. The vibe is "a cozy
+    top-down RPG town," achieved with our own tiles and palette — never by
+    borrowing anyone's IP.
 
 **Phase 5 — Motion & touches.** Gentle overlay open/close transitions, a nicer
 AI-thinking state, cohesive iconography, one consistent toast/confirmation

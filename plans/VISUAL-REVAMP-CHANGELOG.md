@@ -1,0 +1,72 @@
+# Visual Revamp — Changelog
+
+A running, concrete record of every visual change made during the revamp (see
+`VISUAL-POLISH-PLAN.md` for the phased plan). Kept so any change can be
+understood, reproduced, or reverted later. Newest first.
+
+---
+
+## 2026-07-26 · Phase 1 — Design tokens (zero visual change)
+
+**Files:** `src/game/style.css`
+
+**What:** Introduced a `:root { … }` design-token block at the top of the
+stylesheet and pointed the core UI components at it. **No pixel changed on
+screen** — every token was set to the exact value the components already used;
+this is purely "define the look in one place so it's tunable."
+
+**Tokens added** (name → value):
+
+- Surfaces: `--void:#141019`, `--ground:#1a130c`, `--field:#1b140d`,
+  `--surface:#221a12`, `--surface-raised:#241b12`, `--parchment:#2a2118`
+- Ink: `--ink:#f5e9d4`, `--ink-soft:#eadfca`, `--muted:#9c8b74`,
+  `--muted-light:#cbb79a`, `--muted-card:#b3a288`
+- Gold accent: `--gold:#e0a43c`, `--gold-bright:#ffd98a`, `--gold-deep:#8a6423`
+- Edges: `--edge:#55432e`, `--edge-faint:#3a2e20`, `--edge-gold:#6b4a2f`,
+  `--edge-warm:#8a6a3a`
+- Accents: `--blue:#7fa9c9`, `--blue-soft:#a9c7e8`, `--blue-deep:#4a6a8a`,
+  `--green:#7fa36b`, `--green-soft:#a9cf90`, `--danger:#b56f6f`,
+  `--danger-soft:#e0a0a0`
+- Type: `--font-mono:'Courier New', monospace`
+- Spacing: `--sp-1:4px … --sp-6:24px` (defined for Phase 2; not yet applied)
+- Radius: `--r-sm:6px`, `--r-md:9px`, `--r-lg:12px`
+- Shadows: `--shadow-panel:0 10px 40px rgba(0,0,0,.6)`,
+  `--shadow-card:0 4px 8px rgba(0,0,0,.35)`
+
+**Components converted to tokens:** `html,body` (bg + font), `.panel` and its
+`h2/h3/.meta/.meta b/p`, `.btn`, `.btn.ghost`, `.xbtn` (+`:hover`), `.card`
+(+`:hover`, `.t`, `.s`), `#dropZone.over`, `.badge` (+`.lic`), `a.link`,
+`input[type=text]`/`textarea` (+`:focus`), `label`.
+
+**Deliberately left literal for Phase 2** (normalising these is an intentional,
+visible change, not part of the zero-change foundation): the non-scale radii
+(`7px` on `.btn`/inputs, `8/10px` elsewhere), per-component paddings, and the
+many one-off hexes still inside `#dialog`, `#hud`/`#menuBtn`, the chat view
+(`.bubble` etc.), the pocket cards (`#chatPhone`/`#bookPhone`/`#butlerPing`), the
+calendar, the planner blocks, and the book spines. Those get pointed at the same
+tokens as each area is polished.
+
+**Verification:** `npm run build` ✓, smoke test ✓ (10 scenes, 22 docs).
+
+**Revert:** delete the `:root` block and restore literal values (the git commit
+for this change is self-contained).
+
+---
+
+## 2026-07-26 · Phase 0 — Shelf organization
+
+**Files:** `src/game/ui/overlays.js` (`openShelf`, `renderShelf`, new
+`shelfSortKey`/`SHELF_ROW_MAX`), `src/game/style.css` (`.shelfRow`,
+`.shelfRowCap`)
+
+**What:** Each shelf now **sorts alphabetically** by title (leading "the/a/an"
+ignored) and breaks into **bays of ≤20 books**, each captioned with its letter
+range and index range (e.g. `A–D · 1–20`). Sorting happens once when the shelf
+opens (`state.shelfDocs` becomes the ordered list), so `selectBook`/`shelfNav`
+indices stay correct.
+
+**Known follow-up:** sort is **by title** because books carry no `author` field
+yet. Adding `author` to the data model + the add-a-book form, then switching
+`shelfSortKey` to prefer it, flips this to true by-author shelving.
+
+**Verification:** `node --check` ✓, smoke ✓ (10 scenes), build ✓.

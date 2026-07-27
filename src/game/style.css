@@ -1,6 +1,60 @@
+/* ============================================================
+   DESIGN TOKENS — the one place the Pavilion's look is defined.
+   VISUAL-POLISH-PLAN.md Phase 1. Every value here is EXACTLY what
+   the components used before tokenizing, so introducing this block
+   changed nothing on screen — it just made the whole look tunable
+   from here. As later phases tidy scales, they change these lines,
+   not a hundred scattered hexes. See VISUAL-REVAMP-CHANGELOG.md.
+   ============================================================ */
+:root {
+  /* palette — surfaces (dark → light) */
+  --void:#141019;            /* the space behind everything */
+  --ground:#1a130c;          /* full-screen chat background */
+  --field:#1b140d;           /* input / textarea background */
+  --surface:#221a12;         /* card / calendar-cell background */
+  --surface-raised:#241b12;  /* bubbles, the pocket cards */
+  --parchment:#2a2118;       /* panel background, and text ON gold */
+
+  /* palette — ink (text) */
+  --ink:#f5e9d4;             /* primary cream text */
+  --ink-soft:#eadfca;        /* body paragraphs */
+  --muted:#9c8b74;           /* secondary / meta text */
+  --muted-light:#cbb79a;     /* labels, emphasised meta */
+  --muted-card:#b3a288;      /* card secondary line */
+
+  /* palette — the gold accent + its shades */
+  --gold:#e0a43c;            /* THE accent — amber */
+  --gold-bright:#ffd98a;     /* hover highlight */
+  --gold-deep:#8a6423;       /* the 3D button shadow, book/page edge */
+
+  /* palette — edges */
+  --edge:#55432e;            /* standard border */
+  --edge-faint:#3a2e20;      /* faint divider */
+  --edge-gold:#6b4a2f;       /* panel inset border */
+  --edge-warm:#8a6a3a;       /* pocket-card / user-bubble border */
+
+  /* palette — secondary accents (semantic, not the brand gold) */
+  --blue:#7fa9c9; --blue-soft:#a9c7e8; --blue-deep:#4a6a8a;
+  --green:#7fa36b; --green-soft:#a9cf90;
+  --danger:#b56f6f; --danger-soft:#e0a0a0;
+
+  /* type */
+  --font-mono:'Courier New', monospace;
+
+  /* spacing scale (defined now; scales get normalised onto it in Phase 2) */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px;
+
+  /* radius scale */
+  --r-sm:6px; --r-md:9px; --r-lg:12px;
+
+  /* shadows */
+  --shadow-panel:0 10px 40px rgba(0,0,0,.6);
+  --shadow-card:0 4px 8px rgba(0,0,0,.35);
+}
+
 * { margin:0; padding:0; box-sizing:border-box; }
-html,body { height:100%; background:#141019; overflow:hidden; }
-body { font-family:'Courier New', monospace; touch-action:none; }
+html,body { height:100%; background:var(--void); overflow:hidden; }
+body { font-family:var(--font-mono); touch-action:none; }
 #game { display:block; width:100vw; height:100vh; image-rendering:pixelated; }
 
 #hud {
@@ -209,16 +263,16 @@ body { font-family:'Courier New', monospace; touch-action:none; }
 .overlay.open { display:flex; }
 #connOv { z-index:11; } /* reachable from the title screen (z-index:10), must render above it */
 .panel {
-  background:#2a2118; border:3px solid #e0a43c; border-radius:12px;
-  width:min(720px, 100%); color:#f5e9d4; padding:22px 24px 26px;
-  box-shadow:0 10px 40px rgba(0,0,0,.6), inset 0 0 0 2px #6b4a2f;
+  background:var(--parchment); border:3px solid var(--gold); border-radius:var(--r-lg);
+  width:min(720px, 100%); color:var(--ink); padding:22px 24px 26px;
+  box-shadow:var(--shadow-panel), inset 0 0 0 2px var(--edge-gold);
   margin:auto 0;
 }
-.panel h2 { color:#e0a43c; letter-spacing:1px; font-size:20px; margin-bottom:4px; }
-.panel .meta { color:#9c8b74; font-size:12px; margin-bottom:14px; }
-.panel .meta b { color:#cbb79a; }
-.panel h3 { color:#e0a43c; font-size:15px; margin:16px 0 6px; }
-.panel p { line-height:1.7; font-size:14px; margin-bottom:10px; color:#eadfca; }
+.panel h2 { color:var(--gold); letter-spacing:1px; font-size:20px; margin-bottom:4px; }
+.panel .meta { color:var(--muted); font-size:12px; margin-bottom:14px; }
+.panel .meta b { color:var(--muted-light); }
+.panel h3 { color:var(--gold); font-size:15px; margin:16px 0 6px; }
+.panel p { line-height:1.7; font-size:14px; margin-bottom:10px; color:var(--ink-soft); }
 .panel .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 .fullTextPage {
   white-space:pre-wrap; line-height:1.75; font-size:14.5px;
@@ -226,37 +280,37 @@ body { font-family:'Courier New', monospace; touch-action:none; }
 }
 .bookPanel .fullTextPage { color:#3a2e1c; } /* the reader always opens as a bookPanel — dark ink on parchment, not light-on-dark */
 .xbtn {
-  float:right; background:none; border:2px solid #e0a43c; color:#e0a43c;
-  border-radius:6px; padding:2px 10px; cursor:pointer; font-family:inherit; font-size:13px;
+  float:right; background:none; border:2px solid var(--gold); color:var(--gold);
+  border-radius:var(--r-sm); padding:2px 10px; cursor:pointer; font-family:inherit; font-size:13px;
 }
-.xbtn:hover { background:#e0a43c; color:#2a2118; }
+.xbtn:hover { background:var(--gold); color:var(--parchment); }
 .btn {
-  background:#e0a43c; color:#2a2118; border:none; border-radius:7px;
+  background:var(--gold); color:var(--parchment); border:none; border-radius:7px;
   padding:9px 18px; font-family:inherit; font-weight:bold; font-size:13px;
-  cursor:pointer; box-shadow:0 3px 0 #8a6423;
+  cursor:pointer; box-shadow:0 3px 0 var(--gold-deep);
 }
-.btn:active { transform:translateY(2px); box-shadow:0 1px 0 #8a6423; }
-.btn.ghost { background:none; color:#e0a43c; border:2px solid #e0a43c; box-shadow:none; }
+.btn:active { transform:translateY(2px); box-shadow:0 1px 0 var(--gold-deep); }
+.btn.ghost { background:none; color:var(--gold); border:2px solid var(--gold); box-shadow:none; }
 .card {
-  background:#221a12; border:2px solid #55432e; border-radius:9px;
+  background:var(--surface); border:2px solid var(--edge); border-radius:var(--r-md);
   padding:12px 14px; margin-bottom:10px; cursor:pointer; transition:border-color .15s;
 }
-.card:hover { border-color:#e0a43c; }
+.card:hover { border-color:var(--gold); }
 #dropZone { transition:border-color .15s,background-color .15s; }
-#dropZone.over { border-color:#e0a43c; background-color:rgba(224,164,60,.08); color:#f2c97a; }
-.card .t { color:#f5e9d4; font-weight:bold; font-size:14px; }
-.card .s { color:#b3a288; font-size:12.5px; line-height:1.5; margin-top:4px; }
-.badge { display:inline-block; font-size:10.5px; border:1px solid #7fa36b; color:#a9cf90;
+#dropZone.over { border-color:var(--gold); background-color:rgba(224,164,60,.08); color:#f2c97a; }
+.card .t { color:var(--ink); font-weight:bold; font-size:14px; }
+.card .s { color:var(--muted-card); font-size:12.5px; line-height:1.5; margin-top:4px; }
+.badge { display:inline-block; font-size:10.5px; border:1px solid var(--green); color:var(--green-soft);
   border-radius:10px; padding:1px 8px; margin-left:8px; vertical-align:middle; }
-.badge.lic { border-color:#9c8b74; color:#cbb79a; }
-a.link { color:#e0a43c; }
-a.link:hover { color:#ffd98a; }
+.badge.lic { border-color:var(--muted); color:var(--muted-light); }
+a.link { color:var(--gold); }
+a.link:hover { color:var(--gold-bright); }
 input[type=text], textarea {
-  width:100%; background:#1b140d; border:2px solid #55432e; border-radius:7px;
-  color:#f5e9d4; font-family:inherit; font-size:13.5px; padding:9px 11px;
+  width:100%; background:var(--field); border:2px solid var(--edge); border-radius:7px;
+  color:var(--ink); font-family:inherit; font-size:13.5px; padding:9px 11px;
 }
-input[type=text]:focus, textarea:focus { outline:none; border-color:#e0a43c; }
-label { display:block; color:#cbb79a; font-size:12px; margin:12px 0 5px; letter-spacing:.5px; }
+input[type=text]:focus, textarea:focus { outline:none; border-color:var(--gold); }
+label { display:block; color:var(--muted-light); font-size:12px; margin:12px 0 5px; letter-spacing:.5px; }
 
 /* Sebastian's calendar — a deliberately cheap-to-render month grid (the
    sleeper-car point: the machine's real resources go to his reading of

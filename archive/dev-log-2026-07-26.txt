@@ -400,3 +400,21 @@ By TITLE for now — no stored author field yet; noted as a small follow-up to a
 `author` and flip shelfSortKey to by-author. CSS: .shelfRow/.shelfRowCap added.
 Verified: check + smoke (10 scenes, 22 docs) + build all green. Next: Phase 1
 tokens (or Phase 2 chrome) — awaiting the user's go on order.
+
+---
+
+Visual revamp Phase 1 — design tokens (zero visual change). style.css now opens
+with a :root token block (palette: surfaces/ink/gold/edges/accents; type; spacing
+--sp-1..6; radius --r-sm/md/lg; two shadow tokens), each set to the EXACT value
+components already used. Core components repointed at tokens: body, .panel (+h2/
+h3/meta/p), .btn/.ghost, .xbtn, .card (+.t/.s/hover), #dropZone.over, .badge
+(+.lic), a.link, inputs/textarea, label. Nothing changed on screen — the look is
+just tunable from one place now. Left literal for Phase 2 (intentional
+normalisation later): odd radii (7/8/10px), paddings, and one-off hexes in
+#dialog/#hud/chat/phone cards/calendar/blocks/spines.
+Also: user's art constraint recorded in the plan (Phase 4) — keep the warm
+walk-around RPG feel, but ALL original art, resembling no existing game's IP, and
+NO creature/pet system for now. And created plans/VISUAL-REVAMP-CHANGELOG.md as a
+concrete, revertible record of Phase 0 + Phase 1 (the "documented written
+changes" the user asked for). Verified: build + smoke (10 scenes, 22 docs) green.
+Next: Phase 2 interface chrome — propose via an updated style-guide mockup first.
