@@ -143,6 +143,11 @@ immediately. No dialog, no import wizard. If a website has no tidy way to send
 you a book but your browser can download one, this still works — that's the
 point.
 
+**Not sure how any of it works?** Walk into the **Library** and find
+**📥 Bring a Book In**, the table beside Your Shelf. It explains dropping a
+file, offers a type-it-in-by-hand form, lists where to actually get free books,
+and tells you exactly which folder on your disk the text ends up in.
+
 **Or, with more control:** Workshop → the **Caravan Desk** → *"Add a text by
 hand."* One, or a whole pile at once, and you pick the shelf. If it came from a
 site the Pavilion knows, title, author and license fill themselves in; if not,

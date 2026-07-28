@@ -189,7 +189,16 @@ function buildLibrary(){
     // visitor brought in themselves, marked as theirs, kept deliberately
     // apart from the six certified shelf blocks (BETA-BUILD-PLAN.md §6.4).
     // West of the reading nook, on the door's approach — yours, at hand.
-    stations:[{x:2,y:11,kind:'yourshelf',name:'YOUR SHELF'}],
+    /* The intake table stands beside Your Shelf on purpose (2026-07-28). Adding a
+       book was only ever explained at the Caravan Desk, in the Workshop, under a
+       name that doesn't say what it does — so the single most important thing a
+       visitor can do here was findable only by accident. The Caravan Desk keeps
+       the connector and queue tooling, which is genuinely workshop work; the
+       everyday act of bringing a book in now lives where you'd look for it, next
+       to the shelf it lands on. Three tiles apart so the floating labels can't
+       collide (the mistake made with the Learning Tree station). */
+    stations:[{x:2,y:11,kind:'yourshelf',name:'YOUR SHELF'},
+              {x:5,y:11,kind:'intake',name:'BRING A BOOK IN'}],
     signs:[{x:14,y:5,name:'BRASS ARROW',text:"→ THE STUDY\nA desk for the day. A board for the long paths."},
            {x:14,y:2,name:'A SPIRAL STAIRCASE',text:"↑ THE SECOND FLOOR\nMore shelves, up the stairs — the collection outgrew one\nroom. Hindu and Native American traditions up front; the\nFiction and Non-fiction wings behind. Same rule at every\nshelf: what is it, where's it from, what license does it\ntravel under. Step onto the stair to go up."},
            {x:5,y:8,name:'HAND-LETTERED SIGN',text:"THE THIRD SHELF\nScience, west — Classics, east. Newer, and further from the\ndoor than the rest — same rule as always: what is it,\nwhere's it from, what license does it travel under."},

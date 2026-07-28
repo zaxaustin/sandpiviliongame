@@ -169,7 +169,22 @@ your own standing instructions, so you can watch them take effect.
 - **Carry a book:** 🎒 takes it with you, readable from anywhere via the
   pause menu's Inventory.
 - **The Index** (📑, from any shelf) — every text in one searchable list.
-- **Your own books** — add them at the **Caravan Desk** (Workshop): drop an
+- **Your own books — the short version: drag the file onto the window.** A
+  `.txt` or `.epub` dropped **anywhere on the Pavilion**, from any screen, lands
+  on your own shelf and is readable at once. You do not have to be in a
+  particular room, or on a particular panel. That is the whole method, and it
+  works for every website in the world — if your browser can download it, the
+  Pavilion can shelve it.
+- **📥 Bring a Book In** — the intake table in the **Library**, standing right
+  beside Your Shelf. This is the place to start if you're not sure how any of
+  this works: it explains dropping a file, offers the type-it-in-by-hand form,
+  lists where to actually get free books (Project Gutenberg, Standard Ebooks,
+  SuttaCentral, arXiv), and tells you **exactly which folder on your disk** the
+  text ends up in. (The **Caravan Desk** in the Workshop is still there, and is
+  now the specialist end of the same job — the review queue and importing a
+  batch fetched by a connector.)
+- **The longer form** — at the **Caravan Desk** (Workshop) or via *Add a text by
+  hand*: drop an
   `.epub` or `.txt`, pick a shelf, press **📚 Add to my Library now**. **Your
   Shelf is yours — no license or source needed.** A personal copy for your own
   reading is your business; leave those fields blank, pick any shelf, and it's

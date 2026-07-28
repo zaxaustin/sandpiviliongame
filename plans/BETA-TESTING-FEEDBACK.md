@@ -1646,3 +1646,39 @@ felt fine while the artifact was dead.
 Uninstalling 0.0.1 is safe: electron-builder's NSIS uninstaller leaves app data
 alone by default. Backed up `Local Storage` and `library` anyway before
 touching anything, because "should be safe" is not the same as "is".
+
+### 25. [x] The most important action in the Pavilion was hidden three rooms away
+
+*"The main thing we should focus on is letting people know how the Caravan Desk
+works and how it helps people add books. I like it in the workshop, but maybe we
+should move that feature into the Library next to the personal shelf."*
+
+Correct diagnosis, and it was **placement and naming at once**. Adding a book —
+the single act the whole project is built around — was explained only at the
+**Caravan Desk**, in the Workshop, three rooms from the Library, under a name
+that tells a newcomer nothing about what it does. It was findable by accident.
+
+**Not moved — split, along the line that was already there.** The Caravan Desk
+keeps the review queue and connector imports, which are genuinely workshop work.
+What came to the Library is the *everyday act*: a new station, **📥 BRING A BOOK
+IN**, standing beside Your Shelf (three tiles apart, so the floating labels
+can't collide — the mistake made once already with the Learning Tree).
+
+The name is an instruction rather than a noun, deliberately. Every other station
+is "THE something"; this one had to answer the question a newcomer is actually
+holding.
+
+**What the table teaches, in order:**
+1. **Drag the file onto the window** — first, biggest, green. Stressing that it
+   works from *anywhere* in the Pavilion, not just that screen, and that it is
+   the path that works for every website on earth.
+2. Type it in by hand, for a chapter or something you wrote.
+3. Where to actually get books — Gutenberg, Standard Ebooks, SuttaCentral, arXiv
+   — with the specific format to choose.
+4. **Where the file physically goes**: `%APPDATA%\sand-pavilion\library\`, as
+   plain `.txt` you can open in Notepad. In a browser it says so honestly
+   instead, and points at the desktop app as the better home.
+5. Where the Caravan Desk went, and what it's still for.
+
+Also: Your Library's own *"＋ Add a book or paper"* now opens this rather than
+jumping straight to the form, so the explanation is reachable from both doors.

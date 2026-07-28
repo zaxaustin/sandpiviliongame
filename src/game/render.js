@@ -570,6 +570,21 @@ function drawStation(st,ox,oy){
     for(const [c,sx] of yourSpines){ ctx.fillStyle=c; ctx.fillRect(x+S*sx,y+S*.2,S*.08,S*.26); }
     ctx.fillStyle='#f3ead2'; ctx.fillRect(x+S*.2,y+S*.62,S*.24,S*.07); // a waiting label card in the empty lower cubby
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.36,y+S*.03,S*.28,S*.05); // a small brass nameplate on top
+  } else if(st.kind==='intake'){ // Bring a Book In — a low table with an open book on it and an arrow coming down into it: a drop target, made literal
+    ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.86,S*.38,S*.1,0,0,7); ctx.fill();
+    ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.14,y+S*.7,S*.07,S*.2); ctx.fillRect(x+S*.79,y+S*.7,S*.07,S*.2); // legs
+    ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.08,y+S*.58,S*.84,S*.14);  // table top
+    ctx.fillStyle='#a97c50'; ctx.fillRect(x+S*.08,y+S*.58,S*.84,S*.05);  // lit edge
+    // an open book lying on it, pages up and waiting
+    ctx.fillStyle='#f3ead2'; ctx.fillRect(x+S*.16,y+S*.46,S*.31,S*.13); ctx.fillRect(x+S*.53,y+S*.46,S*.31,S*.13);
+    ctx.fillStyle='#c9b899'; ctx.fillRect(x+S*.47,y+S*.46,S*.06,S*.13); // the spine between the pages
+    ctx.strokeStyle='#8a6d4a'; ctx.lineWidth=Math.max(1,S*.02);
+    ctx.strokeRect(x+S*.16,y+S*.46,S*.68,S*.13);
+    // an arrow dropping into it — this is where a thing from outside lands
+    ctx.strokeStyle='#e0a43c'; ctx.lineWidth=Math.max(1,S*.07); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.1); ctx.lineTo(x+S*.5,y+S*.34); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+S*.36,y+S*.24); ctx.lineTo(x+S*.5,y+S*.38); ctx.lineTo(x+S*.64,y+S*.24); ctx.stroke();
+    ctx.lineCap='butt';
   } else if(st.kind==='commons'){ // The Commons Table — a long table with work laid out on it for anyone to take a copy of
     ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.8,S*.42,S*.12,0,0,7); ctx.fill();
     ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.1,y+S*.66,S*.08,S*.24); ctx.fillRect(x+S*.82,y+S*.66,S*.08,S*.24); // legs

@@ -144,6 +144,7 @@ function onAction(){
     else if(st.kind==='records') openRecordsHall();
     else if(st.kind==='calendar') openCalendar();
     else if(st.kind==='yourshelf') openMyLibrary();
+    else if(st.kind==='intake') openBookIntake();
     else if(st.kind==='inheritance') openInheritanceHall();
     else if(st.kind==='commons') openCommonsTable();
     else if(st.kind==='alexandria') openAlexandria();

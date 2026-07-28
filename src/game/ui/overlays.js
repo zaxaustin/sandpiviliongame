@@ -1367,7 +1367,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 /* Closing a panel used to CANCEL read-aloud outright, with no way back — the
    single most-complained-of thing in real use ("if I try to do anything it
    pauses that voice and I can't even unpause it"). Now: a book you're
@@ -8299,7 +8299,7 @@ function renderMyLibrary(keepFocus){
       No license and no source needed here, ever: a personal copy is your business, not the commons'.
       Papers, drafts, a manual, something you wrote — all of it belongs on this shelf.</div>
     <div class="row" style="margin:12px 0;gap:6px;flex-wrap:wrap">
-      <button class="btn" onclick="newReviewManualForm2()">＋ Add a book or paper</button>
+      <button class="btn" onclick="openBookIntake()">＋ Add a book or paper</button>
       <button class="btn ghost" onclick="openShelf('Personal')">📚 Read from the shelf</button>
       <button class="btn ghost" onclick="openNotesLog()">🗒 My notes</button>
       <button class="btn ghost" onclick="createMyShelf()">＋ New shelf of my own</button>
@@ -8402,6 +8402,93 @@ function renderMyLibrary(keepFocus){
   if(keepFocus){ const s=document.getElementById('myLibSearch'); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); } }
   // put the reader back exactly where they were — see scrollerFor() above
   if(sc && keptScroll) sc.scrollTop=keptScroll;
+}
+/* ----- BRING A BOOK IN — the Library's intake table (2026-07-28).
+
+   From the first real handover: *"the main thing we should focus on is letting
+   people know how the Caravan Desk works and how it helps people add books."*
+
+   The diagnosis was placement AND naming. Adding a book was only ever explained
+   at the Caravan Desk — in the Workshop, three rooms away, under a name that
+   tells you nothing about what it does. So the single most important action in
+   the whole Pavilion, the one the entire project is built around, was findable
+   only by accident.
+
+   This is the fix, and it is deliberately not a move: the Caravan Desk keeps the
+   connector output and the review queue, which are genuinely workshop work. What
+   comes to the Library is the *everyday act* — bringing a book in — standing
+   beside the shelf it lands on, under a name that is an instruction rather than
+   a noun. It teaches drag-and-drop first, because that is the path that works
+   from any website in the world and needs nothing installed. */
+export function openBookIntake(){
+  state.ui='intake'; hideAllOv();
+  const desktop=!!(window.desktopBridge && window.desktopBridge.isDesktop);
+  const mine=personalBooks().length;
+  document.getElementById('intakePanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>📥 Bring a Book In ${visBadge('private')}</h2>
+    <div class="meta">Everything you add lands on <b>your own shelf</b> — no licence asked, no source
+      required, nothing sent anywhere. You have <b>${mine}</b> book${mine===1?'':'s'} of your own so far.</div>
+
+    <div class="card" style="cursor:default;margin-top:12px;border-color:#7fa36b">
+      <div class="t" style="color:#7fa36b;font-size:15px">1 · Drag the file onto this window</div>
+      <div class="s" style="margin-top:6px">That is the whole method. A <b>.txt</b> or an <b>.epub</b>, dragged
+        from your Downloads folder and dropped <b>anywhere on the Pavilion</b> — you do not need to be on this
+        screen, or in the Library, or anywhere in particular. It lands on your shelf and is readable at once.</div>
+      <div class="s" style="margin-top:6px">Drop a whole pile at once if you like. This is the way in that
+        works for <i>every</i> website, even the ones with no tidy button — if your browser can download it,
+        the Pavilion can shelve it.</div>
+    </div>
+
+    <div class="card" style="cursor:default;margin-top:10px">
+      <div class="t">2 · Or type it in by hand</div>
+      <div class="s" style="margin-top:5px">For a chapter you copied, a paper, something you wrote yourself, or
+        anything that isn't a file yet. Paste the text, give it a title, choose a shelf.</div>
+      <div class="row" style="margin-top:8px"><button class="btn" onclick="newReviewManualForm2()">＋ Add a text by hand</button></div>
+    </div>
+
+    <h3 style="margin-top:18px">Where to get books worth having</h3>
+    <div class="meta">All free, all legal, all plain downloads — no account anywhere.</div>
+    <div class="card" style="cursor:default;margin-top:8px">
+      <div class="s"><b>Project Gutenberg</b> — <code>gutenberg.org</code> · 70,000+ public-domain books.
+        Choose <b>"Plain Text UTF-8"</b> and it drops straight in. Every classic on these shelves that shows
+        only a summary is there in full.</div>
+      <div class="s" style="margin-top:6px"><b>Standard Ebooks</b> — <code>standardebooks.org</code> · the same
+        classics, carefully typeset. Take the <b>.epub</b>.</div>
+      <div class="s" style="margin-top:6px"><b>SuttaCentral</b> — <code>suttacentral.net</code> · the Pali canon
+        in modern translation.</div>
+      <div class="s" style="margin-top:6px"><b>arXiv</b> and <b>PubMed Central</b> — open research papers.</div>
+    </div>
+
+    <h3 style="margin-top:18px">Where they actually go</h3>
+    <div class="meta">No mystery, and worth knowing before you put real work in.</div>
+    <div class="card" style="cursor:default;margin-top:8px">
+      ${desktop?`<div class="s">The <b>text of every book you add</b> is written as an ordinary <code>.txt</code>
+        file in this app's own data folder:</div>
+        <div class="s" style="margin-top:5px;color:var(--gold)"><code>%APPDATA%\\sand-pavilion\\library\\</code></div>
+        <div class="s" style="margin-top:5px">Paste that into the address bar of any Explorer window. They are
+        plain text — openable in Notepad, copyable, backup-able, yours. Nothing is locked in a database and
+        nothing needs this app to read it.</div>`
+      :`<div class="s">In this browser version, book text is kept in the browser's own storage for this site.
+        The <b>installed desktop app</b> writes each one as an ordinary <code>.txt</code> file in a folder you
+        can open, which is the better home for anything you care about.</div>`}
+      <div class="s" style="margin-top:6px">The catalogue — titles, shelves, what you've read — lives in your
+        save. <b>Esc → Your Data</b> accounts for all of it, and <b>⬇ Export save</b> puts the whole Pavilion,
+        book text included, into one file you can carry to another machine.</div>
+    </div>
+
+    <div class="card" style="cursor:default;margin-top:14px;border-color:#8fb4d9">
+      <div class="t">Looking for the Caravan Desk?</div>
+      <div class="s" style="margin-top:5px">It's still in the <b>Workshop</b>, and it's for the specialist end of
+        this: the review queue, and importing a batch fetched by one of the Caravan connectors. Everything a
+        visitor normally needs is on this table.</div>
+    </div>
+
+    <div class="row" style="margin-top:14px;gap:6px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="openMyLibrary()">👤 Your Library — sort what you have</button>
+      <button class="btn ghost" onclick="openReader('filling-your-shelves')">📖 Read the full guide</button>
+    </div>`;
+  showOv('intakeOv');
 }
 /* Kept for the old entry point; the Manage panel is now Your Library. */
 export function openManageLibrary(){ openMyLibrary(); }
@@ -8662,6 +8749,7 @@ Object.assign(window, {
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
   checkMyMachine, copyPullCommand,
+  openBookIntake,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
