@@ -589,3 +589,43 @@ honestly without a server:
    resident now; correspondence threads that travel as packets next; a real
    shared board only when there is a second person) — same rule that governs
    every other server question here.
+
+THE COLLECTIVE TREE — built (user: "lets first build the collective tree idea").
+The idea being protected, in their words: a shared tree that "only adds when
+they have a repertory or notes on what they learned, and even better a class to
+help the next group get there themselves."
+- THE RULE, enforced in collectiveNodes(): finishing something adds NOTHING.
+  Only contributing does. A packet gets in only if it carries real substance —
+  a body over 40 chars, or actual steps. A bare completion claim is refused,
+  because nothing about it is worth passing on. That single rule is what makes
+  this different from every skill tree and course platform: the graph is a
+  record of what people GAVE BACK, not of what anyone consumed.
+- NO SERVER NEEDED. The unit is a packet, so your Pavilion draws the part of
+  the commons that has actually reached you. The panel says so plainly — a
+  partial view is honest; pretending completeness would not be. Two people who
+  swapped packets with different people see different trees and neither is
+  missing a complete version, because there isn't one.
+- THE VISUAL ASK, done properly: renderTreeGraph() lays nodes out by DEPTH
+  (longest prerequisite chain behind them) and draws every prerequisite as an
+  SVG bezier edge. Roots left, everything they open to the right. Cycle-safe
+  (a cycle degrades to a root rather than hanging). This is the "make it a real
+  skill tree" ask — the prerequisites were always in the data, they were simply
+  never drawn. Verified: two independent roots (a meditation line, a Dao line)
+  converging on a third contributor's koan lesson, 4 edges, 3 depth columns.
+- LESSONS ARE NOW PUBLISHABLE: publishFrom('lesson', id) carries steps and
+  prereqs as TITLES rather than ids, because ids are local to one Pavilion and
+  titles are what another person can actually match on.
+- REAL BUG FOUND AND FIXED, of my own making: an earlier python-escaping
+  workaround had emitted ${'$'}{node.id} into a template literal, which renders
+  the LITERAL text ${node.id} into the onclick — so the "Rewrite it" button on
+  a lesson you wrote passed a literal string and silently did nothing. Note
+  that the inline-handler guard could NOT catch this: the function was exported
+  correctly; only the argument was garbage. Grepped for the pattern; this was
+  the only occurrence.
+- THE LIBRARIAN'S SORT, widened for the real case: the user misfiled 128 books
+  onto Theravada in one import. suggestShelvesWithAI() only looked at UNFILED
+  books, which would have been useless for exactly that. It now sorts whatever
+  you have selected, else whatever your search is showing, else the unfiled
+  pile — up to 60 — and still only ever FILLS THE DROPDOWNS. Nothing is filed
+  without you, and nothing is ever deleted.
+Verified: 13 new live checks on the tree, all other suites green (109 total).

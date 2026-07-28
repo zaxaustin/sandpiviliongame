@@ -5006,6 +5006,43 @@ export function toggleLessonStep(id,i){
 }
 function renderLearningTree(){
   const v=state.treeView||{mode:'list'}, panel=document.getElementById('treePanel');
+  const tabs=(active)=>`<div class="row" style="gap:6px;margin:10px 0;flex-wrap:wrap">
+    <button class="btn ${active==='list'?'':'ghost'}" onclick="treeTab('list')">🌳 Your tree</button>
+    <button class="btn ${active==='collective'?'':'ghost'}" onclick="treeTab('collective')">🏛 The collective tree</button>
+  </div>`;
+  if(v.mode==='collective'){
+    const nodes=collectiveNodes();
+    const mine=nodes.filter(x=>x.__mine).length;
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>🏛 The collective tree</h2>
+      ${tabs('collective')}
+      <div class="meta">Everything people have actually <b>handed on</b> — a class they wrote, notes worth
+        reading, an analysis they kept. <b>Finishing something adds nothing here.</b> Only contributing
+        does, which is the whole point: this is not a record of what anyone consumed, it's a record of
+        what they gave back.</div>
+      <div class="meta" style="margin-top:8px">It grows as packets reach you, so what you see is
+        <b>the part of the commons that has actually come your way</b> — never "everything," because
+        there is no everything. Someone who has swapped packets with different people sees a different
+        tree, and neither of you is missing out on a complete version that exists somewhere.</div>
+      ${nodes.length?`
+        <div class="meta" style="margin:10px 0"><b>${nodes.length}</b> contribution${nodes.length===1?'':'s'}${mine?` · <b>${mine}</b> of them yours`:''}. Branches run from what a lesson needs to what it opens.</div>
+        ${renderTreeGraph(nodes, {
+          needsOf:x=>x.needs||[],
+          onClickAttr:x=>`onclick="openPacket('${esc(x.id)}')"`,
+          cardHTML:x=>`<div class="t" style="font-size:12.5px">${x.kind==='lesson'?'🎓':x.kind==='course'?'🧭':x.kind==='paper'?'📄':'🗒'} ${esc((x.title||'').slice(0,44))}</div>
+            <div class="s" style="font-size:11px">by ${esc(x.by||'unknown')}${x.__mine?' · yours':''}</div>`,
+        })}`
+        :`<p class="meta" style="margin-top:14px"><b>Nothing has been contributed yet.</b> That is the
+          honest starting state of a commons whose entry price is real work.
+          <br><br>Two ways to put the first thing in it: publish a lesson you wrote (🌳 Your tree →
+          open one → 🤝 Publish), or accept a packet someone hands you at the Commons Table.</p>`}
+      <div class="row" style="margin-top:16px;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost" onclick="openCommonsTable()">🏛 The Commons Table</button>
+        <button class="btn ghost" onclick="treeTab('list')">← Your own tree</button>
+      </div>`;
+    return;
+  }
   if(v.mode==='write'){
     const editing=v.id?curriculumNode(v.id):null;
     const others=allNodes().filter(n=>!editing||n.id!==editing.id);
@@ -5054,7 +5091,10 @@ function renderLearningTree(){
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>${esc(node.title)}</h2>
       <div class="meta"><span class="badge">${node.track} · ${node.level}</span> ${done?'<span class="badge lic">✓ complete</span>':''}${node.mine?' <span class="badge lic">you wrote this</span>':''}</div>
-      ${node.mine?`<div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="newLessonForm('${'$'}{node.id}')">✎ Rewrite it</button></div>`:''}
+      ${node.mine?`<div class="row" style="margin-top:6px;gap:6px">
+        <button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="newLessonForm('${esc(node.id)}')">✎ Rewrite it</button>
+        <button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="publishFrom('lesson','${esc(node.id)}')" title="Hand it on — it joins the collective tree">🤝 Publish it</button>
+      </div>`:''}
       <div class="meta" style="margin-top:8px">${esc(node.summary)}</div>
       <div style="margin-top:14px">${node.steps.map((s,i)=>{
         const on=!!p.steps[i];
@@ -5097,6 +5137,7 @@ function renderLearningTree(){
   panel.innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>🌳 The Learning Tree</h2>
+    ${tabs('list')}
     <div class="meta">Start at a 101 and climb — each course unlocks the next once you've walked it. The
       board confers nothing; the walking is the whole credential. This is the first, small tree — here to
       be poked at, so tell me what's missing before we grow the coding branch for real.</div>
@@ -5116,6 +5157,99 @@ function renderLearningTree(){
     <div class="row" style="margin-top:18px"><button class="btn ghost" onclick="openCourses()">← Back to the Course Board</button></div>`;
 }
 
+/* ================================================================
+   THE COLLECTIVE TREE — LIVING-TREE-AND-DISCUSSION-PLAN §3, built
+   2026-07-27 at direct request.
+
+   The idea worth protecting, in the user's own words: a shared tree
+   that "only adds when they have a repertory or notes on what they
+   learned, and even better a class to help the next group get there
+   themselves."
+
+   So FINISHING something adds nothing here. Only CONTRIBUTING does.
+   That single rule is what makes this different from every skill tree
+   and every course platform: the graph is not a record of consumption,
+   it is a record of what people gave back.
+
+   It needs no server. The unit is a packet — a file one person hands
+   another — so your Pavilion draws the part of the commons that has
+   actually reached you. That is a partial view, and saying so is more
+   honest than pretending completeness. Two people who have swapped
+   packets see overlapping trees; neither sees "everything," because
+   there is no everything to see.
+   ================================================================ */
+const TREE_COL=230, TREE_ROW=104;   // one card's footprint in the graph
+/* Depth = the longest chain of prerequisites behind a node. That's what makes
+   the drawing read as a tree rather than a list: roots on the left, and
+   anything that needed something else further right. */
+function graphDepths(nodes, needsOf){
+  const byTitle=new Map(nodes.map(n=>[String(n.title||'').toLowerCase(), n]));
+  const depth=new Map(); const seen=new Set();
+  const walk=(n)=>{
+    const key=n.__k;
+    if(depth.has(key)) return depth.get(key);
+    if(seen.has(key)) return 0;           // a cycle: treat as a root rather than hang
+    seen.add(key);
+    let d=0;
+    for(const need of needsOf(n)){
+      const parent=byTitle.get(String(need||'').toLowerCase());
+      if(parent && parent.__k!==key) d=Math.max(d, walk(parent)+1);
+    }
+    depth.set(key,d); return d;
+  };
+  nodes.forEach((n,i)=>{ n.__k=n.__k||('n'+i); });
+  nodes.forEach(walk);
+  return { depth, byTitle };
+}
+/* The one graph renderer, used by both trees: absolutely-positioned cards with
+   an SVG layer behind them drawing every prerequisite edge. This is the whole
+   "make it look like a skill tree" ask — the prerequisites already existed in
+   the data; they simply were never drawn. */
+function renderTreeGraph(nodes, opts){
+  const { needsOf, cardHTML, onClickAttr } = opts;
+  if(!nodes.length) return '<p class="meta">Nothing here yet.</p>';
+  const { depth, byTitle } = graphDepths(nodes, needsOf);
+  const cols=new Map();
+  for(const n of nodes){ const d=depth.get(n.__k)||0; if(!cols.has(d)) cols.set(d,[]); cols.get(d).push(n); }
+  const maxD=Math.max(...cols.keys());
+  const maxRows=Math.max(...[...cols.values()].map(c=>c.length));
+  const pos=new Map();
+  for(const [d,list] of cols) list.forEach((n,i)=>pos.set(n.__k,{x:d*TREE_COL+14, y:i*TREE_ROW+10}));
+  const W=(maxD+1)*TREE_COL+30, H=maxRows*TREE_ROW+24;
+  const edges=[];
+  for(const n of nodes){
+    const to=pos.get(n.__k);
+    for(const need of needsOf(n)){
+      const parent=byTitle.get(String(need||'').toLowerCase());
+      if(!parent||parent.__k===n.__k) continue;
+      const from=pos.get(parent.__k); if(!from) continue;
+      const x1=from.x+196, y1=from.y+34, x2=to.x, y2=to.y+34;
+      const mid=(x1+x2)/2;
+      edges.push(`<path d="M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}" fill="none" stroke="#8a6a3a" stroke-width="2" opacity=".65"/>`
+        +`<circle cx="${x2}" cy="${y2}" r="3" fill="#e0a43c" opacity=".8"/>`);
+    }
+  }
+  return `<div style="overflow:auto;max-height:60vh;border:1px solid var(--edge);border-radius:8px;background:rgba(0,0,0,.12)">
+    <div style="position:relative;width:${W}px;height:${H}px">
+      <svg width="${W}" height="${H}" style="position:absolute;inset:0;pointer-events:none">${edges.join('')}</svg>
+      ${nodes.map(n=>{ const p=pos.get(n.__k);
+        return `<div class="card" style="position:absolute;left:${p.x}px;top:${p.y}px;width:196px;margin:0;padding:8px 10px"
+          ${onClickAttr?onClickAttr(n):''}>${cardHTML(n)}</div>`; }).join('')}
+    </div></div>`;
+}
+/* What has actually been contributed to you: packets that carry real substance.
+   A bare completion claim can't get in, because nothing about it is worth
+   passing on — that IS the entry price. */
+function collectiveNodes(){
+  const g=commonsStore();
+  const carried=[...(g.received||[]), ...(g.published||[])];
+  return carried.filter(p=>{
+    if(!['lesson','course','paper','note'].includes(p.kind)) return false;
+    const substance=(p.body&&p.body.trim().length>40)||((p.steps||[]).length>0);
+    return substance; // notes worth reading, or a class with real steps
+  }).map(p=>({ ...p, __mine:(g.published||[]).some(x=>x.id===p.id) }));
+}
+export function treeTab(mode){ state.treeView={mode}; renderLearningTree(); }
 export function newLessonForm(id){ state.treeView={mode:'write', id:id||null}; renderLearningTree(); }
 export function saveMyLesson(existingId){
   const g=i=>document.getElementById(i)?.value ?? '';
@@ -5828,6 +5962,15 @@ export function publishFrom(kind, id){
       ||(data.hall&&data.hall.investigations||[]).find(x=>x.id===id);
     if(!d) return;
     p={ id:newPacketId(), kind:'paper', title:d.title||'An analysis', body:d.text||d.body||d.claim||'', summary:(d.text||'').slice(0,160) };
+  } else if(kind==='lesson'){
+    // A lesson you wrote, published so it can grow the collective tree. Its
+    // prerequisites travel as TITLES, not ids: ids are local to one Pavilion,
+    // titles are what another person can actually match against.
+    const node=curriculumNode(id); if(!node) return;
+    p={ id:newPacketId(), kind:'lesson', title:node.title, why:node.summary||'',
+        summary:node.summary||'', steps:(node.steps||[]).map(s=>s.title+(s.body?' | '+s.body:'')),
+        needs:(node.prereqs||[]).map(pid=>{ const q=curriculumNode(pid); return q?q.title:null; }).filter(Boolean),
+        track:node.track||'', level:Number(node.level)||101 };
   } else {
     const n=(data.notes||[]).find(x=>String(x.id)===String(id)); if(!n) return;
     p={ id:newPacketId(), kind:(/lesson/i.test(n.title||'')?'lesson':'note'), title:n.title||'A note', body:noteBody(n), summary:noteBody(n).slice(0,160) };
@@ -7603,8 +7746,16 @@ export async function suggestShelvesWithAI(){
   const out=document.getElementById('myLibAiOut');
   const say=t=>{ if(out) out.textContent=t; };
   if(!isAIActive()) return say('No local AI connected (⚙ Manage AI connections). Filing by hand works exactly the same.');
-  const unfiled=personalBooks().filter(b=>shelfOf(b)==='Personal').slice(0,40);
-  if(!unfiled.length) return say('Nothing unfiled — every book of yours is already on a shelf.');
+  // Whatever you have selected, else whatever your search is showing, else the
+  // unfiled pile. Misfiling a whole import onto one shelf is the normal
+  // accident (128 books onto Theravada, in the case that prompted this), and
+  // "only unfiled" would have been useless for exactly that.
+  const sel=Object.keys(state.myLibView.sel||{});
+  const pool = sel.length ? personalBooks().filter(b=>state.myLibView.sel[b.slug])
+    : (state.myLibView.q||'').trim() ? myLibFiltered()
+    : personalBooks().filter(b=>shelfOf(b)==='Personal');
+  const unfiled=pool.slice(0,60);
+  if(!unfiled.length) return say('Nothing to sort — select some books, search for a shelf, or leave some unfiled.');
   const shelves=allShelfChoices().filter(s=>s!=='Personal');
   say('Reading your titles… (a bigger model may take a moment)');
   try{
@@ -7624,7 +7775,7 @@ export async function suggestShelvesWithAI(){
       const sel=document.getElementById('myLibShelf_'+b.slug);
       if(sel){ sel.value=shelf; sel.style.borderColor='#7fa36b'; n++; }
     }
-    say(n?`Suggested a shelf for ${n} book${n===1?'':'s'} — shown in green. Nothing is filed until you change it or use the bulk move; a suggestion is not a decision.`
+    say(n?`Suggested a shelf for ${n} of ${unfiled.length} book${unfiled.length===1?'':'s'} — shown in green. Nothing is filed until you accept it; a suggestion is not a decision, and nothing is ever deleted.`
         :'It answered, but nothing matched your titles closely enough to be safe. Filing by hand always works.');
   }catch(e){ say('The connection flickered — nothing suggested.'); }
 }
@@ -7677,7 +7828,7 @@ function renderMyLibrary(keepFocus){
       <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="myLibSelectAll(false)">None</button>
     </div>
     <div class="row" style="gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
-      <button class="btn ghost" onclick="suggestShelvesWithAI()">✨ Suggest shelves for my unfiled books</button>
+      <button class="btn ghost" onclick="suggestShelvesWithAI()">✨ Have the librarian sort these</button>
     </div>
     <div class="meta" id="myLibAiOut" style="margin-top:6px"></div>
     ${selCount?`<div class="row" style="gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">
@@ -7954,7 +8105,7 @@ Object.assign(window, {
   choosePlantKind, createPlanting, plantSeedFromPouch, gatherSeeds, attemptTrial,
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
-  toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum,
+  toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   newLessonForm, saveMyLesson, deleteMyLesson,
   openStanding, setStanding, addStandingSuggestion, clearStanding,
   openPromptInspector, openStandingForCurrentChat, openPromptForCurrentChat,
