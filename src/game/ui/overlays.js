@@ -4,6 +4,7 @@ import { GATE_BEQUESTS } from '../data/bequests.js';
 import { COMMONS_PACKETS, PACKET_KINDS } from '../data/commons-packets.js';
 import { VIS, visBadge, visLine, DATA_MAP } from '../data/visibility.js';
 import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.js';
+import { parseDraftedSteps } from '../data/draft-parse.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -1057,9 +1058,23 @@ export function openConnections(){
    'voiceschanged' event actually fires; re-render when it does rather
    than assume the first call already has the full list. */
 if(ttsAvailable()) window.speechSynthesis.onvoiceschanged = () => { if(state.ui==='voice') renderVoiceSettings(); };
+/* getVoices() is populated ASYNCHRONOUSLY — on most machines it returns []
+   on the first call and fills in a moment later, firing 'voiceschanged'.
+   Nothing listened for that, so opening this panel showed only "System
+   default" and the improvements below were invisible. Reported from real use
+   2026-07-27 ("I didn't see any changes on the voice in the settings; there is
+   a default option though"). Listen once, redraw if the panel is still open. */
+let voicesHooked=false;
 export function openVoiceSettings(){
   state.ui='voice'; hideAllOv();
+  if(!voicesHooked && ttsAvailable() && typeof window.speechSynthesis.addEventListener==='function'){
+    voicesHooked=true;
+    window.speechSynthesis.addEventListener('voiceschanged', ()=>{ if(state.ui==='voice') renderVoiceSettings(); });
+  }
   renderVoiceSettings();
+  // belt and braces: some engines never fire the event but do fill the list
+  setTimeout(()=>{ if(state.ui==='voice' && ttsVoices().length) renderVoiceSettings(); }, 350);
+  setTimeout(()=>{ if(state.ui==='voice' && ttsVoices().length) renderVoiceSettings(); }, 1200);
   showOv('voiceOv');
 }
 export function setTTSVoice(voiceURI){
@@ -5055,7 +5070,7 @@ function renderLearningTree(){
         ${renderTreeGraph(nodes, {
           needsOf:x=>x.needs||[],
           onClickAttr:x=>`onclick="openPacket('${esc(x.id)}')"`,
-          cardHTML:x=>`<div class="t" style="font-size:12.5px">${x.kind==='lesson'?'🎓':x.kind==='course'?'🧭':x.kind==='paper'?'📄':'🗒'} ${esc((x.title||'').slice(0,44))}</div>
+          cardHTML:x=>`<div class="t" style="font-size:12.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${x.kind==='lesson'?'🎓':x.kind==='course'?'🧭':x.kind==='paper'?'📄':'🗒'} ${esc((x.title||'').slice(0,44))}</div>
             <div class="s" style="font-size:11px">by ${esc(x.by||'unknown')}${x.__mine?' · yours':''}</div>`,
         })}`
         :`<p class="meta" style="margin-top:14px"><b>Nothing has been contributed yet.</b> That is the
@@ -5077,6 +5092,17 @@ function renderLearningTree(){
       <h2>✎ ${editing?'Rewrite':'Write'} a lesson ${visBadge('private')}</h2>
       <div class="meta">Yours stands in the tree beside the built-in ones. Give it prerequisites and it
         becomes a real progression — a 101 that opens a 201 — for you, or for whoever you're teaching.</div>
+      <div class="card" style="cursor:default;margin-top:10px;border-color:#8fb4d9">
+        <div class="t" style="font-size:13px">✨ Let the AI do the typing</div>
+        <div class="s" style="margin-top:4px">Say what it's about; it drafts the rest. The direction stays
+          yours — it never chooses prerequisites, and nothing is saved until you add it to the tree.</div>
+        <div class="row" style="margin-top:8px;gap:6px">
+          <input type="text" id="mlSeed" placeholder="e.g. how to meditate · studying the Dao De Jing · soldering" style="flex:1"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();draftLessonWithAI();}">
+          <button class="btn" onclick="draftLessonWithAI()">Draft it</button>
+        </div>
+        <div class="meta" id="mlAiOut" style="margin-top:6px"></div>
+      </div>
       <label style="margin-top:12px">Title</label>
       <input type="text" id="mlTitle" value="${esc(editing?editing.title:'')}" placeholder="e.g. Soldering 101 — a joint that holds">
       <label>What it's for, in a sentence or two</label>
@@ -5203,7 +5229,8 @@ function renderLearningTree(){
    packets see overlapping trees; neither sees "everything," because
    there is no everything to see.
    ================================================================ */
-const TREE_COL=230, TREE_ROW=104;   // one card's footprint in the graph
+const TREE_COL=230, TREE_ROW=112;   // one card's footprint in the graph
+const TREE_CARD_H=84;               // fixed, so a long title can never run into the row below
 /* Depth = the longest chain of prerequisites behind a node. That's what makes
    the drawing read as a tree rather than a list: roots on the left, and
    anything that needed something else further right. */
@@ -5240,7 +5267,7 @@ function renderTreeGraph(nodes, opts){
   const maxRows=Math.max(...[...cols.values()].map(c=>c.length));
   const pos=new Map();
   for(const [d,list] of cols) list.forEach((n,i)=>pos.set(n.__k,{x:d*TREE_COL+14, y:i*TREE_ROW+10}));
-  const W=(maxD+1)*TREE_COL+30, H=maxRows*TREE_ROW+24;
+  const W=(maxD+1)*TREE_COL+30, H=maxRows*TREE_ROW+TREE_CARD_H-TREE_ROW+34;
   const edges=[];
   for(const n of nodes){
     const to=pos.get(n.__k);
@@ -5248,7 +5275,7 @@ function renderTreeGraph(nodes, opts){
       const parent=byTitle.get(String(need||'').toLowerCase());
       if(!parent||parent.__k===n.__k) continue;
       const from=pos.get(parent.__k); if(!from) continue;
-      const x1=from.x+196, y1=from.y+34, x2=to.x, y2=to.y+34;
+      const x1=from.x+196, y1=from.y+TREE_CARD_H/2, x2=to.x, y2=to.y+TREE_CARD_H/2;
       const mid=(x1+x2)/2;
       edges.push(`<path d="M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}" fill="none" stroke="#8a6a3a" stroke-width="2" opacity=".65"/>`
         +`<circle cx="${x2}" cy="${y2}" r="3" fill="#e0a43c" opacity=".8"/>`);
@@ -5258,7 +5285,7 @@ function renderTreeGraph(nodes, opts){
     <div style="position:relative;width:${W}px;height:${H}px">
       <svg width="${W}" height="${H}" style="position:absolute;inset:0;pointer-events:none">${edges.join('')}</svg>
       ${nodes.map(n=>{ const p=pos.get(n.__k);
-        return `<div class="card" style="position:absolute;left:${p.x}px;top:${p.y}px;width:196px;margin:0;padding:8px 10px"
+        return `<div class="card" style="position:absolute;left:${p.x}px;top:${p.y}px;width:196px;height:${TREE_CARD_H}px;margin:0;padding:8px 10px;overflow:hidden;box-sizing:border-box"
           ${onClickAttr?onClickAttr(n):''}>${cardHTML(n)}</div>`; }).join('')}
     </div></div>`;
 }
@@ -5275,6 +5302,60 @@ function collectiveNodes(){
   }).map(p=>({ ...p, __mine:(g.published||[]).some(x=>x.id===p.id) }));
 }
 export function treeTab(mode){ state.treeView={mode}; renderLearningTree(); }
+/* ----- Drafting a lesson with the local model (2026-07-27, and the reasoning
+   behind it is worth keeping verbatim):
+
+     "Too much manual work will defeat the purpose. I just want the environment
+      to be the mindset for the task, then have the heavy lifting done by the AI
+      when possible — and the direction and intention is in the user's control."
+
+   That is the correct division and it's the one this whole project keeps
+   returning to. So: YOU supply the direction — a subject, in your own words —
+   and the model does the typing. Every field it fills is yours to overwrite,
+   nothing is saved until you press the button, and it never invents a
+   prerequisite (that's structure, and structure is direction). */
+export async function draftLessonWithAI(){
+  const out=document.getElementById('mlAiOut');
+  const say=t=>{ if(out) out.textContent=t; };
+  const seedEl=document.getElementById('mlSeed');
+  const seed=(seedEl&&seedEl.value||'').trim() || (document.getElementById('mlTitle')?.value||'').trim();
+  if(!seed) return say('Tell it what the lesson is about first — a few words is enough ("how to meditate", "reading the Dao De Jing").');
+  if(!isAIActive()) return say('No local AI connected (⚙ Manage AI connections). You can still write it by hand.');
+  say('Drafting… (a bigger model may take a moment)');
+  const shelf=Store.allDocs().slice(0,40).map(d=>d.title).join(' | ');
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nYou draft a single practical lesson someone will actually walk. '
+        +'Steps must be things a person DOES, not things they read about. Be concrete and unpretentious. '
+        +'Never invent a book that is not in the list you are given. Answer ONLY in the labelled shape asked for.'},
+      {role:'user', content:`Draft a lesson on: ${seed}\n\nBooks available on their shelves (mention only these, and only if genuinely relevant): ${shelf}\n\nAnswer in exactly this shape:\nTITLE: <short, concrete lesson title>\nSUMMARY: <1-2 sentences: what they'll be able to do afterwards>\nTRACK: <a short heading this belongs under>\nLEVEL: <101, 201 or 301>\nSTEPS:
+- <do the thing> | <one sentence of why or how>
+- <do the next thing> | <why>
+(4 to 6 of them. Each step MUST start on its own new line beginning with "- ". Do not run them together in a paragraph.)`},
+    ]);
+    if(isEmptyReply(reply)) return say('It came back empty — try again, or write it yourself.');
+    const field=(k)=>{ const m=reply.match(new RegExp('^\\s*'+k+':\\s*(.+)$','im')); return m?m[1].trim():''; };
+    const set=(id,val)=>{ const e=document.getElementById(id); if(e&&val) e.value=val; return !!val; };
+    let filled=0;
+    if(set('mlTitle', field('TITLE'))) filled++;
+    if(set('mlSummary', field('SUMMARY'))) filled++;
+    set('mlTrack', field('TRACK'));
+    const lvl=field('LEVEL').match(/\d+/); if(lvl) set('mlLevel', lvl[0]);
+    // steps come after the STEPS: label, one per line, to the end of the reply
+    const sm=reply.match(/STEPS:\s*([\s\S]+)$/i);
+    if(sm){
+      const steps=parseDraftedSteps(sm[1]);
+      if(steps.length && set('mlSteps', steps.join('\n'))) filled++;
+    }
+    // Never claim success without having actually filled something in. A model
+    // that replies in the wrong shape (or a provider that answers with a
+    // fallback string) used to produce a cheerful "Drafted" over an untouched
+    // empty form — caught in testing 2026-07-27.
+    if(!filled) return say("It answered, but not in a shape I could read — nothing has been filled in. Try again, or write it yourself; the form works the same either way.");
+    say('Drafted — every field is yours to change. Prerequisites are left to you: what a lesson needs is direction, and that stays your call. Nothing is saved until you add it to the tree.');
+    blip(660,.07);
+  }catch(e){ say('The connection flickered — nothing drafted. Writing it by hand always works.'); }
+}
 export function newLessonForm(id){ state.treeView={mode:'write', id:id||null}; renderLearningTree(); }
 export function saveMyLesson(existingId){
   const g=i=>document.getElementById(i)?.value ?? '';
@@ -7925,6 +8006,29 @@ function myLibFiltered(){
   if(q) list=list.filter(b=>((b.title||'')+' '+shelfOf(b)+' '+((b.doc&&b.doc.summary)||'')).toLowerCase().includes(q));
   return list;
 }
+/* Accepting what the librarian suggested. This is the half that was missing:
+   the suggestions were rendered but there was no way to say yes to them, and
+   setting a <select>'s value from code never fires its onchange — so they were
+   inert. Reported from real use 2026-07-27 ("I saw the AI gave a suggestion and
+   I couldn't approve his decision"). */
+export function acceptAllSuggestions(){
+  const sug=state.myLibView.suggested||{}; const slugs=Object.keys(sug);
+  if(!slugs.length) return;
+  let n=0;
+  personalBooks().forEach(b=>{ if(sug[b.slug]){ b.tradition=sug[b.slug]; n++; } });
+  state.myLibView.suggested=null; persist();
+  logActivity('Accepted the librarian’s filing for '+n+' book(s).');
+  blip(660,.07); setTimeout(()=>blip(825,.08),80);
+  renderMyLibrary();
+  const out=document.getElementById('myLibAiOut');
+  if(out) out.textContent=`Filed ${n} book${n===1?'':'s'}. Nothing was deleted — every one is still on your shelves, just in a better place.`;
+}
+export function dismissSuggestions(){ state.myLibView.suggested=null; renderMyLibrary(); }
+export function acceptOneSuggestion(slug){
+  const sug=state.myLibView.suggested||{}; if(!sug[slug]) return;
+  const b=personalBooks().find(x=>x.slug===slug); if(!b) return;
+  b.tradition=sug[slug]; delete sug[slug]; persist(); renderMyLibrary();
+}
 export function myLibMoveSelected(){
   const to=document.getElementById('myLibMoveTo')?.value; if(!to) return;
   const sel=Object.keys(state.myLibView.sel||{}); if(!sel.length) return;
@@ -7940,8 +8044,9 @@ export function myLibMoveSelected(){
    the tedious-but-judgement-y work worth handing to a model that already has
    the titles in front of it. */
 export async function suggestShelvesWithAI(){
-  const out=document.getElementById('myLibAiOut');
-  const say=t=>{ if(out) out.textContent=t; };
+  // look the element up EVERY time: renderMyLibrary() replaces the panel, and a
+  // captured reference becomes a detached node whose text nobody ever sees.
+  const say=t=>{ const el=document.getElementById('myLibAiOut'); if(el) el.textContent=t; };
   if(!isAIActive()) return say('No local AI connected (⚙ Manage AI connections). Filing by hand works exactly the same.');
   // Whatever you have selected, else whatever your search is showing, else the
   // unfiled pile. Misfiling a whole import onto one shelf is the normal
@@ -7962,17 +8067,17 @@ export async function suggestShelvesWithAI(){
       {role:'user', content:`Allowed shelves: ${shelves.join(' | ')}\n\nFile these:\n${unfiled.map(b=>'- '+b.title).join('\n')}`},
     ]);
     if(isEmptyReply(reply)) return say('It came back empty. Filing by hand always works.');
-    let n=0;
+    let n=0; const picks={};
     for(const line of String(reply).split('\n')){
       const m=line.match(/^\s*[-*]?\s*(.+?)\s*=>\s*(.+?)\s*$/); if(!m) continue;
       const title=m[1].trim().toLowerCase(), shelf=shelves.find(s=>s.toLowerCase()===m[2].trim().toLowerCase());
       if(!shelf) continue;
       const b=unfiled.find(x=>(x.title||'').trim().toLowerCase()===title);
       if(!b) continue;
-      const sel=document.getElementById('myLibShelf_'+b.slug);
-      if(sel){ sel.value=shelf; sel.style.borderColor='#7fa36b'; n++; }
+      picks[b.slug]=shelf; n++;
     }
-    say(n?`Suggested a shelf for ${n} of ${unfiled.length} book${unfiled.length===1?'':'s'} — shown in green. Nothing is filed until you accept it; a suggestion is not a decision, and nothing is ever deleted.`
+    state.myLibView.suggested=picks; renderMyLibrary();
+    say(n?`Suggested a shelf for ${n} of ${unfiled.length} book${unfiled.length===1?'':'s'}. Nothing has moved — accept them all, or change any one first. A suggestion is not a decision.`
         :'It answered, but nothing matched your titles closely enough to be safe. Filing by hand always works.');
   }catch(e){ say('The connection flickered — nothing suggested.'); }
 }
@@ -7981,6 +8086,7 @@ function renderMyLibrary(keepFocus){
   const v=state.myLibView||(state.myLibView={q:'',sel:{}});
   const books=personalBooks(), list=myLibFiltered();
   const selCount=Object.keys(v.sel||{}).length;
+  const sug=v.suggested||{}; const sugCount=Object.keys(sug).length;
   const titleCount={}; books.forEach(b=>{ const t=(b.title||'').trim().toLowerCase(); titleCount[t]=(titleCount[t]||0)+1; });
   const counts={}; books.forEach(b=>{ const s=shelfOf(b); counts[s]=(counts[s]||0)+1; });
   const mine=myShelves(), unfiled=counts['Personal']||0;
@@ -8030,6 +8136,13 @@ function renderMyLibrary(keepFocus){
     </div>
     <div class="meta" id="myLibAiOut" style="margin-top:6px"></div>
     <div id="myLibTriageOut"></div>
+    ${sugCount?`<div class="card" style="cursor:default;margin-top:10px;border-color:#7fa36b">
+        <div class="t" style="color:#7fa36b">✨ The librarian suggests a shelf for ${sugCount} book${sugCount===1?'':'s'}</div>
+        <div class="s" style="margin-top:4px">Nothing has moved yet. Each one is shown in green below — change any you disagree with, then accept.</div>
+        <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+          <button class="btn" onclick="acceptAllSuggestions()">✓ Accept all ${sugCount}</button>
+          <button class="btn ghost" onclick="dismissSuggestions()">✕ Ignore them</button>
+        </div></div>`:''}
     ${selCount?`<div class="row" style="gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">
         <b style="color:var(--gold)">${selCount} selected →</b>
         <select id="myLibMoveTo" style="width:auto;min-width:150px">
@@ -8047,6 +8160,7 @@ function renderMyLibrary(keepFocus){
         <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> ${b.sharing==='copyright'?'🔒 ':b.sharing==='unknown'?'❔ ':(b.sharing==='open'||b.sharing==='pd')?'🤝 ':''}${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
         <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
           <select id="myLibShelf_${esc(b.slug)}" onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto;min-width:150px">${opts(b)}</select>
+          ${sug[b.slug]?`<button class="btn" style="font-size:11px;padding:3px 10px;border-color:#7fa36b" onclick="acceptOneSuggestion('${esc(b.slug)}')" title="File it where the librarian suggests">✨ → ${esc(sug[b.slug])}</button>`:''}
           <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
           <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:var(--danger);color:var(--danger-soft)" onclick="removePersonalBook('${esc(b.slug)}','mylib')">Remove</button>
         </div>
@@ -8305,8 +8419,9 @@ Object.assign(window, {
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
-  newLessonForm, saveMyLesson, deleteMyLesson,
+  newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI,
   openAlexandria, runLibraryTriage, applyTriageMove,
+  acceptAllSuggestions, dismissSuggestions, acceptOneSuggestion,
   openStanding, setStanding, addStandingSuggestion, clearStanding,
   openPromptInspector, openStandingForCurrentChat, openPromptForCurrentChat,
   runCopyrightCheck,

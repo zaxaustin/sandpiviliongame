@@ -170,6 +170,35 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+
+/* ---------- drafted-step parsing ----------
+   Checked against what the REAL local model on this machine returns, which is
+   not what the prompt asks for: every step on one line, "action | why."
+   repeated. Caught only by running it against a live model, so the case is
+   preserved here verbatim. See src/game/data/draft-parse.js. */
+{
+  const { parseDraftedSteps } = await import('../src/game/data/draft-parse.js');
+  const REAL = "Find a quiet spot and sit comfortably on a chair or cushion for about five minutes | A stable posture keeps your back upright without straining your muscles. Close your eyes gently and take three slow, deep breaths to settle into the moment | This signals your nervous system that it is safe to relax. Focus your attention entirely on the sensation of air entering and leaving your nose | Anchoring your mind on one physical point prevents it from wandering too quickly. When thoughts drift away, notice them without judgment and softly return your focus to breathing | Returning attention repeatedly builds mental muscle and resilience over time. Gently open your eyes and stretch before slowly resuming your day | Transitioning gradually helps you carry calmness into the next activity.";
+  const cases = [
+    ['a real local model reply, all on one line', REAL, 5],
+    ['one per line, as asked', ['Sit down','Breathe','Notice drifting','Return'].join(String.fromCharCode(10)), 4],
+
+
+
+    ['numbered on one line', '1. Sit down 2. Breathe 3. Notice 4. Return', 4],
+    ['bulleted lines', ['- Sit down','- Breathe','- Return'].join(String.fromCharCode(10)), 3],
+
+
+    ['a single step', 'Just sit there', 1],
+    ['a paragraph that ignored the shape entirely', 'Sit down somewhere quiet. Close your eyes and breathe slowly. Notice when your mind wanders. Bring it gently back again.', 4],
+    ['nothing at all', '', 0],
+  ];
+  for (const [name, input, want] of cases) {
+    const got = parseDraftedSteps(input).length;
+    if (got !== want) fail(`draft-parse.js: ${name} gave ${got} steps, expected ${want}`);
+  }
+}
+
 /* ---------- library ---------- */
 const seenSlugs = new Set();
 for (const d of SEED_LIBRARY) {

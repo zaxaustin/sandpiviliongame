@@ -283,7 +283,7 @@ function buildStudy(){
       // The Learning Tree stands beside the board rather than behind it — asked
       // for directly after real use: a progression you climb deserves its own
       // door, not a button inside something else.
-      {x:9,y:2,kind:'tree',name:'THE LEARNING TREE'},
+      {x:10,y:3,kind:'tree',name:'THE LEARNING TREE'},
       {x:5,y:6,kind:'computer',name:'THE COMPUTER'},
       {x:9,y:6,kind:'requests',name:'THE REQUEST BOARD'},
     ],

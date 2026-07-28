@@ -1281,3 +1281,62 @@ down. Worth doing after the beta, not before.
 
 **Confirmed working, unprompted:** *"the auto read is working well, I can do
 other things on top of it."* That was the whole point of the earlier round.
+
+## Round — 2026-07-27 (third pass) — and the first tests against a real model
+
+Four findings, all fixed. Two of them were only findable by running the actual
+local model rather than a stub, which is a lesson in itself.
+
+### 11. [x] The librarian's suggestions couldn't be accepted
+
+*"I tried to auto sort them, I saw the AI gave a suggestion and I couldn't
+approve his decision."* **Two separate causes:**
+1. The suggestions were written straight into the `<select>` elements — and
+   **setting a select's value from code never fires its `onchange`**, so they
+   looked applied and were completely inert.
+2. Worse, the "here's what I suggest" message was written to an element
+   captured *before* a re-render, i.e. to a **detached node**. Nobody ever saw
+   it.
+
+**Fixed:** suggestions are held as state, shown with a green **✓ Accept all N**
+bar plus a per-book one-click accept, and every status message now looks its
+element up at write time. Verified against the real model: it filed *The Art of
+Electronics* → Electronics, *Tartine Bread* → Cooking, *The Zen of Sitting* →
+Theravada, and accepting actually moved them.
+
+### 12. [x] Voice settings looked unchanged
+
+*"I didn't see any changes on the voice in the settings — there is a default
+option though."* **Cause:** `getVoices()` is populated **asynchronously**; on
+most machines it returns `[]` on first call and fills in a moment later, firing
+`voiceschanged`. Nothing listened for it, so the panel showed only "System
+default" and every improvement was invisible. **Fixed:** the panel listens for
+`voiceschanged` and redraws, with two timed re-checks for engines that never
+fire it.
+
+### 13. [x] The tree overlapped the board
+
+Two overlaps, both real: the new Learning Tree station sat directly beside the
+Course Board and their floating labels collided, and in the graph a long title
+wrapped to three lines and ran into the row beneath. **Fixed:** the station
+moved a tile away and down a row; graph cards now have a fixed height with a
+two-line clamp, and edges meet the card's true middle.
+
+### 14. [x] Writing a lesson was all manual work
+
+*"Too much manual work will defeat the purpose. I just want the environment to
+be the mindset for the task, then have the heavy lifting done by the AI when
+possible — and the direction and intention is in the user's control."*
+
+**Built to exactly that division:** a **✨ Let the AI do the typing** box in the
+lesson form. You give the subject in your own words; it drafts title, summary,
+track, level and steps. **It never chooses prerequisites** — structure is
+direction, and direction stays yours. Nothing saves until you add it.
+
+**What testing against the real model taught us**, and it's worth keeping: a 9B
+model's format adherence is *unreliable and non-deterministic*. The same prompt
+returned neat per-line steps on one run and a single run-on paragraph on the
+next. So `data/draft-parse.js` is deliberately forgiving — newlines, then
+numbered-inline, then `action | why.` pairs, then plain sentences — and `npm
+test` carries the real captured reply as a permanent case. **The lesson: never
+trust a local model's output shape; parse what it actually sends.**
