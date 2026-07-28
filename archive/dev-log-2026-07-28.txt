@@ -119,3 +119,100 @@ STILL OPEN (unchanged)
   * Cut the 0.1.0-beta.2 installer
   * Clean-machine install test
   * #10 -- Course Board / tree as a college index (deferred past beta)
+
+
+=======================================================================
+ SAME DAY, SECOND SESSION — "we are at a good point to cut the beta"
+=======================================================================
+
+Answer: we were not, and the reason was the worst one available.
+
+THE PACKAGED APP HAD NEVER BOOTED
+---------------------------------
+Chasing whether bundled book texts would load in the desktop app, I
+booted dist/ the way the INSTALLER boots it -- win.loadFile(), a file://
+origin -- instead of the way development does. It didn't boot. There was
+no vite.config.js in the project at all, so Vite emitted absolute asset
+paths (/assets/index-xxx.js), and under file:// those resolve to the
+filesystem ROOT: C:/assets/... Nothing there.
+
+The failure is quiet in exactly the way that keeps a bug alive for
+weeks. index.html itself loads, so the window shows the title screen and
+"Enter the Grounds". Behind it: no script, no stylesheet, no error
+dialog. A button that does nothing.
+
+  index.html loads at all      : true
+  THE GAME'S OWN CODE RUNS     : false
+  the stylesheet arrives       : rgba(0,0,0,0)
+
+Every desktop check until now went through electron:dev, which loads
+from the vite dev server over http and therefore cannot see this. The
+one gap that mattered most, hidden by the one convenience that made
+testing easy. The 11 July beta.1 installer was almost certainly a dead
+app -- which fits the record exactly: the clean-machine install test is
+the one thing that was never done.
+
+Fixed with base:'./'. Relative paths work under file:// and http alike,
+so Vercel is unaffected (39/39 web pre-flight still green). Guarded by
+test/live/packaged-boot.cjs, which boots dist/ through a real Electron
+main process using the installer's own preload, sandbox and loadFile,
+and fails if the code didn't run, the stylesheet didn't arrive, the
+bridge isn't wired, Start doesn't start, or a panel comes up empty.
+
+THEN THE ARTIFACT ITSELF, ONCE ANYONE LOOKED
+--------------------------------------------
+  * The build log had been saying "default Electron icon is used" for
+    weeks. Every tester's taskbar would have shown the Electron atom.
+    There was no icon asset at all. Drew one instead of downloading one:
+    scripts/make-icon.mjs renders a 32x32 pixel-art pavilion (moon
+    behind, dune below), scales it by whole numbers to 256/128/64/32,
+    encodes the PNGs by hand with node:zlib and wraps them in an ICO. No
+    dependencies, colours straight out of style.css. Integer scaling is
+    the point -- it stays crisp at every size Windows asks for.
+
+  * The shipped app.asar was 521 node_modules entries to 5 dist ones.
+    electron-builder packs everything in `dependencies`, and
+    supabase-js was listed there even though the Electron main process
+    never requires it. It's a bundle-time dependency. Moved to
+    devDependencies: 530 entries -> 9.
+
+AND THE LAST HONEST GAP IN THE LIBRARY
+--------------------------------------
+Ten of the seed books -- Meditations, The Republic, the Tao Te Ching,
+Origin of Species and six more -- ship as a Pavilion SUMMARY. They had
+no "Read the full text" button and said nothing about why, so opening
+Marcus Aurelius gave an unexplained precis and no way to tell whether
+the app was broken or that was all there was. Silence is not honesty.
+Each now says plainly: this is the summary, the text is public domain,
+here is the source, drag the file onto this window and this page becomes
+the real book. The Pavilion's own seven writings never show it -- they
+are complete as they stand and aren't missing anything.
+
+beta.2 IS CUT
+-------------
+release/Sand Pavilion Setup 0.1.0-beta.2.exe, 94.97 MB, and it is the
+first installer ever verified as an artifact rather than as source.
+
+THE THREAD RUNNING THROUGH BOTH SESSIONS TODAY
+----------------------------------------------
+Morning: when a local model gets it wrong, ask it something smaller.
+Afternoon: test the artifact you ship, not the one you develop in.
+
+Both of today's worst findings -- the Supabase call on startup and the
+dead packaged app -- were invisible to every existing test and obvious
+within minutes of running the real thing and watching what it did.
+
+VERIFIED
+--------
+  npm test                      clean
+  npm run build:beta            clean + verifier passes
+  packaged-boot.cjs             6/6, real Electron 43, file://
+  preflight.mjs                 39/39, no external requests
+  app.asar                      9 entries, no keys, no cloud host
+
+STILL OPEN
+----------
+  * The clean-machine install test (genuinely un-automatable)
+  * Ten unbroken minutes listening to a real book
+  * Copyright triage over the real 128 books
+  * #10 -- Course Board / tree as a college index (deferred past beta)

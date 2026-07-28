@@ -263,7 +263,13 @@ have never met an old save.
 1. **The welcome-packet decision** — only 6 of 24 seed texts read in full; the
    marquee classics are summary-only. Bundle more, ship a MinIO starter
    package, or label the summaries honestly. A decision, not a bug.
-2. **Cut the installer** — `npm run electron:build:beta` at `0.1.0-beta.2`.
+2. **[done 2026-07-28] The installer is cut** — `release/Sand Pavilion Setup 0.1.0-beta.2.exe`,
+   and it is the first one ever verified as an *artifact* rather than as
+   source. Before it, the packaged app **did not boot at all**: no
+   `vite.config.js` meant absolute asset paths, which resolve to the
+   filesystem root under `file://` — a title screen with a dead button and
+   nothing behind it (`BETA-TESTING-FEEDBACK.md` #17). Always run
+   `test/live/packaged-boot.cjs` before cutting another.
    **Never the plain `electron:build`**: that reads `.env.local` and bakes this
    machine's Supabase URL and key into the installer. `scripts/verify-beta-build.mjs`
    now runs inside both beta scripts and fails the build if a cloud host, a
