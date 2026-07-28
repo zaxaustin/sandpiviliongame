@@ -17,7 +17,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[]}, temple:{folds:{}}, curriculum:{}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[], reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -35,10 +35,19 @@ if(!data.hall.dissections) data.hall.dissections=[]; // kept paper analyses came
 if(!data.temple) data.temple={folds:{}}; // older saves predate the Eightfold reflection ladder (EIGHTFOLD-PATH-TEMPLE-PLAN.md)
 if(!data.curriculum) data.curriculum={}; // older saves predate the Learning Tree (COURSE-PROGRESSION-PLAN.md)
 if(!data.paths) data.paths=[]; // older saves predate Paths — ideas you pick up and walk (PHONE-APPS/daily-use)
+if(!data.grove) data.grove={plantings:[],seeds:[]}; // older saves predate the Inheritance Hall (BETA-BUILD-PLAN.md §8)
+if(!data.grove.seeds) data.grove.seeds=[]; // the pouch came with the seed-propagation half
+if(!data.standing) data.standing={}; // your own standing instructions per resident (ADMIN-AND-AUTHORING-PLAN #1)
+if(!data.myLessons) data.myLessons=[]; // lessons you wrote yourself, walked beside the built-in Learning Tree (#3)
+if(!data.catalogEdits) data.catalogEdits={}; // the steward's corrections to certified catalogue cards (data/store.js applies them)
+if(!data.myShelves) data.myShelves=[]; // your own named shelves — the fixed 11 traditions can't fit a real personal library
+if(!data.commons) data.commons={received:[],published:[],taken:{}}; // older saves predate the Commons Table (data/visibility.js)
+if(!data.commons.taken) data.commons.taken={};
 // The personal shelf rides along with the certified library everywhere docs
 // are read (shelves, the Index, Quill's grounding) — registered as a getter,
 // not a copy, so shelving/removing a book needs no re-registration.
 Store.registerPersonalDocs(()=>data.personalLibrary);
+Store.registerCatalogOverrides(()=>data.catalogEdits);
 setTTSSettings(data.ttsSettings);
 let saveWarned=false; // only interrupt the visitor once per session, not on every failed micro-save
 export function persist(){
@@ -182,10 +191,94 @@ export function npcAt(x,y){ return scene().npcs.find(n=>n.x===x&&n.y===y); }
 export function signAt(x,y){ return (scene().signs||[]).find(s=>s.x===x&&s.y===y); }
 export function warpAt(x,y){ return (scene().warps||[]).find(w=>w.x===x&&w.y===y); }
 export function stationAt(x,y){ return (scene().stations||[]).find(s=>s.x===x&&s.y===y); }
+/* ----- Plantings — the Inheritance Hall's one real mechanic. Unlike every
+   other interactable in the world, these live in the SAVE, not in scenes.js:
+   the grove ships empty on purpose, and everything standing in it was put
+   there by whoever keeps this Pavilion (or arrived as a bequest someone else
+   left). Same shape as a station otherwise — a tile you face and press E on,
+   and a tile you can't walk through. See BETA-BUILD-PLAN.md §8. */
+export function plantings(){ return (data.grove&&data.grove.plantings)||[]; }
+export function plantingAt(x,y){ return plantings().find(p=>p.x===x&&p.y===y&&(p.scene||'grove')===state.scene); }
+export const PLANTABLE = new Set(['G','F','S']); // open ground only — not the path, not the trees
+/* A sandbox you can wall yourself out of isn't a sandbox. Ground directly in
+   front of the record stone or a sign stays free, so no arrangement of
+   plantings can ever lock a visitor out of something they need to reach. */
+function spotFree(s,x,y,taken){
+  if(x<1||y<1||x>=s.w-1||y>=s.h-1) return false;
+  if(!PLANTABLE.has(s.tiles[y][x])) return false;
+  if(taken.has(x+','+y)) return false;
+  const near=(list)=>[[0,0],[0,1],[0,-1],[1,0],[-1,0]].some(([dx,dy])=>(list||[]).some(o=>o.x===x+dx&&o.y===y+dy));
+  if(near(s.stations)||near(s.signs)||near(s.npcs)) return false;
+  if((s.warps||[]).some(w=>w.x===x&&w.y===y)) return false;
+  return true;
+}
+function plantedSet(sceneKey){
+  return new Set(plantings().filter(p=>(p.scene||'grove')===sceneKey).map(p=>p.x+','+p.y));
+}
+export function canPlantAt(x,y){
+  if(state.scene!=='grove') return false;
+  return spotFree(scene(),x,y,plantedSet('grove'));
+}
+/* Where a bequest someone hands you comes up when you plant it sight-unseen.
+   Deliberately NOT "the first free tile" — that piled every gift into one
+   corner with its labels on top of each other. Picks the spot furthest from
+   anything already in the ground, so the court fills the way a dig site does:
+   scattered, worth walking around. */
+export function freeGroveTile(){
+  const s=scenes.grove; if(!s) return null;
+  const taken=plantedSet('grove');
+  const here=plantings().filter(p=>(p.scene||'grove')==='grove');
+  let best=null, bestScore=-1;
+  for(let y=1;y<s.h-1;y++) for(let x=1;x<s.w-1;x++){
+    if(!spotFree(s,x,y,taken)) continue;
+    let d=1e9;
+    for(const p of here) d=Math.min(d, Math.abs(p.x-x)+Math.abs(p.y-y));
+    if(d===1e9) d=Math.abs(x-s.w/2)+Math.abs(y-s.h/2); // nothing planted yet — start near the middle
+    const score=d*10 - ((x*7+y*13)%7); // a little jitter so repeats don't line up
+    if(score>bestScore){ bestScore=score; best={x,y}; }
+  }
+  return best;
+}
 export function blocked(x,y){
   if(SOLID.has(tileAt(x,y))) return true;
-  if(npcAt(x,y)||signAt(x,y)||stationAt(x,y)) return true;
+  if(npcAt(x,y)||signAt(x,y)||stationAt(x,y)||plantingAt(x,y)) return true;
   return false;
+}
+/* Real calendar days, never game-time — the same patience the Greenhouse idea
+   and the Daoist shelf already ask for, made into the one thing in this
+   Pavilion you genuinely cannot rush. */
+export function daysSince(key){
+  if(!key) return 0;
+  const then=new Date(key+'T00:00:00'), now=new Date(todayKey()+'T00:00:00');
+  if(isNaN(then)) return 0;
+  return Math.max(0, Math.round((now-then)/86400000));
+}
+// 0 seed in the soil · 1 sprout · 2 bud · 3 in bloom (and giving seeds of its own)
+export function plantStage(pl){ return pl && pl.kind==='seed' ? Math.min(3, daysSince(pl.planted)) : 3; }
+
+/* ----- Buried things. A planting can carry a requirement: until it's met the
+   thing stays under the sand, showing only as a marker, and its contents are
+   not readable. Every requirement is checked against something the visitor
+   genuinely did — a book actually read, days actually waited, something
+   actually planted by them — never a payment, a score, or an account. The
+   locked one always says plainly what it is waiting for: this is a condition,
+   not a puzzle about what the condition is. */
+export function requirementMet(pl){
+  const h=pl&&pl.hidden; if(!h||!h.kind||h.kind==='none') return true;
+  if(h.kind==='read') return !!(data.read && data.read[h.slug]);
+  if(h.kind==='days') return daysSince(pl.planted) >= (h.days||0);
+  if(h.kind==='planted') return plantings().some(p=>p.id!==pl.id && !p.received);
+  if(h.kind==='books') return (data.personalLibrary||[]).length >= (h.count||1);
+  return true;
+}
+export function requirementText(pl){
+  const h=pl&&pl.hidden; if(!h||!h.kind||h.kind==='none') return '';
+  if(h.label) return h.label;
+  if(h.kind==='read') return 'read a particular book in the Library';
+  if(h.kind==='days') return `wait ${h.days||0} day${(h.days||0)===1?'':'s'} from the day it was planted`;
+  if(h.kind==='planted') return 'plant something of your own here first';
+  if(h.kind==='books') return `bring ${h.count||1} book${(h.count||1)===1?'':'s'} of your own into the Library`;
+  return '';
 }
 export function facingTile(){
   const p=state.player, d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[p.dir];

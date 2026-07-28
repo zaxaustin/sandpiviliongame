@@ -10,10 +10,11 @@
    hardcoded list here is exactly the kind of thing this script exists
    to catch drifting silently.
    ================================================================ */
+import { readFileSync } from 'node:fs';
 import { scenes, SOLID } from '../src/game/scenes.js';
 import { SEED_LIBRARY, TRADITIONS } from '../src/game/data/seed.js';
 
-const KNOWN_STATION_KINDS = ['planner', 'courses', 'archive', 'computer', 'requests', 'notice', 'hearth', 'grantdesk', 'residents', 'research', 'coffee', 'review', 'records', 'calendar', 'ledger', 'makersbench', 'greenhouse', 'roundtable', 'mailroom', 'yourshelf'];
+const KNOWN_STATION_KINDS = ['planner', 'courses', 'archive', 'computer', 'requests', 'notice', 'hearth', 'grantdesk', 'residents', 'research', 'coffee', 'review', 'records', 'calendar', 'ledger', 'makersbench', 'greenhouse', 'roundtable', 'mailroom', 'yourshelf', 'inheritance', 'commons'];
 
 const failures = [];
 const fail = (msg) => failures.push(msg);
@@ -72,6 +73,101 @@ for (const [key, s] of Object.entries(scenes)) {
   for (const st of s.stations || []) claim('station', st.x, st.y, st.name);
   for (const n of s.npcs || []) claim('npc', n.x, n.y, n.name);
   for (const sg of s.signs || []) claim('sign', sg.x, sg.y, sg.name);
+}
+
+/* ---------- common vs private ----------
+   Every store in the save has to appear in DATA_MAP, or Your Data quietly
+   stops telling the whole truth about what can leave this machine. That's a
+   promise to a visitor, so it gets a test rather than a good intention.
+   See plans/COMMONS-AND-PRIVATE-PLAN.md. */
+{
+  const { DATA_MAP } = await import('../src/game/data/visibility.js');
+  const mapped = new Set(DATA_MAP.map(d => d.key));
+  // entities.js can't be imported here (it touches the DOM), so the store list
+  // is read straight out of its freshData() source text — crude, and it works.
+  const src = readFileSync(new URL('../src/game/entities.js', import.meta.url), 'utf8');
+  const m = src.match(/export function freshData\(\)\{ return \{([\s\S]*?)\}; \}/);
+  if (!m) fail('entities.js: could not find freshData() to check the data map against');
+  else {
+    // top-level keys only — walk the text tracking depth, since a plain regex
+    // also matches the keys of nested objects (grove.plantings, hall.experiments…)
+    const body = m[1];
+    const keys = [];
+    let depth = 0, atKey = true, word = '';
+    for (const ch of body) {
+      if (ch === '{' || ch === '[' || ch === '(') { depth++; atKey = false; word = ''; continue; }
+      if (ch === '}' || ch === ']' || ch === ')') { depth--; word = ''; continue; }
+      if (ch === ',' && depth === 0) { atKey = true; word = ''; continue; }
+      if (depth !== 0) continue;
+      if (ch === ':') { if (atKey && word) keys.push(word); atKey = false; word = ''; continue; }
+      if (/[a-zA-Z0-9_]/.test(ch)) { word += ch; } else { word = ''; }
+    }
+    // Small, boring, or self-evident stores that need no privacy line of their own.
+    const ignore = new Set(['saveVersion', 'pos', 'seenWelcome', 'settings', 'ttsSettings',
+      'fish', 'fishLog', 'read', 'inventory', 'waypoints', 'bookRequests', 'reviewQueue', 'noteMeta']);
+    for (const k of keys) {
+      if (ignore.has(k) || mapped.has(k)) continue;
+      fail(`visibility.js: save store '${k}' has no DATA_MAP entry — Your Data can't say whether it ever leaves this machine`);
+    }
+    if (keys.length < 10) fail(`smoke: only parsed ${keys.length} top-level save stores — the freshData() reader has drifted`);
+  }
+}
+
+/* ---------- inline handlers ----------
+   The project's oldest and most-repeated gotcha, now a test: every function
+   called from an inline on*= attribute in overlays.js must also appear in the
+   `Object.assign(window, {...})` block at the bottom, or the button silently
+   does nothing. Found two live ones the day this check was written — a
+   custom-shelf "Open" button, and the Learning Tree's own "Back to the Course
+   Board". A silent no-op button is worse than a crash: nobody reports it. */
+{
+  const src = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const block = src.slice(src.lastIndexOf('Object.assign(window'));
+  const exported = new Set(block.match(/[A-Za-z_$][\w$]*/g) || []);
+  // functions assigned straight onto window elsewhere count too
+  for (const m of src.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) exported.add(m[1]);
+  const RESERVED = new Set(['if', 'for', 'while', 'return', 'event', 'this', 'switch', 'try']);
+  const called = new Set();
+  for (const m of src.matchAll(/on(?:click|change|input|keydown|dragover|dragleave|drop)\s*=\s*["'`]?\s*([A-Za-z_$][\w$]*)\s*\(/g)) {
+    if (!RESERVED.has(m[1])) called.add(m[1]);
+  }
+  for (const fn of called) {
+    if (!exported.has(fn)) {
+      fail(`overlays.js: '${fn}()' is called from an inline handler but is not on window — that button silently does nothing`);
+    }
+  }
+}
+
+/* ---------- copyright triage ----------
+   The one place in this project where being wrong has consequences outside
+   the app, so the rules get real cases. The property that matters most is the
+   last one: nothing uncertain is ever recommended as shareable. See
+   src/game/data/copyright.js for why an AI is deliberately not the judge. */
+{
+  const { triage } = await import('../src/game/data/copyright.js');
+  const cases = [
+    ['a Gutenberg classic', { text: 'The Project Gutenberg eBook of Walden, by Henry David Thoreau. This ebook is for the use of anyone anywhere at no cost. First published 1854.' }, 'pd'],
+    ['a CC0 translation', { text: 'This translation is released into the public domain under Creative Commons Zero (CC0).' }, 'open'],
+    ['a modern textbook', { text: 'Copyright © 2019 by Pearson Education. All rights reserved. No part of this book may be reproduced.' }, 'copyright'],
+    ['text with no clues at all', { text: 'Chapter one. It was a quiet morning and nothing in particular happened.' }, 'unknown'],
+    ['old, no statement', { text: 'A treatise, printed in the year 1873 in London.' }, 'pd'],
+    // a recent date alone proves nothing either way — 'unknown' is the honest
+    // answer, and it keeps the book personal just as 'copyright' would
+    ['recent date, nothing stated', { text: 'This edition prepared in 2021 for the seminar.' }, 'unknown'],
+    ['an author long dead', { text: 'A collection of essays.', evidence: { authorDied: 1901 } }, 'pd'],
+    ['Gutenberg quoting an old copyright page', { text: 'The Project Gutenberg eBook. This ebook is for the use of anyone anywhere. Copyright 1902 by the publisher. Published 1902.' }, 'pd'],
+  ];
+  for (const [name, input, want] of cases) {
+    const got = triage(input).id;
+    if (got !== want) fail(`copyright.js: ${name} → '${got}', expected '${want}'`);
+  }
+  // THE safety property: anything not positively established stays personal.
+  for (const [name, input] of cases) {
+    const v = triage(input);
+    if (v.mayShare && !(v.id === 'pd' || v.id === 'open')) {
+      fail(`copyright.js: ${name} was marked shareable on a '${v.id}' verdict — uncertain must never mean shareable`);
+    }
+  }
 }
 
 /* ---------- library ---------- */

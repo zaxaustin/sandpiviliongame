@@ -4,8 +4,20 @@
 > for happened — see `BETA-BUILD-PLAN.md`'s STATUS banner (personal library,
 > local-only installer, orientation, the tiered model guide answering #1
 > below). This doc stays open as the *stance*; what remains actionable from
-> it is the welcome-packet decision (seed 21 vs live 49) and the tester
-> round itself — both tracked as README "near gates."
+> it is the welcome-packet decision and the tester round itself — both
+> tracked as README "near gates."
+>
+> **UPDATED 2026-07-27 — two additions to the stance, at the user's steer.**
+> (1) **The Inheritance Hall**: a visitor doesn't just fill the Pavilion with
+> books and notes, they write **their own learning program** — and finishing
+> one leaves them holding a real collection of books plus their own notes, in
+> one file they can keep or give away. "Fill it yourself" now includes the
+> curriculum, not just the shelves. (2) **The setup ladder made explicit**: the
+> app works with nothing installed; Ollama, then Docker for data, then your own
+> existing setup are **layers you add in your own order**, each optional, each
+> with an honest fallback. Both are specified in
+> [`BETA-BUILD-PLAN.md`](BETA-BUILD-PLAN.md) §8 and §5 — this doc carries why
+> they belong to the launch's *shape*.
 
 Written 2026-07-11, from the user's own framing. This is the *shape* of what
 opens to other people — not a feature list, a stance. It sits above
@@ -53,6 +65,19 @@ Three things fall out of that, and they're the whole plan:
 - **A minimal first-arrival orientation** — not the full tutorial (deferred,
   see `FOUNDATION-AND-EXTRAS.md`), just enough that someone who isn't Zac
   knows where to start and that nothing breaks by clicking around.
+- **A blank page they're invited to write on — the Inheritance Hall.** Books
+  and notes were always theirs to bring; now the **curriculum** is too. A
+  visitor can write their own learning program (their trade, their language,
+  their kid's reading list), walk it with the Tutor's help, and end holding
+  the **book collection and the notes** it produced — one file, theirs to keep
+  or hand to someone. This is the stance's third point stopped being an
+  invitation and started being a mechanic. Spec: `BETA-BUILD-PLAN.md` §8.
+- **A ladder, not a wall, for setup.** First arrival needs *nothing*
+  installed. Ollama makes the residents talk; Docker gives the library room to
+  grow; an existing local setup can simply be pointed at. Each is one step,
+  each is optional, each degrades to something honest — and the welcome
+  material says so plainly, so nobody believes a container is the price of
+  admission. Spec: `BETA-BUILD-PLAN.md` §5.
 
 ## The AI-customization piece — the resolution to the Monk model risk
 
@@ -162,9 +187,16 @@ give a tester the desktop app and see if it holds up unobserved.
   handful of curated classics + the lesson-plan set, so a tester opens to a real
   library on day one (the user's "ship packages with the beta" idea — see
   SELF-HOSTED-STACK-PLAN.md "Built 2026-07-26").
-- [ ] Decide the local-only vs Docker story for testers: the app runs with **no
-  Docker** (personal books fall back to app-data files); Docker/MinIO is the
-  power path. Document both plainly in the welcome packet.
+- [ ] Decide the local-only vs Docker story for testers: **decided 2026-07-27**
+  — ship it as the **setup ladder** (`BETA-BUILD-PLAN.md` §5). The app runs with
+  **no Docker** (personal books fall back to app-data files); Ollama is layer 1
+  and the biggest single win; Docker/MinIO is layer 2, for when a shelf becomes
+  a library; pointing at your own existing setup is layer 3. Document all four
+  levels plainly in the welcome packet, with what you get and what you lose at
+  each.
+- [ ] Ship the **Inheritance Hall** Phases 0–2 (`BETA-BUILD-PLAN.md` §8) — the
+  one new feature in this beta: write your own program, walk it with the Tutor,
+  and export a bequest (books + your notes).
 
 **B. Must-verify before handing it out (things the dev harness can't check)**
 - [ ] **Clean-machine install** — installs and launches with nothing preinstalled.
@@ -174,6 +206,10 @@ give a tester the desktop app and see if it holds up unobserved.
   same drop falls back to an app-data file and still persists.
 - [ ] **Bulk import** many books at once (drag a pile) — all land, none silently lost.
 - [ ] Local AI connect (Ollama) → a resident replies; reader "Ask about this book".
+- [ ] **The Inheritance Hall end to end**: write a small program → walk a lesson
+  with the Tutor → export a bequest → import it into a *second* install and
+  confirm the books shelve, the notes arrive attributed, and nothing
+  redistributable-only leaked (the provenance filter actually filtered).
 - [ ] The daily loop: Writing Desk log + task **migration** across days; The Log
   capture; Notes create/edit/link-to-book; lesson → notes → AI lesson plan.
 - [ ] Second-floor library + shelf bays; visuals on a fresh machine/theme.

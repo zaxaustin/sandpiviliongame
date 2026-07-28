@@ -1,4 +1,4 @@
-import { state, scene, facingTile, npcAt, signAt, stationAt, tileAt } from './entities.js';
+import { state, scene, facingTile, npcAt, signAt, stationAt, tileAt, plantings, plantingAt, plantStage, canPlantAt, requirementMet } from './entities.js';
 import { currentSeason, isNight } from './season.js';
 
 /* ---------- canvas ---------- */
@@ -286,8 +286,11 @@ function drawTile(ch,x,y,sx,sy){
       ctx.strokeStyle='rgba(0,0,0,.15)'; ctx.lineWidth=Math.max(1,S*.018);
       ctx.beginPath(); ctx.moveTo(sx+S*.3,sy+S*.44); ctx.quadraticCurveTo(sx+S*.5,sy+S*.5,sx+S*.7,sy+S*.44); ctx.stroke();
       break; }
-    case 'n':{ // a bench, outdoors — a place to read that isn't inside the shelves
-      ctx.fillStyle=((x+y)%2===0)?SPAL.grassA:SPAL.grassB; ctx.fillRect(sx,sy,S,S);
+    case 'n': case 'N':{ // a bench, outdoors — a place to read that isn't inside the shelves.
+      // 'N' is the same bench standing on sand (the Inheritance Hall's court);
+      // 'n' stands on grass. Only the ground under it differs.
+      if(ch==='N'){ drawTile('S',x,y,sx,sy); }
+      else { ctx.fillStyle=((x+y)%2===0)?SPAL.grassA:SPAL.grassB; ctx.fillRect(sx,sy,S,S); }
       ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(sx+S*.5,sy+S*.82,S*.38,S*.09,0,0,7); ctx.fill(); // shadow
       ctx.fillStyle='#5a4530'; // legs, both ends
       ctx.fillRect(sx+S*.1,sy+S*.5,S*.08,S*.3); ctx.fillRect(sx+S*.82,sy+S*.5,S*.08,S*.3);
@@ -315,6 +318,54 @@ function drawBuilding(b,ox,oy){
     ctx.fillStyle='#e0a43c'; ctx.font=`bold ${Math.floor(S*.2)}px Courier New`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(b.label,x+w/2,y+S*1.6);
+    return;
+  }
+  if(b.type==='hall'){
+    // The Inheritance Hall — deliberately ROOFLESS: low stone walls open to
+    // the sky, and a wide arch that was never fitted with a door. Every other
+    // building here is a room you enter; this one is ground you work, and it
+    // should read that way from across the Grounds before you ever walk in.
+    const doorX=x+((b.door||b.x)-b.x)*S, T=S*.75; // wall thickness; door given as an absolute tile x
+    // the ground inside — you can see over the wall, because there's no roof
+    ctx.fillStyle='#6f8a55'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='#657f4e';
+    for(let r=0;r<b.h;r++) for(let c=0;c<b.w;c++) if((r+c)%2) ctx.fillRect(x+c*S,y+r*S,S,S);
+    for(let i=0;i<14;i++){ // things growing in there, glimpsed over the wall
+      ctx.fillStyle=i%3?'#7fa36b':'#c9a06a';
+      ctx.beginPath(); ctx.arc(x+T+((i*53)%Math.max(1,(w-2*T)))+S*.2,y+T+((i*97)%Math.max(1,(h-2*T))),S*.09,0,7); ctx.fill();
+    }
+    ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(x+T,y+T,w-2*T,S*.3); // the wall's own shadow, cast inward
+    // the wall itself — a ring, open to the sky
+    ctx.fillStyle='#8e8778';
+    ctx.fillRect(x,y,w,T); ctx.fillRect(x,y+h-T,w,T);
+    ctx.fillRect(x,y,T,h); ctx.fillRect(x+w-T,y,T,h);
+    ctx.fillStyle='#a8a08e'; // sunlit coping along every top edge
+    ctx.fillRect(x,y,w,S*.22); ctx.fillRect(x,y+h-T,w,S*.18);
+    ctx.fillRect(x,y,S*.18,h); ctx.fillRect(x+w-S*.18,y,S*.18,h);
+    ctx.strokeStyle='rgba(0,0,0,.13)'; ctx.lineWidth=1; // stone courses
+    for(let c=0;c<Math.floor(w/(S*.7));c++){
+      ctx.beginPath(); ctx.moveTo(x+c*S*.7,y+S*.24); ctx.lineTo(x+c*S*.7,y+T); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+c*S*.7+S*.35,y+h-T+S*.2); ctx.lineTo(x+c*S*.7+S*.35,y+h); ctx.stroke();
+    }
+    // the archway — no door, never fitted with one
+    ctx.fillStyle='#b3ab99'; ctx.fillRect(doorX-S*.16,y+h-T-S*.5,S*2.32,T+S*.5); // dressed stone surround
+    ctx.fillStyle='#2f2a20';
+    ctx.fillRect(doorX,y+h-T-S*.1,S*2,T+S*.1);
+    ctx.beginPath(); ctx.arc(doorX+S,y+h-T-S*.1,S,Math.PI,0); ctx.fill();
+    ctx.fillStyle='rgba(224,164,60,.14)'; // the light of the garden, spilling out of it
+    ctx.beginPath(); ctx.arc(doorX+S,y+h-T-S*.1,S*.8,Math.PI,0); ctx.fill();
+    // ivy, up from the base — nobody prunes this place
+    ctx.fillStyle='#5d8a4a';
+    for(let i=0;i<9;i++){
+      const ix=x+S*.25+i*(w-S*.5)/9, ih=S*(.25+((i*13)%5)*.13);
+      if(ix>doorX-S*.3&&ix<doorX+S*2.3) continue; // not across the doorway
+      ctx.fillRect(ix,y+h-ih,S*.12,ih);
+      ctx.beginPath(); ctx.arc(ix+S*.06,y+h-ih,S*.11,0,7); ctx.fill();
+    }
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+w/2-S*2,y+S*.06,S*4,S*.46);
+    ctx.fillStyle='#cfc39a'; ctx.font=`bold ${Math.floor(S*.25)}px Courier New`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(b.label,x+w/2,y+S*.29);
     return;
   }
   if(b.type==='castle'){
@@ -519,6 +570,32 @@ function drawStation(st,ox,oy){
     for(const [c,sx] of yourSpines){ ctx.fillStyle=c; ctx.fillRect(x+S*sx,y+S*.2,S*.08,S*.26); }
     ctx.fillStyle='#f3ead2'; ctx.fillRect(x+S*.2,y+S*.62,S*.24,S*.07); // a waiting label card in the empty lower cubby
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.36,y+S*.03,S*.28,S*.05); // a small brass nameplate on top
+  } else if(st.kind==='commons'){ // The Commons Table — a long table with work laid out on it for anyone to take a copy of
+    ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.8,S*.42,S*.12,0,0,7); ctx.fill();
+    ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.1,y+S*.66,S*.08,S*.24); ctx.fillRect(x+S*.82,y+S*.66,S*.08,S*.24); // legs
+    ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.04,y+S*.5,S*.92,S*.18);   // the table top
+    ctx.fillStyle='#a97c50'; ctx.fillRect(x+S*.04,y+S*.5,S*.92,S*.06);   // its lit edge
+    // three little stacks, laid out side by side — papers, a lesson, a course
+    const stacks=[[.14,'#f3ead2'],[.42,'#dce8f3'],[.68,'#e8dcc0']];
+    for(const [ox2,col] of stacks){
+      ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(x+S*(ox2+.01),y+S*.3,S*.19,S*.21);
+      ctx.fillStyle=col; ctx.fillRect(x+S*ox2,y+S*.28,S*.19,S*.21);
+      ctx.strokeStyle='#9c8b74'; ctx.lineWidth=.7; ctx.strokeRect(x+S*ox2,y+S*.28,S*.19,S*.21);
+      ctx.fillStyle='rgba(90,74,56,.5)';
+      for(let i=0;i<3;i++) ctx.fillRect(x+S*(ox2+.03),y+S*(.32+i*.05),S*.13,S*.015);
+    }
+    ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.42,y+S*.2,S*.16,S*.07); // a small "take one" card, standing up
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.44,y+S*.215,S*.12,S*.02);
+  } else if(st.kind==='inheritance'){ // The Record Stone — a standing stone, tally-marked, the Hall's only furniture
+    ctx.fillStyle='rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.88,S*.3,S*.09,0,0,7); ctx.fill();
+    ctx.fillStyle='#8e8778'; ctx.beginPath();
+    ctx.moveTo(x+S*.3,y+S*.88); ctx.lineTo(x+S*.36,y+S*.12); ctx.lineTo(x+S*.64,y+S*.08);
+    ctx.lineTo(x+S*.72,y+S*.88); ctx.closePath(); ctx.fill();                     // the leaning slab
+    ctx.fillStyle='rgba(255,255,255,.10)'; ctx.fillRect(x+S*.36,y+S*.12,S*.1,S*.74); // a lit edge
+    ctx.strokeStyle='#5f594c'; ctx.lineWidth=Math.max(1,S*.03);                    // tally marks, cut by hand
+    for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(x+S*(.4+i*.06),y+S*.36); ctx.lineTo(x+S*(.42+i*.06),y+S*.56); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(x+S*.38,y+S*.58); ctx.lineTo(x+S*.66,y+S*.34); ctx.stroke();
+    ctx.fillStyle='rgba(150,124,84,.45)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.86,S*.34,S*.07,0,0,7); ctx.fill(); // sand drifted against its foot
   } else if(st.kind==='ledger'){ // The Ledger — an open account book, ruled columns, a small coin stack, distinct from the Grant Desk's folder
     ctx.fillStyle='#75542e'; ctx.fillRect(x+S*.08,y+S*.6,S*.1,S*.34); ctx.fillRect(x+S*.82,y+S*.6,S*.1,S*.34);
     ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.02,y+S*.52,S*.96,S*.14);
@@ -585,6 +662,126 @@ function drawStation(st,ox,oy){
     ctx.strokeStyle='#e0a43c'; ctx.lineWidth=1; ctx.strokeRect(x+S*.5-w/2,y-S*.32,w,S*.22);
     ctx.fillStyle='#e0a43c'; ctx.fillText(st.name,x+S*.5,y-S*.21);
   }
+}
+/* ================================================================
+   Plantings — the Inheritance Hall's contents. Drawn from the SAVE
+   (data.grove.plantings), not from scenes.js, because nothing here
+   was placed by us: a visitor planted every one of these, or was
+   given it by someone else. Three things can stand in this ground:
+   a book left on a stone, a sword set in a stone (a course behind a
+   trial), and a seed, which is the only object in this Pavilion that
+   changes on its own — over REAL calendar days, never game-time.
+   ================================================================ */
+function drawPlanting(pl,ox,oy){
+  const x=(pl.x-ox)*S, y=(pl.y-oy)*S;
+  const sway=Math.sin(state.time*.9+pl.x*1.7+pl.y*.6);
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.84,S*.28,S*.09,0,0,7); ctx.fill();
+  if(!requirementMet(pl)){
+    // still buried — a drift of sand with something's corner showing. You can
+    // see that it's here and press E to learn what it waits on; you cannot
+    // read it, and no amount of clicking changes that.
+    ctx.fillStyle='#cbb287'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.72,S*.34,S*.17,0,0,7); ctx.fill();
+    ctx.fillStyle='#bda175'; ctx.beginPath(); ctx.ellipse(x+S*.44,y+S*.76,S*.26,S*.12,0,0,7); ctx.fill();
+    ctx.fillStyle='#8e8778'; // the corner of it, breaking the surface
+    ctx.beginPath(); ctx.moveTo(x+S*.42,y+S*.7); ctx.lineTo(x+S*.52,y+S*.38); ctx.lineTo(x+S*.64,y+S*.72); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#6f6a5c'; ctx.lineWidth=Math.max(1,S*.02); ctx.stroke();
+    ctx.fillStyle=`rgba(255,226,150,${.14+.08*sway})`;
+    ctx.beginPath(); ctx.arc(x+S*.53,y+S*.55,S*.07,0,7); ctx.fill();
+    ctx.font=`bold ${Math.floor(S*.15)}px Courier New`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const bl='buried', bw=ctx.measureText(bl).width+S*.16;
+    ctx.fillStyle='rgba(26,19,12,.7)'; ctx.fillRect(x+S*.5-bw/2,y-S*.28,bw,S*.21);
+    ctx.strokeStyle='#a89878'; ctx.lineWidth=1; ctx.strokeRect(x+S*.5-bw/2,y-S*.28,bw,S*.21);
+    ctx.fillStyle='#a89878'; ctx.fillText(bl,x+S*.5,y-S*.175);
+    return;
+  }
+  if(pl.kind==='book'){
+    // a book resting open on a flat stone — a collection someone curated and left
+    ctx.fillStyle='#8e8778'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.72,S*.36,S*.16,0,0,7); ctx.fill(); // the slab
+    ctx.fillStyle='#a29a89'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.68,S*.33,S*.13,0,0,7); ctx.fill();
+    if(!pl.taken){ // an unclaimed gift catches the light
+      const g=ctx.createRadialGradient(x+S*.5,y+S*.45,S*.05,x+S*.5,y+S*.45,S*.6);
+      g.addColorStop(0,`rgba(255,226,150,${.28+.12*sway})`); g.addColorStop(1,'rgba(255,226,150,0)');
+      ctx.fillStyle=g; ctx.fillRect(x-S*.3,y-S*.3,S*1.6,S*1.4);
+    }
+    ctx.fillStyle='#6b4a2f'; // the covers, splayed open
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.4); ctx.lineTo(x+S*.14,y+S*.5); ctx.lineTo(x+S*.16,y+S*.64); ctx.lineTo(x+S*.5,y+S*.55); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.4); ctx.lineTo(x+S*.86,y+S*.5); ctx.lineTo(x+S*.84,y+S*.64); ctx.lineTo(x+S*.5,y+S*.55); ctx.fill();
+    ctx.fillStyle='#f3e6c8'; // the pages
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.42); ctx.lineTo(x+S*.18,y+S*.51); ctx.lineTo(x+S*.2,y+S*.61); ctx.lineTo(x+S*.5,y+S*.53); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.42); ctx.lineTo(x+S*.82,y+S*.51); ctx.lineTo(x+S*.8,y+S*.61); ctx.lineTo(x+S*.5,y+S*.53); ctx.fill();
+    ctx.strokeStyle='#c9b48c'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x+S*.3,y+S*.5); ctx.lineTo(x+S*.3,y+S*.585); ctx.moveTo(x+S*.7,y+S*.5); ctx.lineTo(x+S*.7,y+S*.585); ctx.stroke();
+    ctx.strokeStyle='#c8574a'; ctx.lineWidth=Math.max(1,S*.03); // a ribbon marker, stirring
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.44); ctx.quadraticCurveTo(x+S*(.56+sway*.03),y+S*.6,x+S*.52,y+S*.74); ctx.stroke();
+  } else if(pl.kind==='sword'){
+    // a sword set in a stone — a course nobody can simply pick up
+    ctx.fillStyle='#6f6a5c'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.68,S*.34,S*.24,0,0,7); ctx.fill();  // the boulder
+    ctx.fillStyle='#8e8778'; ctx.beginPath(); ctx.ellipse(x+S*.46,y+S*.62,S*.27,S*.18,0,0,7); ctx.fill();
+    ctx.fillStyle='#2f2a20'; ctx.fillRect(x+S*.45,y+S*.5,S*.1,S*.12);                                      // the cleft it came out of
+    if(!pl.drawn){
+      ctx.strokeStyle='#c9ccd2'; ctx.lineWidth=Math.max(1,S*.09); ctx.lineCap='butt';                      // the blade
+      ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.56); ctx.lineTo(x+S*.5,y+S*.2); ctx.stroke();
+      ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=Math.max(1,S*.03);
+      ctx.beginPath(); ctx.moveTo(x+S*.48,y+S*.54); ctx.lineTo(x+S*.48,y+S*.22); ctx.stroke();
+      ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.34,y+S*.16,S*.32,S*.06);                                  // the crossguard
+      ctx.fillStyle='#6b4a2f'; ctx.fillRect(x+S*.46,y+S*.04,S*.08,S*.13);                                  // the grip
+      ctx.fillStyle='#e0a43c'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.04,S*.05,0,7); ctx.fill();              // the pommel
+      if(pl.trial&&pl.trial.question){ // a locked one glints — the tell that there's a trial on it
+        ctx.fillStyle=`rgba(255,240,190,${.35+.35*Math.sin(state.time*2.2+pl.x)})`;
+        ctx.beginPath(); ctx.arc(x+S*.5,y+S*.28,S*.06,0,7); ctx.fill();
+      }
+    }
+  } else { // a seed — the one thing here that grows, and only on real days
+    const stage=plantStage(pl);
+    ctx.fillStyle='#6b5335'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.78,S*.22,S*.09,0,0,7); ctx.fill();  // turned soil
+    if(stage===0){
+      ctx.fillStyle='#8a6438'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.74,S*.07,S*.05,.4,0,7); ctx.fill();
+    } else if(stage===1){ // a sprout: a pale stem, two seed-leaves
+      ctx.strokeStyle='#7fa36b'; ctx.lineWidth=Math.max(1,S*.035);
+      ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.76); ctx.lineTo(x+S*(.5+sway*.02),y+S*.56); ctx.stroke();
+      ctx.fillStyle='#8fc26b';
+      ctx.beginPath(); ctx.ellipse(x+S*.42,y+S*.56,S*.08,S*.04,-.5,0,7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x+S*.58,y+S*.56,S*.08,S*.04,.5,0,7); ctx.fill();
+    } else if(stage===2){ // a bud, still closed
+      ctx.strokeStyle='#5d8a4a'; ctx.lineWidth=Math.max(1,S*.04);
+      ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.76); ctx.quadraticCurveTo(x+S*(.5+sway*.04),y+S*.52,x+S*.5,y+S*.36); ctx.stroke();
+      ctx.fillStyle='#7fa36b';
+      ctx.beginPath(); ctx.ellipse(x+S*.38,y+S*.6,S*.1,S*.045,-.4,0,7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x+S*.62,y+S*.54,S*.1,S*.045,.4,0,7); ctx.fill();
+      ctx.fillStyle='#c88fb0'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.32,S*.07,S*.11,0,0,7); ctx.fill();
+    } else { // in bloom — and, if nobody's gathered from it, carrying seeds of its own
+      const g=ctx.createRadialGradient(x+S*.5,y+S*.3,S*.05,x+S*.5,y+S*.3,S*.55);
+      g.addColorStop(0,`rgba(255,200,230,${.22+.1*sway})`); g.addColorStop(1,'rgba(255,200,230,0)');
+      ctx.fillStyle=g; ctx.fillRect(x-S*.2,y-S*.2,S*1.4,S*1.2);
+      ctx.strokeStyle='#5d8a4a'; ctx.lineWidth=Math.max(1,S*.045);
+      ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.76); ctx.quadraticCurveTo(x+S*(.5+sway*.05),y+S*.5,x+S*.5,y+S*.34); ctx.stroke();
+      ctx.fillStyle='#7fa36b';
+      ctx.beginPath(); ctx.ellipse(x+S*.36,y+S*.62,S*.11,S*.05,-.4,0,7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x+S*.64,y+S*.54,S*.11,S*.05,.4,0,7); ctx.fill();
+      ctx.fillStyle='#f2a6c8'; // petals
+      for(let a=0;a<6;a++){
+        const ang=a*1.047+sway*.06;
+        ctx.beginPath(); ctx.ellipse(x+S*.5+Math.cos(ang)*S*.13,y+S*.3+Math.sin(ang)*S*.13,S*.085,S*.05,ang,0,7); ctx.fill();
+      }
+      ctx.fillStyle='#f2e06a'; ctx.beginPath(); ctx.arc(x+S*.5,y+S*.3,S*.07,0,7); ctx.fill();
+      if(!pl.harvested){ // seed pods, ready to be gathered and planted elsewhere
+        ctx.fillStyle='#c9a06a';
+        for(const px of [-.2,.2]){ ctx.beginPath(); ctx.ellipse(x+S*(.5+px),y+S*.44,S*.045,S*.065,px*2,0,7); ctx.fill(); }
+      }
+    }
+  }
+  // a small label, same treatment stations get — you should be able to tell
+  // what someone left from across the garden, not by walking up to each one.
+  // No emoji here on purpose: the canvas font renders them as tofu boxes, and
+  // the sprite underneath already says which of the three this is.
+  const label=pl.title||'left here';
+  ctx.font=`bold ${Math.floor(S*.15)}px Courier New`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const lw=ctx.measureText(label).width+S*.16;
+  ctx.fillStyle='rgba(26,19,12,.78)'; ctx.fillRect(x+S*.5-lw/2,y-S*.3,lw,S*.21);
+  ctx.strokeStyle=pl.received?'#9ac7e8':'#e0a43c'; ctx.lineWidth=1; ctx.strokeRect(x+S*.5-lw/2,y-S*.3,lw,S*.21);
+  ctx.fillStyle=pl.received?'#9ac7e8':'#e0a43c'; ctx.fillText(label,x+S*.5,y-S*.195);
 }
 function drawCritter(px,py,ox,oy,species){
   const x=(px-ox)*S, y=(py-oy)*S;
@@ -752,8 +949,8 @@ function drawFishing(ox,oy){
 function drawPrompt(ox,oy){
   if(state.dialog||state.fishing||state.ui) return;
   const ft=facingTile(), s=scene();
-  const interactable=npcAt(ft.x,ft.y)||signAt(ft.x,ft.y)||stationAt(ft.x,ft.y)||
-    (s.shelves&&tileAt(ft.x,ft.y)==='k')||(s.outdoor&&tileAt(ft.x,ft.y)==='W');
+  const interactable=npcAt(ft.x,ft.y)||signAt(ft.x,ft.y)||stationAt(ft.x,ft.y)||plantingAt(ft.x,ft.y)||
+    (s.shelves&&tileAt(ft.x,ft.y)==='k')||(s.outdoor&&tileAt(ft.x,ft.y)==='W')||canPlantAt(ft.x,ft.y);
   if(!interactable) return;
   const p=state.player;
   const px=(p.px-ox)*S, py=(p.py-oy)*S;
@@ -798,6 +995,7 @@ export function render(){
   for(const b of s.buildings) drawBuilding(b,cx,cy);
   for(const sg of (s.signs||[])) drawSign(sg.x,sg.y,cx,cy);
   for(const st of (s.stations||[])) drawStation(st,cx,cy);
+  for(const pl of plantings()) if((pl.scene||'grove')===state.scene) drawPlanting(pl,cx,cy);
   const ents=[...s.npcs.map(n=>({y:n.y,draw:()=>n.species?drawCritter(n.x,n.y,cx,cy,n.species):drawPerson(n.x,n.y,n.face||'down',n.color,n.glow,false,cx,cy)})),
     {y:state.player.py,draw:()=>drawPerson(state.player.px,state.player.py,state.player.dir,'#4a2f66',null,true,cx,cy)}];
   ents.sort((a,b)=>a.y-b.y).forEach(e=>e.draw());

@@ -14,8 +14,12 @@
    g a Ganesha statue — added 2026-07-09, mirrored across the Keep's
    aisle from the Buddha shrine ('s') on purpose: same devotional
    weight, same "bleed above the tile" technique, distinct iconography.
+   N the same bench as 'n', standing on sand instead of grass — the
+   Inheritance Hall's court is bare sand, and 'n' paints its own patch
+   of grass underneath, which left a green square in the middle of a
+   desert. A variant tile, not a scene check in the renderer.
    ================================================================ */
-export const SOLID = new Set(['T','W','B','w','k','p','s','t','i','b','n','g']);
+export const SOLID = new Set(['T','W','B','w','k','p','s','t','i','b','n','N','g']);
 export const scenes = {};
 function grid(w,h,fill){ return Array.from({length:h},()=>Array(w).fill(fill)); }
 function makeRng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
@@ -32,9 +36,16 @@ function buildOverworld(){
   t[26][26]='G'; t[26][27]='D'; t[26][28]='D';
   const stamp=(x0,y0,x1,y1)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) t[y][x]='B'; };
   stamp(14,2,25,8); stamp(4,11,11,15); stamp(28,11,35,15); stamp(21,11,27,15); stamp(12,12,15,14);
+  // The Inheritance Hall — deliberately at the southwest EDGE, off the plaza,
+  // down a lane of its own: you go out of your way to reach it, and what's
+  // inside is whatever anyone has actually left there. See BETA-BUILD-PLAN §8.
+  stamp(5,22,11,26);
   t[8][19]='P'; t[8][20]='P'; t[15][7]='P'; t[15][8]='P'; t[15][31]='P'; t[15][32]='P'; t[15][24]='P'; t[15][25]='P'; t[15][13]='P'; t[15][14]='P';
   for(let y=9;y<=25;y++){ t[y][19]='P'; t[y][20]='P'; }
-  for(let x=6;x<=34;x++){ t[17][x]='P'; t[18][x]='P'; }
+  for(let x=3;x<=34;x++){ t[17][x]='P'; t[18][x]='P'; } // the plaza road, now reaching the west corner
+  for(let y=19;y<=27;y++){ t[y][3]='P'; t[y][4]='P'; } // the lane down the west side
+  for(let x=3;x<=10;x++) t[27][x]='P';                 // and east along the Hall's front
+  t[26][7]='P'; t[26][8]='P';                          // the open archway itself — no door, never shut
   t[16][7]='P'; t[16][8]='P'; t[16][31]='P'; t[16][32]='P'; t[16][24]='P'; t[16][25]='P';
   for(let x=21;x<=26;x++){ t[26][x]=(t[26][x]==='W')?'W':'P'; }
   for(let y=19;y<=26;y++){ if(t[y][21]!=='W') t[y][21]='P'; }
@@ -45,7 +56,8 @@ function buildOverworld(){
   [[19,9],[20,9],[7,16],[8,16],[31,16],[32,16],[26,26],[25,26],
    [17,9],[5,16],[34,16],[24,25],[17,20],[10,18],[31,18],[25,27],[27,16],
    [13,15],[14,15],[13,16],[14,16],
-   [12,22],[30,20],[14,24],[32,23]
+   [12,22],[30,20],[14,24],[32,23],
+   [11,27],[2,27],[5,27] // keep the Hall's own approach clear of RNG trees
   ].forEach(([x,y])=>{ if(t[y][x]==='T'||t[y][x]==='F') t[y][x]='G'; });
   t[16][10]='n'; // a bench just outside the Library door, on the grass — reading doesn't
   // have to happen indoors; placed after the tree/flower RNG pass so it always wins the tile
@@ -58,6 +70,7 @@ function buildOverworld(){
       {type:'workshop',x:28,y:11,w:8, h:5, label:'THE WORKSHOP'},
       {type:'cafe',    x:21,y:11,w:7, h:5, label:'THE CAFE'},
       {type:'annex',   x:12,y:12,w:4, h:3, label:'THE STUDY'},
+      {type:'hall',    x:5, y:22,w:7, h:5, label:'INHERITANCE HALL', door:7},
     ],
     warps:[
       {x:19,y:8,to:'keep',sx:8,sy:11},{x:20,y:8,to:'keep',sx:9,sy:11},
@@ -65,6 +78,7 @@ function buildOverworld(){
       {x:31,y:15,to:'workshop',sx:6,sy:8},{x:32,y:15,to:'workshop',sx:7,sy:8},
       {x:24,y:15,to:'cafe',sx:6,sy:8},{x:25,y:15,to:'cafe',sx:7,sy:8},
       {x:13,y:15,to:'study',sx:6,sy:8},{x:14,y:15,to:'study',sx:7,sy:8},
+      {x:7,y:26,to:'grove',sx:8,sy:12},{x:8,y:26,to:'grove',sx:9,sy:12},
     ],
     // An open-air hearth in the plaza — the café's fire moved outside, where
     // people actually gather, beside the path between the buildings.
@@ -73,8 +87,9 @@ function buildOverworld(){
       {x:17,y:9, name:'WOODEN SIGN', text:"PAVILION KEEP\nThe guild's charter rests here. All are welcome.\nNothing here is owned — only kept, and passed on."},
       {x:5,y:16, name:'WOODEN SIGN', text:"THE LIBRARY\nOpen to all. No gate, no fee, no ledger of debts.\nThe Study stands just beside it now, its own door — no\nneed to pass through the shelves to reach a desk."},
       {x:34,y:16,name:'WOODEN SIGN', text:"THE WORKSHOP\nThree desks stand finished on the ground floor. Climb\nthe stairs: the Records Hall is real too, one floor up.\nFive more rooms wait above that, still just framing\nand good intentions. — The Stewards"},
-      {x:27,y:16,name:'HAND-LETTERED SIGN', text:"THE CAFE\nWhere the Pavilion looks outward. A notice board and a\ngrant desk inside; the hearth burns out here in the plaza,\nwhere people gather. — The Stewards"},
+      {x:27,y:16,name:'HAND-LETTERED SIGN', text:"THE CAFE\nWhere the Pavilion looks outward. Inside: a notice board, a\ngrant desk, and THE COMMONS TABLE — work people wrote and\nchose to hand on, laid out for anyone to take a copy of, and\nwhere your own goes out if you decide it should. The hearth\nburns in the plaza, where people gather. — The Stewards"},
       {x:24,y:25,name:'OLD DOCK',    text:"The pond is older than the Pavilion.\nThe koi remember everything.\n(Stand on the dock, face the water, press E.)"},
+      {x:11,y:27,name:'A LEANING POST', text:"THE INHERITANCE HALL\nNo roof, no door, no keeper. Open ground, and whatever\nanyone has left standing in it.\nWhat you plant here outlives your visit. That is the\nwhole of the arrangement."},
     ],
     npcs:[
       {x:17,y:20,color:'#e0a43c',glow:'#ffd27a',name:'EMBER · Archivist Agent',wander:true,lines:[
@@ -357,6 +372,38 @@ function buildWorkshopFloor3(){
   };
 }
 
+function buildGrove(){
+  // THE INHERITANCE HALL — an open sandbox, and the only room in the Pavilion
+  // that ships genuinely EMPTY. Nothing is placed here by us: every book on a
+  // stone, every sword in a stone, every seed in the ground was planted by
+  // whoever keeps this Pavilion, or arrived as a bequest someone else left
+  // behind (data.grove.plantings — the save, not this file). Outdoor on
+  // purpose: no roof, so it reads as ground you work rather than a room you
+  // visit. See BETA-BUILD-PLAN.md §8.
+  // ALL SAND, ringed by the compound's own stone wall (2026-07-27, the user's
+  // call): not a garden — a dig. Bare ground under an open sky, the same sand
+  // the whole Pavilion is named for, with a wall around it and nothing in it.
+  // Anything growing here is something a person put there and waited on.
+  const W=18,H=14, t=grid(W,H,'S');
+  for(let x=0;x<W;x++){ t[0][x]='w'; t[H-1][x]='w'; }
+  for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  t[H-1][8]='S'; t[H-1][9]='S';                         // the gate, back out to the Grounds
+  t[11][14]='N';                                        // a bench, weathered, facing the whole court
+  scenes.grove = {
+    name:'The Inheritance Hall', outdoor:true, tiles:t, w:W, h:H, buildings:[],
+    warps:[{x:8,y:13,to:'overworld',sx:7,sy:27},{x:9,y:13,to:'overworld',sx:8,sy:27}],
+    stations:[{x:8,y:2,kind:'inheritance',name:'THE RECORD STONE'}],
+    signs:[
+      {x:7,y:12,name:'A STONE, SET AT THE GATE',
+       text:"THE INHERITANCE HALL\nSand, a wall, and an open sky. Nothing else is provided.\nFace any bare patch and press E to put something in the\nground — a collection of books, a seed holding your own\nnotes, or a course set behind a trial for whoever comes\nafter. Some things left here are buried, and will not\nsurface for anyone who hasn't done the work first.\nWhat's planted stays. You will not always be the one who\nfinds it."},
+      {x:13,y:11,name:'A BENCH, WELL SAT-IN',
+       text:"Someone sat here long enough to wear the wood smooth, looking\nat a courtyard that may well have been empty at the time.\nPlanting something you won't be around to see found is the\noldest form of the charter there is: everything turns to sand,\nso give it away first."},
+    ],
+    npcs:[],
+    spawn:{x:8,y:12}
+  };
+}
+
 function buildCafe(){
   const W=14,H=10, t=grid(W,H,'f');
   for(let x=0;x<W;x++){ t[0][x]='w'; t[1][x]='w'; t[H-1][x]='w'; }
@@ -369,12 +416,17 @@ function buildCafe(){
     name:'The Cafe', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:6,y:9,to:'overworld',sx:24,sy:16},{x:7,y:9,to:'overworld',sx:25,sy:16}],
     signs:[{x:2,y:4,name:'HAND-LETTERED SIGN',
-      text:"THE CAFE\nA place to look outward, not down at a shelf. Face a\nstation and press E."}],
+      text:"THE CAFE\nA place to look outward, not down at a shelf. Face a\nstation and press E.\nTHE COMMONS TABLE, east side: papers, lesson plans and\ncourses people wrote and gave away — and where your own\nwork goes out, if you decide it should. Nothing on that\ntable moved without a person carrying it."}],
     stations:[
       {x:6,y:3,kind:'notice',name:'THE NOTICE BOARD'},
       {x:2,y:3,kind:'residents',name:"THE RESIDENTS' BOARD"},
       {x:2,y:6,kind:'grantdesk',name:'THE GRANT DESK'},
       {x:11,y:3,kind:'coffee',name:'THE COUNTER'},
+      // The Commons Table — where work gets shared. Deliberately in the Café,
+      // the room that already looks outward, and deliberately NOT dependent on
+      // a server the way the two boards on the wall are: this one is files,
+      // handed person to person, and works with no account at all.
+      {x:11,y:6,kind:'commons',name:'THE COMMONS TABLE'},
     ],
     npcs:[{x:9,y:3,color:'#c86e5a',glow:'#f2b6a3',name:'THE STEWARD',wander:false,ai:true,aiAgent:'steward',lines:[
       "Sit if you like. Nothing here is owed, only offered — same rule as everywhere else in this place.",
@@ -383,4 +435,4 @@ function buildCafe(){
   };
 }
 
-buildOverworld(); buildKeep(); buildLibrary(); buildLibraryBasement(); buildLibraryFloor2(); buildStudy(); buildWorkshop(); buildWorkshopFloor2(); buildWorkshopFloor3(); buildCafe();
+buildOverworld(); buildKeep(); buildLibrary(); buildLibraryBasement(); buildLibraryFloor2(); buildStudy(); buildWorkshop(); buildWorkshopFloor2(); buildWorkshopFloor3(); buildCafe(); buildGrove();

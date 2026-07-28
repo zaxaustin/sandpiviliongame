@@ -1,5 +1,9 @@
 import { Store } from '../data/store.js';
-import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge, upcomingItems, openSparks } from '../entities.js';
+import { state, data, persist, todayKey, DEFAULT_BLOCKS, logActivity, awardBadge, upcomingItems, openSparks, plantStage, freeGroveTile, requirementMet, requirementText } from '../entities.js';
+import { GATE_BEQUESTS } from '../data/bequests.js';
+import { COMMONS_PACKETS, PACKET_KINDS } from '../data/commons-packets.js';
+import { VIS, visBadge, visLine, DATA_MAP } from '../data/visibility.js';
+import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -876,7 +880,7 @@ async function sendChatMessage(q){
   renderChatView();
   let streamed=false;
   try{
-    const systemPrompt=await agent.systemPrompt();
+    const systemPrompt=withStanding(d.agent, await agent.systemPrompt());
     // Send the system prompt plus only the most recent stretch of the
     // conversation, not an ever-growing transcript (BETA-FEEDBACK #21). The cap
     // is deliberately generous — a normal chat is untouched; it only trims a
@@ -885,6 +889,7 @@ async function sendChatMessage(q){
     // without doing anything to how it behaves in an ordinary conversation.
     const messages=[{role:'system',content:systemPrompt}, ...d.history.slice(-CHAT_HISTORY_SENT)];
     const opts=chatOptsFor(d.agent);
+    recordSent(d.agent, messages, opts); // so "what was actually sent" is never a guess
     if(useStream) opts.onStream=(p)=>{
       if(!d.streaming||d.minimized) return;
       d.streaming.content=p.content; d.streaming.thinking=p.thinking;
@@ -1262,7 +1267,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','stewardIdxOv','standingOv','promptOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); state.audioReturnSlug=null; state.notesLogEdit=null; persist(); }
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
@@ -1368,6 +1373,29 @@ function humanSize(bytes){
   if(bytes<1024*1024) return (bytes/1024).toFixed(1)+' KB';
   return (bytes/(1024*1024)).toFixed(2)+' MB';
 }
+/* Where a visitor's own books physically are — read from the actual pointers
+   on the books they've added, not guessed from what's configured. Three tiers,
+   and the answer is whichever ones they're really using. */
+function libraryStorageLine(){
+  const mine=data.personalLibrary||[];
+  if(!mine.length){
+    return (typeof window!=='undefined' && window.desktopBridge)
+      ? 'None added yet. When you add one, its text is written as a real file in the app’s own data folder — or into local MinIO instead, if you run Docker.'
+      : 'None added yet. In a browser the text is kept inside the save itself, so a very large book may not fit; the desktop app writes real files instead.';
+  }
+  let minio=0,file=0,inline=0;
+  for(const d of mine){
+    const ft=(d.doc&&d.doc.fullText)||{};
+    if(ft.storage&&ft.storage.bucket) minio++;
+    else if(ft.storage&&ft.storage.personal) file++;
+    else inline++;
+  }
+  const bits=[];
+  if(minio) bits.push(`<b>${minio}</b> in local MinIO (Docker — the <code>sand-pavilion-library</code> bucket, on this machine)`);
+  if(file) bits.push(`<b>${file}</b> as real files in the app’s own data folder`);
+  if(inline) bits.push(`<b>${inline}</b> kept inside the save itself`);
+  return `<b>${mine.length}</b> book${mine.length===1?'':'s'} of your own — ${bits.join(' · ')}.`;
+}
 function renderDataPanel(){
   const bytes=new Blob([JSON.stringify(data)]).size;
   const bookNoteCount=Object.values(data.bookNotes).reduce((n,arr)=>n+arr.length,0);
@@ -1377,6 +1405,43 @@ function renderDataPanel(){
     <h2>Your Data</h2>
     <div class="meta">What's actually in your save, kept on this device — see it before deciding
       whether export or reset is even worth doing. Looking here changes nothing.</div>
+    <h3 style="margin-top:16px">Where your Pavilion is actually kept</h3>
+    <div class="meta">Not a mystery, and worth knowing before you put real work in. These are the
+      only places anything goes.</div>
+    <div style="margin-top:10px">
+      <div class="card" style="cursor:default">
+        <div class="t">📦 Your save — days, notes, courses, progress</div>
+        <div class="s">${Store.mode==='local'
+          ? 'This device’s own browser storage, under the key <b>sandPavilionSave.v2</b>. It survives closing the app.'
+          : '<b>Memory only</b> — this preview can’t write to storage, so progress lasts this session. Export before you close it.'}</div>
+      </div>
+      <div class="card" style="cursor:default">
+        <div class="t">📖 The text of books you added</div>
+        <div class="s">${libraryStorageLine()}</div>
+      </div>
+      <div class="card" style="cursor:default">
+        <div class="t">🏛 The books that shipped with the Pavilion</div>
+        <div class="s">Inside the app itself. They cost your save nothing.</div>
+      </div>
+      <div class="card" style="cursor:default">
+        <div class="t">☁ Anywhere else</div>
+        <div class="s">Nowhere. There is no server, no account and no sync — not as a policy, but
+          because none of it is built. Nothing leaves unless you write a file and hand it over.</div>
+      </div>
+    </div>
+    <h3 style="margin-top:16px">What can leave this machine, and what never does</h3>
+    <div class="meta">The honest accounting, store by store. The rule underneath all of it:
+      <b>nothing moves by itself.</b> There is no sync and no upload — a thing becomes shared only
+      because you deliberately wrote a file and handed it to someone.</div>
+    <div style="margin-top:10px">
+      ${DATA_MAP.map(d=>`<div class="card" style="cursor:default">
+        <div class="t">${visBadge(d.state)} ${esc(d.name)}</div>
+        <div class="s">${esc(d.leaves)}</div>
+      </div>`).join('')}
+    </div>
+    <div class="meta" style="margin-top:8px">Where sharing actually happens: the <b>Commons Table</b> in the Café
+      (papers, lesson plans, courses) and the <b>Inheritance Hall</b> (books, notes and courses left as gifts).
+      Both write files. Neither needs an account.</div>
     <div class="row" style="flex-wrap:wrap;gap:10px;margin:14px 0">
       ${stat(humanSize(bytes),'total save size')}
       ${stat(Object.keys(data.planner).length,'planner days')}
@@ -1825,7 +1890,7 @@ function renderNotesLog(){
       </div>` : '';
   document.getElementById('notesLogPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>🗒 Your Notes</h2>
+    <h2>🗒 Your Notes ${visBadge('private')}<button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px" onclick="openCommonsTable()" title="Share one at the Commons Table, in the Cafe">🤝 share one</button></h2>
     <div class="meta">Every note you've written, gathered in one place. Start a fresh one here with
       <b>＋ New note</b> (it's a My Note — writable, linkable to a book), or open any note to file it in
       a folder, add tags, or (for your own notes) edit it. Notes from books, chats, and desks stay
@@ -1997,7 +2062,13 @@ export function openShelf(tradition){
   // under — a book filed as Classics shows both there and here. Every other
   // shelf is its tradition, certified and personal side by side (personal
   // ones wear the 👤 mark).
-  const list = tradition==='Personal' ? Store.allDocs().filter(d=>d.personal) : Store.listDocs(tradition);
+  // Three cases now: Your Shelf (everything you added, however you filed it),
+  // one of YOUR OWN named shelves (personal books only — a shelf you invented
+  // has no certified side), or a curated tradition (certified + personal,
+  // side by side, personal ones wearing 👤).
+  const list = tradition==='Personal' ? Store.allDocs().filter(d=>d.personal)
+    : (data.myShelves||[]).includes(tradition) ? Store.allDocs().filter(d=>d.personal && d.tradition===tradition)
+    : Store.listDocs(tradition);
   state.shelfDocs = list.slice().sort((a,b)=>shelfSortKey(a).localeCompare(shelfSortKey(b)));
   renderShelf();
   showOv('shelfOv'); blip(700,.05,'square',.03);
@@ -3382,7 +3453,7 @@ function renderCourses(){
       : 'The board is bare. Pin your first path.';
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>The Course Board${showArch?' · Archived':''}</h2>
+      <h2>The Course Board${showArch?' · Archived':''} ${visBadge('private')}<button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px" onclick="openCommonsTable()" title="Share one at the Commons Table, in the Cafe">🤝 share one</button></h2>
       <div class="meta">Paths you set for yourself. The board confers nothing — the walking is the credential.</div>
       ${data.courses.length>4 ? `<input type="text" id="courseSearch" placeholder="Search your courses…"
         value="${esc(state.courseSearch||'')}" oninput="setCourseSearch(this.value)" style="margin-top:12px">` : ''}
@@ -3636,7 +3707,7 @@ function renderArchive(){
     const docs=data.workshop.docs;
     panel.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>The Archive Desk</h2>
+      <h2>The Archive Desk ${visBadge('private')}</h2>
       <div class="meta">Your own words, kept the same way the Library keeps others' — a
         title, a license, a source, a body. Nothing here leaves this device unless you
         choose to shelve it yourself, one day.</div>
@@ -4099,7 +4170,7 @@ function renderResearch(){
   const projects=data.workshop.research;
   panel.innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>The Research Desk</h2>
+    <h2>The Research Desk ${visBadge('private')}</h2>
     <div class="meta">Freeform, ongoing work — a running notebook per topic or per idea you're
       trying to make real, not a single polished page. An assistant AI can think alongside you here,
       grounded in your own notes — whether you're studying something or building it.</div>
@@ -4441,7 +4512,7 @@ function renderScienceHall(){
   const mine=(data.hall.investigations||[]);
   panel.innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>🔬 The Science &amp; Research Hall</h2>
+    <h2>🔬 The Science &amp; Research Hall ${visBadge('private')}<button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px" onclick="openCommonsTable()" title="Share one at the Commons Table, in the Cafe">🤝 share one</button></h2>
     <div class="meta">A place that <b>tests things</b>, honestly. The Library holds what’s known; the
       Hall asks what’s true — turning a claim into a question that could come out either way, then
       reporting what the evidence actually says. Mostly that’s ordinary science; when you want it to, it
@@ -4707,7 +4778,17 @@ const CURRICULUM = [
       {title:'Authorized practice — Hack The Box', body:"(planned) HTB Academy + Starting Point: legal, guided targets you're meant to break, to learn how to defend."},
     ]},
 ];
-function curriculumNode(id){ return CURRICULUM.find(n=>n.id===id); }
+/* ----- Lessons you wrote yourself (ADMIN-AND-AUTHORING-PLAN #3).
+   The built-in CURRICULUM lives in this file — source code — so until now a
+   visitor could build a Course Board course but never a PROGRESSION: a 101
+   that unlocks a 201. That's the thing COURSE-PROGRESSION-PLAN calls crucial
+   for other people getting on board, and it's exactly what a teacher wants.
+   So the tree now reads from two places. Yours carry `mine:true`, sit in
+   their own track, and are otherwise ordinary nodes — prerequisites, progress,
+   and "Study with the Tutor" all work on them unchanged. */
+function myLessons(){ if(!data.myLessons) data.myLessons=[]; return data.myLessons; }
+function allNodes(){ return [...CURRICULUM, ...myLessons()]; }
+function curriculumNode(id){ return allNodes().find(n=>n.id===id); }
 function lessonProgress(id){ return data.curriculum[id]||(data.curriculum[id]={steps:{}}); }
 function lessonDone(node){ if(!node||!node.steps.length||node.status==='planned') return false; const p=data.curriculum[node.id]; return !!p && node.steps.every((_,i)=>p.steps[i]); }
 function lessonAvailable(node){ return (node.prereqs||[]).every(pid=>lessonDone(curriculumNode(pid))); }
@@ -4789,14 +4870,55 @@ export function toggleLessonStep(id,i){
 }
 function renderLearningTree(){
   const v=state.treeView||{mode:'list'}, panel=document.getElementById('treePanel');
+  if(v.mode==='write'){
+    const editing=v.id?curriculumNode(v.id):null;
+    const others=allNodes().filter(n=>!editing||n.id!==editing.id);
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <div class="row" style="margin-bottom:8px"><button class="btn ghost" onclick="backToTree()">← The tree</button></div>
+      <h2>✎ ${editing?'Rewrite':'Write'} a lesson ${visBadge('private')}</h2>
+      <div class="meta">Yours stands in the tree beside the built-in ones. Give it prerequisites and it
+        becomes a real progression — a 101 that opens a 201 — for you, or for whoever you're teaching.</div>
+      <label style="margin-top:12px">Title</label>
+      <input type="text" id="mlTitle" value="${esc(editing?editing.title:'')}" placeholder="e.g. Soldering 101 — a joint that holds">
+      <label>What it's for, in a sentence or two</label>
+      <textarea id="mlSummary" rows="2" placeholder="Why someone should walk this, and what they'll be able to do afterward.">${esc(editing?editing.summary||'':'')}</textarea>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <div style="flex:1;min-width:150px"><label>Track (a heading in the tree)</label>
+          <input type="text" id="mlTrack" value="${esc(editing?editing.track:'Your own lessons')}"></div>
+        <div style="width:110px"><label>Level</label>
+          <input type="number" id="mlLevel" min="101" max="999" step="1" value="${editing?Number(editing.level)||101:101}"></div>
+      </div>
+      <label>The steps — one per line</label>
+      <div class="meta">Optionally put a longer explanation after a <b>|</b> on the same line:
+        <code>Tin the tip | Melt a little solder onto the iron before you start; it makes everything after it work.</code></div>
+      <textarea id="mlSteps" rows="7" placeholder="Buy a cheap iron and a reel of 60/40&#10;Tin the tip | Melt a little solder onto the iron first&#10;Join two wires, then tug them hard">${esc(editing?(editing.steps||[]).map(s=>s.title+(s.body?' | '+s.body:'')).join('\n'):'')}</textarea>
+      <h3 style="margin-top:16px">Locked until… <span class="badge lic">optional</span></h3>
+      <div class="meta">Tick any lesson that should be finished first. Leave them all unticked and yours is
+        open from the start.</div>
+      <div style="max-height:190px;overflow:auto;margin-top:8px">
+        ${others.map(n=>`<label class="card" style="cursor:pointer;display:block">
+          <input type="checkbox" class="mlPre" value="${esc(n.id)}"${editing&&(editing.prereqs||[]).includes(n.id)?' checked':''} style="width:auto;margin-right:6px">
+          <b>${esc(n.title)}</b>${n.mine?' <span class="badge lic">yours</span>':''}
+        </label>`).join('')}
+      </div>
+      <div class="row" style="margin-top:14px;gap:6px;flex-wrap:wrap">
+        <button class="btn" onclick="saveMyLesson(${editing?`'${esc(editing.id)}'`:'null'})">${editing?'Save the changes':'Add it to the tree'}</button>
+        ${editing?`<button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="deleteMyLesson('${esc(editing.id)}')">Delete this lesson</button>`:''}
+      </div>
+      <div class="meta" id="mlMsg" style="margin-top:6px"></div>`;
+    setTimeout(()=>document.getElementById('mlTitle')?.focus(),30);
+    return;
+  }
   if(v.mode==='lesson'){
     const node=curriculumNode(v.id); if(!node){ return backToTree(); }
     const p=lessonProgress(node.id), done=lessonDone(node);
-    const next=CURRICULUM.filter(n=>(n.prereqs||[]).includes(node.id));
+    const next=allNodes().filter(n=>(n.prereqs||[]).includes(node.id));
     panel.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>${esc(node.title)}</h2>
-      <div class="meta"><span class="badge">${node.track} · ${node.level}</span> ${done?'<span class="badge lic">✓ complete</span>':''}</div>
+      <div class="meta"><span class="badge">${node.track} · ${node.level}</span> ${done?'<span class="badge lic">✓ complete</span>':''}${node.mine?' <span class="badge lic">you wrote this</span>':''}</div>
+      ${node.mine?`<div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="newLessonForm('${'$'}{node.id}')">✎ Rewrite it</button></div>`:''}
       <div class="meta" style="margin-top:8px">${esc(node.summary)}</div>
       <div style="margin-top:14px">${node.steps.map((s,i)=>{
         const on=!!p.steps[i];
@@ -4822,7 +4944,7 @@ function renderLearningTree(){
     return;
   }
   // tree list, grouped by track in order
-  const tracks=[]; CURRICULUM.forEach(n=>{ if(!tracks.includes(n.track)) tracks.push(n.track); });
+  const tracks=[]; allNodes().forEach(n=>{ if(!tracks.includes(n.track)) tracks.push(n.track); });
   const nodeCard=n=>{
     const planned=n.status==='planned', done=lessonDone(n), avail=lessonAvailable(n);
     const locked=!planned && !avail;
@@ -4849,8 +4971,42 @@ function renderLearningTree(){
         freely; it's yours alone.</div>
     </div>
     ${tracks.map(t=>`<h3 style="margin-top:20px">${esc(t)}</h3>
-      <div style="margin-top:6px">${CURRICULUM.filter(n=>n.track===t).map(nodeCard).join('')}</div>`).join('')}
+      <div style="margin-top:6px">${allNodes().filter(n=>n.track===t).map(nodeCard).join('')}</div>`).join('')}
+    <h3 style="margin-top:22px">Write your own</h3>
+    <div class="meta">The lessons above ship with the Pavilion. Yours sit in the tree beside them, with
+      real prerequisites — so you can build a 101 that unlocks a 201, for yourself or for whoever you're
+      teaching. The Tutor studies your lessons exactly as it studies ours.</div>
+    <div class="row" style="margin-top:8px"><button class="btn" onclick="newLessonForm()">✎ Write a lesson</button></div>
     <div class="row" style="margin-top:18px"><button class="btn ghost" onclick="openCourses()">← Back to the Course Board</button></div>`;
+}
+
+export function newLessonForm(id){ state.treeView={mode:'write', id:id||null}; renderLearningTree(); }
+export function saveMyLesson(existingId){
+  const g=i=>document.getElementById(i)?.value ?? '';
+  const title=g('mlTitle').trim();
+  const msg=document.getElementById('mlMsg');
+  if(!title){ if(msg) msg.textContent='Give it a title first.'; return; }
+  const steps=g('mlSteps').split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
+    .map(l=>{ const [t,...rest]=l.split('|'); return { title:(t||'').trim(), body:rest.join('|').trim() }; });
+  if(!steps.length){ if(msg) msg.textContent='A lesson needs at least one step — one per line.'; return; }
+  const prereqs=[...document.querySelectorAll('.mlPre:checked')].map(c=>c.value);
+  const list=myLessons();
+  const node={ id: existingId || ('mine-'+Date.now().toString(36)),
+    track: g('mlTrack').trim() || 'Your own lessons',
+    level: Number(g('mlLevel'))||101,
+    title, summary:g('mlSummary').trim(), prereqs, steps, mine:true, written:todayKey() };
+  const i=list.findIndex(x=>x.id===existingId);
+  if(i>=0) list[i]=node; else list.unshift(node);
+  persist(); logActivity((i>=0?'Rewrote':'Wrote')+' a lesson: "'+title+'".'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
+  state.treeView={mode:'lesson', id:node.id}; renderLearningTree();
+}
+export function deleteMyLesson(id){
+  const node=curriculumNode(id); if(!node||!node.mine) return;
+  if(!window.confirm('Delete your lesson "'+(node.title||'')+'"? Any lesson that required it becomes available again.')) return;
+  data.myLessons=myLessons().filter(x=>x.id!==id);
+  myLessons().forEach(x=>{ x.prereqs=(x.prereqs||[]).filter(p=>p!==id); });
+  if(data.curriculum) delete data.curriculum[id];
+  persist(); state.treeView={mode:'list'}; renderLearningTree();
 }
 
 /* ----- The Request Board — a wishlist of books you'd like added,
@@ -5456,7 +5612,7 @@ function renderPaths(){
     </div>`; };
   el.innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>🧭 Paths</h2>
+    <h2>🧭 Paths ${visBadge('private')}</h2>
     <div class="meta">Not a schedule, and not a to-do list with a due date. Each path is a thread of your own
       making — an idea or intention you pick up and walk a little further whenever you have the energy. A
       path left resting is waiting, not failing. Pick one up.</div>
@@ -5464,6 +5620,782 @@ function renderPaths(){
     ${open.length ? open.map(card).join('') : '<p class="meta">No paths yet. Start one above — or in 📓 The Log, turn a captured idea into a path to walk.</p>'}
     ${walked.length ? `<h3 style="margin-top:16px">Walked</h3>${walked.map(card).join('')}` : ''}`;
 }
+/* ================================================================
+   THE COMMONS TABLE (the Café) — built 2026-07-27, at direct request:
+   "I want to be able to differentiate between common data and what's
+   private data... where can I find the community written ones and
+   what's my private notes."
+
+   The honest state of things before this existed: exactly ONE surface
+   in the whole Pavilion made the distinction visible (the Library's
+   certified shelves vs Your Shelf 👤). Papers, lesson plans, courses,
+   notes and Paths were all private with NO path out at all — there was
+   no "community written" version of any of them, because nothing could
+   leave. This is the other half.
+
+   A PACKET is the unit of shared work — a paper, a lesson plan, a
+   course, a note — written out as one .json a person hands to another
+   person. Same mechanics as the Inheritance Hall's bequests, pointed
+   at work instead of gifts: no server, no account, and nothing moves
+   unless someone deliberately writes a file. The two boards on the
+   Café wall need a server and stay dormant without one; this table
+   does not, which is why it lives in the same room as an honest
+   contrast rather than a replacement.
+
+   The vocabulary itself lives in data/visibility.js so that every
+   other panel labels things the same way. See DATA_MAP there for the
+   full "what leaves this machine" accounting, rendered in Your Data.
+   ================================================================ */
+function commonsStore(){ if(!data.commons) data.commons={received:[],published:[],taken:{}}; if(!data.commons.taken) data.commons.taken={}; return data.commons; }
+function allCommonsPackets(){ return [...COMMONS_PACKETS, ...commonsStore().received]; }
+function packetKind(k){ return PACKET_KINDS[k]||PACKET_KINDS.note; }
+function newPacketId(){ return 'pk-'+Date.now()+'-'+Math.random().toString(36).slice(2,6); }
+
+export function openCommonsTable(){ state.ui='commons'; state.commonsView={mode:'shelf'}; hideAllOv(); renderCommons(); showOv('commonsOv'); }
+export function commonsTab(mode){ state.commonsView={mode}; renderCommons(); }
+export function openPacket(id){ state.commonsView={mode:'one', id}; renderCommons(); }
+
+/* Taking a packet copies it into the private store where that kind of thing
+   already lives — a paper into the Hall, a lesson into your Notes, a course
+   onto the Course Board. A shared thing you can't actually work with is a
+   museum exhibit, not a commons. Your copy is then YOURS: editing it never
+   touches the commons original. */
+export function takePacket(id){
+  const p=allCommonsPackets().find(x=>x.id===id); if(!p) return;
+  const g=commonsStore();
+  const credit=`\n\n— from the Commons: “${p.title}” by ${p.by||'unknown'} (${p.license||'license unrecorded'})`;
+  if(p.kind==='course'){
+    data.courses.unshift({ id:Date.now(), title:p.title, why:(p.why||p.summary||'')+credit, category:'personal',
+      due:null, steps:(p.steps||[]).map(t=>({title:t,practice:'',url:'',done:false})), begun:todayKey(), archived:false });
+  } else if(p.kind==='paper'){
+    if(!data.hall) data.hall={investigations:[],experiments:[],dissections:[]};
+    if(!data.hall.dissections) data.hall.dissections=[];
+    data.hall.dissections.unshift({ id:'d-'+Date.now(), title:p.title, ts:todayKey(), text:(p.body||p.summary||'')+credit });
+  } else {
+    data.notes.unshift({ id:newNoteId(), title:p.title, body:(p.body||p.summary||'')+credit, created:todayKey(), updated:todayKey() });
+  }
+  g.taken[id]=todayKey(); persist();
+  logActivity('Took “'+p.title+'” from the Commons.'); blip(700,.08);
+  renderCommons();
+}
+/* Publishing. Your work becomes a packet — a file — and the copy in your save
+   is marked as shared so you can see, from the Table, exactly what of yours is
+   out in the world. The original never leaves your private store. */
+export function publishFrom(kind, id){
+  const g=commonsStore();
+  let p=null;
+  if(kind==='course'){
+    const c=(data.courses||[]).find(x=>String(x.id)===String(id)); if(!c) return;
+    p={ id:newPacketId(), kind:'course', title:c.title, why:c.why||'', steps:(c.steps||[]).map(s=>s.title||s.text||''), summary:c.why||'' };
+  } else if(kind==='paper'){
+    const d=(data.hall&&data.hall.dissections||[]).find(x=>x.id===id)
+      ||(data.hall&&data.hall.investigations||[]).find(x=>x.id===id);
+    if(!d) return;
+    p={ id:newPacketId(), kind:'paper', title:d.title||'An analysis', body:d.text||d.body||d.claim||'', summary:(d.text||'').slice(0,160) };
+  } else {
+    const n=(data.notes||[]).find(x=>String(x.id)===String(id)); if(!n) return;
+    p={ id:newPacketId(), kind:(/lesson/i.test(n.title||'')?'lesson':'note'), title:n.title||'A note', body:noteBody(n), summary:noteBody(n).slice(0,160) };
+  }
+  p.sandPavilionPacket=1;
+  p.by=(g.signedAs||'').trim()||'unsigned';
+  p.license='Original — shared by its author';
+  p.created=todayKey();
+  p.sourceKind=kind; p.sourceId=String(id);
+  g.published.unshift(p); persist();
+  logActivity('Published “'+p.title+'” to the Commons.'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
+  state.commonsView={mode:'one', id:p.id, published:true}; renderCommons();
+}
+export function setCommonsName(v){ commonsStore().signedAs=v; clearTimeout(pathSaveTimer); pathSaveTimer=setTimeout(persist,500); }
+export function unpublishPacket(id){
+  const g=commonsStore();
+  if(!window.confirm('Take this out of your published list?\n\nAny file you already handed to someone is theirs — this only forgets it here.')) return;
+  g.published=g.published.filter(p=>p.id!==id); persist();
+  state.commonsView={mode:'mine'}; renderCommons();
+}
+export async function writePacketFile(id){
+  const p=allCommonsPackets().find(x=>x.id===id)||commonsStore().published.find(x=>x.id===id);
+  if(!p) return;
+  const out={ ...p }; delete out.sourceKind; delete out.sourceId;
+  const json=JSON.stringify(out,null,2);
+  const name='packet-'+(p.title||'work').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)+'.json';
+  if(typeof window!=='undefined' && window.desktopBridge?.saveFile){
+    const res=await window.desktopBridge.saveFile(name, json);
+    if(res.canceled) return;
+    if(!res.ok){ alert('Could not write the file: '+(res.error||'unknown error')); return; }
+  } else {
+    const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    const a=document.createElement('a'); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  blip(700,.07);
+  const el=document.getElementById('pkOut'); if(el) el.innerHTML='<div class="meta" style="margin-top:8px">Written. Hand that file to anyone — it lands on their Commons Table with your name on it.</div>';
+}
+export function triggerImportPacket(){ document.getElementById('packetFile').click(); }
+if(typeof document!=='undefined' && document.getElementById('packetFile')){
+  document.getElementById('packetFile').addEventListener('change', e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const p=JSON.parse(r.result);
+        if(!p||!p.sandPavilionPacket){ alert("That file isn't a packet — it should be a .json written at someone's Commons Table."); return; }
+        const g=commonsStore();
+        p.id=p.id||newPacketId();
+        if(g.received.some(x=>x.id===p.id)) p.id=newPacketId(); // never silently replace one you already have
+        p.receivedOn=todayKey();
+        g.received.unshift(p); persist();
+        logActivity('Received “'+(p.title||'a packet')+'” into the Commons.'); blip(523,.09); setTimeout(()=>blip(784,.12),100);
+        state.ui='commons'; state.commonsView={mode:'one', id:p.id}; hideAllOv(); renderCommons(); showOv('commonsOv');
+      }catch(err){ alert("Couldn't read that file: "+err.message); }
+    };
+    r.readAsText(f); e.target.value='';
+  });
+}
+
+function renderCommons(){
+  const el=document.getElementById('commonsPanel'); if(!el) return;
+  const v=state.commonsView||{mode:'shelf'}, g=commonsStore();
+  const back=`<button class="xbtn" onclick="closeUI()">Esc ✕</button>`;
+  const tabs=(active)=>`<div class="row" style="gap:6px;margin:10px 0;flex-wrap:wrap">
+    <button class="btn ${active==='shelf'?'':'ghost'}" onclick="commonsTab('shelf')">🏛 The commons</button>
+    <button class="btn ${active==='mine'?'':'ghost'}" onclick="commonsTab('mine')">🤝 Shared by you</button>
+    <button class="btn ${active==='publish'?'':'ghost'}" onclick="commonsTab('publish')">📤 Publish something</button>
+    <button class="btn ${active==='private'?'':'ghost'}" onclick="commonsTab('private')">👤 What stays private</button>
+  </div>`;
+
+  if(v.mode==='one'){
+    const p=allCommonsPackets().find(x=>x.id===v.id)||g.published.find(x=>x.id===v.id);
+    if(!p){ state.commonsView={mode:'shelf'}; return renderCommons(); }
+    const mine=g.published.some(x=>x.id===p.id);
+    const k=packetKind(p.kind);
+    const taken=g.taken[p.id];
+    el.innerHTML=`${back}
+      <div class="row" style="margin-bottom:8px"><button class="btn ghost" onclick="commonsTab('${mine?'mine':'shelf'}')">← Back to the table</button></div>
+      <h2>${k.icon} ${esc(p.title)}</h2>
+      <div class="meta">${mine?visBadge('shared'):visBadge('commons')} ${k.label} · by <b>${esc(p.by||'unknown')}</b>${p.license?' · '+esc(p.license):''}${p.created?' · '+esc(p.created):''}${p.receivedOn?' · received '+esc(p.receivedOn):''}</div>
+      ${p.summary?`<div class="meta" style="margin-top:8px">${esc(p.summary)}</div>`:''}
+      ${p.steps&&p.steps.length?`<ol style="margin:12px 0 0 18px">${p.steps.map(s=>`<li style="margin:4px 0">${esc(s)}</li>`).join('')}</ol>`:''}
+      ${p.body?`<div class="card" style="cursor:default;margin-top:12px"><div style="white-space:pre-wrap">${esc(p.body)}</div></div>`:''}
+      ${!mine?`<div class="row" style="margin-top:14px"><button class="btn" onclick="takePacket('${p.id}')">${taken?'📥 Take another copy':'📥 Take a copy into '+k.lands}</button></div>
+        <div class="meta" style="margin-top:6px">${taken?'You took a copy on '+esc(taken)+'. Your copy is yours — editing it never touches this one.':'A copy lands in '+k.lands+' as <b>yours</b>. This one stays on the table for the next person.'}</div>`
+        :`<div class="row" style="margin-top:14px;gap:6px">
+            <button class="btn" onclick="writePacketFile('${p.id}')">⤓ Write the file to hand over</button>
+            <button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="unpublishPacket('${p.id}')">Take it off my list</button>
+          </div>`}
+      <div id="pkOut"></div>`;
+    return;
+  }
+
+  if(v.mode==='mine'){
+    el.innerHTML=`${back}
+      <h2>🤝 Shared by you</h2>
+      ${tabs('mine')}
+      <div class="meta">${visLine('shared')}</div>
+      <div class="row" style="margin-top:10px;gap:6px;align-items:center">
+        <span class="meta" style="margin:0">Signed</span>
+        <input type="text" value="${esc(g.signedAs||'')}" placeholder="your name, or leave it unsigned" oninput="setCommonsName(this.value)" style="flex:1">
+      </div>
+      ${g.published.length? g.published.map(p=>`<div class="card" onclick="openPacket('${p.id}')">
+          <div class="t">${packetKind(p.kind).icon} ${esc(p.title)}</div>
+          <div class="s">${packetKind(p.kind).label} · published ${esc(p.created||'')} — open it to write the file</div>
+        </div>`).join('')
+        : `<p class="meta" style="margin-top:12px">You haven't published anything yet. Nothing of yours has left this machine.
+           <br><br>That is the default and it stays the default: the only way any of your work becomes commons is you choosing it, here, one piece at a time.</p>`}`;
+    return;
+  }
+
+  if(v.mode==='publish'){
+    const papers=[...((data.hall&&data.hall.dissections)||[])];
+    const invs=((data.hall&&data.hall.investigations)||[]).filter(i=>i.mine!==false);
+    const courses=(data.courses||[]).filter(c=>!c.archived);
+    const notes=(data.notes||[]);
+    const row=(kind,id,icon,title,sub)=>`<div class="card" onclick="publishFrom('${kind}','${String(id).replace(/'/g,'')}')">
+      <div class="t">${icon} ${esc(title)}</div><div class="s">${esc(sub)} · publish this</div></div>`;
+    el.innerHTML=`${back}
+      <h2>📤 Publish something</h2>
+      ${tabs('publish')}
+      <div class="meta">Publishing turns one piece of your work into a <b>packet</b> — a single file you can hand to a person. Your original stays exactly where it is and stays private; the packet is a copy with your name on it.
+        <br><br>Nothing is uploaded. There is no server here to upload to. A packet reaches someone because you gave it to them.</div>
+      <div class="row" style="margin-top:10px;gap:6px;align-items:center">
+        <span class="meta" style="margin:0">Sign as</span>
+        <input type="text" value="${esc(g.signedAs||'')}" placeholder="your name, or leave it unsigned" oninput="setCommonsName(this.value)" style="flex:1">
+      </div>
+      <h3 style="margin-top:16px">📄 Papers and analyses</h3>
+      ${papers.length||invs.length ? papers.map(d=>row('paper',d.id,'📄',d.title||'An analysis',esc(d.ts||'')))
+          .concat(invs.map(i=>row('paper',i.id,'🔬',i.claim||i.title||'An investigation','investigation'))).join('')
+        : '<p class="meta">Nothing yet — keep a paper analysis or an investigation in the Science &amp; Research Hall first.</p>'}
+      <h3 style="margin-top:16px">🧭 Courses and lesson plans</h3>
+      ${courses.length ? courses.map(c=>row('course',c.id,'🧭',c.title,`${(c.steps||[]).length} steps`)).join('')
+        : '<p class="meta">Nothing yet — build one at the Course Board in the Study.</p>'}
+      <h3 style="margin-top:16px">🗒 Notes</h3>
+      ${notes.length ? notes.slice(0,40).map(n=>row('note',n.id,/lesson/i.test(n.title||'')?'🎓':'🗒',n.title||'Untitled note',(noteBody(n)||'').slice(0,60))).join('')
+        : '<p class="meta">Nothing yet — write one in Your Notes.</p>'}`;
+    return;
+  }
+
+  if(v.mode==='private'){
+    el.innerHTML=`${back}
+      <h2>👤 What stays private</h2>
+      ${tabs('private')}
+      <div class="meta">${visLine('private')}</div>
+      <div class="meta" style="margin-top:8px">The full accounting — every store in your save, and whether it can ever leave this machine — is in <b>Your Data</b> (pause menu). The short version:</div>
+      <div style="margin-top:10px">
+        ${DATA_MAP.filter(d=>d.state==='private').map(d=>`<div class="card" style="cursor:default">
+          <div class="t">${esc(d.name)}</div><div class="s">${esc(d.leaves)}</div></div>`).join('')}
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="openDataPanel()">Open Your Data →</button></div>`;
+    return;
+  }
+
+  // the shelf — what the community wrote
+  const packets=allCommonsPackets();
+  const bundled=packets.filter(p=>!g.received.some(r=>r.id===p.id));
+  const got=g.received;
+  const card=p=>{ const k=packetKind(p.kind);
+    return `<div class="card" onclick="openPacket('${p.id}')">
+      <div class="t">${k.icon} ${esc(p.title)}${g.taken[p.id]?' <span class="badge lic">taken</span>':''}</div>
+      <div class="s">${k.label} · by ${esc(p.by||'unknown')}${p.license?' · '+esc(p.license):''}</div>
+    </div>`; };
+  el.innerHTML=`${back}
+    <h2>🏛 The Commons Table</h2>
+    ${tabs('shelf')}
+    <div class="meta">Work people wrote and chose to hand on — papers, lesson plans, courses. Every one carries who wrote it and under what license, exactly like a text on a Library shelf.
+      <br><br>${visLine('commons')}</div>
+    <div class="meta" style="margin-top:8px"><b>This table needs no account and no server.</b> A piece of work gets here because a person wrote a file and gave it to someone. (The two boards on the wall behind you are the other kind — they need a shared database, and stay dormant without one.)</div>
+    ${bundled.length?`<h3 style="margin-top:16px">On the table</h3>${bundled.map(card).join('')}`:''}
+    ${got.length?`<h3 style="margin-top:16px">Handed to you · ${got.length}</h3>${got.map(card).join('')}`:''}
+    <h3 style="margin-top:18px">Someone gave you a packet</h3>
+    <div class="meta">A <b>.json</b> written at another person's Commons Table. Nothing is fetched from anywhere — you were handed it.</div>
+    <div class="row" style="margin-top:8px"><button class="btn" onclick="triggerImportPacket()">⤒ Put it on the table</button></div>`;
+}
+
+/* ================================================================
+   THE INHERITANCE HALL — BETA-BUILD-PLAN.md §8, built 2026-07-27.
+
+   An open sandbox at the southwest edge of the Grounds. It ships
+   EMPTY on purpose: everything standing in it was planted by whoever
+   keeps this Pavilion, or arrived as a bequest someone else left.
+   Three things can be planted, and each is a real gift rather than a
+   score:
+     📖 a book on a stone  — a curated collection off your shelves
+     🌱 a seed             — your own notes; it grows over REAL days,
+                             blooms, and then gives seeds of its own,
+                             which can be planted again elsewhere
+     ⚔ a sword in a stone — a course, set behind a trial: a question
+                             only someone who did the work can answer
+
+   Two rules this must never break (both are project invariants):
+   - PROVENANCE AT THE DOOR: a bequest carries license + source per
+     text, and only redistributes text that may be redistributed.
+     Anything else travels as its catalog card — where to get it —
+     plus your notes, which are always yours to give.
+   - NOTHING LEAVES WITHOUT YOU. Making a bequest is a deliberate act
+     with a preview of exactly what's included. No auto-sharing, no
+     server, no background anything. A bequest is a file you hand over.
+   ================================================================ */
+const TRIAL_MISS=["Not it. The stone doesn't move.","The stone holds. Try again when you know it.","Nothing gives. Whoever set this meant it."];
+function newPlantId(){ return 'plant-'+Date.now()+'-'+Math.random().toString(36).slice(2,6); }
+function groveStore(){ if(!data.grove) data.grove={plantings:[],seeds:[]}; if(!data.grove.seeds) data.grove.seeds=[]; return data.grove; }
+function findPlanting(id){ return groveStore().plantings.find(p=>p.id===id); }
+function normalizeAnswer(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,'').replace(/\s+/g,' ').trim(); }
+/* Licenses that genuinely permit passing the text on. Anything not on this
+   list travels as a card, not a book — the same test the Library applies at
+   its own door, applied to giving instead of shelving. */
+function redistributable(license){ return /public domain|cc0|creative commons|cc by|cc-by|gutenberg|mit|open|pavilion commons/i.test(String(license||'')); }
+function noteBody(n){ return (n && (n.body||n.text||'')) || ''; }
+function plantedByLabel(pl){ return pl.by ? esc(pl.by) : (pl.received?'someone who came before':'you'); }
+const STAGE_WORD=['a seed in the soil','a sprout','in bud','in bloom'];
+
+export function openInheritanceHall(){ state.ui='grove'; state.groveView={mode:'hall'}; hideAllOv(); renderGrove(); showOv('groveOv'); }
+export function openPlantHere(x,y){ state.ui='grove'; state.groveView={mode:'plant',x,y}; hideAllOv(); renderGrove(); showOv('groveOv'); }
+export function openPlanting(id){ state.ui='grove'; state.groveView={mode:'one',id}; hideAllOv(); renderGrove(); showOv('groveOv'); }
+export function backToHallRecord(){ state.groveView={mode:'hall'}; renderGrove(); }
+export function choosePlantKind(kind){ const v=state.groveView||{}; state.groveView={mode:'compose',kind,x:v.x,y:v.y}; renderGrove(); }
+export function backToPlantChoice(){ const v=state.groveView||{}; state.groveView={mode:'plant',x:v.x,y:v.y}; renderGrove(); }
+
+export function groveHiddenChanged(){
+  const k=document.getElementById('gvHidden')?.value||'none';
+  const box=document.getElementById('gvHiddenOpts'), slug=document.getElementById('gvHiddenSlug'), num=document.getElementById('gvHiddenNum');
+  if(!box) return;
+  box.style.display = k==='none'||k==='planted' ? 'none' : 'block';
+  if(slug) slug.style.display = k==='read' ? 'block' : 'none';
+  if(num) num.style.display = (k==='days'||k==='books') ? 'block' : 'none';
+}
+function readHiddenChoice(){
+  const k=document.getElementById('gvHidden')?.value||'none';
+  if(k==='none') return null;
+  const n=parseInt(document.getElementById('gvHiddenNum')?.value||'7',10)||1;
+  if(k==='read'){
+    const slug=document.getElementById('gvHiddenSlug')?.value||'';
+    const d=Store.getDoc(slug);
+    return slug? { kind:'read', slug, label:'read “'+((d&&d.title)||slug)+'” in the Library' } : null;
+  }
+  if(k==='days') return { kind:'days', days:n, label:`wait ${n} day${n===1?'':'s'} from the day it went in the ground` };
+  if(k==='planted') return { kind:'planted', label:'plant something of your own here first' };
+  if(k==='books') return { kind:'books', count:n, label:`bring ${n} book${n===1?'':'s'} of your own into the Library` };
+  return null;
+}
+/* ----- The local AI's help, and its limits. It drafts a suggestion FROM what
+   is actually on your shelves and in your notes; it never plants anything, and
+   what it writes lands in the form for you to edit. WORK_CHARTER, not the
+   residents' devotional one: what someone leaves here might be a trade, a
+   language, or a recipe, and the Hall must serve it on its own terms. */
+export async function draftPlantingWithAI(){
+  const v=state.groveView||{}, kind=v.kind, out=document.getElementById('gvAiOut');
+  const say=t=>{ if(out) out.textContent=t; };
+  if(!isAIActive()) return say('No local AI connected — ⚙ Manage AI connections. Everything here still works by hand.');
+  const shelf=Store.allDocs().slice(0,60).map(d=>`- ${d.title} (${d.tradition||'—'})`).join('\n');
+  const notes=(data.notes||[]).slice(0,25).map(n=>`- ${n.title||'Untitled'}: ${noteBody(n).slice(0,120)}`).join('\n');
+  const ask = kind==='book'
+    ? `The visitor is leaving a CURATED COLLECTION OF BOOKS in the Inheritance Hall for a stranger to find.\nTheir shelves:\n${shelf}\n\nChoose 2–5 that genuinely belong together and say why.\nReply in exactly this shape:\nTITLE: <a short name for the collection>\nMESSAGE: <2–4 sentences to whoever finds it — concrete, not inspirational filler>\nBOOKS: <exact titles from the list above, separated by | >`
+    : kind==='seed'
+    ? `The visitor is burying a SEED holding some of their own notes, for a stranger to find. It opens after a few real days.\nTheir notes:\n${notes||'(none yet)'}\n\nReply in exactly this shape:\nTITLE: <a short name for the seed>\nMESSAGE: <2–4 sentences to whoever finds it — what these notes are for, honestly>`
+    : `The visitor is setting a COURSE in stone in the Inheritance Hall, behind a trial only someone who did the work can answer.\nTheir shelves:\n${shelf}\n\nReply in exactly this shape:\nTITLE: <short course name>\nMESSAGE: <2–3 sentences to whoever finds it>\nWHY: <one line on why it is worth walking>\nSTEPS: <3–6 concrete steps, separated by | >\nTRIAL_Q: <a question only someone who actually did the steps could answer>\nTRIAL_A: <the short answer, a few words>`;
+  say('Your local AI is drafting… (a bigger model may take a moment)');
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nYou help someone decide what to leave behind for a stranger. Be concrete and plain. '
+        +'Never invent a book that is not on their list. Answer ONLY in the labelled shape asked for, nothing before or after.'},
+      {role:'user', content:ask},
+    ]);
+    if(isEmptyReply(reply)) return say('It came back empty — try again, or just write it yourself.');
+    const field=(name)=>{ const m=reply.match(new RegExp('^\\s*'+name+':\\s*(.+)$','im')); return m?m[1].trim():''; };
+    const set=(id,val)=>{ const e=document.getElementById(id); if(e&&val) e.value=val; };
+    set('gvTitle', field('TITLE')); set('gvNote', field('MESSAGE'));
+    if(kind==='sword'){
+      set('gvWhy', field('WHY'));
+      const steps=field('STEPS'); if(steps) set('gvSteps', steps.split('|').map(s=>s.trim()).filter(Boolean).join('\n'));
+      set('gvTrialQ', field('TRIAL_Q')); set('gvTrialA', field('TRIAL_A'));
+    }
+    if(kind==='book'){
+      const wanted=field('BOOKS').split('|').map(s=>s.trim().toLowerCase()).filter(Boolean);
+      let ticked=0;
+      document.querySelectorAll('.gvBook').forEach(cb=>{
+        const label=(cb.parentElement?.textContent||'').toLowerCase();
+        if(wanted.some(w=>w&&label.includes(w))){ cb.checked=true; ticked++; }
+      });
+      return say(`Drafted, and ticked ${ticked} book${ticked===1?'':'s'} it recognised. It's a suggestion — change anything, then plant it yourself.`);
+    }
+    say("Drafted. It's a suggestion, not a decision — edit freely, then plant it yourself.");
+  }catch(e){ say('The connection flickered — nothing drafted. Writing it by hand always works.'); }
+}
+export function createPlanting(){
+  const v=state.groveView||{}, kind=v.kind, msgEl=document.getElementById('gvMsgLine');
+  const say=t=>{ if(msgEl) msgEl.textContent=t; };
+  const title=(document.getElementById('gvTitle')?.value||'').trim();
+  if(!title) return say('Give it a name first — whoever finds it sees that before anything else.');
+  const g=groveStore();
+  const by=(document.getElementById('gvBy')?.value||'').trim();
+  if(by) g.signedAs=by; // remembered, so you don't retype your own name every time
+  const pl={ id:newPlantId(), kind, scene:'grove', x:v.x, y:v.y, title,
+    message:(document.getElementById('gvNote')?.value||'').trim(), by,
+    planted:todayKey(), taken:false, drawn:false, harvested:false, received:false,
+    hidden:readHiddenChoice() };
+  if(kind==='book'){
+    const slugs=[...document.querySelectorAll('.gvBook:checked')].map(c=>c.value);
+    if(!slugs.length) return say('Pick at least one book — a collection of nothing is just a stone.');
+    pl.books=slugs.map(s=>{ const d=Store.getDoc(s)||{};
+      return { slug:s, title:d.title||s, license:d.license||'', source_url:d.source_url||'',
+               attribution:d.attribution||'', tradition:d.tradition||'', summary:(d.doc&&d.doc.summary)||'' }; });
+  } else if(kind==='seed'){
+    const ids=[...document.querySelectorAll('.gvNote:checked')].map(c=>c.value);
+    if(!ids.length) return say('A seed holds notes — choose at least one to put in it.');
+    pl.notes=ids.map(id=>{ const n=(data.notes||[]).find(x=>String(x.id)===String(id)); return n?{title:n.title||'Untitled note', body:noteBody(n), created:n.created||todayKey()}:null; }).filter(Boolean);
+  } else {
+    const steps=(document.getElementById('gvSteps')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    if(!steps.length) return say('A course needs steps — one per line — or there is nothing to hand on.');
+    const q=(document.getElementById('gvTrialQ')?.value||'').trim();
+    const a=(document.getElementById('gvTrialA')?.value||'').trim();
+    if(q&&!a) return say('A trial needs an answer as well as a question, or nobody can ever draw it.');
+    pl.course={ title, why:(document.getElementById('gvWhy')?.value||'').trim(), steps };
+    pl.trial=q? { question:q, answer:a, hint:(document.getElementById('gvTrialH')?.value||'').trim() } : null;
+    pl.drawn=!pl.trial; // no trial set means it stands unlocked, freely taken
+  }
+  g.plantings.push(pl); persist();
+  logActivity('Planted "'+title+'" in the Inheritance Hall.');
+  awardBadge('first-note'); blip(523,.09); setTimeout(()=>blip(659,.11),95);
+  state.groveView={mode:'one',id:pl.id}; renderGrove();
+}
+export function plantSeedFromPouch(seedId){
+  const v=state.groveView||{}, g=groveStore();
+  const i=g.seeds.findIndex(s=>s.id===seedId); if(i<0) return;
+  const s=g.seeds[i];
+  const pl={ id:newPlantId(), kind:'seed', scene:'grove', x:v.x, y:v.y, title:s.title, message:s.message||'',
+    by:s.by||'', planted:todayKey(), notes:s.notes||[], taken:false, harvested:false, received:!!s.received,
+    origin:s.origin||null };
+  g.plantings.push(pl); g.seeds.splice(i,1); persist();
+  logActivity('Planted a gathered seed — "'+s.title+'" grows again.'); blip(660,.08);
+  state.groveView={mode:'one',id:pl.id}; renderGrove();
+}
+export function gatherSeeds(id){
+  const pl=findPlanting(id); if(!pl||pl.kind!=='seed'||plantStage(pl)<3||pl.harvested) return;
+  const g=groveStore();
+  for(let i=0;i<2;i++) g.seeds.push({ id:'seed-'+Date.now()+'-'+i+Math.random().toString(36).slice(2,5),
+    title:pl.title, message:pl.message, by:pl.by, notes:pl.notes||[], received:pl.received,
+    origin:pl.origin||(pl.by?{by:pl.by,date:pl.planted}:null) });
+  pl.harvested=true; persist();
+  logActivity('Gathered seeds from "'+pl.title+'".'); blip(784,.08); setTimeout(()=>blip(988,.1),90);
+  renderGrove();
+}
+export function attemptTrial(id){
+  const pl=findPlanting(id); if(!pl||!pl.trial) return;
+  const el=document.getElementById('gvTrialInput'), out=document.getElementById('gvTrialOut');
+  const given=normalizeAnswer(el&&el.value);
+  if(!given) return;
+  if(given===normalizeAnswer(pl.trial.answer)){
+    pl.drawn=true; persist();
+    logActivity('Drew the sword from the stone: "'+pl.title+'".');
+    blip(523,.1); setTimeout(()=>blip(659,.1),100); setTimeout(()=>blip(784,.16),200);
+    renderGrove();
+  } else {
+    if(out) out.textContent=TRIAL_MISS[Math.floor(Math.random()*TRIAL_MISS.length)];
+    blip(180,.14,'sawtooth');
+  }
+}
+/* Taking what's in a planting. Books land on Your Shelf, notes in Your Notes,
+   a course on the Course Board — the places those things already live. A gift
+   nobody can actually use isn't a gift. */
+export async function takePlanting(id){
+  const pl=findPlanting(id); if(!pl) return;
+  const out=document.getElementById('gvTakeOut');
+  const say=t=>{ if(out) out.textContent=t; };
+  if(pl.kind==='sword'&&!pl.drawn) return say('The stone holds. Answer the trial first.');
+  if(pl.kind==='book'){
+    let shelved=0, already=0, cardOnly=0;
+    for(const b of (pl.books||[])){
+      if(Store.getDoc(b.slug)){ already++; continue; } // already on your shelves — nothing to do
+      const sections=b.sections||[];
+      const body=b.text || sections.map(s=>(s.heading?s.heading+'\n\n':'')+s.body).join('\n\n');
+      const res=await shelveAsPersonal({ title:b.title, body, license:b.license,
+        source:b.source_url, tradition:b.tradition||'Personal', sections,
+        summary:(b.summary||'')+(body?'':'\n\n(Left as a catalog card — its license doesn’t allow the text itself to travel. The source link above is where to get it.)') });
+      if(res&&res.ok!==false){ shelved++; if(!body) cardOnly++; }
+    }
+    say(`Taken. ${shelved} shelved on Your Shelf${cardOnly?` (${cardOnly} as cards — see the note on each)`:''}${already?`, ${already} you already had`:''}.`);
+  } else if(pl.kind==='seed'){
+    for(const n of (pl.notes||[])){
+      data.notes.unshift({ id:newNoteId(), title:n.title||'Untitled note',
+        body:(noteBody(n)+`\n\n— left in the Inheritance Hall by ${pl.by||'someone who came before'}${pl.planted?', '+pl.planted:''}`).trim(),
+        created:todayKey(), updated:todayKey() });
+    }
+    say((pl.notes||[]).length+' note(s) copied into 🗒 Your Notes — the originals stay in the ground.');
+  } else {
+    const c=pl.course||{title:pl.title,why:'',steps:[]};
+    data.courses.unshift({ id:Date.now(), title:c.title||pl.title, why:c.why||pl.message||'', category:'personal',
+      due:null, steps:(c.steps||[]).map(t=>({title:t,practice:'',url:'',done:false})),
+      begun:todayKey(), archived:false });
+    say('The course is on your Course Board (the Study) — yours to walk now.');
+  }
+  pl.taken=true; persist(); logActivity('Took what was left in "'+pl.title+'".'); blip(700,.08);
+  renderGrove(); setTimeout(()=>{ const o=document.getElementById('gvTakeOut'); if(o&&out) o.textContent=out.textContent; },10);
+}
+export function digUpPlanting(id){
+  const pl=findPlanting(id); if(!pl) return;
+  if(!window.confirm('Dig up “'+(pl.title||'this')+'”? What it holds goes with it.\n\n(If you meant to keep a copy, leave a bequest file first.)')) return;
+  const g=groveStore(); g.plantings=g.plantings.filter(p=>p.id!==id); persist();
+  state.groveView={mode:'hall'}; renderGrove();
+}
+/* ----- The bequest file: how any of this reaches another person at all.
+   No server, no account — one .json you hand over, exactly like the save
+   export already works. The provenance filter runs HERE, at the door. */
+function bequestFor(pl){
+  const out={ sandPavilionBequest:1, kind:pl.kind, title:pl.title, message:pl.message||'',
+    by:pl.by||groveStore().signedAs||'', left:pl.planted||todayKey(), origin:pl.origin||null,
+    hidden:pl.hidden||null }; // a thing you buried stays buried for whoever you give it to
+  if(pl.kind==='book'){
+    out.books=(pl.books||[]).map(b=>{
+      const d=Store.getDoc(b.slug)||{};
+      const card={ slug:b.slug, title:b.title, license:b.license||d.license||'',
+        source_url:b.source_url||d.source_url||'', attribution:b.attribution||d.attribution||'',
+        tradition:b.tradition||d.tradition||'', summary:b.summary||(d.doc&&d.doc.summary)||'' };
+      // A book's readable content lives in one of two places: inline fullText
+      // (the big classics) or doc.sections (the Pavilion's own short originals).
+      // Both have to travel, or a bequest of Commons essays arrives empty —
+      // found the hard way, 2026-07-27, by actually exporting one.
+      const inline=(d.doc&&d.doc.fullText&&d.doc.fullText.text)||'';
+      const sections=(d.doc&&d.doc.sections)||[];
+      if(redistributable(card.license) && (inline||sections.length)){
+        if(inline) card.text=inline;
+        if(sections.length) card.sections=sections;
+      } else card.textOmitted=true;
+      return card;
+    });
+  } else if(pl.kind==='seed'){ out.notes=(pl.notes||[]).map(n=>({title:n.title,body:noteBody(n),created:n.created})); }
+  else { out.course=pl.course||null; out.trial=pl.trial||null; }
+  return out;
+}
+export function previewBequest(id){
+  const pl=findPlanting(id); if(!pl) return;
+  const b=bequestFor(pl);
+  const el=document.getElementById('gvGiveOut'); if(!el) return;
+  let lines=[];
+  if(b.kind==='book') lines=(b.books||[]).map(x=>`• ${esc(x.title)} — ${esc(x.license||'license unrecorded')} · ${x.text?'<b>full text travels</b>':'<i>card only — the text stays home</i>'}`);
+  else if(b.kind==='seed') lines=(b.notes||[]).map(x=>`• ${esc(x.title)} — your own words, ${x.body.length} characters`);
+  else lines=[`• The course “${esc((b.course&&b.course.title)||b.title)}” · ${(b.course&&b.course.steps||[]).length} steps`,
+              b.trial?`• The trial travels with it — including its answer, so the stone still holds for them`:'• No trial — it stands open'];
+  el.innerHTML=`<div class="meta" style="margin-top:8px"><b>This is exactly what leaves:</b><br>${lines.join('<br>')}
+    <br><br>Signed ${esc(b.by||'unsigned')}. Nothing else in your Pavilion is in this file — not your save, not your day, not a note you didn’t pick.</div>`;
+}
+export async function giveBequest(id){
+  const pl=findPlanting(id); if(!pl) return;
+  const json=JSON.stringify(bequestFor(pl),null,2);
+  const name='bequest-'+(pl.title||'gift').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)+'.json';
+  if(typeof window!=='undefined' && window.desktopBridge?.saveFile){
+    const res=await window.desktopBridge.saveFile(name, json);
+    if(res.canceled) return;
+    if(!res.ok){ alert('Could not write the file: '+(res.error||'unknown error')); return; }
+  } else {
+    const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    const a=document.createElement('a'); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  logActivity('Left a bequest to give away: "'+pl.title+'".'); blip(700,.07);
+  const el=document.getElementById('gvGiveOut'); if(el) el.innerHTML='<div class="meta" style="margin-top:8px">Written. Hand that file to anyone — they plant it in their own Hall.</div>';
+}
+export function triggerImportBequest(){ document.getElementById('bequestFile').click(); }
+/* Gifts left at the gate — bundled with the build, never pre-planted. The
+   courtyard is still empty when you walk in; these are simply offered, and
+   receiving one is a deliberate act, exactly like a bequest from a person. */
+export function plantGift(giftId){
+  const b=GATE_BEQUESTS.find(g=>g.id===giftId); if(!b) return;
+  plantBequest(b, giftId);
+}
+function plantBequest(b,giftId){
+  const spot=freeGroveTile();
+  if(!spot){ alert('The court is full — dig something up, or there is nowhere to set this down.'); return; }
+  const pl={ id:newPlantId(), kind:(['book','seed','sword'].includes(b.kind)?b.kind:'book'), scene:'grove',
+    x:spot.x, y:spot.y, title:b.title||'Something left here', message:b.message||'', by:b.by||'',
+    planted:todayKey(), taken:false, harvested:false, received:true, giftId:giftId||null,
+    hidden:b.hidden||null,
+    origin:{ by:b.by||'unknown', date:b.left||'' } };
+  if(pl.kind==='book') pl.books=b.books||[];
+  else if(pl.kind==='seed') pl.notes=(b.notes||[]).map(n=>({...n, created:n.created||todayKey()}));
+  else { pl.course=b.course||null; pl.trial=b.trial||null; pl.drawn=!pl.trial; }
+  groveStore().plantings.push(pl); persist();
+  logActivity('Planted a bequest left by '+(b.by||'someone else')+': "'+pl.title+'".');
+  blip(523,.09); setTimeout(()=>blip(784,.12),100);
+  state.ui='grove'; state.groveView={mode:'one',id:pl.id}; hideAllOv(); renderGrove(); showOv('groveOv');
+}
+if(typeof document!=='undefined' && document.getElementById('bequestFile')){
+  document.getElementById('bequestFile').addEventListener('change', e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const b=JSON.parse(r.result);
+        if(!b || !b.sandPavilionBequest){ alert("That file isn't a bequest — it should be a .json written by an Inheritance Hall."); return; }
+        plantBequest(b);
+      }catch(err){ alert("Couldn't read that file: "+err.message); }
+    };
+    r.readAsText(f);
+    e.target.value='';
+  });
+}
+
+function renderGrove(){
+  const el=document.getElementById('grovePanel'); if(!el) return;
+  const v=state.groveView||{mode:'hall'}, g=groveStore();
+  const back=`<button class="xbtn" onclick="closeUI()">Esc ✕</button>`;
+
+  if(v.mode==='one'){
+    const pl=findPlanting(v.id); if(!pl){ state.groveView={mode:'hall'}; return renderGrove(); }
+    const stage=plantStage(pl);
+    if(!requirementMet(pl)){
+      el.innerHTML=`${back}
+        <div class="row" style="justify-content:space-between;margin-bottom:8px">
+          <button class="btn ghost" onclick="backToHallRecord()">← The record stone</button>
+          <button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="digUpPlanting('${pl.id}')">⛏ Dig it up anyway</button>
+        </div>
+        <h2>⌛ ${esc(pl.title)}</h2>
+        <div class="meta">Still under the sand. Something is here — you can feel the shape of it — and it will not come up yet.</div>
+        ${pl.message?`<div class="card" style="cursor:default;margin-top:10px"><div class="s">Scratched on the part you can reach</div>
+          <div style="white-space:pre-wrap">${esc(pl.message)}</div></div>`:''}
+        <div class="card" style="cursor:default;margin-top:10px">
+          <div class="t">It surfaces when you ${esc(requirementText(pl))}.</div>
+          <div class="s">Left by ${esc((pl.origin&&pl.origin.by)||pl.by||'someone before you')}</div>
+        </div>
+        <div class="meta" style="margin-top:10px">This is a condition, not a riddle — it says plainly what it wants, because the point is the work and not the guessing. Nothing is bought, scored, or unlocked with anything but doing it. Come back when it's true.</div>
+        <div class="meta" style="margin-top:8px">You can always dig it up and lose it, if you'd rather not be told what to do. It's your ground.</div>`;
+      return;
+    }
+    let body='';
+    if(pl.kind==='book'){
+      body=`<h3>The collection · ${(pl.books||[]).length} book${(pl.books||[]).length===1?'':'s'}</h3>
+        ${(pl.books||[]).map(b=>`<div class="card" style="cursor:default"><div class="t">📖 ${esc(b.title)}</div>
+          <div class="s">${esc(b.license||'license unrecorded')}${b.tradition?' · '+esc(b.tradition):''}${b.text?' · full text carried':(b.textOmitted?' · card only — the text stays with its source':'')}</div></div>`).join('')}`;
+    } else if(pl.kind==='seed'){
+      body=`<div class="meta">This seed was planted ${esc(pl.planted)} and is <b>${STAGE_WORD[stage]}</b>.
+        ${stage<3?`It opens on its own, on real days — nothing here can be hurried.`:(pl.harvested?'It has already given its seeds.':'It is carrying seeds of its own.')}</div>
+        <h3 style="margin-top:12px">What it holds · ${(pl.notes||[]).length} note${(pl.notes||[]).length===1?'':'s'}</h3>
+        ${stage<3 ? '<p class="meta">Closed until it blooms. Whoever planted it meant for it to be waited on.</p>'
+          : (pl.notes||[]).map(n=>`<div class="card" style="cursor:default"><div class="t">🌱 ${esc(n.title||'Untitled note')}</div>
+              <div style="white-space:pre-wrap;margin-top:4px">${esc(noteBody(n))}</div></div>`).join('')}
+        ${stage>=3&&!pl.harvested?`<div class="row" style="margin-top:10px"><button class="btn" onclick="gatherSeeds('${pl.id}')">🌾 Gather its seeds</button></div>
+          <div class="meta">Two seeds for your pouch. Plant them anywhere in this ground, or keep them — each one carries the same gift onward.</div>`:''}`;
+    } else {
+      const locked=pl.trial&&!pl.drawn;
+      body=`<h3>${locked?'⚔ Set in the stone':'⚔ Drawn'} · ${(pl.course&&pl.course.steps||[]).length} steps</h3>
+        ${locked?`<div class="meta">A trial stands on this one. Only whoever can answer it draws the sword.</div>
+          <div class="card" style="cursor:default;margin-top:8px"><div class="t">${esc(pl.trial.question)}</div>
+            ${pl.trial.hint?`<div class="s">Hint: ${esc(pl.trial.hint)}</div>`:''}</div>
+          <div class="row" style="margin-top:8px;gap:6px">
+            <input type="text" id="gvTrialInput" placeholder="your answer" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();attemptTrial('${pl.id}');}">
+            <button class="btn" onclick="attemptTrial('${pl.id}')">Take hold</button>
+          </div><div class="meta" id="gvTrialOut" style="margin-top:6px"></div>`
+        : `${pl.course&&pl.course.why?`<div class="meta">${esc(pl.course.why)}</div>`:''}
+           <ol style="margin:8px 0 0 18px">${(pl.course&&pl.course.steps||[]).map(s=>`<li style="margin:3px 0">${esc(s)}</li>`).join('')}</ol>`}`;
+    }
+    const canTake=(pl.kind!=='sword'||pl.drawn)&&(pl.kind!=='seed'||stage>=3);
+    const takeLabel=pl.kind==='book'?'📚 Take the collection to Your Shelf'
+      :pl.kind==='seed'?'🗒 Copy the notes into Your Notes':'🎓 Put the course on my Course Board';
+    el.innerHTML=`${back}
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <button class="btn ghost" onclick="backToHallRecord()">← The record stone</button>
+        <button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="digUpPlanting('${pl.id}')">⛏ Dig it up</button>
+      </div>
+      <h2>${pl.kind==='sword'?'⚔':pl.kind==='book'?'📖':'🌱'} ${esc(pl.title)}</h2>
+      <div class="meta">${pl.received
+        ? `Planted here ${esc(pl.planted)} · <span class="badge lic">left by ${esc((pl.origin&&pl.origin.by)||pl.by||'someone before you')}</span>${pl.origin&&pl.origin.date?`, originally ${esc(pl.origin.date)}`:''}`
+        : `Planted ${esc(pl.planted)} by ${plantedByLabel(pl)}`}</div>
+      ${pl.message?`<div class="card" style="cursor:default;margin-top:10px"><div class="s">A word to whoever finds this</div>
+        <div style="white-space:pre-wrap">${esc(pl.message)}</div></div>`:''}
+      <div style="margin-top:12px">${body}</div>
+      ${canTake?`<div class="row" style="margin-top:14px"><button class="btn" onclick="takePlanting('${pl.id}')">${takeLabel}</button></div>
+        <div class="meta" id="gvTakeOut" style="margin-top:6px">${pl.taken?'Taken once already — taking it again simply copies it to you a second time. What is in the ground stays in the ground.':''}</div>`:''}
+      <h3 style="margin-top:18px">Give this away</h3>
+      <div class="meta">Write it out as a <b>bequest file</b> — one .json you can hand to anyone. They plant it in their own Hall and find exactly this.</div>
+      <div class="row" style="margin-top:8px;gap:6px">
+        <button class="btn ghost" onclick="previewBequest('${pl.id}')">👁 What would leave?</button>
+        <button class="btn" onclick="giveBequest('${pl.id}')">⤓ Write the bequest</button>
+      </div>
+      <div id="gvGiveOut"></div>`;
+    return;
+  }
+
+  if(v.mode==='plant'){
+    const seeds=g.seeds||[];
+    el.innerHTML=`${back}
+      <h2>Open ground</h2>
+      <div class="meta">Nothing has been planted here. What do you want to leave — for yourself later, or for whoever comes after you?</div>
+      <div class="card" onclick="choosePlantKind('book')"><div class="t">📖 A book on a stone</div>
+        <div class="s">A collection you curated off your own shelves, with a word about why these ones.</div></div>
+      <div class="card" onclick="choosePlantKind('seed')"><div class="t">🌱 A seed</div>
+        <div class="s">Your own notes, put in the ground. It grows over real days, blooms, and then gives seeds of its own.</div></div>
+      <div class="card" onclick="choosePlantKind('sword')"><div class="t">⚔ A sword in a stone</div>
+        <div class="s">A course, set behind a trial — a question only someone who has done the work can answer.</div></div>
+      ${seeds.length?`<h3 style="margin-top:16px">Seeds in your pouch · ${seeds.length}</h3>
+        <div class="meta">Gathered from a bloom. Each carries the same gift onward.</div>
+        ${seeds.map(s=>`<div class="card" onclick="plantSeedFromPouch('${s.id}')"><div class="t">🌾 ${esc(s.title)}</div>
+          <div class="s">plant it here${s.by?' · first left by '+esc(s.by):''}</div></div>`).join('')}`:''}`;
+    return;
+  }
+
+  if(v.mode==='compose'){
+    const kind=v.kind;
+    const head=kind==='book'?'📖 A book on a stone':kind==='seed'?'🌱 A seed':'⚔ A sword in a stone';
+    const docs=Store.allDocs().slice().sort((a,b)=>String(a.title).localeCompare(String(b.title)));
+    const notes=(data.notes||[]);
+    let picker='';
+    if(kind==='book'){
+      picker=`<h3 style="margin-top:14px">Which books?</h3>
+        <div class="meta">Everything on your shelves, yours and the Library's. A book whose license doesn't allow the text to travel still goes as a card — title, source, and where to get it.</div>
+        <div style="max-height:230px;overflow:auto;margin-top:8px">
+        ${docs.length?docs.map(d=>`<label class="card" style="cursor:pointer;display:block">
+            <input type="checkbox" class="gvBook" value="${esc(d.slug)}"> <b>${esc(d.title)}</b>
+            <div class="s" style="margin-left:22px">${esc(d.tradition||'')} · ${esc(d.license||'license unrecorded')}${redistributable(d.license)?'':' · card only'}</div>
+          </label>`).join(''):'<p class="meta">No books on your shelves yet — add some at the Caravan Desk first.</p>'}</div>`;
+    } else if(kind==='seed'){
+      picker=`<h3 style="margin-top:14px">Which of your notes?</h3>
+        <div class="meta">A copy travels; your own note stays exactly where it is.</div>
+        <div style="max-height:230px;overflow:auto;margin-top:8px">
+        ${notes.length?notes.map(n=>`<label class="card" style="cursor:pointer;display:block">
+            <input type="checkbox" class="gvNote" value="${esc(n.id)}"> <b>${esc(n.title||'Untitled note')}</b>
+            <div class="s" style="margin-left:22px">${esc((noteBody(n)||'').slice(0,90))}${noteBody(n).length>90?'…':''}</div>
+          </label>`).join(''):'<p class="meta">No notes yet — write one in 🗒 Your Notes and come back.</p>'}</div>`;
+    } else {
+      picker=`<h3 style="margin-top:14px">The course</h3>
+        <input type="text" id="gvWhy" placeholder="why it's worth walking (optional)">
+        <textarea id="gvSteps" rows="6" placeholder="One step per line.&#10;Read the first three chapters.&#10;Write your own summary before reading anyone else's.&#10;Try it on something real."></textarea>
+        <h3 style="margin-top:14px">The trial <span class="badge lic">optional</span></h3>
+        <div class="meta">Leave this blank and the sword stands loose — anyone can take it. Set a question and only someone who can answer it draws the course out. Match is forgiving: case and punctuation don't matter.</div>
+        <input type="text" id="gvTrialQ" placeholder="the question, e.g. “What does the third step actually cost you?”">
+        <input type="text" id="gvTrialA" placeholder="the answer that draws it">
+        <input type="text" id="gvTrialH" placeholder="a hint, if you want to be kind (optional)">`;
+    }
+    const readDocs=Object.keys(data.read||{}).map(s=>Store.getDoc(s)).filter(Boolean);
+    el.innerHTML=`${back}
+      <div class="row" style="margin-bottom:8px"><button class="btn ghost" onclick="backToPlantChoice()">← Something else</button></div>
+      <h2>${head}</h2>
+      <input type="text" id="gvTitle" placeholder="what to call it — this is what shows above it in the sand" style="font-size:15px">
+      <textarea id="gvNote" rows="3" placeholder="A word to whoever finds this (optional)"></textarea>
+      <input type="text" id="gvBy" placeholder="signed — your name, or leave it unsigned" value="${esc(g.signedAs||'')}">
+      <div class="row" style="margin-top:8px;gap:6px">
+        <button class="btn ghost" onclick="draftPlantingWithAI()">✨ Have your local AI draft this</button>
+      </div>
+      <div class="meta" id="gvAiOut" style="margin-top:6px">${isAIActive()?'It reads your own shelves and notes and suggests a draft — a suggestion, never planted for you. You edit and plant it yourself.':'Connect a local AI (⚙ Manage AI connections) and it can draft one from your own shelves. Everything here works fine without it.'}</div>
+      ${picker}
+      <h3 style="margin-top:16px">Bury it? <span class="badge lic">optional</span></h3>
+      <div class="meta">Left plain, it stands in the open for anyone. Buried, it shows only as a marker until whoever finds it has actually done something first — and it always says plainly what that is.</div>
+      <select id="gvHidden" onchange="groveHiddenChanged()">
+        <option value="none">Leave it in the open</option>
+        <option value="read">Buried until they've read a book of your choosing</option>
+        <option value="days">Buried until a number of days have passed</option>
+        <option value="planted">Buried until they've planted something of their own</option>
+        <option value="books">Buried until they've brought their own books into the Library</option>
+      </select>
+      <div id="gvHiddenOpts" style="display:none;margin-top:8px">
+        <select id="gvHiddenSlug" style="display:none">
+          ${readDocs.length?readDocs.map(d=>`<option value="${esc(d.slug)}">${esc(d.title)}</option>`).join('')
+            :docs.slice(0,60).map(d=>`<option value="${esc(d.slug)}">${esc(d.title)}</option>`).join('')}
+        </select>
+        <input type="number" id="gvHiddenNum" min="1" max="365" value="7" style="display:none" placeholder="how many">
+      </div>
+      <div class="row" style="margin-top:14px"><button class="btn" onclick="createPlanting()">🏜 Put it in the ground</button></div>
+      <div class="meta" id="gvMsgLine" style="margin-top:6px"></div>`;
+    setTimeout(()=>document.getElementById('gvTitle')?.focus(),30);
+    return;
+  }
+
+  // the record stone — the whole ground at a glance
+  const list=g.plantings.filter(p=>(p.scene||'grove')==='grove');
+  const mine=list.filter(p=>!p.received), left=list.filter(p=>p.received);
+  const card=p=>{ const stage=plantStage(p), buried=!requirementMet(p);
+    const what=buried?('buried — surfaces when you '+requirementText(p))
+      :p.kind==='book'?`${(p.books||[]).length} book(s)`:p.kind==='seed'?STAGE_WORD[stage]:(p.trial&&!p.drawn?'set behind a trial':'a course, standing open');
+    return `<div class="card" onclick="openPlanting('${p.id}')">
+      <div class="t">${buried?'⌛':p.kind==='sword'?'⚔':p.kind==='book'?'📖':'🌱'} ${esc(p.title)}</div>
+      <div class="s">${esc(what)} · planted ${esc(p.planted)} by ${p.by?esc(p.by):(p.received?'someone else':'you')}${p.taken?' · taken':''}</div>
+    </div>`; };
+  const gifts=GATE_BEQUESTS.filter(gb=>!g.plantings.some(p=>p.giftId===gb.id));
+  el.innerHTML=`${back}
+    <h2>🗿 The Record Stone ${visBadge('private')}</h2>
+    <div class="card" style="cursor:default;border-color:#8e8778">
+      <div class="s">Cut into the face of it, worn nearly smooth</div>
+      <div style="white-space:pre-wrap;font-style:italic;margin-top:4px">“Stars, darkness, a lamp, a phantom, dew, a bubble,
+a dream, a flash of lightning, and a cloud —
+thus we should look upon the world.”</div>
+      <div class="s" style="margin-top:6px">The Diamond Sutra, §32 · trans. F. Max Müller, 1894 · public domain</div>
+    </div>
+    <div class="meta" style="margin-top:8px">A star is on that list. Whoever cut it there was not being gentle about scale: the sun goes too, and the ground you are standing on, and this courtyard, and the wall around it. That is not despair — it is the reason the Pavilion's own charter reads <b>everything turns to sand, so give it away first</b>. Nothing here can be kept. It can only be handed on.</div>
+    <div class="meta" style="margin-top:10px">This court ships bare and stays bare until someone puts something in it. Nothing standing here was placed by the people who built the Pavilion — every one of them was planted by a visitor, or handed over by another person and planted sight-unseen.
+      <br><br>Face any bare patch of sand and press <b>E</b> to plant.</div>
+    ${gifts.length?`<h3 style="margin-top:16px">Left at the gate · ${gifts.length}</h3>
+      <div class="meta">Not planted — offered. Bundled with the Pavilion so your first act here can be receiving something instead of staring at empty sand. Take one into the ground when you want it; dig it up again whenever.</div>
+      ${gifts.map(gb=>`<div class="card" onclick="plantGift('${gb.id}')">
+        <div class="t">${gb.kind==='sword'?'⚔':gb.kind==='book'?'📖':'🌱'} ${esc(gb.title)}${gb.hidden?' <span class="badge">buried</span>':''}</div>
+        <div class="s">${gb.kind==='book'?`${(gb.books||[]).length} books`:gb.kind==='seed'?`${(gb.notes||[]).length} notes, sealed until it blooms`:'a course behind a trial'} · left by ${esc(gb.by||'the Pavilion')} — plant it</div>
+      </div>`).join('')}`:''}
+    ${list.length?'':'<p class="meta" style="margin-top:12px"><b>Nothing is in the ground yet.</b> That is not a bug and not an empty state waiting to be fixed — it is the honest condition of a place whose entire contents are gifts. Plant the first thing.</p>'}
+    ${mine.length?`<h3 style="margin-top:14px">What you left · ${mine.length}</h3>${mine.map(card).join('')}`:''}
+    ${left.length?`<h3 style="margin-top:16px">What others left before · ${left.length}</h3>${left.map(card).join('')}`:''}
+    ${(g.seeds||[]).length?`<h3 style="margin-top:16px">Seeds in your pouch · ${g.seeds.length}</h3>
+      <div class="meta">Gathered from things that bloomed. Face open ground and press E to plant one.</div>
+      ${g.seeds.map(s=>`<div class="card" style="cursor:default"><div class="t">🌾 ${esc(s.title)}</div><div class="s">${(s.notes||[]).length} note(s) carried${s.by?' · first left by '+esc(s.by):''}</div></div>`).join('')}`:''}
+    <h3 style="margin-top:18px">Something you were given</h3>
+    <div class="meta">A bequest arrives as a single <b>.json</b> file — handed to you directly, not fetched from anywhere. Plant it and see what's inside.</div>
+    <div class="row" style="margin-top:8px"><button class="btn" onclick="triggerImportBequest()">⤒ Plant a bequest someone gave you</button></div>`;
+}
+
 /* The Log -> the day (SELF-LEARNING-JOURNAL-PLAN.md — closing the capture ->
    organize seam). A captured entry MIGRATES onto today's bullet-journal page:
    a to-do or to-learn becomes a • task, anything else a — note. It LEAVES the
@@ -5518,7 +6450,7 @@ export async function askAgentForNote(agentKey){
   msg.textContent=label+' is thinking…';
   const agent=CHAT_AGENTS[agentKey]||CHAT_AGENTS.quill;
   try{
-    const systemPrompt=await agent.systemPrompt();
+    const systemPrompt=withStanding(agentKey, await agent.systemPrompt());
     const note=await AI.chat([
       {role:'system',content:systemPrompt},
       {role:'user',content:'In one or two sentences, in your own voice, leave a short note for the other residents of the Pavilion — something you noticed, not a summary of this prompt or a greeting. Return only the note itself, nothing else.'},
@@ -5782,6 +6714,8 @@ function renderReviewQueue(){
       <label>License <span style="color:#a8926c;font-weight:normal">(optional for Your Shelf — required only for the shared queue)</span></label><input type="text" id="rmLicense" placeholder="Leave blank for your own copy; e.g. Public Domain / CC0 if sharing">
       <label>Source <span style="color:#a8926c;font-weight:normal">(optional for Your Shelf)</span></label><input type="text" id="rmSource" placeholder="Where it came from — not needed for your own shelf">
       <label>Full text</label><textarea id="rmBody" rows="8" placeholder="Paste the whole thing — this is what gets shelved."></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="runCopyrightCheck()">⚖ Can this be shared, or is it personal?</button></div>
+      <div id="rmCopyrightOut"></div>
       <div id="reviewManualMsg" class="meta"></div>
       <div class="row" style="margin-top:14px">
         <button class="btn" id="shelveNowBtn" onclick="shelveManualFormNow()">📚 Add to my Library now</button>
@@ -5857,6 +6791,7 @@ function renderReviewQueue(){
       <button class="btn ghost" onclick="newReviewImportForm()">+ Paste Caravan output</button>
       <button class="btn ghost" onclick="newReviewManualForm()">+ Add a text by hand</button>
       <button class="btn ghost" onclick="newSCSearchForm()">🔍 Browse SuttaCentral</button>
+      <button class="btn ghost" onclick="openStewardIndex()">🗂 The Steward's Index</button>
       ${data.reviewQueue.filter(x=>x.status==='approved').length ? `<button class="btn" onclick="generateApprovedBatch()">📋 Generate batch (${data.reviewQueue.filter(x=>x.status==='approved').length} approved)</button>` : ''}
     </div>
     <div id="reviewBatchOut"></div>`;
@@ -6111,37 +7046,538 @@ export function removePersonalBook(slug, from){
    go through the review pipeline, not here. Moving just changes a book's
    `tradition`, which is what the shelves and The Stacks sort by, so it re-files
    everywhere at once. */
-export function openManageLibrary(){ state.ui='managelib'; hideAllOv(); renderManageLibrary(); showOv('manageLibOv'); }
-function renderManageLibrary(){
-  const books=data.personalLibrary||[];
-  const titleCount={}; books.forEach(b=>{ const t=(b.title||'').trim().toLowerCase(); titleCount[t]=(titleCount[t]||0)+1; });
-  const opts=b=>TRADITIONS.map(t=>`<option value="${esc(t)}"${b.tradition===t?' selected':''}>${esc(t)}</option>`).join('');
-  document.getElementById('manageLibPanel').innerHTML = `
+/* ================================================================
+   STANDING INSTRUCTIONS + THE PROMPT INSPECTOR — ADMIN-AND-AUTHORING
+   -PLAN #1 and #2, built 2026-07-27.
+
+   Both come from the same audit: things we could only do by editing
+   source. We shaped a resident by editing `charter.js`; a visitor had
+   no way to tell Quill "I'm working through electronics this year" and
+   have it stick. And we knew what context a resident receives because
+   we can read the code — which made the assembled prompt the single
+   genuinely opaque thing in a project whose whole pitch is that
+   nothing is hidden.
+
+   They're built together on purpose: the inspector is where you SEE
+   your standing instruction actually took effect. A promise you can
+   check beats a promise you're asked to believe.
+
+   The instruction is APPENDED to the charter, never replaces it, and
+   is fenced so it reads as the visitor's own request rather than as
+   the Pavilion's voice.
+   ================================================================ */
+export const STANDING_SUGGESTIONS = {
+  _any: [
+    "Keep answers short — three sentences unless I ask for more.",
+    "Explain things like I'm new to this, and define any jargon you use.",
+    "Don't soften bad news. If something won't work, say so plainly.",
+    "Ask me one clarifying question before a long answer.",
+    "I'm working through electronics this year — keep that in mind.",
+    "Answer in Spanish.",
+  ],
+  quill: [
+    "Always say which shelved book you're drawing on, or say you're going from general knowledge.",
+    "Prefer suggesting something already on my shelves over something I'd have to find.",
+  ],
+  monk: [
+    "Don't reassure me. I'd rather have the harder observation.",
+    "Keep the religious framing light unless I ask for it.",
+  ],
+  sebastian: [
+    "I work nights — never suggest anything before noon.",
+    "I have small children; assume my day gets interrupted.",
+  ],
+  tutor: [
+    "Quiz me before you explain — I learn better getting it wrong first.",
+    "Use worked examples rather than definitions.",
+  ],
+};
+function standingFor(agentKey){ if(!data.standing) data.standing={}; return (data.standing[agentKey]||'').trim(); }
+/* The one place a standing instruction enters a prompt. Every send path calls
+   this, so there is no route by which one is silently ignored. */
+function withStanding(agentKey, systemPrompt){
+  const s=standingFor(agentKey);
+  if(!s) return systemPrompt;
+  return systemPrompt
+    +"\n\n--- STANDING INSTRUCTIONS FROM THE PERSON YOU ARE SPEAKING WITH ---\n"
+    +"They set these themselves and expect them followed in every reply. They do not "
+    +"override who you are or the charter above; where they genuinely conflict, say so plainly "
+    +"rather than silently ignoring either.\n"
+    +s+"\n--- end of their standing instructions ---";
+}
+/* What was actually sent, kept in memory only (never persisted — it's a window
+   onto the last call, not a record to accumulate). */
+const lastSent={};
+function recordSent(agentKey, messages, opts){
+  lastSent[agentKey]={ at:new Date().toLocaleTimeString(), messages, opts:opts||{} };
+}
+export function openStanding(agentKey){
+  state.ui='standing'; state.standingAgent=agentKey||'quill';
+  hideAllOv(); renderStanding(); showOv('standingOv');
+}
+export function setStanding(agentKey, v){
+  if(!data.standing) data.standing={};
+  data.standing[agentKey]=v;
+  clearTimeout(pathSaveTimer); pathSaveTimer=setTimeout(persist,500);
+  const el=document.getElementById('standingSaved'); if(el) el.textContent='saved';
+}
+export function addStandingSuggestion(agentKey, text){
+  const box=document.getElementById('standingBox'); if(!box) return;
+  box.value=(box.value.trim()? box.value.trim()+'\n' : '')+text;
+  setStanding(agentKey, box.value);
+}
+export function clearStanding(agentKey){
+  const box=document.getElementById('standingBox'); if(box) box.value='';
+  setStanding(agentKey,''); renderStanding();
+}
+function renderStanding(){
+  const el=document.getElementById('standingPanel'); if(!el) return;
+  const key=state.standingAgent||'quill';
+  const agent=CHAT_AGENTS[key]||CHAT_AGENTS.quill;
+  const name=(agent&&agent.name)||key;
+  const sugg=[...(STANDING_SUGGESTIONS[key]||[]), ...STANDING_SUGGESTIONS._any];
+  const others=Object.keys(CHAT_AGENTS).filter(k=>CHAT_AGENTS[k]&&CHAT_AGENTS[k].name);
+  el.innerHTML=`
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>⚙ Manage my Library</h2>
-    <div class="meta">Your own 👤 books. Move a misfiled one to the right shelf, or remove a duplicate —
-      same-title duplicates are flagged. (Certified library books aren't listed here; those are handled
-      through the review pipeline.)</div>
-    ${books.length ? books.map(b=>{
+    <h2>✎ Standing instructions ${visBadge('private')}</h2>
+    <div class="meta">Something you want <b>${esc(name)}</b> to remember in every conversation, without
+      typing it each time. It's added to what they're told before your message — it doesn't replace who
+      they are, and if your instruction genuinely clashes with their character they'll say so rather
+      than quietly ignore either.</div>
+    <div class="row" style="margin:10px 0;gap:6px;flex-wrap:wrap">
+      ${others.map(k=>`<button class="btn ${k===key?'':'ghost'}" style="font-size:11px;padding:3px 10px" onclick="openStanding('${k}')">${esc(CHAT_AGENTS[k].name.split('·')[0].trim())}${standingFor(k)?' •':''}</button>`).join('')}
+    </div>
+    <textarea id="standingBox" rows="5" placeholder="e.g. I'm working through electronics this year — keep that in mind."
+      oninput="setStanding('${key}', this.value)">${esc(standingFor(key))}</textarea>
+    <div class="meta" id="standingSaved" style="margin-top:4px">${standingFor(key)?'saved':'saves as you type'}</div>
+    <h3 style="margin-top:16px">Suggestions — click to add</h3>
+    <div class="meta">Starting points, not rules. Edit them into your own words.</div>
+    <div style="margin-top:8px">
+      ${sugg.map(s=>`<div class="card" onclick="addStandingSuggestion('${key}', ${JSON.stringify(s).replace(/"/g,'&quot;')})">
+        <div class="s">＋ ${esc(s)}</div></div>`).join('')}
+    </div>
+    <div class="row" style="margin-top:14px;gap:6px">
+      <button class="btn ghost" onclick="openPromptInspector('${key}')">🔍 See what was actually sent</button>
+      ${standingFor(key)?`<button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="clearStanding('${key}')">Clear</button>`:''}
+    </div>`;
+}
+/* From inside a conversation: act on whoever you're actually talking to. */
+export function openStandingForCurrentChat(){ openStanding((state.dialog&&state.dialog.agent)||'quill'); }
+export function openPromptForCurrentChat(){ openPromptInspector((state.dialog&&state.dialog.agent)||'quill'); }
+export function openPromptInspector(agentKey){
+  state.ui='prompt'; state.promptAgent=agentKey||state.promptAgent||'quill';
+  hideAllOv(); renderPromptInspector(); showOv('promptOv');
+}
+function renderPromptInspector(){
+  const el=document.getElementById('promptPanel'); if(!el) return;
+  const key=state.promptAgent||'quill';
+  const rec=lastSent[key];
+  const name=((CHAT_AGENTS[key]||{}).name)||key;
+  el.innerHTML=`
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🔍 What was actually sent</h2>
+    <div class="meta">The exact text handed to your AI the last time <b>${esc(name)}</b> answered — nothing
+      summarised, nothing hidden. This is the one part of the Pavilion you otherwise had to take on trust,
+      so here it is verbatim.
+      <br><br>It goes to whichever connection you chose: your own machine (🏠) or a cloud provider you
+      added yourself (☁). Nothing is sent anywhere else, ever.</div>
+    ${rec?`
+      <div class="meta" style="margin-top:10px">Captured ${esc(rec.at)}${rec.opts&&rec.opts.model?' · model <b>'+esc(rec.opts.model)+'</b>':''}</div>
+      ${rec.messages.map(m=>`
+        <h3 style="margin-top:14px">${m.role==='system'?'The instructions it was given':m.role==='user'?'What you said':'What it said back'}
+          <span class="badge lic">${esc(m.role)}</span></h3>
+        <div class="card" style="cursor:default"><div style="white-space:pre-wrap;font-size:12px;max-height:320px;overflow:auto">${esc(m.content)}</div></div>
+      `).join('')}
+      ${standingFor(key)?'<div class="meta" style="margin-top:10px">✎ Your standing instructions are in there — search the system block for “STANDING INSTRUCTIONS”.</div>':''}
+    `:`<p class="meta" style="margin-top:12px">Nothing captured yet — talk to ${esc(name)} once, then come back and this will show you exactly what they were sent.</p>`}
+    <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="openStanding('${key}')">✎ Standing instructions</button></div>`;
+}
+
+/* ================================================================
+   THE COPYRIGHT CHECK — built 2026-07-27, at direct request: "a
+   pipeline for review where the local AI can judge if a book is out of
+   copyright, or if it has to stay in a personal capacity."
+
+   Built deliberately so that the AI does NOT judge it. See
+   data/copyright.js for the full reasoning; the short version is that
+   copyright is a legal question, a model's confident guess at one is
+   worse than silence, and the safe default (keep it personal) costs
+   the visitor nothing because a personal copy never needs a licence.
+
+   So: deterministic rules read the actual text and decide; the model
+   is used only to pull out evidence the rules can then weigh — a
+   publication year, an author, a quoted licence line — and everything
+   it found is shown to the person beside the verdict. A human presses
+   the button either way.
+   ================================================================ */
+export async function runCopyrightCheck(){
+  const out=document.getElementById('rmCopyrightOut'); if(!out) return;
+  const title=(document.getElementById('rmTitle')?.value||'').trim()||'this text';
+  const body=(document.getElementById('rmBody')?.value||'');
+  const license=(document.getElementById('rmLicense')?.value||'');
+  const source=(document.getElementById('rmSource')?.value||'');
+  if(!body.trim()){ out.innerHTML='<div class="meta">Paste or drop the text first — the check reads the book itself, not the title.</div>'; return; }
+  out.innerHTML='<div class="meta">Reading the text…</div>';
+  let evidence={}, aiNote='';
+  if(isAIActive()){
+    try{
+      const reply=await AI.chat([
+        {role:'system', content:WORK_CHARTER+'\n\nYou extract facts stated in a document. You never draw legal conclusions and never guess. If the text does not say something, answer "unknown".'},
+        {role:'user', content:extractEvidencePrompt(title, body.slice(0,6000))},
+      ]);
+      if(!isEmptyReply(reply)){ evidence=parseEvidence(reply); aiNote='Your local AI read the opening and pulled out what it actually states.'; }
+    }catch(e){ aiNote='Your local AI did not answer, so this is from the text alone.'; }
+  } else {
+    aiNote='No local AI connected — this is from the text alone, which is usually enough.';
+  }
+  const v=triage({ text:body, license, source, evidence });
+  const ev=[];
+  if(evidence.published) ev.push(`published: <b>${esc(String(evidence.published))}</b>`);
+  if(evidence.author) ev.push(`author: <b>${esc(evidence.author)}</b>`);
+  if(evidence.authorDied) ev.push(`author died: <b>${esc(String(evidence.authorDied))}</b>`);
+  if(evidence.licenseStatement) ev.push(`licence line found: “${esc(evidence.licenseStatement.slice(0,120))}”`);
+  if(evidence.copyrightLine) ev.push(`copyright line found: “${esc(evidence.copyrightLine.slice(0,120))}”`);
+  out.innerHTML=`
+    <div class="card" style="cursor:default;border-color:${v.tone};margin-top:8px">
+      <div class="t" style="color:${v.tone}">⚖ ${esc(v.label)}</div>
+      <div class="s" style="margin-top:4px">${esc(v.advice)}</div>
+      ${v.reasons.length?`<div class="meta" style="margin-top:8px"><b>What it found in the text:</b><br>${
+        v.reasons.map(r=>`• ${esc(r.what)}${r.quote?` <span style="opacity:.7">— “${esc(r.quote)}”</span>`:''}`).join('<br>')}</div>`:''}
+      ${ev.length?`<div class="meta" style="margin-top:6px">${ev.join(' · ')}</div>`:''}
+      <div class="meta" style="margin-top:8px;opacity:.85">${esc(aiNote)} <b>This is a recommendation, not a legal opinion</b> — copyright differs by country and only you can decide. Anything uncertain stays on your own shelf, which needs no licence at all.
+        ${v.mayShare?'':'<br><b>Your Shelf is the right home for this one.</b>'}</div>
+    </div>`;
+  blip(v.mayShare?700:300,.08);
+}
+
+/* ================================================================
+   THE STEWARD'S INDEX — the administrator's view of the whole Library
+   (2026-07-27, at direct request: "an index for administrators that
+   lets me edit the library and move things around").
+
+   The real constraint, stated rather than worked around: a certified
+   entry lives in seed.js (source code) or Supabase. A running browser
+   cannot rewrite either. So edits are kept as an OVERRIDE LAYER in the
+   save (data.catalogEdits, applied by store.js on every read) — which
+   means corrections take effect immediately, are yours, travel with
+   your save, and can be EXPORTED to fold back into the source properly.
+   The book's text is never touched; only its catalogue card.
+   ================================================================ */
+export function openStewardIndex(){ state.ui='stewardidx'; state.sidxView=state.sidxView||{q:'',edit:null}; hideAllOv(); renderStewardIndex(); showOv('stewardIdxOv'); }
+export function sidxSearch(v){ state.sidxView.q=v; renderStewardIndex(true); }
+export function sidxEdit(slug){ state.sidxView.edit=slug; renderStewardIndex(); }
+export function sidxCancel(){ state.sidxView.edit=null; renderStewardIndex(); }
+function catalogEdits(){ if(!data.catalogEdits) data.catalogEdits={}; return data.catalogEdits; }
+export function sidxSave(slug){
+  const d=Store.getDoc(slug); if(!d) return;
+  const g=id=>document.getElementById(id)?.value ?? '';
+  const next={ title:g('sidxTitle').trim(), attribution:g('sidxAttr').trim(), license:g('sidxLicense').trim(),
+    source_url:g('sidxSource').trim(), tradition:g('sidxShelf'), summary:g('sidxSummary').trim() };
+  if(d.personal){
+    const b=data.personalLibrary.find(x=>x.slug===slug);
+    if(b){ Object.assign(b, { title:next.title, attribution:next.attribution, license:next.license,
+      source_url:next.source_url, tradition:next.tradition });
+      b.doc={ ...b.doc, summary:next.summary }; }
+  } else {
+    catalogEdits()[slug]={ ...(catalogEdits()[slug]||{}), ...next, editedAt:todayKey() };
+  }
+  persist(); logActivity('Edited the library card for "'+next.title+'".'); blip(700,.07);
+  state.sidxView.edit=null; renderStewardIndex();
+}
+export function sidxToggleHidden(slug){
+  const d=Store.getDoc(slug);
+  const ed=catalogEdits();
+  if(d && !d.personal){
+    ed[slug]={ ...(ed[slug]||{}), hidden:true, editedAt:todayKey() };
+    logActivity('Pulled a book from the shelves: "'+(d.title||slug)+'".');
+  } else { // already hidden — put it back
+    if(ed[slug]){ delete ed[slug].hidden; if(!Object.keys(ed[slug]).length) delete ed[slug]; }
+  }
+  persist(); renderStewardIndex();
+}
+export function sidxRestore(slug){
+  const ed=catalogEdits();
+  if(!ed[slug]) return;
+  if(!window.confirm('Undo your changes to this card and go back to what shipped?')) return;
+  delete ed[slug]; persist(); state.sidxView.edit=null; renderStewardIndex();
+}
+export async function sidxExportEdits(){
+  const ed=catalogEdits();
+  if(!Object.keys(ed).length){ alert('No corrections to export yet.'); return; }
+  const json=JSON.stringify({ sandPavilionCatalogEdits:1, exported:todayKey(), edits:ed }, null, 2);
+  const name='catalog-edits-'+todayKey()+'.json';
+  if(typeof window!=='undefined' && window.desktopBridge?.saveFile){
+    const res=await window.desktopBridge.saveFile(name, json);
+    if(res.canceled) return;
+    if(!res.ok){ alert('Could not write the file: '+(res.error||'unknown error')); return; }
+  } else {
+    const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    const a=document.createElement('a'); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  blip(700,.07);
+  const el=document.getElementById('sidxOut'); if(el) el.innerHTML='<div class="meta" style="margin-top:8px">Written. Fold these into <code>data/seed.js</code> when you next touch the source, and they stop being overrides.</div>';
+}
+function renderStewardIndex(keepFocus){
+  const el=document.getElementById('stewardIdxPanel'); if(!el) return;
+  const v=state.sidxView||(state.sidxView={q:'',edit:null});
+  const ed=catalogEdits();
+  const hidden=Object.entries(ed).filter(([,o])=>o&&o.hidden).map(([s])=>s);
+  const docs=Store.allDocs();
+
+  if(v.edit){
+    const d=Store.getDoc(v.edit);
+    if(!d){ v.edit=null; return renderStewardIndex(); }
+    const shelves=[...(data.myShelves||[]), ...TRADITIONS];
+    el.innerHTML=`
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <div class="row" style="margin-bottom:8px"><button class="btn ghost" onclick="sidxCancel()">← All books</button></div>
+      <h2>✎ ${esc(d.title||d.slug)}</h2>
+      <div class="meta">${d.personal?visBadge('private','your own book — edits apply directly')
+        :visBadge('commons','a certified card — your edits are kept as a correction layer over the shipped entry')}
+        · <code>${esc(d.slug)}</code></div>
+      <label style="margin-top:12px">Title</label><input type="text" id="sidxTitle" value="${esc(d.title||'')}">
+      <label>Author / attribution</label><input type="text" id="sidxAttr" value="${esc(d.attribution||'')}">
+      <label>Licence</label><input type="text" id="sidxLicense" value="${esc(d.license||'')}">
+      <label>Source</label><input type="text" id="sidxSource" value="${esc(d.source_url||'')}">
+      <label>Shelf</label>
+      <select id="sidxShelf">${shelves.map(s=>`<option value="${esc(s)}"${d.tradition===s?' selected':''}>${esc(s)}</option>`).join('')}
+        <option value="Personal"${d.tradition==='Personal'?' selected':''}>Personal / unfiled</option></select>
+      <label>Summary</label><textarea id="sidxSummary" rows="5">${esc((d.doc&&d.doc.summary)||'')}</textarea>
+      <div class="meta" style="margin-top:8px">The book's <b>text</b> is never touched here — only its card. Moving it to another shelf moves where it stands in the building.</div>
+      <div class="row" style="margin-top:14px;gap:6px;flex-wrap:wrap">
+        <button class="btn" onclick="sidxSave('${esc(d.slug)}')">Save the card</button>
+        <button class="btn ghost" onclick="openReader('${esc(d.slug)}')">Open it</button>
+        ${!d.personal&&ed[d.slug]?`<button class="btn ghost" onclick="sidxRestore('${esc(d.slug)}')">↺ Back to what shipped</button>`:''}
+        ${!d.personal?`<button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="sidxToggleHidden('${esc(d.slug)}')">Pull it from the shelves</button>`
+          :`<button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="removePersonalBook('${esc(d.slug)}','sidx')">Remove the book</button>`}
+      </div>`;
+    return;
+  }
+
+  const q=(v.q||'').trim().toLowerCase();
+  const list=docs.filter(d=>!q || ((d.title||'')+' '+(d.tradition||'')+' '+(d.license||'')+' '+(d.slug||'')).toLowerCase().includes(q));
+  const editedCount=Object.keys(ed).filter(k=>!ed[k].hidden).length;
+  el.innerHTML=`
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🗂 The Steward's Index</h2>
+    <div class="meta">Every book in the building — certified and your own — with its card open to editing.
+      Fix a wrong licence, correct an attribution, rewrite a summary, or move a book to a different shelf.
+      <b>The text is never touched, only the card.</b></div>
+    <div class="meta" style="margin-top:6px">Certified entries ship inside the app, so your corrections are kept as a
+      <b>layer over them</b>: they take effect at once and travel with your save. Export them to fold back into the
+      source properly.</div>
+    <div class="row" style="margin:12px 0;gap:6px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="sidxSearch" value="${esc(v.q||'')}" placeholder="search all ${docs.length} books…" style="flex:1;min-width:170px" oninput="sidxSearch(this.value)">
+      <button class="btn ghost" onclick="sidxExportEdits()">⤓ Export my corrections${editedCount?' ('+editedCount+')':''}</button>
+    </div>
+    <div id="sidxOut"></div>
+    ${hidden.length?`<div class="card" style="cursor:default;border-color:#8a6a3a">
+      <div class="t">Pulled from the shelves · ${hidden.length}</div>
+      <div class="s">${hidden.map(s=>`<button class="btn ghost" style="font-size:11px;padding:2px 8px;margin:2px" onclick="sidxToggleHidden('${esc(s)}')">↺ ${esc(s)}</button>`).join('')}</div></div>`:''}
+    <div style="margin-top:8px">
+    ${list.length?list.map(d=>`<div class="card" onclick="sidxEdit('${esc(d.slug)}')">
+        <div class="t">${d.personal?'👤':'🏛'} ${esc(d.title||d.slug)}${d.edited?' <span class="badge lic">corrected</span>':''}</div>
+        <div class="s">${esc(d.tradition||'—')} · ${esc(d.license||'no licence recorded')}${d.doc&&d.doc.fullText?' · full text':''}</div>
+      </div>`).join('')
+      :'<p class="meta">Nothing matches that search.</p>'}
+    </div>`;
+  if(keepFocus){ const s=document.getElementById('sidxSearch'); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); } }
+}
+
+/* ================================================================
+   YOUR LIBRARY — the personal half, made a real place (2026-07-27).
+
+   The problem, in the user's words: "my personal library is a bit bigger
+   and a bit discombobulated, and the shelves in the game might not match
+   all the choices available."
+
+   Both halves of that were true. A personal book could only be filed
+   under one of the ELEVEN fixed `TRADITIONS`, which are the *commons'*
+   lineages — Theravada, Daoism, Classics… A real personal library has
+   electronics, recipes, work manuals, a folder of papers. None of those
+   fit, so everything landed in Non-fiction or Personal and turned into a
+   pile.
+
+   The fix keeps the two taxonomies apart instead of stretching one:
+   the curated shelves in the Library rooms stay the commons' own
+   ordering, and YOU get your own named shelves, as many as you like,
+   which exist only in your Pavilion. Filing is then bulk-able and
+   searchable, because a big library is exactly where one-at-a-time
+   dropdowns stop working.
+   ================================================================ */
+function myShelves(){ if(!data.myShelves) data.myShelves=[]; return data.myShelves; }
+function shelfOf(b){ return (b && b.tradition) || 'Personal'; }
+function allShelfChoices(){ return [...myShelves(), ...TRADITIONS, 'Personal']; }
+function personalBooks(){ return data.personalLibrary||[]; }
+
+export function openMyLibrary(){ state.ui='mylib'; state.myLibView=state.myLibView||{q:'',sel:{}}; hideAllOv(); renderMyLibrary(); showOv('myLibOv'); }
+export function createMyShelf(){
+  const name=(window.prompt('Name a shelf of your own — anything you like:\n(e.g. Electronics · Work · Recipes · Papers to read)')||'').trim();
+  if(!name) return;
+  if(allShelfChoices().some(s=>s.toLowerCase()===name.toLowerCase())){ alert('You already have a shelf by that name.'); return; }
+  myShelves().push(name); persist(); logActivity('Made a new shelf: "'+name+'".'); blip(700,.07);
+  renderMyLibrary();
+}
+export function renameMyShelf(name){
+  const next=(window.prompt('Rename "'+name+'" to:', name)||'').trim();
+  if(!next||next===name) return;
+  if(allShelfChoices().some(s=>s.toLowerCase()===next.toLowerCase())){ alert('You already have a shelf by that name.'); return; }
+  const i=myShelves().indexOf(name); if(i>=0) myShelves()[i]=next;
+  personalBooks().forEach(b=>{ if(b.tradition===name) b.tradition=next; }); // books move with it
+  persist(); renderMyLibrary();
+}
+export function deleteMyShelf(name){
+  const n=personalBooks().filter(b=>b.tradition===name).length;
+  if(!window.confirm('Remove the shelf "'+name+'"?\n\n'+(n?n+' book(s) on it move back to Your Shelf, unfiled. Nothing is deleted.':'It is empty.'))) return;
+  data.myShelves=myShelves().filter(s=>s!==name);
+  personalBooks().forEach(b=>{ if(b.tradition===name) b.tradition='Personal'; });
+  persist(); renderMyLibrary();
+}
+export function myLibSearch(v){ state.myLibView.q=v; renderMyLibrary(true); }
+export function myLibToggle(slug){
+  const sel=state.myLibView.sel; if(sel[slug]) delete sel[slug]; else sel[slug]=true;
+  renderMyLibrary(true);
+}
+export function myLibSelectAll(on){
+  const sel={}; if(on) myLibFiltered().forEach(b=>{ sel[b.slug]=true; });
+  state.myLibView.sel=sel; renderMyLibrary(true);
+}
+function myLibFiltered(){
+  const q=(state.myLibView.q||'').trim().toLowerCase();
+  let list=personalBooks();
+  if(q) list=list.filter(b=>((b.title||'')+' '+shelfOf(b)+' '+((b.doc&&b.doc.summary)||'')).toLowerCase().includes(q));
+  return list;
+}
+export function myLibMoveSelected(){
+  const to=document.getElementById('myLibMoveTo')?.value; if(!to) return;
+  const sel=Object.keys(state.myLibView.sel||{}); if(!sel.length) return;
+  let n=0;
+  personalBooks().forEach(b=>{ if(state.myLibView.sel[b.slug]){ b.tradition=to; n++; } });
+  state.myLibView.sel={}; persist();
+  logActivity('Filed '+n+' book(s) onto "'+to+'".'); blip(660,.07); setTimeout(()=>blip(825,.08),80);
+  renderMyLibrary();
+}
+/* The local model reads your own titles and suggests a shelf for each unfiled
+   book, from YOUR shelf names plus the traditions. It never files anything —
+   it fills the dropdowns and you press the button. Sorting a pile is exactly
+   the tedious-but-judgement-y work worth handing to a model that already has
+   the titles in front of it. */
+export async function suggestShelvesWithAI(){
+  const out=document.getElementById('myLibAiOut');
+  const say=t=>{ if(out) out.textContent=t; };
+  if(!isAIActive()) return say('No local AI connected (⚙ Manage AI connections). Filing by hand works exactly the same.');
+  const unfiled=personalBooks().filter(b=>shelfOf(b)==='Personal').slice(0,40);
+  if(!unfiled.length) return say('Nothing unfiled — every book of yours is already on a shelf.');
+  const shelves=allShelfChoices().filter(s=>s!=='Personal');
+  say('Reading your titles… (a bigger model may take a moment)');
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nYou file books onto shelves. Answer ONLY with lines of the form '
+        +'`TITLE => SHELF`, one per book, nothing else. SHELF must be copied exactly from the allowed list.'},
+      {role:'user', content:`Allowed shelves: ${shelves.join(' | ')}\n\nFile these:\n${unfiled.map(b=>'- '+b.title).join('\n')}`},
+    ]);
+    if(isEmptyReply(reply)) return say('It came back empty. Filing by hand always works.');
+    let n=0;
+    for(const line of String(reply).split('\n')){
+      const m=line.match(/^\s*[-*]?\s*(.+?)\s*=>\s*(.+?)\s*$/); if(!m) continue;
+      const title=m[1].trim().toLowerCase(), shelf=shelves.find(s=>s.toLowerCase()===m[2].trim().toLowerCase());
+      if(!shelf) continue;
+      const b=unfiled.find(x=>(x.title||'').trim().toLowerCase()===title);
+      if(!b) continue;
+      const sel=document.getElementById('myLibShelf_'+b.slug);
+      if(sel){ sel.value=shelf; sel.style.borderColor='#7fa36b'; n++; }
+    }
+    say(n?`Suggested a shelf for ${n} book${n===1?'':'s'} — shown in green. Nothing is filed until you change it or use the bulk move; a suggestion is not a decision.`
+        :'It answered, but nothing matched your titles closely enough to be safe. Filing by hand always works.');
+  }catch(e){ say('The connection flickered — nothing suggested.'); }
+}
+function renderMyLibrary(keepFocus){
+  const el=document.getElementById('myLibPanel'); if(!el) return;
+  const v=state.myLibView||(state.myLibView={q:'',sel:{}});
+  const books=personalBooks(), list=myLibFiltered();
+  const selCount=Object.keys(v.sel||{}).length;
+  const titleCount={}; books.forEach(b=>{ const t=(b.title||'').trim().toLowerCase(); titleCount[t]=(titleCount[t]||0)+1; });
+  const counts={}; books.forEach(b=>{ const s=shelfOf(b); counts[s]=(counts[s]||0)+1; });
+  const mine=myShelves(), unfiled=counts['Personal']||0;
+  const opts=(b)=>[`<option value="Personal"${shelfOf(b)==='Personal'?' selected':''}>— unfiled —</option>`,
+      mine.length?`<optgroup label="Your shelves">${mine.map(s=>`<option value="${esc(s)}"${shelfOf(b)===s?' selected':''}>${esc(s)}</option>`).join('')}</optgroup>`:'',
+      `<optgroup label="The Library's own">${TRADITIONS.map(t=>`<option value="${esc(t)}"${shelfOf(b)===t?' selected':''}>${esc(t)}</option>`).join('')}</optgroup>`].join('');
+  el.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>👤 Your Library ${visBadge('private')}</h2>
+    <div class="meta">Everything you brought in yourself — <b>${books.length}</b> book${books.length===1?'':'s'}.
+      No license and no source needed here, ever: a personal copy is your business, not the commons'.
+      Papers, drafts, a manual, something you wrote — all of it belongs on this shelf.</div>
+    <div class="row" style="margin:12px 0;gap:6px;flex-wrap:wrap">
+      <button class="btn" onclick="newReviewManualForm2()">＋ Add a book or paper</button>
+      <button class="btn ghost" onclick="openShelf('Personal')">📚 Read from the shelf</button>
+      <button class="btn ghost" onclick="openNotesLog()">🗒 My notes</button>
+      <button class="btn ghost" onclick="createMyShelf()">＋ New shelf of my own</button>
+    </div>
+
+    <h3>Your shelves</h3>
+    <div class="meta">The Library's own shelves are its lineages — they were never going to fit a real
+      personal collection. Make your own: Electronics, Work, Recipes, Papers to read. They exist only here.</div>
+    <div style="margin-top:8px">
+      ${mine.length ? mine.map(s=>`<div class="card" style="cursor:default">
+          <div class="t">📗 ${esc(s)} <span class="badge lic">${counts[s]||0}</span></div>
+          <div class="row" style="margin-top:6px;gap:6px">
+            <button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="openShelf('${esc(s).replace(/'/g,'')}')">Open</button>
+            <button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="renameMyShelf('${esc(s).replace(/'/g,'')}')">Rename</button>
+            <button class="btn ghost" style="font-size:11px;padding:2px 8px;border-color:var(--danger);color:var(--danger-soft)" onclick="deleteMyShelf('${esc(s).replace(/'/g,'')}')">Remove</button>
+          </div>
+        </div>`).join('')
+        : '<p class="meta">None yet. If your library feels like a pile, this is the cure — name a few shelves that match what you actually own.</p>'}
+      ${unfiled?`<div class="card" style="cursor:default;border-color:#8a6a3a">
+          <div class="t">📥 Unfiled <span class="badge lic">${unfiled}</span></div>
+          <div class="s">Books with no shelf of their own yet. Sort them below.</div></div>`:''}
+    </div>
+
+    <h3 style="margin-top:18px">Sort them out</h3>
+    <div class="row" style="gap:6px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="myLibSearch" value="${esc(v.q||'')}" placeholder="search your books…" style="flex:1;min-width:160px" oninput="myLibSearch(this.value)">
+      <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="myLibSelectAll(true)">Select all${v.q?' shown':''}</button>
+      <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="myLibSelectAll(false)">None</button>
+    </div>
+    <div class="row" style="gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="suggestShelvesWithAI()">✨ Suggest shelves for my unfiled books</button>
+    </div>
+    <div class="meta" id="myLibAiOut" style="margin-top:6px"></div>
+    ${selCount?`<div class="row" style="gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <b style="color:var(--gold)">${selCount} selected →</b>
+        <select id="myLibMoveTo" style="width:auto;min-width:150px">
+          <option value="Personal">— unfiled —</option>
+          ${mine.length?`<optgroup label="Your shelves">${mine.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</optgroup>`:''}
+          <optgroup label="The Library's own">${TRADITIONS.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</optgroup>
+        </select>
+        <button class="btn" onclick="myLibMoveSelected()">Move them all</button>
+      </div>`:''}
+    <div style="margin-top:10px">
+    ${list.length ? list.map(b=>{
       const dupe=titleCount[(b.title||'').trim().toLowerCase()]>1;
-      return `<div class="card" style="cursor:default${dupe?';border-color:#e0a43c':''}">
-        <div class="t">${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
-        <div class="s">shelf: <b>${esc(b.tradition||'Personal')}</b> · ${esc(b.license||'')}</div>
+      const on=!!(v.sel||{})[b.slug];
+      return `<div class="card" style="cursor:default${dupe?';border-color:#e0a43c':''}${on?';box-shadow:inset 0 0 0 2px var(--gold)':''}">
+        <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> ${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
         <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
-          <span class="s" style="margin:0">Move to:</span>
-          <select onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto">${opts(b)}</select>
+          <select id="myLibShelf_${esc(b.slug)}" onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto;min-width:150px">${opts(b)}</select>
           <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
-          <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="removePersonalBook('${esc(b.slug)}','manage')">Remove</button>
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:var(--danger);color:var(--danger-soft)" onclick="removePersonalBook('${esc(b.slug)}','mylib')">Remove</button>
         </div>
       </div>`;
-    }).join('') : '<p>No personal books yet — add some at the Caravan Desk, then organize them here.</p>'}
-    <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="openShelf('Personal')">← Your Shelf</button></div>`;
+    }).join('') : `<p class="meta">${books.length?'Nothing matches that search.':'No books of your own yet — ＋ Add a book or paper above. A .txt or .epub, dragged in, with no license needed.'}</p>`}
+    </div>`;
+  if(keepFocus){ const s=document.getElementById('myLibSearch'); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); } }
 }
+/* Kept for the old entry point; the Manage panel is now Your Library. */
+export function openManageLibrary(){ openMyLibrary(); }
+export function newReviewManualForm2(){ state.ui='review'; state.reviewView={mode:'manual'}; hideAllOv(); renderReviewQueue(); showOv('reviewOv'); }
 export function movePersonalBook(slug, tradition){
   const b=data.personalLibrary.find(d=>d.slug===slug); if(!b) return;
   b.tradition=tradition; persist(); logActivity('Moved "'+b.title+'" to the '+tradition+' shelf.'); blip(660,.06);
-  renderManageLibrary();
+  if(state.ui==='mylib') renderMyLibrary(); else renderManageLibraryLegacy();
 }
+function renderManageLibraryLegacy(){ /* the old panel is gone; nothing to redraw */ }
 /* ----- AI-assisted shelf copy — closes the real gap the batch generator
    always had: a promoted entry's summary/sections used to be pure "TODO"
    stubs, meaning the actual editorial work never got easier. Grounded
@@ -6378,4 +7814,18 @@ Object.assign(window, {
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
   openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,
   openAcademy, studyLessonWithTutor,
+  openInheritanceHall, openPlantHere, openPlanting, backToHallRecord, backToPlantChoice,
+  choosePlantKind, createPlanting, plantSeedFromPouch, gatherSeeds, attemptTrial,
+  takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
+  plantGift, groveHiddenChanged, draftPlantingWithAI,
+  newLessonForm, saveMyLesson, deleteMyLesson,
+  openStanding, setStanding, addStandingSuggestion, clearStanding,
+  openPromptInspector, openStandingForCurrentChat, openPromptForCurrentChat,
+  runCopyrightCheck,
+  openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
+  openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
+  openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle,
+  myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, newReviewManualForm2,
+  openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
+  writePacketFile, triggerImportPacket, setCommonsName,
 });

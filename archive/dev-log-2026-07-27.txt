@@ -69,3 +69,425 @@ paper analysis matters more than the physics room).
 Verified: node --check + build + smoke (10 scenes, 24 docs) green. (Kept-list UI
 verified by code + build; the screenshot harness can't inject internal state to
 picture it, since data/state aren't globals — only handlers are.)
+
+Beta plans brought up to date + two real additions (user: "this project is coming
+along and I want to get it ready to share with other people").
+- BETA-BUILD-PLAN.md rewritten where it had gone stale: STATUS now reflects
+  0.1.0-beta.2 and everything landed since the beta.1 installer (visual revamp,
+  2nd Library floor, unified Notes, bulk import, MinIO personal books, Learning
+  Tree + Academy Tutor, Paths, Science Hall, seed at 24). §2 include-list updated
+  to match. §6 checklist: items 1,2,4,5,6 marked CLOSED with dates; what's left is
+  the welcome-packet call (6/24 full texts — the sharpest open decision), the
+  clean-machine install test, distribution hygiene, and standing save-migration
+  discipline. §7's old Phases 0-4 replaced with the actual order from here (A
+  Inheritance Hall -> B packet call -> C package -> D prove -> E hand out).
+- §5 rewritten as THE SETUP LADDER (the user's ask): layer 0 the installer alone
+  (works with nothing), layer 1 Ollama (do this first — biggest jump, no container),
+  layer 2 Docker+MinIO for data (only when a shelf becomes a library; without it,
+  app-data files), layer 3 point at your own existing setup via the provider/store/
+  desktop-bridge seams. Table of what each buys and what happens without it. Killed
+  the stale "DECIDED 2026-07-11: keep Supabase" note — marked superseded by the
+  2026-07-12 off-Supabase/self-hosted direction rather than silently deleted.
+- NEW §8 — THE INHERITANCE HALL, scoped into this beta at the user's request: a
+  place where a visitor writes their OWN learning program (the Learning Tree's
+  shape, content in their hands — CURRICULUM is hard-coded today, which is exactly
+  the gap), walks it with the Tutor (studyLessonWithTutor already grounds on a
+  lesson object, so it's a new SOURCE of lessons, not new plumbing), and finishes
+  holding a BEQUEST: the book collection + their own notes in one file to keep or
+  give away. Reward is an artifact, never a score (Paths/Eightfold precedent).
+  Rules named: provenance filter (only redistributable text travels; everything
+  else goes as a catalog card + your notes), notes private until deliberately
+  given with a preview, no server, migration-safe stores. Phases 0-2 in the beta;
+  the actual room is Phase 3 (Science Hall pattern: panel first, room when earned).
+- BETA-LAUNCH-PLAN.md (the stance doc) carries both additions: first-arrival list
+  gains the blank-page/Inheritance Hall and the ladder; the next-round checklist
+  gains "ship Hall Phases 0-2", the ladder as the DECIDED Docker story, and an
+  end-to-end bequest verification (export -> import into a second install ->
+  provenance filter actually filtered).
+- README "What's next" reordered to match: Inheritance Hall first, packet decision
+  second, then the build + clean-machine test; the setup ladder written out.
+Docs only this pass — no code touched.
+
+THE INHERITANCE HALL — BUILT (BETA-BUILD-PLAN §8, Phases 0-3 in one session).
+The user's shape for it, given directly: "a new building at the edge, like an
+open sandbox, where you can plant things — a book, a sword in a stone, a seed
+that blooms into a flower and gives you seeds of its own. There people can find
+what others have left before. It can be empty unless we add things ourselves."
+- WORLD: new `hall` building type in render.js — a ROOFLESS walled compound
+  (wall drawn as a ring, interior visible over it, an arch never fitted with a
+  door), stamped at overworld (5,22)-(11,26) down its own lane off the west end
+  of the plaza road (the road now runs to x=3). New scene `grove` (18x14,
+  outdoor): tree border, a path in, a record-stone station, two signs, a bench.
+  Ships EMPTY on purpose.
+- FIRST SAVE-BACKED INTERACTABLE: plantings live in data.grove.plantings, not
+  scenes.js — a tile you face/press E on and can't walk through, same contract
+  as a station but authored by the visitor. entities.js gained plantingAt(),
+  canPlantAt(), freeGroveTile(), daysSince(), plantStage(); blocked() and the
+  E-prompt both know about them. spotFree() refuses ground adjacent to the
+  record stone/signs/warps so no arrangement of plantings can wall you out of
+  something you need — a sandbox you can lock yourself out of isn't one.
+- THREE THINGS, three sprites: a book on a stone (curated collection, glows
+  while unclaimed), a sword in a stone (course behind a trial; the stone shows
+  a cleft once drawn), and a seed that grows on REAL calendar days — soil,
+  sprout, bud, bloom at day 3 — then carries seed pods. Gathering gives 2 seeds
+  to the pouch, each replantable anywhere, carrying the same gift onward. That
+  is the propagation the user asked for, made literal.
+- THE TRIAL: planter writes a question + answer (+ optional hint); matching is
+  case/punctuation-forgiving. Draw the sword -> the course lands on the Course
+  Board (reused rather than building a parallel progress system).
+- THE BEQUEST FILE: any planting -> one .json handed to a person. No server, no
+  account. Provenance filter at the door: redistributable text travels,
+  everything else goes as a card with its source; "👁 What would leave?" previews
+  it line by line first. Notes always travel (they're yours). Receiving side
+  plants it attributed, marked "left by <name>", books shelve to Your Shelf,
+  notes copy into Your Notes, the original stays in the ground.
+- REAL BUG FOUND BY ACTUALLY EXPORTING ONE: bequestFor only carried
+  doc.fullText.text, but the Pavilion's own Commons essays keep their content in
+  doc.sections — a bequest of them arrived as an EMPTY card. Now both travel,
+  and takePlanting rebuilds a body from sections when shelving. (Also: the
+  "Original — Pavilion Commons" license wasn't matched as redistributable, so
+  our own writing was being withheld from our own gifts. Fixed.)
+- VERIFIED LIVE, not just built: 19 checks driven in a real headless Chrome —
+  trial refuses wrong / accepts right (punctuation forgiven), course delivery,
+  seed gathering, note copying with the original untouched, planting from the
+  compose form, the empty-title guard, bequest preview, and a full TWO-PAVILION
+  ROUND TRIP (A writes a bequest -> B, empty grove, different person, uploads
+  the file -> planted, attributed, provenance respected, no save data leaked,
+  the book they already owned correctly skipped). Screenshots of the garden,
+  the Hall from outside, and every panel. node --check + smoke (11 scenes, 24
+  docs) + build + build:beta all green; beta bundle still carries no Supabase.
+- Emoji dropped from the canvas planting labels (Courier New renders them as
+  tofu boxes); they stay in the HTML panels where they render fine.
+Docs: MANUAL §10 (a real how-to) + §2 map entry, BETA-BUILD-PLAN §8 status,
+README "What's next". Still open: a second visual pass on the interior seen over
+the wall, and a resident who keeps the garden.
+
+INHERITANCE HALL, ROUND 2 — it became an expedition (user's steer after seeing
+round 1: all sand, something real on the stone, and let an AI help fill it,
+including hidden things with requirements).
+- ALL SAND. buildGrove() rewritten: grass/paths/wildflowers gone, bare 'S' sand
+  ringed by 'w' stone wall (matching the exterior compound), one gate. Added
+  tile 'N' — the same bench as 'n' but standing on sand; 'n' paints its own
+  grass patch, which left a green square in the middle of a desert. A variant
+  tile rather than a scene check in the renderer (same trick as 'K'/'k').
+- THE STONE IS ENGRAVED with the Diamond Sutra's closing verse (§32, F. Max
+  Müller 1894, public domain): "Stars, darkness, a lamp, a phantom, dew, a
+  bubble, a dream, a flash of lightning, and a cloud — thus we should look upon
+  the world." The user asked for "all returns to dust, like a star, like a
+  planet, or the real quote" — the real quote turns out to literally open with
+  stars. Panel ties it to the charter's own "everything turns to sand."
+- GIFTS LEFT AT THE GATE — new src/game/data/bequests.js, three real bequests
+  bundled with the build and NEVER pre-planted (the Hall still ships empty;
+  they are OFFERED, and receiving one is a deliberate act, same as a bequest
+  from a person). (1) "The First Turning" — five CC0 Buddhist texts already on
+  the shelves, first sermon first. (2) "The Four Truths and the Eight Folds" —
+  a SEED of four notes quoting SN 56.11 VERBATIM from the shelved CC0 Sujato
+  translation (the two extremes, the four truths, the eight folds, and
+  Kondanna's "everything that is liable to arise is liable to cease"), each
+  note attributed to the sutta and translator. (3) "Something buried here" — a
+  course behind BOTH a requirement and a trial taken from that same text.
+- BURIED THINGS WITH REQUIREMENTS: entities.requirementMet/requirementText.
+  Four kinds, all checking something the visitor actually DID — read a given
+  book (data.read), wait N real days, plant something of their own, bring N of
+  their own books into the Library. Renders as a sand drift with a corner
+  breaking the surface, labelled "buried"; the panel hides the contents and
+  states the condition plainly ("It surfaces when you read The First Sermon in
+  the Library"). Nothing is ever unlocked by paying or scoring; the requirement
+  travels with a bequest, and you can always dig it up and lose it — your ground.
+- THE LOCAL AI DRAFTS, NEVER PLANTS: draftPlantingWithAI() reads your real
+  shelves/notes and fills the form (title, message, which books to tick, or a
+  course + trial) under WORK_CHARTER — the Hall has to serve a trade or a
+  language as readily as the dharma. No new resident, per the standing
+  effectiveness-before-personalities rule; reuses AI.chat and degrades to an
+  honest message with no AI connected.
+- PLACEMENT BUG FOUND BY LOOKING: freeGroveTile() returned the first free tile,
+  so all three gifts piled into one corner with their labels overlapping. Now
+  picks the spot furthest from anything already planted (with a little jitter),
+  so the court fills the way a dig site does — scattered, worth walking.
+- BONUS FIX, whole app: `select` and `input[type=number]` were never styled;
+  every dropdown in the game (course category, note-book linking, and the new
+  burial picker) rendered as a native white box in a dark panel. One rule in
+  style.css, plus a gold chevron.
+- VERIFIED: 14 more live checks (verse engraved, 3 gifts offered, court still
+  reports itself empty, all three plant, gifts leave the offer list, contents
+  hidden while buried, condition stated, surfaces once the book is read, its
+  trial accepts the real answer, seed sealed on day one, four notes, verbatim
+  quotes). 33 live checks across both rounds, all green, no page errors.
+  node --check + smoke (11 scenes, 24 docs) + build + build:beta clean.
+Docs: MANUAL §10 rewritten (sand, gifts, burial, the AI draft), BETA-BUILD-PLAN
+§8 round-2 status, README. Still open: a resident who keeps the court, and a
+second pass on the Hall's interior seen over the wall.
+
+COMMON vs PRIVATE — the distinction made visible (user: "to really get this off
+the ground I want to be able to differentiate between common data and what's
+private data... where can I find the community written ones and what's my
+private notes... once people get a feel for common and private I think we will
+be almost ready for other people to use it"). Treated as the PRECONDITION for
+handing the Pavilion to anyone, not a feature.
+- SURVEYED FIRST, and the honest finding was worse than expected: exactly ONE
+  surface made the distinction visible (the Library's certified shelves vs Your
+  Shelf 👤, with the Steward Review Queue as the real gate). Two shared surfaces
+  existed but needed Supabase (the cafe boards) — dormant for anyone else under
+  the off-Supabase direction. EVERYTHING else — notes, book notes, chat notes,
+  planner, calendar, Paths, the Log, courses, curriculum, investigations,
+  experiments, kept paper analyses, Eightfold reflections, Research/Grant
+  projects — was private with NO PATH OUT. The two things the user named, a
+  paper and a lesson plan, literally could not leave. And nothing on screen said
+  any of it.
+- ASKED the two decisions that materially change the build: where the shared
+  space lives (user chose THE CAFE over the Round Table / a new building / the
+  Hall) and how far the labelling goes (user chose EVERYWHERE AT ONCE).
+- THE MODEL, defined once in src/game/data/visibility.js so the words can't
+  drift: 👤 Yours / 🤝 Shared by you / 🏛 Commons, plus DATA_MAP — every store in
+  the save with one plain sentence on whether it can ever leave. Load-bearing
+  rule stated everywhere: NOTHING MOVES BY ITSELF (no sync, no upload, no server
+  to have one) — which is exactly what lets this work with no account.
+- THE COMMONS TABLE, a new station in the Cafe (11,6) with its own sprite (a
+  long table, three stacks laid out, a "take one" card). Four tabs: the commons
+  (bundled + received), shared by you, publish something, what stays private.
+  A PACKET = one .json {sandPavilionPacket, kind, title, by, license, created,
+  summary, body|steps} — same mechanics as the Hall's bequests, pointed at work
+  instead of gifts. Taking one drops a copy where that kind already lives (paper
+  -> Science Hall, lesson -> Notes, course -> Course Board), credited to the
+  original, which stays on the table. Publishing copies your work into a packet;
+  the original never leaves the private store.
+- src/game/data/commons-packets.js — three real starter packets, attributed
+  honestly to "The Pavilion", NOT to invented people (no fake community members):
+  a method paper on appraising a study you can't referee, a lesson plan for
+  teaching one person their first hour with a local AI, and a six-step "Read one
+  book properly" course.
+- RETROFIT everywhere at once: 👤 badges in the headings of Your Notes, Course
+  Board, Archive Desk, Research Desk, Science Hall, Paths, and the Hall's Record
+  Stone; a "🤝 share one" door on the three the user named; and Your Data now
+  renders DATA_MAP in full.
+- THE GUARD (open item, closed same day): npm test now parses freshData()'s
+  TOP-LEVEL keys out of entities.js (brace-depth walk — a plain regex also
+  matched nested keys like grove.plantings) and FAILS if any store has no
+  DATA_MAP entry. Proved it catches drift by deleting an entry and watching it
+  fail. A promise to a visitor about their own data deserves a test.
+- REAL BUG CAUGHT BY THE LIVE TEST, not by node --check: I wrote `.json` in
+  BACKTICKS inside a template literal, which JS parses as a tagged template —
+  syntactically legal, so --check passed, but it crashed the panel at runtime
+  ("(...).json is not a function"). Fixed. Worth remembering: node --check
+  cannot catch a nested backtick inside a template string.
+- Also found (harness, not app): a PARTIAL window.desktopBridge present at boot
+  breaks startup, because the app assumes a complete bridge if one exists. Real
+  Electron always provides all of it; the test now installs the stub after load.
+- VERIFIED: 16 live checks including a two-Pavilion round trip — A publishes a
+  paper, signs it, writes the file; B (different person, empty commons) uploads
+  it, sees it attributed to A, and takes it into their own Science Hall. Also
+  asserted the packet carries ONLY that work and no save data. Cafe signs
+  updated (outside + inside). node --check + smoke (11 scenes, 24 docs, the new
+  data-map guard) + build + build:beta green.
+Docs: new plans/COMMONS-AND-PRIVATE-PLAN.md (the model, what was true before,
+what's open), MANUAL §11 + the Cafe map entry, README. Open and named: Paths and
+the Log still can't be published; the two Supabase boards still sit in the same
+room as the working table (said plainly in the panel); and a packet that ever
+embeds a quoted text will need the Hall's provenance filter before it ships.
+
+DOCS RESTRUCTURED FOR BETA + the backend question answered (user: "I want to
+change the readme to get ready for the beta, treat it as a new user guide, we
+can keep an administrator level one for us... how should we handle the backend
+of the commons library for now and in the future... streamline the save data and
+where it's saved for new users and have them understand what's happening behind
+the hood").
+- ANSWERED FIRST, because the question contained a real conflation: "can I save
+  books from proper sources or self-named sources in the commons in the 100GB
+  Docker container?" YES, and it already works — the manual add form ALREADY has
+  a free-text Source field plus a "Not listed / unknown source" option, license
+  is explicitly optional for Your Shelf, and shelveAsPersonal() writes to MinIO
+  first. BUT: your MinIO is YOURS, not a commons. It is storage on one machine;
+  nothing connects two people's containers, and a tester with no Docker gets
+  files. What is actually shared today is a FILE A PERSON CARRIED (packet or
+  bequest). Said so plainly rather than letting the word "commons" promise
+  something the architecture doesn't do.
+- README.md REWRITTEN as the new-user / beta guide: what it is, the three
+  promises, installing (incl. the unsigned-publisher warning stated honestly),
+  a first ten minutes, the map, connecting a local AI, filling the Library
+  (naming your own source, and "Your Shelf needs no license"), yours vs shared
+  vs commons, WHERE YOUR THINGS ARE ACTUALLY KEPT (a real table), the optional
+  layer ladder, troubleshooting, and where to learn how it works. Points at
+  MANUAL.md for room-by-room depth rather than duplicating it.
+- NEW MAINTAINING.md — the administrator-level current-state doc: orientation
+  order, what's built, the invariants, the code map, mechanical gotchas
+  (including the two found today: a nested backtick in a template literal is a
+  TAGGED TEMPLATE that node --check can't catch, and a partial desktopBridge
+  breaks startup), testing (smoke + the live puppeteer harness and its
+  seed-once gotcha), the five run modes, THE BACKEND TABLE, and what's next.
+- CLAUDE.md REPOINTED — its orientation contract said "README.md is the actual
+  current-state reference, read this first every time." That would have sent
+  every future session to a user guide. Now points at MAINTAINING.md, with the
+  split explained, and the session-end instruction updated too.
+- THE BACKEND, staged honestly, written into SELF-HOSTED-STACK-PLAN.md rather
+  than only answered in chat: NOW = no backend at all (seed + MinIO/files per
+  machine; sharing is a carried file); NEXT = catalog local (catalog.json, then
+  Postgres beside MinIO in the same compose), still per-machine; LATER, only
+  when there is genuinely a second person = one small VPS running the SAME
+  stack. Rule kept: no server rented until someone is on the other end. Named
+  the three real pieces of work the VPS day brings — identity, a real
+  multi-user review queue, and provenance discipline at scale (one person can
+  vouch for 51 books by hand; a hundred people cannot). Also stated the license
+  line that actually constrains this: your shelf takes anything; anything that
+  TRAVELS needs a redistributable license, which the bequest exporter already
+  enforces.
+- UNDER THE HOOD, made concrete: Your Data gained "Where your Pavilion is
+  actually kept" — the save's real localStorage key (or an honest memory-only
+  warning in preview mode), where the text of YOUR books physically is (read
+  from the actual pointers on the books, counting MinIO vs app-data files vs
+  inline, not guessed from config), that shipped books live in the app itself,
+  and "anywhere else: nowhere — no server, no account, no sync, not as a policy
+  but because none of it is built."
+- Verified: link-checked every relative markdown link across README /
+  MAINTAINING / CLAUDE / MANUAL (all resolve); Your Data panel driven live and
+  screenshotted (correctly reported 1 MinIO / 1 file / 1 inline); smoke (11
+  scenes, 24 docs, data-map guard) + build + full 49-check regression across
+  all four live suites still green.
+
+YOUR LIBRARY — the personal half made a real place (user: "I just hope we can
+activate my personal shelf where I can find my notes and upload papers and books
+without sources... the shelves in the game might not match all the choices
+available and my personal library is a bit bigger and a bit discombobulated").
+- DIAGNOSIS: both halves were true. A personal book could only be filed under
+  one of the ELEVEN fixed TRADITIONS — which are the COMMONS' lineages
+  (Theravada, Daoism, Classics…). A real personal library has electronics,
+  recipes, work manuals, papers. None fit, so everything landed in Non-fiction
+  or Personal and became a pile. The fix keeps the two taxonomies APART instead
+  of stretching one: the Library's shelves stay the commons' ordering; the
+  visitor gets their own named shelves, unbounded, existing only in their save.
+- data.myShelves (migration-safe; DATA_MAP entry added, which the smoke guard
+  from earlier today immediately demanded — the guard paying for itself).
+- openShelf() now resolves three cases: 'Personal' = everything you added
+  however filed; one of YOUR shelf names = personal books on it only (a shelf
+  you invented has no certified side); a tradition = certified + personal
+  together as before.
+- YOUR LIBRARY panel replaces "Manage my books" and is what the Your Shelf
+  station now opens: book count, "no license and no source needed here, ever",
+  and four doors — ＋ Add a book or paper (jumps straight to the manual add
+  form, no trek to the Caravan Desk), 📚 Read from the shelf, 🗒 My notes (the
+  "where I can find my notes" half), ＋ New shelf of my own.
+- ORGANISING, built for a pile rather than for one book: your shelves listed
+  with counts, an Unfiled bucket so the size of the job is visible, search,
+  multi-select with a bulk "move them all", per-book dropdown grouped into
+  "Your shelves" vs "The Library's own", duplicate flagging. Rename carries the
+  books; remove returns them to Unfiled — NOTHING is deleted by tidying.
+- ✨ Suggest shelves for my unfiled books: the local model reads your titles and
+  fills the dropdowns (green), suggesting only from YOUR shelf names + the
+  traditions. It never files anything — a suggestion is not a decision.
+  WORK_CHARTER, no new resident (effectiveness-before-personalities stands).
+- TWO REAL BUGS, one pre-existing, caught by the live test: `openShelf` was
+  never on window, so my new "Open" buttons would have silently done nothing —
+  the project's oldest documented gotcha, hit again. Auditing for it turned up
+  `openCourses` in the SAME state: the Learning Tree's "← Back to the Course
+  Board" button has been a live no-op. Both exported.
+- THE GUARD: npm test now cross-checks every inline on*= handler in overlays.js
+  against the Object.assign(window) block (and window.x= assignments), with a
+  reserved-word filter. 248 handlers checked. A silent no-op button is worse
+  than a crash because nobody reports it — this class can't ship again.
+- Verified: 12 live checks (opens with all books, no-license line, unfiled
+  called out, duplicate flagged, custom shelves created, bulk bar, bulk move,
+  selection clears, search narrows, a shelf you invented opens like any other,
+  rename carries books, delete keeps books unfiled). Smoke + build + build:beta
+  green; the other four suites still 49/49.
+Docs: MANUAL §4 rewritten for Your Library, README "Filling your Library",
+MAINTAINING (the taxonomy split + the new guard in the gotchas).
+
+COPYRIGHT TRIAGE + THE STEWARD'S INDEX + the code-only audit (user: "a pipeline
+for review where the local ai can judge if a book is out of copyright or if it
+has to stay in a personal capacity... an index for administrators that lets me
+edit the library and move things around... are there any other features we
+should add that we have taken for granted with the ability to edit and code
+ourselves?").
+- STATED THE LIMIT FIRST: an AI cannot determine copyright status. It is a legal
+  question, jurisdiction-dependent, and a confident wrong answer is worse than
+  none — it is exactly how a commons ends up shelving something it had no right
+  to. So the pipeline is built so the AI does NOT judge:
+  data/copyright.js holds DETERMINISTIC rules that read the actual text (CC0 /
+  CC-BY / public-domain dedications; Gutenberg + Standard Ebooks markers; "all
+  rights reserved" and no-reproduction notices; copyright years; publication
+  years; author death year), and the model is used ONLY to extract evidence via
+  extractEvidencePrompt() — which tells it in as many words not to reach a
+  conclusion. Everything found is shown to the human beside the verdict.
+  UNCERTAIN ALWAYS DEFAULTS TO PERSONAL, which costs the visitor nothing since a
+  personal copy needs no licence at all. The US PD line is COMPUTED (year-96),
+  not hardcoded, so it doesn't rot. Verdict is a recommendation with reasons;
+  a person still presses the button.
+- Wired as "⚖ Can this be shared, or is it personal?" in the add-a-text form,
+  printing the verdict, every reason with the quoted snippet, the AI-extracted
+  fields, and an explicit "this is not a legal opinion".
+- 8 rule cases + THE SAFETY PROPERTY (nothing uncertain is ever marked
+  shareable) added to npm test. One case corrected my own expectation: a recent
+  date with no copyright notice yields 'unknown', not 'copyright' — which is
+  more honest, and keeps it personal either way.
+- THE STEWARD'S INDEX (Caravan Desk -> 🗂): every book in the building, searchable,
+  with its card open to editing — title, attribution, licence, source, summary,
+  shelf — plus pull-from-shelves and restore. The real constraint stated rather
+  than worked around: a certified entry lives in seed.js (source) or Supabase and
+  a browser can rewrite neither, so edits are an OVERRIDE LAYER (data.catalogEdits)
+  applied in store.js's mergedDocs() — the single choke point every read passes
+  through. Effects are immediate, reversible per card (↺ Back to what shipped),
+  and exportable so a real correction can be folded into the source and stop
+  being an override. The book's TEXT is never touched, only its card.
+- Verified live: 11 checks — in-copyright caught, evidence shown, disclaimer
+  present, PD cleared, index lists the library, the correction layer explained,
+  the override stored, the moved book appears on its new shelf IMMEDIATELY
+  (proving the store seam), hide + restore, and a card reverting to what shipped.
+  (Two of my own assertions were wrong and got fixed: placeholder text isn't
+  textContent, and one check trivially returned true.)
+- THE THIRD QUESTION, answered as an audit: plans/ADMIN-AND-AUTHORING-PLAN.md.
+  The test it proposes — "if we needed to do this, did we open a file? then so
+  will they, and they can't." Built today: library-card editing, copyright
+  judgement, custom shelves. Still open, ordered: (1) standing instructions per
+  resident — we edit charter.js, a user cannot tell Quill "I'm studying
+  electronics" durably; small and high value. (2) show what was actually sent to
+  the model — the one genuinely opaque thing in a project whose whole pitch is
+  that nothing is hidden; cheap, buys trust. (3) author your own Learning Tree
+  lessons — CURRICULUM is hardcoded, so a user can make a course but not a
+  PROGRESSION, which is what teachers will want. (4) save repair/merge — import
+  replaces, and we hand-edit JSON when something breaks. (5) give a custom shelf
+  a physical place in the room. (6) rooms/residents/renderer stay code, and
+  TOOL-COMMONS-PLAN's teaching path is the deliberate answer there.
+Docs: MANUAL §4 (both tools, in plain language), MAINTAINING (library
+administration + the override seam), the new plan. smoke + build + build:beta
+green; all six live suites still passing.
+
+STANDING INSTRUCTIONS + THE PROMPT INSPECTOR + USER-AUTHORED LESSONS
+(ADMIN-AND-AUTHORING-PLAN #1-#3, all three built at the user's go-ahead).
+- STANDING INSTRUCTIONS (data.standing[agentKey]): something a resident carries
+  into every reply without retyping. Applied by withStanding() — ONE funnel that
+  every send path calls, so there is no route by which an instruction is
+  silently ignored. Appended to the charter, never replacing it, and FENCED so
+  it reads as the visitor's own request; the prompt tells the resident to say so
+  plainly if an instruction genuinely clashes with who they are rather than
+  quietly dropping either. Per-resident, with clickable SUGGESTIONS tailored per
+  resident (Quill: "say which shelved book you're drawing on"; the Monk: "don't
+  reassure me"; Sebastian: "I work nights"; the Tutor: "quiz me before you
+  explain") plus a shared set. ✎ in the chat side rail.
+- THE PROMPT INSPECTOR (🔍 beside it): the exact message array handed to the
+  model, captured by recordSent() AT THE CALL SITE and rendered verbatim — not a
+  reconstruction. In memory only: a window on the last call, not a record that
+  accumulates. Built BESIDE the standing instructions on purpose — it is where
+  you see your own instruction actually land, and a promise you can check beats
+  a promise you're asked to believe. This closes the one genuinely opaque thing
+  in a project whose whole pitch is that nothing is hidden.
+- USER-AUTHORED LESSONS (data.myLessons): CURRICULUM lives in overlays.js, so
+  until now a visitor could build a flat Course Board course but never a
+  PROGRESSION. allNodes() merges both sources and curriculumNode()/prereq/
+  progress paths all read from it, so a lesson you wrote is an ordinary node
+  (mine:true) — locked/available/complete, and "Study with the Tutor", all work
+  unchanged. Form takes title, purpose, track, level, steps one per line (with
+  an optional longer body after a |), and a PREREQUISITE PICKER over every
+  existing node. Deleting one frees whatever it gated.
+- VERIFIED: 12 live checks on the three panels, plus a 6-check END-TO-END proof
+  of the claim that actually matters — open the Academy, send a real message,
+  then read the inspector: the standing instruction IS in what was sent, fenced,
+  with the charter still intact and the user's own message verbatim. (An attempt
+  to prove it at the wire by faking an Ollama on 11434 was abandoned: the app
+  declines to talk to the fake, which is correct behaviour. recordSent() is the
+  real assembly boundary, so that's where the proof belongs — noted in the test.)
+- One escaping casualty worth remembering: a Python heredoc turned an intended
+  \n inside a JS string into a literal newline, which node --check DID catch.
+  Replaced with a /\r?\n/ regex split.
+Docs: MANUAL §3 (standing instructions + the inspector, in plain language) and
+§4 (writing your own lessons), MAINTAINING (both seams), ADMIN-AND-AUTHORING
+-PLAN marked 1-3 built with 4-6 still open (save repair/merge, physical shelves
+for custom shelf names, and the deliberately-code-only tier).

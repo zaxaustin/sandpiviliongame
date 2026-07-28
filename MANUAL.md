@@ -54,12 +54,19 @@ screen tells you plainly whether saving to this device is working.
   One floor up: the Records Hall. Above that: an unfinished floor, honest
   about being unfinished.
 - **The Café** — the outward-looking room: the Counter, the Notice Board,
-  the Residents' Board, the Hearth Corner, and the Grant Desk.
+  the Residents' Board, the Grant Desk, and **the Commons Table** (see §11) —
+  where work people wrote and chose to hand on is laid out for anyone, and
+  where your own goes out if you decide it should.
 - **The Stacks** (the Index → 🗂 Browse by section) — the whole Library sorted
   into a real catalog for when it gets big: **Section → Subsection → books**
   (Religion & Spirituality → Buddhism / Hinduism / Daoism…, plus Philosophy &
   Classics, Science, Non-fiction, Fiction). The physical shelves stay a curated
   handful; the Stacks hold *everything*, your own 👤 books included.
+- **The Inheritance Hall** (southwest corner, down its own lane off the west
+  end of the plaza road) — a walled garden with no roof and no door, and the
+  only place here that arrives **completely empty**. See §10: it's ground you
+  plant things in, and it holds nothing except what you or someone else put
+  there.
 - **The Keep** (north of the Grounds) — the Pavilion's temple: the Buddha
   and Ganesha shrines, the eight signs of the Eightfold Path walked south
   to north, and the Mountain Monk's own quarters. Walk up to any of the eight
@@ -94,6 +101,22 @@ The division is clean and worth knowing on day one:
 
 They only talk once an AI connection exists (§7). Before that, everyone
 still has scripted things to say, and every desk still works.
+
+**Tell a resident something once, and have it stick.** In any conversation, the
+**✎** button on the right sets **standing instructions** for that resident —
+something they should carry into every reply without you retyping it. *"I'm
+working through electronics this year." "Answer in Spanish." "Keep answers to
+three sentences." "I work nights; never suggest a morning."* There are
+suggestions to click, tailored per resident, and each resident has their own.
+It's added to what they're told, never replacing who they are — and if your
+instruction genuinely clashes with their character, they'll say so rather than
+quietly ignore either.
+
+**See exactly what your AI was sent.** The **🔍** button beside it shows the
+last thing handed to your model, verbatim: the full instructions, your message,
+nothing summarised and nothing hidden. This is the one part of the Pavilion you
+would otherwise have to take on trust, so it's shown to you in full — including
+your own standing instructions, so you can watch them take effect.
 
 ---
 
@@ -152,10 +175,29 @@ still has scripted things to say, and every desk still works.
   the shelf you picked, each marked 👤 as yours (personal copies, no license
   needed). A progress line counts them in, one bad file never stops the rest,
   and you can re-file any of them afterward under **⚙ Manage my books**.
-- **Tidy your own books** — on **Your Shelf**, press **⚙ Manage my books** to
-  fix a misfiled book (move it to the right shelf) or remove a duplicate.
-  Same-title duplicates are flagged for you. This only touches your own 👤
-  books, never the certified shelves.
+- **Your Library — your own shelves, your own names.** Walk up to **Your
+  Shelf** (the case by the reading nook) and it opens **👤 Your Library**: every
+  book you brought in, and the tools to sort them out. **No license and no
+  source are ever needed here** — a personal copy is your business. Papers,
+  drafts, a work manual, something you wrote yourself: all of it belongs here.
+
+  The Library's own shelves are *lineages* — Theravada, Daoism, Classics — and
+  they were never going to fit a real personal collection. So **make your own**:
+  press **＋ New shelf of my own** and name it whatever you actually own —
+  *Electronics*, *Work*, *Recipes*, *Papers to read*. Your shelves exist only in
+  your Pavilion, and one opens and reads exactly like any other shelf in the
+  building.
+
+  If your library is already a pile, the **Sort them out** section is the cure:
+  search it, tick several books at once, and **move them all** to a shelf in one
+  go. Anything not yet filed sits under **📥 Unfiled** so you can see the size of
+  the job. Same-title duplicates are flagged. With a local AI connected,
+  **✨ Suggest shelves for my unfiled books** reads your titles and fills in the
+  dropdowns — it never files anything itself; a suggestion is not a decision.
+
+  Renaming a shelf carries its books with it. Removing a shelf returns its books
+  to Unfiled — **nothing is ever deleted by tidying**. None of this touches the
+  certified shelves.
 
 ---
 
@@ -343,6 +385,155 @@ memory footprint, and a "today's session" count of asks and timings.
 | "Read the full text" says it can't load | A personal book shelved in the desktop app is being opened somewhere its file isn't — read it in the desktop app |
 | Windows warns about an unknown publisher | Expected — the installer is unsigned on purpose (a paid certificate, not a safety problem) |
 | A panel seems stuck | Esc. Worst case, ← Return to title screen and walk back in — the save is already written |
+
+---
+
+## 10. The Inheritance Hall — planting something for whoever comes next
+
+Down a lane at the southwest corner of the Grounds there's a walled court with
+no roof and no door — bare sand, a stone wall, and an open sky. Walk in and it
+is **empty**. That isn't a room waiting to be finished; it's the point.
+Everything that will ever stand in that court was put there by you, or handed
+to you by another person.
+
+**The Record Stone** at the top has the Diamond Sutra's closing verse cut into
+it — the one that lists a star among the things that don't last. It's also
+where you see everything in the ground, the seeds in your pouch, and the
+**gifts left at the gate**.
+
+**Gifts left at the gate.** Three come bundled with the Pavilion, and none of
+them are planted for you — they're *offered*, so your first act here can be
+receiving something instead of staring at sand. **The First Turning** (five
+Buddhist texts off the shelves, starting with the first discourse he ever
+gave), **The Four Truths and the Eight Folds** (a seed holding his first
+teaching, quoted verbatim from the CC0 translation shelved in the Library),
+and **something buried**, which will not come up until you've read that
+first discourse.
+
+**To plant something:** face any bare patch of sand and press **E**. Three
+things can go in the ground:
+
+- **📖 A book on a stone** — a collection you curated off your own shelves,
+  with a word about why *these* ones.
+- **🌱 A seed** — your own notes, put in the ground. It grows on **real
+  calendar days**: a seed, then a sprout, then a bud, and on the third day it
+  blooms and opens. Nothing can hurry it. Once bloomed it carries **seeds of
+  its own** — gather them, and each one can be planted again, anywhere,
+  carrying the same gift onward.
+- **⚔ A sword in a stone** — a course, set behind a **trial**: a question you
+  write, and the answer that draws it. Whoever can answer it gets the course
+  on their Course Board. Leave the trial blank and it stands loose for anyone.
+
+**Burying something.** Any planting can be put under the sand with a
+**requirement** on it: until it's met, it shows only as a marker with a corner
+breaking the surface, and its contents can't be read. The conditions are all
+things a person actually *does* — read a particular book, wait a number of
+real days, plant something of their own first, bring their own books into the
+Library. A buried thing always says plainly what it's waiting for; it's a
+condition, not a riddle, and nothing is ever unlocked by paying or scoring.
+
+**If you have a local AI running**, the plant form has **✨ Have your local AI
+draft this**. It reads your own shelves and notes and suggests a title, a
+message, which books belong together, or a course with a trial. It never
+plants anything — the draft lands in the form for you to change. Everything
+here works without it.
+
+**Giving it to an actual person.** Any planting can be written out as a
+**bequest file** — one `.json` you hand over however you like. There's no
+server and no account in this; a bequest travels the way a book does, because
+someone carried it. On the other end they press "plant a bequest someone gave
+you," and it comes up in their own garden, attributed to you, with your
+message still on it.
+
+**What travels and what doesn't.** Press **👁 What would leave?** before you
+write the file and it tells you exactly, line by line. Your notes are yours
+and always travel. A book only travels *as a book* if its license permits it
+— public domain, Creative Commons, the Pavilion's own Commons. Anything else
+goes as a **card**: title, author, license, and where to get it. That isn't
+timidity; it's the same test every book passes at the Library door, applied
+to giving instead of shelving.
+
+**Nothing here is scored.** There are no points for planting and no penalty
+for an empty garden. The reward is the thing itself — a real collection, real
+notes, a real course — and the fact that someone else can hold it.
+
+- **Can this book be shared, or is it yours alone?** In the add-a-text form
+  there's **⚖ Can this be shared, or is it personal?**. It reads the text itself
+  and tells you what it found — a Project Gutenberg notice, a Creative Commons
+  line, an "All rights reserved" page, a publication date — and recommends
+  either "may be shared" or "keep it personal," showing every reason.
+  **It is not a legal opinion**, and it says so: copyright differs by country
+  and only you can decide. It defaults to *keep it personal* whenever the
+  evidence isn't clear, which costs you nothing, because a personal copy never
+  needs a licence at all. If you have a local AI it also reads the opening for
+  a publication year, an author, and any licence line — it gathers evidence,
+  it never gives the verdict.
+
+- **Fixing the library itself — the Steward's Index.** At the Caravan Desk,
+  **🗂 The Steward's Index** lists every book in the building, yours and the
+  shipped ones. Open any one to correct its title, author, licence, source or
+  summary, move it to a different shelf, or pull it off the shelves entirely.
+  Only the *card* changes — the book's text is never touched. Books that shipped
+  with the Pavilion live inside the app, so your corrections are kept as a layer
+  over them: they take effect at once, they're yours, and **↺ Back to what
+  shipped** undoes any of them. **⤓ Export my corrections** writes them out as a
+  file.
+
+**Write your own lessons.** The Learning Tree (Course Board → 🌳) ships with a
+few, and **✎ Write a lesson** adds yours beside them — a title, what it's for,
+the steps one per line, and, if you like, **prerequisites**: tick a lesson that
+must be finished first and yours stays locked until it is. That's a real
+progression — a 101 that opens a 201 — which is the thing you need if you're
+teaching someone else and not just yourself. The Tutor studies your lessons
+exactly as it studies the built-in ones.
+
+---
+
+## 11. What's yours, what's shared — and where sharing happens
+
+Three words, used the same way on every screen in the Pavilion:
+
+- **👤 Yours** — private to this machine, in your save. Nothing sends it
+  anywhere, ever, unless you personally do.
+- **🤝 Shared by you** — you wrote it out as a packet and gave it away. Your
+  original stays yours.
+- **🏛 Commons** — written by someone else, or shipped with the Pavilion. It
+  carries an author and a license, the same way every text on a Library shelf
+  does.
+
+**The rule underneath all three: nothing moves by itself.** There is no sync, no
+upload, no background anything — and no server for there to be one to. Something
+becomes shared because you deliberately wrote a file and handed it to a person.
+
+**Where to look for each.** Every panel that holds content now says which it is,
+right in its heading — Your Notes, the Course Board, the Archive and Research
+Desks, the Science & Research Hall, Paths, the Inheritance Hall. The ones most
+worth sharing (notes, lesson plans, papers) also carry a **🤝 share one** button
+that takes you straight to the table.
+
+**The Commons Table (the Café)** is the shared side, in four tabs:
+
+- **🏛 The commons** — papers, lesson plans and courses people wrote and handed
+  on. Three come with the Pavilion. Taking one drops a copy where that kind of
+  thing already lives for you: a paper into the Science Hall, a lesson into Your
+  Notes, a course onto the Course Board. Your copy is yours — editing it never
+  touches the original, and the original stays on the table for the next person.
+- **🤝 Shared by you** — what you've published, and where you write out the file
+  to hand over.
+- **📤 Publish something** — your own papers, courses and notes, one click each.
+  Publishing copies the work into a packet with your name on it. **Your original
+  never leaves your private store.**
+- **👤 What stays private** — the plain list.
+
+**The full accounting** — every store in your save, and one honest sentence on
+whether it can ever leave this machine — is in **Your Data** in the pause menu.
+It's generated from a real table, and the test suite fails the build if a new
+kind of data is ever added without a line explaining itself.
+
+**The Commons Table and the Inheritance Hall are different on purpose.** A
+**bequest** (the Hall) is a gift left for a person to find, sometimes buried
+behind a condition. A **packet** (the table) is work published for anyone to
+use. Same mechanics — a file, no account, no server — different intent.
 
 ---
 

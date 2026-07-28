@@ -206,3 +206,64 @@ on day one. Worth its own small plan when we get to beta packaging.
 **Next slices (unchanged from the plan above):** local Postgres for the catalog +
 logs (so data is queryable and inspectable, not just localStorage JSON); a tiny
 local API; then the web build can point at the same self-hosted stack.
+
+---
+
+## The commons library's backend — asked directly 2026-07-27, answered plainly
+
+The question, in the user's words: *"If people want to get books from proper
+sources, or name the source themselves — as long as it's books or self-written
+— can I save them in the commons in the 100 GB Docker container? How should we
+handle the backend of the commons library for now and in the future?"*
+
+**Now: yes, and it already works — but "commons" is doing two jobs in that
+sentence, and they need splitting.**
+
+**1 · Storing them: already built.** The Caravan Desk's "Add a text by hand"
+has a free-text **Source** field and a "Not listed / unknown source" option, and
+the license field is explicitly optional. `shelveAsPersonal()` writes the text
+to **local MinIO first** (the 100 GB reserve), falling back to an app-data file,
+then inline. So a book from a proper source, a book whose source you typed
+yourself, and a thing you wrote all land in the container today.
+
+**2 · But your MinIO is *yours*, not a commons.** It is storage on one machine.
+Nothing connects two people's containers; a tester with no Docker gets files
+instead, and their books never arrive in yours. Calling it "the commons" invites
+a promise the architecture doesn't make.
+
+**3 · What is actually shared today is a file a person carried** — a *packet*
+(Commons Table) or a *bequest* (Inheritance Hall). That is a real commons with
+no server at all, and it is the one that works for the beta.
+
+**4 · The license line, which is the part that actually constrains this.**
+Your own shelf: anything you like, no license needed — a personal copy is your
+business. Anything that *travels*: needs a genuinely redistributable license
+(public domain, CC0/CC BY, or your own writing). The bequest exporter already
+enforces exactly this, sending non-redistributable texts as catalog cards
+instead. "Books from proper sources, or self-written" is the right instinct:
+self-written is unambiguously yours to give.
+
+### The staging
+
+| | What runs | Who it serves | Cost |
+|---|---|---|---|
+| **Now (beta)** | Nothing. Seed catalog + MinIO or files, per machine. Sharing = handing over a file. | one person per Pavilion | £0 |
+| **Next** | Catalog moves local (a `catalog.json`, then Postgres beside MinIO in the same compose). Still per-machine. | one person, but inspectable and queryable | £0 |
+| **Later, only when there is genuinely a second person** | One small VPS running **the same** Postgres + MinIO stack. Other people's books land in one real shared library. | a group | a rented box |
+
+**The rule that keeps the ordering honest: no server is rented until there is
+actually someone on the other end of it.** Every step above is additive, and
+none of them invalidates a Pavilion that stays entirely local — which must
+remain the normal case, not the degraded one.
+
+**When the VPS day comes, the three real pieces of work** are: identity (the
+one honestly hard part — a minimal magic-link service, self-hosted GoTrue, or a
+third-party identity provider, named rather than pretended away), moderation (a
+shared library needs the Steward Review Queue to become a *real* multi-user
+queue rather than a local one), and takedown/provenance discipline at scale
+(one person can vouch for 51 books by hand; a hundred people cannot).
+
+**What not to do in the meantime:** don't build a feature that *requires* a
+server, and don't describe the local MinIO as a shared commons in any
+user-facing text. `MAINTAINING.md`'s backend table and `README.md`'s "where
+your things are kept" both state the current truth; keep them true.

@@ -17,10 +17,14 @@ every time.
 
 ## Get oriented, in order
 
-1. **`README.md`** — the actual current-state reference: what's built,
-   what works, what's next. Read this first, every time. It stays a
-   snapshot of *now*, not a changelog — trust it over your own guesses
-   about what exists.
+1. **`MAINTAINING.md`** — the actual current-state reference: what's
+   built, the invariants, the code map, the gotchas, the backend, and
+   what's next. Read this first, every time. It stays a snapshot of
+   *now*, not a changelog — trust it over your own guesses about what
+   exists. (**`README.md` was rewritten 2026-07-27 as the new-user /
+   beta guide** — it's the front door for someone who just downloaded
+   the app, not the technical reference. Both move with a change; they
+   answer different questions.)
 2. **The most recent `archive/dev-log-*.txt`** — the narrative version
    of how the project actually got here, session by session. Worth
    skimming the last one or two for real context a static README can't
@@ -44,7 +48,7 @@ every time.
 
 When you finish a real session of work, add to that day's
 `archive/dev-log-YYYY-MM-DD.txt` (create it if the day doesn't have one
-yet) and update `README.md`'s "What's next" section to match reality —
+yet) and update `MAINTAINING.md`'s "What's next" section to match reality —
 future sessions (yours or anyone else's) depend on both staying honest,
 not aspirational.
 

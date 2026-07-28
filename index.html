@@ -49,6 +49,8 @@
   <div class="chatSide">
     <button class="btn ghost" id="chatSpeakBtn" title="Read the last reply aloud" onclick="toggleChatSpeak()">🔊</button>
     <button class="btn ghost" id="chatMinBtn" title="Pocket this conversation — keep walking or read a book; it'll buzz when they reply" onclick="minimizeChat()">📱</button>
+    <button class="btn ghost" onclick="openStandingForCurrentChat()" title="Standing instructions — something they should remember every time">✎</button>
+    <button class="btn ghost" onclick="openPromptForCurrentChat()" title="See exactly what was sent to your AI">🔍</button>
     <button class="btn ghost" onclick="openConnections()" title="Manage AI connections">⚙</button>
     <button class="btn ghost" title="Leave (Esc)" onclick="closeDialog()">✕</button>
   </div>
@@ -263,11 +265,32 @@
 <!-- Paths — ideas kept as cards you pick up and continue, not dated calendar items -->
 <div class="overlay" id="pathsOv"><div class="panel" id="pathsPanel"></div></div>
 
+<!-- The Inheritance Hall — the open sandbox at the edge of the Grounds: plant a
+     book, a seed, or a sword in a stone, and find what others left before -->
+<div class="overlay" id="groveOv"><div class="panel" id="grovePanel"></div></div>
+
+<!-- Your Library — the personal half: your own named shelves, bulk filing -->
+<div class="overlay" id="myLibOv"><div class="panel" id="myLibPanel"></div></div>
+
+<!-- Standing instructions to a resident, and the prompt inspector beside it -->
+<div class="overlay" id="standingOv"><div class="panel" id="standingPanel"></div></div>
+<div class="overlay" id="promptOv"><div class="panel" id="promptPanel"></div></div>
+
+<!-- The Steward's Index — the administrator's view of the whole Library -->
+<div class="overlay" id="stewardIdxOv"><div class="panel" id="stewardIdxPanel"></div></div>
+
+<!-- The Commons Table (the Cafe) — shared work: papers, lesson plans, courses -->
+<div class="overlay" id="commonsOv"><div class="panel" id="commonsPanel"></div></div>
+
 <!-- Badge unlock toast -->
 <div id="badgeToast"></div>
 
 <!-- hidden file picker used by "Import save" in the pause menu -->
 <input type="file" id="importFile" accept="application/json" style="display:none">
+<!-- and by "plant a bequest someone gave you" in the Inheritance Hall -->
+<input type="file" id="bequestFile" accept="application/json" style="display:none">
+<!-- and by "someone gave you a packet" at the Commons Table -->
+<input type="file" id="packetFile" accept="application/json" style="display:none">
 
 <div class="touch" id="dpad">
   <div class="dbtn" id="du">▲</div><div class="dbtn" id="dd">▼</div>
