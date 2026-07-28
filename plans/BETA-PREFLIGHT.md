@@ -144,3 +144,35 @@ thing a tester meets in the first two minutes.
 risks are an artifact 16 days stale, a desktop path verified almost entirely in
 a browser, six brand-new save stores that have never met an old save, and the
 fact that nobody outside this machine has ever opened the thing.
+
+---
+
+## Update, 2026-07-28 — two of these are now automated
+
+Three of the risks below are no longer unknown, because they can be checked by
+machine after all:
+
+**Old saves are safe.** A save written in the 11 July beta.1 shape — no
+`grove`, `commons`, `myShelves`, `myLessons`, `standing` or
+`catalogEdits` — loads clean against today's 43 stores, keeps every note,
+book and lesson-progress entry, and round-trips valid after every panel has been
+opened on it.
+
+**Nothing is blank without AI or cloud.** All **33** panels a visitor can reach
+open on that old save with no Ollama running and a beta bundle: no thrown error,
+no empty panel, no page error.
+
+**The beta bundle really is local-only.** Zero external requests on startup.
+This one now has teeth beyond a test: `scripts/verify-beta-build.mjs` runs
+inside `build:beta` / `electron:build:beta` and **fails the build** if a
+Supabase host, a JWT-shaped string, a Supabase key or MinIO credentials survive
+into the bundle. A plain `electron:build` would have shipped this machine's
+own key; now it cannot silently do so (`BETA-TESTING-FEEDBACK.md` #16).
+
+Run it yourself:  (37 checks — see the header for the
+three commands).
+
+**What remains genuinely un-automatable, and still yours to do:** the desktop
+app run in Electron rather than a browser tab, ten unbroken minutes listening to
+a real book, the copyright triage over your actual 128 books, and the
+clean-machine install. Those are the ones a person has to feel.
