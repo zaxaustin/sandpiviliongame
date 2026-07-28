@@ -258,10 +258,18 @@ and "the first ten minutes" (the path the beta is actually built around and
 held to). `plans/BETA-PREFLIGHT.md` is the older checklist; its three headline
 risks were closed on 2026-07-28 and it says so at the bottom.
 
-**Where things stand, end of 2026-07-28:** the installer is cut and verified,
-all 114 commits are pushed to GitHub, and the repo is **still private**. The
-next action is the user installing beta.2 himself; if that goes well, the repo
-goes public and a Release carries the `.exe` to friends.
+**Where things stand, end of 2026-07-28:** beta.2 is cut, verified, **installed
+and used** — the last genuinely unverified thing is closed. Everything is pushed;
+the repo is **still private by choice**. The next action is making it public and
+cutting the Release.
+
+**The one open platform gap: macOS.** Most of the first testers are on Macs and
+the `.exe` is Windows-only. A macOS app cannot be built on Windows, so there are
+three answers, in [`SHIPPING-THE-BETA.md`](plans/SHIPPING-THE-BETA.md): the web
+build (works today, auto-deploys from `main`), CI
+(`.github/workflows/build-installers.yml`, both platforms on a `v*` tag), or by
+hand on a real Mac ([`MAC-BUILD.md`](MAC-BUILD.md), written for someone with no
+context).
 
 **The three gates to a real beta** (nothing large):
 1. **[done 2026-07-28] The welcome-packet decision** — resolved by honesty
@@ -285,13 +293,21 @@ goes public and a Release carries the `.exe` to friends.
    JWT-shaped string, a Supabase key or MinIO credentials survive into the
    bundle (added 2026-07-28, after a network probe caught a dev build calling
    Supabase on startup — `BETA-TESTING-FEEDBACK.md` #16).
-3. **The install test** — the one genuinely unverified thing, and now the only
-   one. Nobody has clicked the installer. Note the machine already had a broken
-   **0.0.1 from 8 July** installed: its localStorage held saves under
-   `localhost:5173` and *nothing* under `file://`, confirming from disk that the
-   packaged app never once ran (#24). Dev and packaged share an app-data folder
-   but not a storage partition, so a fresh install starts empty and cannot
-   disturb the dev Pavilion.
+3. **[done 2026-07-28] The install test** — downloaded from GitHub, installed,
+   opened, used. Both origins now hold saves (`localhost:5173` for dev,
+   `file://` for the installed app) and neither disturbs the other, exactly as
+   predicted. Before this, the machine had a broken **0.0.1 from 8 July** whose
+   localStorage held *nothing* under `file://` — disk-level proof the packaged
+   app had never once run (#24).
+
+**Test the artifact you ship, not the one you develop in.** The single most
+expensive lesson of 2026-07-28, learned three times in one day: the packaged app
+had never booted (#17), a plain build shipped this machine's cloud keys (#16),
+and the deployed *website* was phoning Supabase while the README promised it
+didn't (#27). All three were invisible to every existing test and obvious within
+minutes of running the real thing and watching what it did. Both build paths now
+carry `scripts/verify-beta-build.mjs`, and `vercel.json` pins the deploy to
+`build:beta` so the promise is enforced where it is made.
 
 **When a local model gets something wrong, ask it something smaller** — the
 standing lesson from 2026-07-28 (`BETA-TESTING-FEEDBACK.md` #15). The lesson

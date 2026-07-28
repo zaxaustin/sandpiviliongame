@@ -315,3 +315,106 @@ TOMORROW
   2. If it works: make the repo public, cut a GitHub Release, send the
      link with the SmartScreen warning stated up front.
   3. Then listen. BETA-TESTING-FEEDBACK.md is the place it goes.
+
+
+=======================================================================
+ SAME DAY, FOURTH SESSION — it installed, and it worked
+=======================================================================
+
+The install worked. That closes the last genuinely unverified thing on
+the whole list, and it closes it from the right direction: he ran the
+installer off GitHub, it opened, and it was fine.
+
+Confirmed from disk afterwards -- both origins now hold saves,
+localhost:5173 (dev) and file:// (installed), neither disturbing the
+other. Exactly the separation predicted. The 59 personal book .txt files
+sit in the shared library/ folder outside any origin, which is the part
+worth backing up and now is.
+
+BRING A BOOK IN
+---------------
+"The main thing we should focus on is letting people know how the
+Caravan Desk works... maybe we should move that feature into the library
+next to the personal shelf."
+
+Right diagnosis, and it was placement AND naming at once. Adding a book
+-- the single act this whole project is built around -- was explained
+only at the Caravan Desk, three rooms away, under a name that tells a
+newcomer nothing. Findable by accident.
+
+Not moved. Split along a line that was already there: the Caravan Desk
+keeps the review queue and connector imports, which are genuinely
+workshop work; the everyday act comes to the Library as a station beside
+Your Shelf. The name is an instruction rather than a noun on purpose --
+every other station is "THE something", and this one has to answer the
+question a newcomer is actually holding.
+
+It teaches drag-the-file-onto-the-window first and loudest, then the
+by-hand form, then where to get free books, then the part nobody was
+ever told: which folder the text physically lands in.
+
+THE MACS
+--------
+"My friends use mac." The .exe is Windows-only; the code isn't. A macOS
+app cannot be built on Windows, so:
+
+  * Tonight's answer is the website. Same Pavilion in a browser, no
+    Gatekeeper, and it auto-deploys from main so it is always current.
+  * .github/workflows/build-installers.yml builds both platforms on
+    GitHub's own runners on any v* tag.
+  * MAC-BUILD.md is the by-hand recipe for his brother, who has a Mac
+    and an IDE but no AI assistant -- so it assumes no context at all.
+
+Audited main.cjs rather than guessing, and it was in better shape than
+expected: window-all-closed already checks darwin, activate re-creates
+the window, nothing nulls the application menu, every path goes through
+app.getPath + path.join. Three real fixes: the intake panel's hard-coded
+Windows path (my own bug, hours old, and a confident lie on exactly the
+machines the first testers use), arm64+x64 rather than arm64-only, and
+a 1024px icon for the .icns.
+
+AND ONE THE WEBSITE WAS HIDING
+------------------------------
+Checking whether the web build was a fit answer for Mac friends turned
+up a Supabase host in the DEPLOYED bundle. Vercel builds with the plain
+`npm run build` and had the service variables set in its dashboard, so
+the public site called that project on startup -- while the README
+promised, in bold, that nothing phones home.
+
+Fixed at the root with a committed vercel.json pinning the deploy to
+build:beta, so verify-beta-build.mjs now runs on every deploy and the
+build FAILS rather than quietly shipping a cloud host. The guard that
+protected the installer now protects the website too. The promise had
+been made in one place and enforced in another; now it's enforced where
+it's made.
+
+THE PATTERN, THREE FOR THREE TODAY
+----------------------------------
+  morning    -- when a local model gets it wrong, ask it something
+                smaller before writing a cleverer parser
+  afternoon  -- test the artifact you ship, not the one you develop in
+  evening    -- and that includes the website, which is also an artifact
+
+Every one of today's serious findings came from running the real thing
+and watching what it did, not from reading the code.
+
+WHERE IT STANDS
+---------------
+  npm test                      clean
+  build + build:beta            clean, verifier passes
+  packaged-boot.cjs             6/6
+  preflight.mjs                 39/39, zero external requests
+  13 live suites                154 checks, 0 failures
+  installer                     0.1.0-beta.2, installed and USED
+  repo                          all pushed; still private by choice
+
+TOMORROW, OR WHENEVER
+---------------------
+  1. Make the repo public, cut the GitHub Release, send the link.
+     Windows friends get the .exe; Mac friends get the website today
+     and a .dmg once his brother builds one.
+  2. Then listen. BETA-TESTING-FEEDBACK.md is where it goes -- 28
+     findings so far, every one of them from actually using the thing.
+
+Good day. The thing that would have wasted his friends' evening was
+invisible to every test we had, and we found it with a day to spare.
