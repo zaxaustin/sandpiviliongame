@@ -1,0 +1,67 @@
+# Builds the installers for Windows AND macOS.
+#
+# This exists because the dev machine is a Windows box and **a macOS app
+# cannot be built on Windows** — the dmg tooling and code-signing are
+# macOS-only. GitHub's runners include a real Mac, free for public
+# repositories, so the Mac build happens there rather than requiring
+# anyone to own one.
+#
+# Both jobs use `electron:build:beta`, never the plain `electron:build`:
+# the beta script reads `.env.beta`, which empties every service
+# variable so the build ships local-only, and `scripts/verify-beta-build.mjs`
+# fails the build if a cloud host or anything key-shaped survives into the
+# bundle. There are no secrets in this workflow, deliberately.
+#
+# Trigger it by pushing a tag:  git tag v0.1.0-beta.3 && git push --tags
+# Or from the Actions tab, by hand.
+
+name: Build installers
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false          # a broken Mac build shouldn't hide a good Windows one
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: windows-installer
+            pattern: 'release/*.exe'
+          - os: macos-latest
+            artifact: macos-installer
+            pattern: 'release/*.dmg'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The dependency-free suite. Fast, and it guards the things that have
+      # actually broken before — station kinds, inline handlers, the privacy
+      # data map, the copyright rules.
+      - run: npm test
+
+      # Draws build/icon.ico from scratch (no dependencies). The macOS job
+      # needs an .icns; electron-builder converts from the png set, and
+      # without this the Mac app would wear the generic Electron icon.
+      - run: node scripts/make-icon.mjs
+
+      - name: Build the installer
+        run: npm run electron:build:beta
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.pattern }}
+          if-no-files-found: error

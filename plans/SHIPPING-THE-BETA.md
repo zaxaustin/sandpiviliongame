@@ -73,9 +73,10 @@ Get-FileHash "Sand Pavilion Setup 0.1.0-beta.2.exe" -Algorithm SHA256
 A GitHub Release is made for exactly this: a permanent link, no expiry, a
 version number, release notes beside it, and no size problem (2 GB limit).
 
-**But the repo is currently private, and 109 commits behind.** A release
-asset on a private repo is only downloadable by collaborators, so testers
-would need GitHub accounts and invitations. Three ways out:
+**All commits are pushed and in sync (2026-07-28).** The repo is still
+**private**, though, and a release asset on a private repo only downloads for
+collaborators — so testers would need GitHub accounts and invitations. Three
+ways out:
 
 - **Make the repo public** — simplest, and it fits the project's whole
   disposition. Check first that nothing private is in the history:
@@ -90,7 +91,6 @@ Once that's decided:
 
 ```bash
 gh auth login                      # you are not logged in yet
-git push origin main               # 109 commits behind right now
 gh release create v0.1.0-beta.2 \
   "release/Sand Pavilion Setup 0.1.0-beta.2.exe" \
   --title "Sand Pavilion 0.1.0-beta.2" \
@@ -134,6 +134,69 @@ Keep it short. Everything else is in the app.
 >   lessons all work without it.
 > - The Library starts small **on purpose**. You fill it: drag any `.txt` or
 >   `.epub` onto the window.
+> - **On a Mac?** Use the website — sandpiviliongame.vercel.app — it's the same
+>   thing in a browser, nothing to install. (A real Mac app is coming.)
+
+---
+
+## Mac friends — three answers, in order of what to do tonight
+
+Added 2026-07-28: *"my friends use mac."* The `.exe` is Windows only. The
+**code** is not — it's Electron, and it runs on macOS perfectly well. What
+couldn't happen is building it here: **a macOS app cannot be built on Windows**,
+because the `.dmg` tooling and signing are macOS-only.
+
+### 1. Send them the website. Tonight, with no work at all.
+
+**[sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app)** — same
+code, same Library, same guides, in Safari or Chrome. Nothing to install,
+nothing to approve, no Gatekeeper, no scary box. It saves to their own browser
+storage on their own Mac.
+
+This deploys automatically from `main`, so it is always current. **This is the
+answer for a friend who wants to look at it today.**
+
+What they give up in a browser: book text lives in browser storage rather than
+as files they can open; there's no native save dialog; and reaching a local AI
+needs `OLLAMA_ORIGINS` set, which the desktop app does not. None of that stops
+them reading, taking notes, or planning a day.
+
+### 2. A real Mac build, via GitHub's own Macs
+
+`.github/workflows/build-installers.yml` builds **both** installers — Windows
+`.exe` and macOS `.dmg` — on GitHub's runners, which include a real Mac, free
+for public repos. Nobody has to own one.
+
+```bash
+git tag v0.1.0-beta.3 && git push --tags
+```
+
+Then the Actions tab, wait a few minutes, download both artifacts, and attach
+them to the Release. It runs `npm test` and `electron:build:beta` on each
+platform, so a Mac build gets the same local-only guarantee and the same
+verifier.
+
+**Be honest with Mac testers, because Gatekeeper is harsher than SmartScreen.**
+An unsigned, un-notarised app on modern macOS does not say "unrecognised
+developer" — it often says **"Sand Pavilion is damaged and can't be opened.
+You should move it to the Trash."** That is a lie macOS tells about every
+unsigned app, and it frightens people far more than the Windows box. The fix:
+
+> Right-click (or Control-click) the app → **Open** → **Open** again in the
+> dialog. Only needed the first time.
+>
+> If macOS still refuses, in Terminal:
+> `xattr -dr com.apple.quarantine "/Applications/Sand Pavilion.app"`
+
+Apple's fix is a $99/year Developer Program membership plus notarisation. Worth
+it for a real release; not for a handful of friends.
+
+### 3. If Mac becomes the main audience — build the website out properly
+
+The third option they raised, and the best long-term one: the web version *is*
+the hub. `COMMONS-BACKEND-PLAN.md` Phase 1½ already describes a site that serves
+both people and Pavilions from the same files. If most testers are on Macs, the
+browser build stops being a fallback and becomes the front door.
 
 ---
 

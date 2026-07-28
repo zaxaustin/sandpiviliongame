@@ -144,5 +144,16 @@ const entries = SIZES.map((size, i) => {
 });
 
 mkdirSync('build', { recursive: true });
-writeFileSync('build/icon.ico', Buffer.concat([header, ...entries, ...images]));
-console.log(`✓ build/icon.ico — ${SIZES.join(', ')}px, ${(Buffer.concat([header, ...entries, ...images]).length / 1024).toFixed(1)} KB, no dependencies`);
+const ico = Buffer.concat([header, ...entries, ...images]);
+writeFileSync('build/icon.ico', ico);
+console.log(`✓ build/icon.ico — ${SIZES.join(', ')}px, ${(ico.length / 1024).toFixed(1)} KB, no dependencies`);
+
+/* macOS wants an .icns, and electron-builder will generate one itself from a
+   single large PNG at build/icon.png (it requires at least 512×512). 512 is
+   16× our 32px grid — a whole number, so the upscale stays perfectly crisp
+   rather than blurring, which is the entire reason the art is drawn on a grid
+   in the first place. Added 2026-07-28, when it turned out the first testers
+   are on Macs. */
+const macPng = png(512);
+writeFileSync('build/icon.png', macPng);
+console.log(`✓ build/icon.png — 512px, ${(macPng.length / 1024).toFixed(1)} KB (macOS builds its .icns from this)`);

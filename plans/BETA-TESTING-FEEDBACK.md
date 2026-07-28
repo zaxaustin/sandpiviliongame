@@ -1682,3 +1682,47 @@ holding.
 
 Also: Your Library's own *"＋ Add a book or paper"* now opens this rather than
 jumping straight to the form, so the explanation is reachable from both doors.
+
+### 26. [x] The testers are on Macs, and the installer is Windows-only
+
+*"Will it work on Mac or just Windows? ... my friends use mac."*
+
+The `.exe` is Windows only. The **code** isn't — it's Electron and runs on macOS
+fine. What could not happen is building it here: **a macOS app cannot be built
+on Windows**, because the `.dmg` tooling and signing are macOS-only.
+
+**Three answers, and the first needs no work at all.** The web build at
+`sandpiviliongame.vercel.app` is the same Pavilion in a browser — no install, no
+Gatekeeper, no frightening dialog — and it **auto-deploys from `main`**, so it
+already carries everything built today. That is what a Mac friend should open
+tonight.
+
+**A real `.dmg` now builds in CI.** `.github/workflows/build-installers.yml`
+runs the Windows and macOS builds on GitHub's own runners (a real Mac, free for
+public repos) on any `v*` tag. Both use `electron:build:beta`, so a Mac build
+inherits the same local-only guarantee and the same `verify-beta-build.mjs`
+check. No secrets in the workflow, deliberately. `make-icon.mjs` now also emits
+a 512px `build/icon.png` — 16× the 32px grid, a whole number, so the upscale
+stays crisp — because electron-builder generates the `.icns` from it.
+
+**Worth being blunt with Mac testers:** Gatekeeper is harsher than SmartScreen.
+An unsigned app on modern macOS often claims **"Sand Pavilion is damaged and
+can't be opened"**, which is a lie macOS tells about everything unsigned and
+frightens people far more than the Windows box. Right-click → Open → Open, or
+`xattr -dr com.apple.quarantine`. The real fix is Apple's $99/year programme,
+which is not worth it for a handful of friends.
+
+### 27. [x] The public website was phoning the dev machine's Supabase
+
+Caught while checking whether the web build was a fit answer for Mac testers.
+The deployed bundle contained a Supabase host: Vercel builds with the plain
+`npm run build` and had the service variables set in its dashboard, so the
+public site called that project on startup — while the README promised, in
+bold, that nothing phones home.
+
+**Fixed at the root** with a committed `vercel.json` that pins the build to
+`npm run build:beta`. That reads `.env.beta`, which empties every service
+variable, and `scripts/verify-beta-build.mjs` runs inside it — so the deploy now
+**fails** rather than quietly shipping a cloud host. The same guard that already
+protected the installer now protects the website, which is where it should have
+been from the start: the promise was made in one place and enforced in another.

@@ -43,6 +43,16 @@
     "nsis": {
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.png",
+      "category": "public.app-category.education",
+      "identity": null,
+      "artifactName": "Sand Pavilion ${version}.${ext}"
+    },
+    "dmg": {
+      "title": "Sand Pavilion ${version}"
     }
   }
 }
