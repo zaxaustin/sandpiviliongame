@@ -197,6 +197,56 @@ for (const [key, s] of Object.entries(scenes)) {
     const got = parseDraftedSteps(input).length;
     if (got !== want) fail(`draft-parse.js: ${name} gave ${got} steps, expected ${want}`);
   }
+
+  /* ---------- one-question answers ----------
+     The drafting asks one small thing at a time now (2026-07-28) because a 9B
+     model obeys a small ask and mangles a six-part one. But it still decorates
+     a one-word answer, so every way it does that has a case here. */
+  const { cleanAnswer } = await import('../src/game/data/draft-parse.js');
+  const answers = [
+    ['a bare answer is left alone', 'Sitting for One Minute', {}, 'Sitting for One Minute'],
+    ['strips the label it was told not to write', 'TITLE: Sitting for One Minute', {label:'title'}, 'Sitting for One Minute'],
+    ['strips surrounding quotes', '"Sitting for One Minute"', {}, 'Sitting for One Minute'],
+    ['strips a bullet', '- Sitting for One Minute', {}, 'Sitting for One Minute'],
+    ['strips numbering', '1. Sitting for One Minute', {}, 'Sitting for One Minute'],
+    ['strips a Step N: prefix', 'Step 3: Sit down | it starts the practice', {}, 'Sit down | it starts the practice'],
+    ['drops a conversational preamble line',
+      'Sure, here is a title:' + String.fromCharCode(10) + 'Sitting for One Minute', {}, 'Sitting for One Minute'],
+    ['strips a code fence', '```' + String.fromCharCode(10) + 'Sitting for One Minute' + String.fromCharCode(10) + '```', {}, 'Sitting for One Minute'],
+    ['takes only the first line unless told otherwise',
+      'Sitting for One Minute' + String.fromCharCode(10) + 'I hope that helps!', {}, 'Sitting for One Minute'],
+    ['joins lines when the answer is allowed to be long',
+      'You will sit for a minute.' + String.fromCharCode(10) + 'Then you will notice the difference.',
+      {multiline:true}, 'You will sit for a minute. Then you will notice the difference.'],
+    ['caps a track that rambled', 'Meditation and the contemplative traditions of Asia', {maxWords:4}, 'Meditation and the contemplative'],
+    ['nothing at all', '', {}, ''],
+  ];
+  for (const [name, input, opts, want] of answers) {
+    const got = cleanAnswer(input, opts);
+    if (got !== want) fail(`draft-parse.js cleanAnswer: ${name} gave "${got}", expected "${want}"`);
+  }
+
+  /* ---------- the repeated step ----------
+     Both of these came out of ornith:9b in one real draft (2026-07-28): asked
+     for step 5 with steps 1-4 in front of it, it re-wrote step 3. */
+  const { tooSimilarStep } = await import('../src/game/data/draft-parse.js');
+  const dupes = [
+    ['the real repeat this was written for',
+      'Folds hands into a fist, holding onto slight tension in wrists',
+      ['Sits comfortably with back straight', 'Folds hands into a loose fist'], true],
+    ['an exact repeat', 'Sit down and breathe', ['Sit down and breathe'], true],
+    ['a different why does not make it a new step',
+      'Sit down quietly | it settles the body',
+      ['Sit down quietly | it starts the practice'], true],
+    ['a genuinely different step is kept',
+      'Set a timer for one minute | so you are not watching the clock',
+      ['Sit down quietly | it settles the body'], false],
+    ['nothing to compare against', 'Sit down quietly', [], false],
+  ];
+  for (const [name, cand, prev, want] of dupes) {
+    const got = tooSimilarStep(cand, prev);
+    if (got !== want) fail(`draft-parse.js tooSimilarStep: ${name} gave ${got}, expected ${want}`);
+  }
 }
 
 /* ---------- library ---------- */

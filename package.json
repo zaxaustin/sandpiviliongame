@@ -13,8 +13,9 @@
     "test": "node test/smoke.mjs",
     "electron:dev": "concurrently -k -n vite,electron \"vite\" \"wait-on tcp:5173 && electron .\"",
     "electron:build": "vite build && electron-builder",
-    "build:beta": "vite build --mode beta",
-    "electron:build:beta": "vite build --mode beta && electron-builder"
+    "build:beta": "vite build --mode beta && node scripts/verify-beta-build.mjs",
+    "electron:build:beta": "vite build --mode beta && node scripts/verify-beta-build.mjs && electron-builder",
+    "verify:beta": "node scripts/verify-beta-build.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",
@@ -29,8 +30,15 @@
   "build": {
     "appId": "com.sandpavilion.app",
     "productName": "Sand Pavilion",
-    "files": ["dist/**/*", "electron/**/*"],
-    "directories": { "output": "release" },
-    "win": { "target": "nsis" }
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis"
+    }
   }
 }

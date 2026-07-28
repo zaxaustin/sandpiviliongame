@@ -264,8 +264,23 @@ have never met an old save.
    marquee classics are summary-only. Bundle more, ship a MinIO starter
    package, or label the summaries honestly. A decision, not a bug.
 2. **Cut the installer** — `npm run electron:build:beta` at `0.1.0-beta.2`.
+   **Never the plain `electron:build`**: that reads `.env.local` and bakes this
+   machine's Supabase URL and key into the installer. `scripts/verify-beta-build.mjs`
+   now runs inside both beta scripts and fails the build if a cloud host, a
+   JWT-shaped string, a Supabase key or MinIO credentials survive into the
+   bundle (added 2026-07-28, after a network probe caught a dev build calling
+   Supabase on startup — `BETA-TESTING-FEEDBACK.md` #16).
 3. **The clean-machine install test** — hardware that never built it. Still the
    one genuinely unverified thing.
+
+**When a local model gets something wrong, ask it something smaller** — the
+standing lesson from 2026-07-28 (`BETA-TESTING-FEEDBACK.md` #15). The lesson
+draft was one call asking for five labelled fields and returned one step; split
+into a chain of single questions it returns five, and the person watching gets a
+"6 of 8" progress line and a Stop button instead of a spinner. Same cure for the
+librarian's sort (sixty titles → eight at a time). Prefer a smaller ask to a
+cleverer parser; it is usually the better *interface* as well as the more
+reliable prompt.
 
 **Then:** hand it to two or three people and let `BETA-TESTING-FEEDBACK.md`
 fill up.

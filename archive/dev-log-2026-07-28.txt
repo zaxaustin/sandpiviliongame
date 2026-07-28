@@ -1,0 +1,121 @@
+=======================================================================
+ SAND PAVILION — dev log, 2026-07-28
+ "One question at a time"
+=======================================================================
+
+The whole session came out of one sentence:
+
+  "We have a pathway for Claude, but what human needs are simple steps.
+   If it's too much for the model we should break up the steps to make
+   it more manageable for the AI and the user."
+
+Yesterday's round ended with the lesson-drafting *working* but weak: the
+real local model returned a single run-on line and a deliberately
+forgiving parser rescued something out of it. I wrote at the time that
+"a 9B model's format adherence is unreliable" and treated that as a fact
+of life to be absorbed. It wasn't. It was a symptom of asking too much
+in one breath.
+
+WHAT WAS ACTUALLY WRONG
+-----------------------
+One call asked ornith:9b for TITLE, SUMMARY, TRACK, LEVEL and 4-6 STEPS.
+It answered the shape it could hold, not the shape it was given. The
+live test had been recording this plainly for a day — `steps: 1 lines`,
+three checks red — and I'd read it as a parsing problem.
+
+THE FIX, WHICH IS THE SAME FIX FOR BOTH HALVES
+----------------------------------------------
+The draft is a chain of single questions now: a title, then a summary,
+then a track, then each step in turn, each one a one-line answer with
+the steps written so far in front of it.
+
+The model finds every ask easy. And the person watching gets simple
+steps too, which is the part I would have missed if the request hadn't
+named both: the form fills in field by field, the status says "6 of 8"
+instead of spinning, there's a Stop button that keeps whatever arrived,
+and a stage that comes back badly costs that one field instead of the
+whole draft.
+
+Same prompt, real model, before -> after:
+    steps drafted        1  ->  5
+    live checks passing  7/11 -> 11/11
+
+TWO MORE THINGS ONLY THE REAL MODEL COULD SHOW
+----------------------------------------------
+Once the shape was fixed, the content faults became visible:
+
+  * It repeated itself. Given steps 1-4 and asked for step 5, it
+    re-wrote step 3 -- "Folds hands into a loose fist" then "Folds hands
+    into a fist". Exact-match dedupe is useless against that. So
+    tooSimilarStep() compares the ACTION half only, drops filler words,
+    and calls it a repeat when most of the shorter step's words appear
+    in the other. The chain then just asks again; three spare asks are
+    budgeted for exactly this.
+
+  * It wrote in the third person -- "Sits comfortably with back
+    straight". Fixed in the prompt: address them directly, start with a
+    verb.
+
+Both are permanent smoke cases now, with the real captured strings.
+
+THE LIBRARIAN GOT THE SAME MEDICINE
+-----------------------------------
+Sixty titles in one ask -> eight at a time. That was precisely the
+"it answered, but nothing matched your titles closely enough" failure
+from yesterday: a small model given a long list files the first few,
+invents shelves for the middle and drops the rest. Each batch's picks
+are kept even if a later one fails, and the status reports a real count.
+Real-model result: 3 of 4 -> 4 of 4.
+
+THE ONE THAT WASN'T ASKED FOR
+-----------------------------
+While chasing a stray console error in the grove suite I probed the
+running app's actual network traffic, and found it calling
+
+    https://<project>.supabase.co/rest/v1/library_documents
+
+on startup, unprompted, every launch.
+
+That is correct for this dev instance and completely wrong for anything
+handed to a beta tester. .env.beta already empties every service
+variable, so `build:beta` was always clean -- the real hazard was that
+ONE mistyped script (`electron:build` instead of `electron:build:beta`)
+produces a poisoned installer that looks identical to a good one.
+
+So it's structural now: scripts/verify-beta-build.mjs runs inside both
+beta build scripts and FAILS THE BUILD if the bundle carries a Supabase
+host, a JWT-shaped string, a Supabase key or MinIO credentials. Proved
+both directions -- it rejects a dev build (naming the exact key it
+found) and passes a beta build.
+
+Nothing was ever committed; dist/ and .env.local are both untracked.
+This was a shipping hazard, not a leak. But it's the kind of thing that
+would have been discovered by a tester, which is the wrong person to
+discover it.
+
+WHAT THIS SESSION IS WORTH REMEMBERING FOR
+------------------------------------------
+When a local model gets something wrong, ask it something smaller before
+you write a cleverer parser. It is nearly always the better interface
+for the human as well -- which is what the request said in the first
+place, and I only half heard it.
+
+Also: run the thing, watch its traffic, don't just read it. Both of
+today's real findings came from observation, not from code review.
+
+VERIFIED
+--------
+  npm test                      clean
+  npm run build                 clean
+  npm run build:beta            clean + verifier passes
+  verify:beta on a dev build    correctly FAILS
+  13 live puppeteer suites      164 checks, no failures, no page errors
+  test-ai-real.mjs              11/11 against real ollama/ornith:9b
+
+STILL OPEN (unchanged)
+----------------------
+  * The user's own desktop-app run (BETA-PREFLIGHT tiers 0-2)
+  * The welcome-packet decision
+  * Cut the 0.1.0-beta.2 installer
+  * Clean-machine install test
+  * #10 -- Course Board / tree as a college index (deferred past beta)

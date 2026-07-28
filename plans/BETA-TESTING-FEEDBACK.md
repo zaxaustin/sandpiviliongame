@@ -1340,3 +1340,77 @@ next. So `data/draft-parse.js` is deliberately forgiving — newlines, then
 numbered-inline, then `action | why.` pairs, then plain sentences — and `npm
 test` carries the real captured reply as a permanent case. **The lesson: never
 trust a local model's output shape; parse what it actually sends.**
+
+---
+
+## Round — 2026-07-28 (fourth pass) — one question at a time
+
+*"We have a pathway for Claude, but what human needs are simple steps. If it's
+too much for the model we should break up the steps to make it more manageable
+for the AI and the user."*
+
+That single observation fixed the last round's remaining weakness — and it turns
+out **both halves have the same cure**. Round 3 tried to make a small model obey
+a big instruction and then wrote a clever parser to rescue whatever came back. A
+rescue is not an answer. Asking smaller was the actual fix.
+
+### 15. [x] The draft was one huge ask — now it's a chain of small ones
+
+**Before:** one call asked for TITLE, SUMMARY, TRACK, LEVEL *and* 4–6 STEPS.
+Against the real `ornith:9b` this reliably produced **one step**, because the
+model answered the shape it could hold, not the shape it was given. The live
+test recorded exactly that: `steps: 1 lines`, and three checks failing.
+
+**After:** the draft is a chain of single questions — a title, then a summary,
+then a track, then **each step in turn**, every one of them a one-line answer.
+The model finds each ask easy; the person watching gets *simple steps* too: the
+form fills in field by field, the status says **"6 of 8"** instead of spinning,
+a **✕ Stop** button keeps whatever has arrived, and a stage that comes back
+badly costs *that one field*, not the draft.
+
+**Measured on the real model, same prompt, before → after:**
+
+| | before | after |
+|---|---|---|
+| steps drafted | **1** | **5** |
+| live checks passing | 7 of 11 | **11 of 11** |
+
+Two further faults the real model exposed once the shape was fixed — neither
+visible with a stub:
+
+- **It repeated itself.** Given steps 1–4 and asked for step 5, it re-wrote step
+  3 ("Folds hands into a loose fist" / "Folds hands into a fist"). An
+  exact-match check never catches that, so `tooSimilarStep()` compares the
+  *action* half only, ignores filler words, and calls it a repeat when most of
+  the shorter step's words appear in the other — the chain then simply asks
+  again, with three spare asks budgeted for it.
+- **It wrote in the third person** ("*Sits* comfortably…"). Fixed in the prompt:
+  *"Address them directly and start with a verb."*
+
+The librarian got the same treatment: **sixty titles in one ask became eight at
+a time**, which is precisely the "it answered, but nothing matched your titles
+closely enough" failure from round 3. A partial run now keeps every batch it
+earned, and reports a real count instead of a spinner. Real-model result went
+**3 of 4 → 4 of 4**.
+
+**The general rule, worth keeping:** *if a local model is getting it wrong, ask
+it something smaller before you write a cleverer parser.* It is also, almost
+always, the better interface for the person watching.
+
+### 16. [x] A plain build would have shipped this machine's cloud keys
+
+Found by probing the running app's network traffic rather than by reading code:
+it called `https://<project>.supabase.co/rest/v1/library_documents` **on
+startup, unprompted**. Correct for the dev instance — and completely wrong for
+anything handed to a tester, who never agreed to it.
+
+`.env.beta` already empties every service variable, so `build:beta` was always
+clean; the gap was that **one mistyped script** (`electron:build` instead of
+`electron:build:beta`) silently produces a poisoned installer that looks
+identical. **Fixed structurally:** `scripts/verify-beta-build.mjs` now runs as
+part of both beta build scripts and **fails the build** if the bundle contains a
+Supabase host, anything JWT-shaped, a Supabase key or MinIO credentials.
+Verified both ways — it rejects a dev build and passes a beta build.
+
+Neither the key nor `dist/` was ever committed; this was a shipping hazard, not
+a leak.

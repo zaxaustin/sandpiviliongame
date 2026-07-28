@@ -18,6 +18,50 @@
    pipe. Newline-separated and numbered forms are handled first, because other
    models do obey; this pipe-walk is the fallback that made it work here.
    Exported for the test suite, since a parser this fiddly deserves cases. */
+/* ----- ONE QUESTION, ONE ANSWER (2026-07-28).
+
+   The fix for "steps: 1 lines" wasn't a better parser, it was a smaller ask.
+   A 9B model asked for six labelled fields at once obeys maybe half the shape;
+   the same model asked "give this lesson a title" answers cleanly nearly every
+   time. So the drafting is a chain of single questions now — which is also the
+   better shape for the person watching, since each answer lands in the form on
+   its own and can be stopped or overwritten at any point.
+
+   A small model still decorates a one-word answer, though: a `TITLE:` label it
+   was told not to write, a code fence, quotes, a bullet, a "Sure, here's..."
+   preamble. This strips all of that and returns the single answer line. */
+export function cleanAnswer(raw, opts={}){
+  let text=String(raw||'').replace(/```[a-z]*|```/gi,'').trim();
+  if(!text) return '';
+  let lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  // a conversational preamble line, when the real answer follows it
+  if(lines.length>1 && /^(sure|okay|ok|here(?:'s| is| are)|certainly|of course)\b/i.test(lines[0])) lines=lines.slice(1);
+  let line = opts.multiline ? lines.join(' ') : (lines[0]||'');
+  line=line.replace(/^\s*[-*•]\s*/,'').replace(/^\s*\d+[.)]\s*/,'');
+  line=line.replace(/^\s*step\s*\d+\s*[:.\-]\s*/i,'');
+  if(opts.label) line=line.replace(new RegExp('^\\s*'+opts.label+'\\s*[:\\-]\\s*','i'),'');
+  line=line.replace(/^["'“”«]+/,'').replace(/["'“”»]+$/,'').trim();
+  if(opts.maxWords){ const w=line.split(/\s+/); if(w.length>opts.maxWords) line=w.slice(0,opts.maxWords).join(' '); }
+  return line.trim();
+}
+/* Asking one step at a time cured the shape, but not the repetition: given the
+   steps so far and asked for the next, ornith:9b answered "Folds hands into a
+   loose fist" at step 3 and "Folds hands into a fist" at step 5 (2026-07-28).
+   An exact-match check never catches that. This compares the ACTION half only
+   (before the `|`), ignores short filler words, and calls it a repeat when most
+   of the shorter step's words appear in the other — at which point the chain
+   simply asks again rather than handing the visitor the same instruction twice. */
+export function tooSimilarStep(candidate, existing){
+  const words=s=>String(s||'').split('|')[0].toLowerCase().replace(/[^a-z]+/g,' ').trim()
+    .split(/\s+/).filter(w=>w.length>2);
+  const A=new Set(words(candidate));
+  if(A.size<2) return existing.some(b=>String(b).toLowerCase()===String(candidate).toLowerCase());
+  return existing.some(b=>{
+    const B=new Set(words(b)); if(!B.size) return false;
+    const shared=[...A].filter(w=>B.has(w)).length;
+    return shared / Math.min(A.size, B.size) > 0.6;
+  });
+}
 export function parseDraftedSteps(raw){
   const text=String(raw||'').trim();
   if(!text) return [];

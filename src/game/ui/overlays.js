@@ -4,7 +4,7 @@ import { GATE_BEQUESTS } from '../data/bequests.js';
 import { COMMONS_PACKETS, PACKET_KINDS } from '../data/commons-packets.js';
 import { VIS, visBadge, visLine, DATA_MAP } from '../data/visibility.js';
 import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.js';
-import { parseDraftedSteps } from '../data/draft-parse.js';
+import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-parse.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -5100,7 +5100,10 @@ function renderLearningTree(){
           <input type="text" id="mlSeed" placeholder="e.g. how to meditate · studying the Dao De Jing · soldering" style="flex:1"
             onkeydown="if(event.key==='Enter'){event.preventDefault();draftLessonWithAI();}">
           <button class="btn" onclick="draftLessonWithAI()">Draft it</button>
+          <button class="btn ghost" id="mlStopBtn" style="display:none" onclick="stopDrafting()">✕ Stop</button>
         </div>
+        <div class="s" style="margin-top:6px;opacity:.8">It fills the form one field at a time — title, then summary,
+          then each step — so you can watch it arrive and stop whenever you've got enough.</div>
         <div class="meta" id="mlAiOut" style="margin-top:6px"></div>
       </div>
       <label style="margin-top:12px">Title</label>
@@ -5314,47 +5317,112 @@ export function treeTab(mode){ state.treeView={mode}; renderLearningTree(); }
    and the model does the typing. Every field it fills is yours to overwrite,
    nothing is saved until you press the button, and it never invents a
    prerequisite (that's structure, and structure is direction). */
+/* ----- ONE QUESTION AT A TIME (rewritten 2026-07-28, from:
+
+     "What human needs are simple steps. If it's too much for the model we
+      should break up the steps to make it more manageable for the AI and
+      the user."
+
+   Both halves of that are true and they have the same cure. The first version
+   asked for TITLE, SUMMARY, TRACK, LEVEL and 4-6 STEPS in a single reply, and
+   ornith:9b returned one run-on line for the lot of it — the parser rescued
+   something, but a rescue is not the same as an answer. So the draft is a chain
+   of small asks now: a title, then a summary, then a track, then each step in
+   turn, every one of them a single question with a one-line answer.
+
+   The model finds each ask easy. The person watching gets the form filling in
+   in front of them, a plain "step 3 of 5" instead of a spinner, a Stop button
+   that keeps whatever arrived, and no all-or-nothing failure — a stage that
+   comes back badly costs that one field, not the draft. Slower in wall-clock,
+   far more likely to actually finish. Prerequisites are still never asked for:
+   structure is direction, and direction stays the visitor's. */
+const DRAFT_SYS = 'You are helping draft one practical lesson someone will actually walk. '
+  +'You are asked ONE small question at a time. Answer that question only, in one line, '
+  +'with no label, no preamble, no markdown and no explanation of what you are doing. '
+  +'Steps must be things a person DOES, not things they read about. Be concrete and unpretentious.';
+export function stopDrafting(){
+  if(state.mlDraft) state.mlDraft.stop=true;
+  const el=document.getElementById('mlAiOut');
+  if(el) el.textContent='Stopping — whatever it wrote is still in the form, and still yours to edit.';
+}
 export async function draftLessonWithAI(){
-  const out=document.getElementById('mlAiOut');
-  const say=t=>{ if(out) out.textContent=t; };
+  // look the element up every time: a stage can land after a re-render, and a
+  // captured reference becomes a detached node nobody ever sees (the bug that
+  // made the librarian's suggestions look inert, 2026-07-27).
+  const say=t=>{ const el=document.getElementById('mlAiOut'); if(el) el.textContent=t; };
   const seedEl=document.getElementById('mlSeed');
   const seed=(seedEl&&seedEl.value||'').trim() || (document.getElementById('mlTitle')?.value||'').trim();
   if(!seed) return say('Tell it what the lesson is about first — a few words is enough ("how to meditate", "reading the Dao De Jing").');
   if(!isAIActive()) return say('No local AI connected (⚙ Manage AI connections). You can still write it by hand.');
-  say('Drafting… (a bigger model may take a moment)');
-  const shelf=Store.allDocs().slice(0,40).map(d=>d.title).join(' | ');
+  if(state.mlDraft && state.mlDraft.running) return; // never two chains at once
+  const job = state.mlDraft = { running:true, stop:false };
+  const stopBtn=document.getElementById('mlStopBtn'); if(stopBtn) stopBtn.style.display='';
+  const set=(id,val)=>{ const e=document.getElementById(id); if(e&&val) e.value=val; return !!val; };
+  const shelf=Store.allDocs().slice(0,20).map(d=>d.title).join(' | ');
+  const ask=async(prompt,opts)=>{
+    if(job.stop) return '';
+    const reply=await AI.chat([{role:'system',content:WORK_CHARTER+'\n\n'+DRAFT_SYS},{role:'user',content:prompt}]);
+    return isEmptyReply(reply) ? '' : cleanAnswer(reply,opts);
+  };
+  const N=5, total=3+N;
+  let filled=0;
   try{
-    const reply=await AI.chat([
-      {role:'system', content:WORK_CHARTER+'\n\nYou draft a single practical lesson someone will actually walk. '
-        +'Steps must be things a person DOES, not things they read about. Be concrete and unpretentious. '
-        +'Never invent a book that is not in the list you are given. Answer ONLY in the labelled shape asked for.'},
-      {role:'user', content:`Draft a lesson on: ${seed}\n\nBooks available on their shelves (mention only these, and only if genuinely relevant): ${shelf}\n\nAnswer in exactly this shape:\nTITLE: <short, concrete lesson title>\nSUMMARY: <1-2 sentences: what they'll be able to do afterwards>\nTRACK: <a short heading this belongs under>\nLEVEL: <101, 201 or 301>\nSTEPS:
-- <do the thing> | <one sentence of why or how>
-- <do the next thing> | <why>
-(4 to 6 of them. Each step MUST start on its own new line beginning with "- ". Do not run them together in a paragraph.)`},
-    ]);
-    if(isEmptyReply(reply)) return say('It came back empty — try again, or write it yourself.');
-    const field=(k)=>{ const m=reply.match(new RegExp('^\\s*'+k+':\\s*(.+)$','im')); return m?m[1].trim():''; };
-    const set=(id,val)=>{ const e=document.getElementById(id); if(e&&val) e.value=val; return !!val; };
-    let filled=0;
-    if(set('mlTitle', field('TITLE'))) filled++;
-    if(set('mlSummary', field('SUMMARY'))) filled++;
-    set('mlTrack', field('TRACK'));
-    const lvl=field('LEVEL').match(/\d+/); if(lvl) set('mlLevel', lvl[0]);
-    // steps come after the STEPS: label, one per line, to the end of the reply
-    const sm=reply.match(/STEPS:\s*([\s\S]+)$/i);
-    if(sm){
-      const steps=parseDraftedSteps(sm[1]);
-      if(steps.length && set('mlSteps', steps.join('\n'))) filled++;
+    say(`1 of ${total} — giving it a title…`);
+    const title=await ask(`Someone wants to learn: ${seed}\n\nGive that lesson a short, concrete title.\n`
+      +`Reply with the title alone — no quotes, no label, nothing else.`, {label:'title', maxWords:12});
+    if(set('mlTitle', title)) filled++;
+
+    if(!job.stop) say(`2 of ${total} — what it's for…`);
+    const summary=await ask(`A lesson titled "${title||seed}" teaches someone about: ${seed}\n\n`
+      +`In one or two sentences, say what they will be able to DO once they've walked it.\n`
+      +`Reply with those sentences alone.`, {label:'summary', multiline:true});
+    if(set('mlSummary', summary)) filled++;
+
+    if(!job.stop) say(`3 of ${total} — where it belongs…`);
+    const track=await ask(`Under which single short heading would you file a lesson called "${title||seed}"?\n`
+      +`Two or three words, like "Meditation" or "Electronics".\nReply with the heading alone.`,
+      {label:'track', maxWords:4});
+    set('mlTrack', track);
+
+    /* The steps, one at a time, each one shown the ones already written so it
+       builds a sequence instead of five restatements of the same idea. If a
+       model volunteers several at once we take them all and skip ahead —
+       obeying more than it was asked is not a failure. */
+    const steps=[];
+    let asked=0;
+    // a few spare asks, because a repeated step is thrown away and asked again
+    while(steps.length<N && asked<N+3 && !job.stop){
+      asked++;
+      say(`${3+steps.length+1} of ${total} — ${steps.length?`step ${steps.length+1}, building on the last`:'the first thing they actually do'}…`);
+      const sofar=steps.length?`Steps already written — do NOT repeat any of these:\n${steps.map((s,k)=>`${k+1}. ${s}`).join('\n')}\n\n`:'';
+      const reply=await ask(`The lesson: "${title||seed}" — ${summary||seed}\n\n${sofar}`
+        +`Write step ${steps.length+1}: one single new thing the person does next.\n`
+        +`Address them directly and start with a verb — "Sit down…", not "Sits down…".\n`
+        +`Reply with exactly one line, in this form and nothing else:\n`
+        +`what they do | one sentence of why or how\n\n`
+        +`(Books on their shelves, if one is genuinely relevant — never invent another: ${shelf})`);
+      if(!reply) continue;
+      parseDraftedSteps(reply).map(s=>cleanAnswer(s,{label:'step'})).filter(Boolean)
+        .forEach(s=>{ if(steps.length<N && !tooSimilarStep(s, steps)) steps.push(s); });
+      set('mlSteps', steps.join('\n'));
     }
+    if(steps.length) filled++;
+
+    if(job.stop) return say(`Stopped after ${filled} field${filled===1?'':'s'} — what arrived is in the form and yours to finish. Nothing has been saved.`);
     // Never claim success without having actually filled something in. A model
-    // that replies in the wrong shape (or a provider that answers with a
+    // that answers in the wrong shape (or a provider that answers with a
     // fallback string) used to produce a cheerful "Drafted" over an untouched
     // empty form — caught in testing 2026-07-27.
     if(!filled) return say("It answered, but not in a shape I could read — nothing has been filled in. Try again, or write it yourself; the form works the same either way.");
-    say('Drafted — every field is yours to change. Prerequisites are left to you: what a lesson needs is direction, and that stays your call. Nothing is saved until you add it to the tree.');
+    say(`Drafted ${steps.length} step${steps.length===1?'':'s'} — every field is yours to change. Prerequisites are left to you: what a lesson needs is direction, and that stays your call. Nothing is saved until you add it to the tree.`);
     blip(660,.07);
-  }catch(e){ say('The connection flickered — nothing drafted. Writing it by hand always works.'); }
+  }catch(e){
+    say(filled?`The connection flickered after ${filled} field${filled===1?'':'s'} — what arrived is still in the form. Finish it by hand, or try again.`
+      :'The connection flickered — nothing drafted. Writing it by hand always works.');
+  }finally{
+    job.running=false;
+    const b=document.getElementById('mlStopBtn'); if(b) b.style.display='none';
+  }
 }
 export function newLessonForm(id){ state.treeView={mode:'write', id:id||null}; renderLearningTree(); }
 export function saveMyLesson(existingId){
@@ -8059,27 +8127,41 @@ export async function suggestShelvesWithAI(){
   const unfiled=pool.slice(0,60);
   if(!unfiled.length) return say('Nothing to sort — select some books, search for a shelf, or leave some unfiled.');
   const shelves=allShelfChoices().filter(s=>s!=='Personal');
-  say('Reading your titles… (a bigger model may take a moment)');
-  try{
-    const reply=await AI.chat([
-      {role:'system', content:WORK_CHARTER+'\n\nYou file books onto shelves. Answer ONLY with lines of the form '
-        +'`TITLE => SHELF`, one per book, nothing else. SHELF must be copied exactly from the allowed list.'},
-      {role:'user', content:`Allowed shelves: ${shelves.join(' | ')}\n\nFile these:\n${unfiled.map(b=>'- '+b.title).join('\n')}`},
-    ]);
-    if(isEmptyReply(reply)) return say('It came back empty. Filing by hand always works.');
-    let n=0; const picks={};
-    for(const line of String(reply).split('\n')){
-      const m=line.match(/^\s*[-*]?\s*(.+?)\s*=>\s*(.+?)\s*$/); if(!m) continue;
-      const title=m[1].trim().toLowerCase(), shelf=shelves.find(s=>s.toLowerCase()===m[2].trim().toLowerCase());
-      if(!shelf) continue;
-      const b=unfiled.find(x=>(x.title||'').trim().toLowerCase()===title);
-      if(!b) continue;
-      picks[b.slug]=shelf; n++;
-    }
-    state.myLibView.suggested=picks; renderMyLibrary();
-    say(n?`Suggested a shelf for ${n} of ${unfiled.length} book${unfiled.length===1?'':'s'}. Nothing has moved — accept them all, or change any one first. A suggestion is not a decision.`
-        :'It answered, but nothing matched your titles closely enough to be safe. Filing by hand always works.');
-  }catch(e){ say('The connection flickered — nothing suggested.'); }
+  /* A HANDFUL AT A TIME (2026-07-28). Sixty titles in one ask is the same
+     mistake the lesson-drafting made: a small model given a long list files
+     the first few, invents shelves for the middle, and quietly drops the rest —
+     which is exactly the "nothing matched your titles closely enough" answer
+     seen in testing. Eight at a time it gets right, and a partial run is still
+     worth something, because each batch's picks are kept even if a later one
+     fails. It also gives the person a real count instead of a spinner. */
+  const BATCH=8, batches=[];
+  for(let i=0;i<unfiled.length;i+=BATCH) batches.push(unfiled.slice(i,i+BATCH));
+  const picks={}; let n=0, flickered=false;
+  for(let bi=0; bi<batches.length; bi++){
+    const group=batches[bi];
+    say(batches.length>1 ? `Reading your titles — ${bi+1} of ${batches.length} (${n} filed so far)…`
+      : 'Reading your titles… (a bigger model may take a moment)');
+    try{
+      const reply=await AI.chat([
+        {role:'system', content:WORK_CHARTER+'\n\nYou file books onto shelves. Answer ONLY with lines of the form '
+          +'`TITLE => SHELF`, one per book, nothing else. SHELF must be copied exactly from the allowed list.'},
+        {role:'user', content:`Allowed shelves: ${shelves.join(' | ')}\n\nFile these ${group.length}:\n${group.map(b=>'- '+b.title).join('\n')}`},
+      ]);
+      if(isEmptyReply(reply)) continue;
+      for(const line of String(reply).split('\n')){
+        const m=line.match(/^\s*[-*]?\s*(.+?)\s*=>\s*(.+?)\s*$/); if(!m) continue;
+        const title=m[1].trim().toLowerCase(), shelf=shelves.find(s=>s.toLowerCase()===m[2].trim().toLowerCase());
+        if(!shelf) continue;
+        const b=group.find(x=>(x.title||'').trim().toLowerCase()===title);
+        if(!b) continue;
+        picks[b.slug]=shelf; n++;
+      }
+    }catch(e){ flickered=true; } // keep what earlier batches earned
+  }
+  state.myLibView.suggested=picks; renderMyLibrary();
+  say(n?`Suggested a shelf for ${n} of ${unfiled.length} book${unfiled.length===1?'':'s'}${flickered?' (the connection dropped part-way — run it again for the rest)':''}. Nothing has moved — accept them all, or change any one first. A suggestion is not a decision.`
+      :(flickered?'The connection flickered — nothing suggested.'
+        :'It answered, but nothing matched your titles closely enough to be safe. Filing by hand always works.'));
 }
 function renderMyLibrary(keepFocus){
   const el=document.getElementById('myLibPanel'); if(!el) return;
@@ -8419,7 +8501,7 @@ Object.assign(window, {
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
-  newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI,
+  newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openAlexandria, runLibraryTriage, applyTriageMove,
   acceptAllSuggestions, dismissSuggestions, acceptOneSuggestion,
   openStanding, setStanding, addStandingSuggestion, clearStanding,
