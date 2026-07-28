@@ -1612,3 +1612,37 @@ and gitignored; still on disk, still working locally.
 **The rest of the audit came back clean:** no keys anywhere in history, no
 books or PDFs tracked, no personal paths or email in any tracked file, MIT
 licensed, 5 MB of history.
+
+### 24. [x] Confirmed from disk: the installed app never once wrote a save
+
+*"I can't use the Sand Pavilion app on my computer."*
+
+That is finding #17, reported from the other side. Reading the Electron app
+data directory settles it beyond argument — the localStorage database in
+`%APPDATA%\sand-pavilion` contains saved data under exactly one origin:
+
+```
+localhost:5173   YES     ← npm run electron:dev, the app that works
+file://          no      ← the installed app. Nothing. Ever.
+```
+
+The installed copy was **Sand Pavilion 0.0.1, from 8 July** — older even than
+beta.1 — and it could not boot, so it never got as far as writing a save. The
+dev app has been the only working Pavilion this whole time, which is why it
+felt fine while the artifact was dead.
+
+**Two useful facts fell out of this:**
+
+- The dev app and the packaged app share an app-data *folder* but not a
+  *storage partition*, because localStorage is scoped per origin
+  (`http://localhost:5173` vs `file://`). So installing beta.2 **starts empty
+  and cannot disturb the dev Pavilion** — which is exactly the right thing for
+  testing what a friend will see. Moving real work across is Export Save →
+  Import, deliberately, by hand.
+- Personal book *text files* live in `%APPDATA%\sand-pavilion\library\` on the
+  filesystem, outside any origin — 59 of them on this machine. Those are shared,
+  and they are the part worth backing up.
+
+Uninstalling 0.0.1 is safe: electron-builder's NSIS uninstaller leaves app data
+alone by default. Backed up `Local Storage` and `library` anyway before
+touching anything, because "should be safe" is not the same as "is".

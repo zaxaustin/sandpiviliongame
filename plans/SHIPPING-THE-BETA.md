@@ -137,6 +137,49 @@ Keep it short. Everything else is in the app.
 
 ---
 
+## The first ten minutes — the path a new user actually takes
+
+Locked in 2026-07-28. This is the flow the beta is built around; if a tester
+ends up somewhere else, that is a finding worth writing down.
+
+1. **Download, run, click through the SmartScreen warning.** Installs in
+   seconds, no admin password, no options to choose.
+2. **The title screen → Enter the Grounds.** They are standing in the Pavilion.
+   Arrow keys to walk, **E** for whatever is in front of them, **Esc** for the
+   menu. That is the entire control scheme and the welcome screen says so.
+3. **The welcome panel** tells them two things that matter more than any
+   feature: *nothing here breaks by clicking around*, and *nothing here phones
+   home.* Both are literally true and both change how someone explores.
+4. **They wander into the Library** — south — and open a book. It reads like a
+   book. They press 🔊 and it reads aloud to them, with no setup at all. **This
+   is the moment the app has to land**, because it is the first thing that
+   works with zero effort and needs nothing installed.
+5. **They hit a summary-only classic** and it tells them plainly: this is a
+   summary, here is where the real text lives, drag it onto this window. Ideally
+   they go and do it — that is the core loop of the whole project in one motion.
+6. **Somewhere in here they meet a resident and get the "connect a local AI"
+   nudge.** They press ⚙ Manage AI connections → **Check this computer**, and
+   the app tells them whether their laptop should even try. Either they install
+   Ollama, or they are told honestly not to bother — **and both are fine
+   endings**, because everything above this line worked without it.
+7. **The Study, if they get that far** — the Writing Desk plans a day, a book
+   note becomes a task. That is the "reading turns into doing" claim, and it is
+   the thing most likely to bring them back tomorrow.
+
+**Everything past step 4 is optional.** A tester who reads one book aloud and
+closes it has had the app work exactly as intended. That is the bar the beta is
+actually being held to.
+
+### Is it ready?
+
+Yes, with one caveat that is about to resolve itself. Verified: the packaged
+app boots, starts and works (6/6); old saves survive (39/39); every panel opens
+with no AI, no Docker and no cloud; not one external network request; no keys
+in the bundle. **The only thing never done is a human clicking the installer** —
+and that is the very next thing that happens.
+
+---
+
 ## What a "clean install" actually means for testing
 
 The install itself is one file and one click. What has **never** been tested

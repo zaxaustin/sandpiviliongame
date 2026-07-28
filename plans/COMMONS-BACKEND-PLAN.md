@@ -148,6 +148,47 @@ you choose.
 **Recommendation: build only this, and live on it for a while.** Everything
 below is a response to a problem Phase 1 has not caused yet.
 
+### Phase 1½ — the same files, with a front door
+
+Asked for 2026-07-28: *"a web page for people to dump books for the
+commonwealth, and have guides and classes in the traditional website format,
+and it can be used as a hub for the local pavilions."*
+
+The good news is that this is **not a second thing to build**. Phase 1 already
+puts a folder of packets and an `index.json` on a box with nginx in front of
+it. Add an `index.html` beside them and the *same artifact* serves both
+audiences:
+
+- **For a person:** an ordinary website. Browse the guides, read the classes,
+  see what has been contributed, download a packet — in a browser, on a phone,
+  with no app installed and nothing to sign up for. It is the front door for
+  someone who has heard about this and wants to look before they commit to
+  downloading anything.
+- **For a Pavilion:** the same directory, read as data. `index.json` is the
+  machine-readable view of exactly what the web page shows a human.
+
+One folder, one box, one €4.50/month, two audiences. That is a genuinely nice
+property and worth protecting: **anything the website can show, a Pavilion can
+pull, because they are reading the same files.**
+
+It also answers "where do people get the app" with something better than a
+GitHub link: a page that explains what this is, links the installer, and shows
+the commons that already exists — which is a far kinder first impression than a
+repository.
+
+**What it must not become.** A website is a gravity well: accounts creep in,
+then comments, then a feed, then the thing that was local-first becomes a
+site with a downloadable client. The rule that keeps it honest is the one
+already in this plan — **the server never knows who anyone is.** No login on
+the website. Uploading a book means the same signed-packet path as everything
+else, or it means emailing it to the steward, which for the first year is
+completely sufficient.
+
+**Sequencing:** after the beta has real users. A hub with nothing in it and
+nobody to hub is a landing page for an audience that doesn't exist yet. The
+first version can honestly be one page: what this is, the installer, and the
+handful of guides already written for the app.
+
 ### Phase 2 — writes. A small signed API.
 
 When copying files by hand becomes the bottleneck, add `POST /packet`: verify
