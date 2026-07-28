@@ -253,6 +253,12 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
+**Before handing it to anyone: `plans/BETA-PREFLIGHT.md`** — the ordered
+pre-flight, written 2026-07-27. Its headline: the only installer on disk is
+**beta.1 from 11 July**, which predates nearly everything built since; the
+desktop path is verified almost entirely in a browser; and six new save stores
+have never met an old save.
+
 **The three gates to a real beta** (nothing large):
 1. **The welcome-packet decision** — only 6 of 24 seed texts read in full; the
    marquee classics are summary-only. Bundle more, ship a MinIO starter

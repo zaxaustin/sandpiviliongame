@@ -491,3 +491,41 @@ Docs: MANUAL §3 (standing instructions + the inspector, in plain language) and
 §4 (writing your own lessons), MAINTAINING (both seams), ADMIN-AND-AUTHORING
 -PLAN marked 1-3 built with 4-6 still open (save repair/merge, physical shelves
 for custom shelf names, and the deliberately-code-only tier).
+
+BETA PRE-FLIGHT written (user: "where are we overall for beta and what should we
+really test before we start asking for feedback?"). Also: the user scoped the
+internet-intake idea — THE COMPUTER (Study) becomes the one page that pulls and
+sorts info for the local AI later; for beta, drag-and-drop stays the only intake
+path, which the README already promises honestly.
+- THE HEADLINE, checked not assumed: the only installer on disk is
+  release/Sand Pavilion Setup 0.1.0-beta.1.exe, dated 11 JULY. package.json says
+  0.1.0-beta.2 but no such artifact exists. That installer predates the visual
+  revamp, second Library floor, unified Notes, bulk import, MinIO storage, the
+  Learning Tree, the Tutor, Paths, the Inheritance Hall, the Commons Table, Your
+  Library, the Steward's Index, copyright triage, standing instructions, the
+  inspector and lesson authoring. There is nothing on disk to hand anyone that
+  resembles this project. Cutting the installer is not a step in the plan, it is
+  the precondition for it.
+- THE HOLE IN OUR OWN COVERAGE, stated plainly: all 90 live checks ran in a
+  BROWSER via vite preview. The shipped artifact is ELECTRON, so the desktop
+  bridge (save dialog, libraryWrite/Read, minioWrite, the Ollama proxy,
+  streaming) is simultaneously the shipping path and the least-tested one.
+- plans/BETA-PREFLIGHT.md: tiered by what costs most if wrong.
+  T0 data safety — an OLD SAVE MEETING THE NEW BUILD is the single most
+  important test on the page (six new stores landed today alone: grove, commons,
+  myShelves, myLessons, standing, catalogEdits; migration-safe BY CONSTRUCTION is
+  not the same as TESTED); export/wipe/import round trip; the quota warning path
+  which has never actually fired; the two-installs collision.
+  T1 the artifact — cut beta.2, install on hardware that never built it (open
+  since 07-08), first run with nothing installed, and the desktop-only paths.
+  T2 the first hour — a cold walkthrough where you say NOTHING and write down
+  the hesitations; TIME the Ollama on-ramp (over 20 min or needing your help is
+  a beta blocker, not a docs gap); a messy 15-20 file drop; then sorting it.
+  T3 the new surfaces — bequest and packet round trips between two REAL installs;
+  and the honest unknown: standing instructions provably reach the prompt, but
+  whether a small local model HONOURS them has never been checked.
+  T4 the one no checklist replaces — use it yourself for a week WITHOUT changing
+  code, fixing nothing until the week is done, or it stops being a test.
+  Plus an explicit NOT-to-test list so the page stays finishable.
+- Named again as the one open decision that blocks the packet: 6 of 24 seed
+  texts read in full, and that shelf is the first impression the project makes.
