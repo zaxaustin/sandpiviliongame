@@ -8097,9 +8097,22 @@ export function myLibSelectAll(on){
 }
 function myLibFiltered(){
   const q=(state.myLibView.q||'').trim().toLowerCase();
+  const show=state.myLibView.show||'all';
   let list=personalBooks();
   if(q) list=list.filter(b=>((b.title||'')+' '+shelfOf(b)+' '+((b.doc&&b.doc.summary)||'')).toLowerCase().includes(q));
+  if(show==='unfiled') list=list.filter(b=>shelfOf(b)==='Personal');
+  else if(show==='filed') list=list.filter(b=>shelfOf(b)!=='Personal');
+  else if(show!=='all') list=list.filter(b=>shelfOf(b)===show);
   return list;
+}
+/* "There should be a distinction between the sorted and unsorted books"
+   (2026-07-28). There was none: one flat list where a filed book and an
+   unfiled one looked identical, so you could not see what was left to do —
+   which is the only question that matters while you're sorting a pile of a
+   hundred. Now the list is grouped under headers with the unfiled pile
+   always first, and these chips narrow it to one group at a time. */
+export function myLibShow(name){
+  state.myLibView.show=name; state.myLibView.sel={}; renderMyLibrary();
 }
 /* Accepting what the librarian suggested. This is the half that was missing:
    the suggestions were rendered but there was no way to say yes to them, and
@@ -8148,8 +8161,9 @@ export async function suggestShelvesWithAI(){
   // accident (128 books onto Theravada, in the case that prompted this), and
   // "only unfiled" would have been useless for exactly that.
   const sel=Object.keys(state.myLibView.sel||{});
+  const showing=(state.myLibView.show||'all')!=='all';
   const pool = sel.length ? personalBooks().filter(b=>state.myLibView.sel[b.slug])
-    : (state.myLibView.q||'').trim() ? myLibFiltered()
+    : ((state.myLibView.q||'').trim() || showing) ? myLibFiltered()
     : personalBooks().filter(b=>shelfOf(b)==='Personal');
   const unfiled=pool.slice(0,60);
   if(!unfiled.length) return say('Nothing to sort — select some books, search for a shelf, or leave some unfiled.');
@@ -8190,8 +8204,18 @@ export async function suggestShelvesWithAI(){
       :(flickered?'The connection flickered — nothing suggested.'
         :'It answered, but nothing matched your titles closely enough to be safe. Filing by hand always works.'));
 }
+/* Which element actually scrolls behind a panel — `.panel` doesn't, the
+   `.overlay` around it does. Filing books means ticking one box after another
+   in a long list, and every tick re-renders; without this the list snapped back
+   to the top each time and you lost your place after every single book.
+   Reported from real use 2026-07-28. */
+function scrollerFor(el){
+  for(let n=el; n; n=n.parentElement){ if(n.scrollHeight>n.clientHeight+4) return n; }
+  return null;
+}
 function renderMyLibrary(keepFocus){
   const el=document.getElementById('myLibPanel'); if(!el) return;
+  const sc=scrollerFor(el), keptScroll=sc?sc.scrollTop:0;
   const v=state.myLibView||(state.myLibView={q:'',sel:{}});
   const books=personalBooks(), list=myLibFiltered();
   const selCount=Object.keys(v.sel||{}).length;
@@ -8261,22 +8285,57 @@ function renderMyLibrary(keepFocus){
         </select>
         <button class="btn" onclick="myLibMoveSelected()">Move them all</button>
       </div>`:''}
-    <div style="margin-top:10px">
-    ${list.length ? list.map(b=>{
-      const dupe=titleCount[(b.title||'').trim().toLowerCase()]>1;
-      const on=!!(v.sel||{})[b.slug];
-      return `<div class="card" style="cursor:default${dupe?';border-color:#e0a43c':''}${on?';box-shadow:inset 0 0 0 2px var(--gold)':''}">
-        <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> ${b.sharing==='copyright'?'🔒 ':b.sharing==='unknown'?'❔ ':(b.sharing==='open'||b.sharing==='pd')?'🤝 ':''}${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
-        <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
-          <select id="myLibShelf_${esc(b.slug)}" onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto;min-width:150px">${opts(b)}</select>
-          ${sug[b.slug]?`<button class="btn" style="font-size:11px;padding:3px 10px;border-color:#7fa36b" onclick="acceptOneSuggestion('${esc(b.slug)}')" title="File it where the librarian suggests">✨ → ${esc(sug[b.slug])}</button>`:''}
-          <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
-          <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:var(--danger);color:var(--danger-soft)" onclick="removePersonalBook('${esc(b.slug)}','mylib')">Remove</button>
-        </div>
+    ${(()=>{
+      /* THE FILED / UNFILED DISTINCTION. Chips to narrow the list, then the
+         list itself grouped under headers with the unfiled pile first — so
+         "how much is left to sort" is answerable at a glance instead of by
+         scrolling a flat list looking at dropdowns. */
+      const show=v.show||'all';
+      const filedTotal=books.length-(counts['Personal']||0);
+      const shelvesWith=[...mine, ...TRADITIONS].filter(s=>counts[s]);
+      const chip=(key,label,n,colour)=>`<button class="btn ${show===key?'':'ghost'}" style="font-size:11px;padding:3px 10px${colour&&show!==key?';border-color:'+colour+';color:'+colour:''}" onclick="myLibShow('${esc(key)}')">${label}${n!=null?' <b>'+n+'</b>':''}</button>`;
+      const chips=`<div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center">
+        <span class="meta" style="margin:0">Show:</span>
+        ${chip('all','Everything',books.length)}
+        ${chip('unfiled','📥 Still to sort',counts['Personal']||0,'#8a6a3a')}
+        ${chip('filed','✓ Sorted',filedTotal,'#7fa36b')}
+        ${shelvesWith.map(s=>chip(s,'📗 '+esc(s),counts[s])).join('')}
       </div>`;
-    }).join('') : `<p class="meta">${books.length?'Nothing matches that search.':'No books of your own yet — ＋ Add a book or paper above. A .txt or .epub, dragged in, with no license needed.'}</p>`}
-    </div>`;
+      const card=b=>{
+        const dupe=titleCount[(b.title||'').trim().toLowerCase()]>1;
+        const on=!!(v.sel||{})[b.slug];
+        const isUnfiled=shelfOf(b)==='Personal';
+        return `<div class="card" style="cursor:default${dupe?';border-color:#e0a43c':on?'':(isUnfiled?';border-color:#8a6a3a':';border-color:#4f6b45')}${on?';box-shadow:inset 0 0 0 2px var(--gold)':''}">
+          <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> <span title="${isUnfiled?'not filed yet':'filed'}">${isUnfiled?'📥':'✓'}</span> ${b.sharing==='copyright'?'🔒 ':b.sharing==='unknown'?'❔ ':(b.sharing==='open'||b.sharing==='pd')?'🤝 ':''}${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
+          <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
+            <select id="myLibShelf_${esc(b.slug)}" onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto;min-width:150px">${opts(b)}</select>
+            ${sug[b.slug]?`<button class="btn" style="font-size:11px;padding:3px 10px;border-color:#7fa36b" onclick="acceptOneSuggestion('${esc(b.slug)}')" title="File it where the librarian suggests">✨ → ${esc(sug[b.slug])}</button>`:''}
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:var(--danger);color:var(--danger-soft)" onclick="removePersonalBook('${esc(b.slug)}','mylib')">Remove</button>
+          </div>
+        </div>`;
+      };
+      if(!list.length) return chips+`<p class="meta" style="margin-top:12px">${
+        books.length?'Nothing here — try another group, or clear the search.'
+        :'No books of your own yet — ＋ Add a book or paper above. A .txt or .epub, dragged in, with no license needed.'}</p>`;
+      // one group, or grouped-with-headers when showing everything
+      const groups=[];
+      if(show==='all'){
+        const un=list.filter(b=>shelfOf(b)==='Personal');
+        if(un.length) groups.push(['📥 Still to sort', un, '#8a6a3a', 'Books with no shelf yet. This is the pile.']);
+        [...mine, ...TRADITIONS].forEach(s=>{
+          const g=list.filter(b=>shelfOf(b)===s);
+          if(g.length) groups.push(['📗 '+s, g, '#7fa36b', null]);
+        });
+      } else groups.push([null, list, null, null]);
+      return chips+`<div style="margin-top:10px">${groups.map(([head,g,colour,note])=>`
+        ${head?`<h3 style="margin:16px 0 4px;color:${colour}">${esc(head)} <span class="badge lic">${g.length}</span></h3>
+          ${note?`<div class="meta" style="margin-bottom:6px">${note}</div>`:''}`:''}
+        ${g.map(card).join('')}`).join('')}</div>`;
+    })()}`;
   if(keepFocus){ const s=document.getElementById('myLibSearch'); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); } }
+  // put the reader back exactly where they were — see scrollerFor() above
+  if(sc && keptScroll) sc.scrollTop=keptScroll;
 }
 /* Kept for the old entry point; the Manage panel is now Your Library. */
 export function openManageLibrary(){ openMyLibrary(); }
@@ -8536,7 +8595,7 @@ Object.assign(window, {
   runCopyrightCheck,
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
-  openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle,
+  openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
   writePacketFile, triggerImportPacket, setCommonsName,

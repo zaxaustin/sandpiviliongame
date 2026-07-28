@@ -1516,3 +1516,31 @@ dependency, not a runtime one. Moved to `devDependencies`:
 **`0.1.0-beta.2` is cut** — and unlike beta.1 it has been verified as the
 artifact rather than as source: the packaged app boots, starts, opens
 panels, carries no cloud host and no keys, and wears its own icon.
+
+### 20. [x] Sorting books lost your place, and filed looked like unfiled
+
+*"For the sorting of books it always goes back to the top when I select a
+book… there should be a distinction between the sorted and unsorted books."*
+
+Two faults in the one screen you actually use to sort a hundred books.
+
+**It lost your place.** Every tick re-renders the panel, and the panel is
+replaced wholesale — so the `.overlay` that scrolls snapped back to the top
+after *every single book*. Filing a large import that way is close to
+impossible. `scrollerFor()` now finds whichever ancestor actually scrolls and
+restores its position after the redraw.
+
+**Filed and unfiled looked identical.** One flat list where the only clue was
+a dropdown's current value, so the question that matters while sorting —
+*how much is left?* — had no answer short of scrolling the whole thing. Now:
+
+- **chips across the top** with live counts — Everything · 📥 Still to sort ·
+  ✓ Sorted · then one per shelf — each narrowing the list to that group;
+- when showing everything, the list is **grouped under headings** with the
+  unfiled pile always first;
+- and each card carries 📥 or ✓ with a warm border for unfiled, green for
+  filed, so the state is legible without reading the dropdown.
+
+Verified with a 62-book library (40 unfiled, 15 Electronics, 7 Cooking):
+scroll held at 900px across a tick, every chip filtered correctly, and no
+book was lost by any of it.
