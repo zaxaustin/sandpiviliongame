@@ -529,3 +529,63 @@ path, which the README already promises honestly.
   Plus an explicit NOT-to-test list so the page stays finishable.
 - Named again as the one open decision that blocks the packet: 6 of 24 seed
   texts read in full, and that shelf is the first impression the project makes.
+
+THE READER, FIXED FROM REAL USE — the first round of findings that came from
+someone actually sitting and listening to a book rather than from imagination.
+The user, honestly: "you were right, I have been putting off using it a bit — I
+was doing npm run dev in the terminal but not using the desktop app."
+Six reported problems, all in the read-aloud path, all real, all fixed:
+- DOING ANYTHING KILLED THE VOICE PERMANENTLY. closeUI() called stopSpeaking(),
+  which is speechSynthesis.cancel() — a destruction, not a pause, with no stored
+  position. And every panel in the game routes through closeUI(). Fixed with
+  REAL pause/resume in tts.js, implemented by recording the absolute character
+  offset and re-speaking from it rather than by speechSynthesis.pause() — which
+  drops long utterances in Chrome, i.e. is the exact failure being reported. A
+  pause is now just a number, so it survives anything.
+- COULDN'T TALK TO QUILL WHILE LISTENING: any other speech wiped the book's
+  buffer. yieldBookAudio() now PARKS the book instead of destroying it, so the
+  conversation happens and the book is still there afterwards.
+- POCKETING LOST YOUR PAGE: minimizeReader stored {slug} only and restoreReader
+  called openReader(), which nulls fullTextView — dumping you at the summary.
+  The pocket now carries the page and openFullText(slug, page) lands on it.
+- NO WAY TO MOVE THROUGH A LONG BOOK: only ±10s and one page at a time, useless
+  in a 101-page Gita. Added ±10% jumps, "go to page…", and chapter skip where
+  the text has findable headings — requiring >=2 marks, or the buttons stay
+  HIDDEN rather than lying about what they can do.
+- TURNING A PAGE KILLED THE READING: renderFullTextPage opened with
+  stopSpeaking(). It now carries the voice onto the new page.
+- "IF I HAVE TO SIT AND LISTEN THAT'S FINE, BUT LET ME RESUME": a finished page
+  now TURNS ITSELF and keeps reading, so a whole book can be heard without
+  touching anything; and the pocket card shows position ("⏸ paused · p.34 ·
+  41%") with its own pause/resume.
+VERIFIED: 16 live checks against the real Gita, driving a STUBBED speech engine
+(defineProperty — window.speechSynthesis is a read-only accessor, my first stub
+silently didn't take) so the actual state machine runs, including that resume
+continues MID-TEXT rather than restarting the page. All eight other suites still
+green: 96 live checks total.
+Logged as a proper round in BETA-TESTING-FEEDBACK.md with the lesson attached:
+none of this was findable by testing config or panels. It needed someone to sit
+and listen for a while — which is exactly why BETA-PREFLIGHT Tier 4 exists.
+
+LIVING-TREE-AND-DISCUSSION-PLAN.md written for the bigger ask (animate the
+lesson board into a real skill tree; a personal tree and a COLLECTIVE one that
+only grows when someone brings back notes or a class; and somewhere to discuss).
+Untangled into four things, because one already exists and one can't be done
+honestly without a server:
+1. MAKING YOUR OWN COURSES ALREADY WORKS (built earlier today) — so "a place to
+   make my own courses on meditation and the Dao" needs no new code; writing one
+   is the fastest way to find what the form is missing.
+2. THE TREE AS A TREE: draw the prerequisite EDGES first (half a day, biggest
+   payoff), then depth-based layout, then render only the neighbourhood —
+   "thousands of courses" is only a rendering problem if you insist on drawing
+   thousands. Animate GROWTH on completion, not an idle state, per the
+   sleeper-car rule.
+3. THE COLLECTIVE TREE: the good idea is that it only grows when someone
+   contributes notes or a class, never on a bare completion. A packet is already
+   that unit — so the shared tree can be built file-based TODAY, as the graph of
+   packets that have reached you. A partial view of the commons, honestly.
+4. DISCUSSION is the one genuine wall: several people seeing each other's words
+   needs a server. Three options priced honestly (per-lesson discussion with a
+   resident now; correspondence threads that travel as packets next; a real
+   shared board only when there is a second person) — same rule that governs
+   every other server question here.

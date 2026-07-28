@@ -77,6 +77,7 @@
     <div class="phoneName" id="bookPhoneName"></div>
     <div class="phoneStatus" id="bookPhoneStatus"></div>
   </div>
+  <button class="pingDismiss" id="bookPhoneAudio" onclick="togglePocketAudio(event)" title="Pause / resume reading" style="display:none;right:34px">⏸</button>
   <button class="pingDismiss" onclick="dismissReaderPocket()" title="Put the book down">✕</button>
 </div>
 
@@ -129,8 +130,18 @@
       <button class="btn ghost" id="rdFullTextReadBtn" onclick="toggleFullTextReadAloud()">🔊 Read this page</button>
       <button class="btn ghost" id="rdAnalyzeBtn" onclick="aiAnalyzePage()" style="display:none">✨ Analyze this page</button>
       <button class="btn ghost" onclick="askSebastianAboutBook()" title="Ask Sebastian about this page">💬 Ask about this page</button>
+      <button class="btn ghost" id="rdPauseBtn" onclick="toggleReadingPause()" title="Pause / resume — your place is kept" style="display:none">⏸ Pause</button>
       <button class="btn ghost" id="rdSkipBack" onclick="skipReadAloud(-10)" title="Back 10 seconds" style="display:none">⏪ 10s</button>
       <button class="btn ghost" id="rdSkipFwd" onclick="skipReadAloud(10)" title="Forward 10 seconds" style="display:none">10s ⏩</button>
+    </div>
+    <!-- getting somewhere in a long book: chapters where the text has them,
+         and a 10% jump always -->
+    <div class="row" id="rdChapterRow" style="margin-bottom:10px;flex-wrap:wrap;gap:6px;display:none">
+      <button class="btn ghost" id="rdChapPrev" onclick="jumpChapter(-1)" title="Previous chapter" style="display:none">⏮ Chapter</button>
+      <button class="btn ghost" onclick="jumpFraction(-0.1)" title="Back 10% of the book">◀◀ 10%</button>
+      <button class="btn ghost" onclick="jumpToPageNum()" title="Jump to a page number">⤒ Go to page…</button>
+      <button class="btn ghost" onclick="jumpFraction(0.1)" title="Forward 10% of the book">10% ▶▶</button>
+      <button class="btn ghost" id="rdChapNext" onclick="jumpChapter(1)" title="Next chapter" style="display:none">Chapter ⏭</button>
     </div>
     <div id="rdFullTextBody" class="fullTextPage"></div>
     <div class="row" style="margin-top:18px;align-items:center">

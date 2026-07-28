@@ -12,7 +12,7 @@ import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
 import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
 import { isLoggedIn, isSteward, userEmail, sendMagicLink, signOut, onAuthChange } from '../data/auth.js';
-import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech } from '../tts.js';
+import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
 import { epubToText } from '../epub.js';
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -62,7 +62,8 @@ export function closeDialog(){
    not just Quill's spoken library summaries below. */
 export function toggleDialogSpeak(){
   const d=state.dialog; if(!d||d.chat) return;
-  if(isSpeaking()){ stopSpeaking(); updateDialogSpeakBtn(); return; }
+  if(isSpeaking() && !state.bookAudio){ stopSpeaking(); updateDialogSpeakBtn(); return; }
+  yieldBookAudio();
   speak(d.lines[d.idx], updateDialogSpeakBtn);
   updateDialogSpeakBtn();
 }
@@ -255,7 +256,8 @@ export function sendCurrentChatMessage(){
 }
 export function toggleChatSpeak(){
   const d=state.dialog; if(!d||!d.chat) return;
-  if(isSpeaking()){ stopSpeaking(); updateChatSpeakBtn(); return; }
+  if(isSpeaking() && !state.bookAudio){ stopSpeaking(); updateChatSpeakBtn(); return; }
+  yieldBookAudio();
   const last=d.transcript[d.transcript.length-1];
   speak(last?last.text:'', updateChatSpeakBtn);
   updateChatSpeakBtn();
@@ -1268,7 +1270,31 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
 function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','stewardIdxOv','standingOv','promptOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
-export function closeUI(){ state.ui=null; hideAllOv(); stopTyping(); stopSpeaking(); state.audioReturnSlug=null; state.notesLogEdit=null; persist(); }
+/* Closing a panel used to CANCEL read-aloud outright, with no way back — the
+   single most-complained-of thing in real use ("if I try to do anything it
+   pauses that voice and I can't even unpause it"). Now: a book you're
+   listening to keeps its place. If it was reading from the pocket it simply
+   keeps reading; otherwise it parks, resumable, and the pocket card shows a ▶.
+   Speech that isn't a book (a spoken reply, a summary) still just stops. */
+/* Another voice (a spoken reply, a summary) needs the one speech channel. It
+   parks the book instead of cancelling it, so "I was listening to a book and
+   then talked to Quill" ends with the book still resumable from the pocket
+   rather than simply gone. */
+function yieldBookAudio(){
+  if(state.bookAudio && isSpeaking()){
+    pauseSpeaking();
+    showBookPocketFor(state.bookAudio);
+    return true;
+  }
+  return false;
+}
+export function closeUI(){
+  state.ui=null; hideAllOv(); stopTyping();
+  if(state.readerPocket){ /* the book is pocketed — never interrupt it */ }
+  else if(state.bookAudio && isSpeaking()){ pauseSpeaking(); showBookPocketFor(state.bookAudio); }
+  else stopSpeaking();
+  state.audioReturnSlug=null; state.notesLogEdit=null; persist();
+}
 
 /* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
    works identically with no account at all; logging in adds cross-
@@ -2351,7 +2377,7 @@ function paginateFullText(text){
    Try the inline copy first (instant, no network); only reach for MinIO
    when there isn't one, and fail visibly rather than silently if MinIO
    isn't running, instead of leaving the reader stuck on "Loading…". */
-export async function openFullText(slug){
+export async function openFullText(slug, landOnPage){
   const d=Store.getDoc(slug); if(!d||!d.doc.fullText) return;
   const ft=d.doc.fullText;
   document.getElementById('rdFullTextMeta').innerHTML =
@@ -2393,7 +2419,9 @@ export async function openFullText(slug){
     }
   }
   if(!text) return;
-  state.fullTextView = { slug, pages:paginateFullText(text), page:0 };
+  const pages=paginateFullText(text);
+  const want=(typeof landOnPage==='number') ? Math.max(0, Math.min(pages.length-1, landOnPage)) : 0;
+  state.fullTextView = { slug, pages, page:want };
   renderFullTextPage();
 }
 export function backToSummary(){
@@ -2406,6 +2434,7 @@ export function backToSummary(){
 }
 function renderFullTextPage(){
   const v=state.fullTextView; if(!v) return;
+  const wasReading=isSpeaking()||isPaused(); // carry the voice onto the new page rather than killing it
   stopSpeaking();
   document.getElementById('rdFullTextBody').textContent=v.pages[v.page];
   document.getElementById('rdFullTextPageNum').textContent=`Page ${v.page+1} of ${v.pages.length}`;
@@ -2413,6 +2442,7 @@ function renderFullTextPage(){
   updateFullTextSpeakBtn();
   { const ab=document.getElementById('rdAnalyzeBtn'); if(ab) ab.style.display='inline-block'; } // always shown; nudges to connect an AI if none (see aiAnalyzePage)
   renderBookNotes(v.slug); // the per-page note filter follows you as you turn pages
+  if(wasReading) speakPage(); // you were listening — keep listening, on this page
 }
 export function fullTextNextPage(){
   const v=state.fullTextView; if(!v||v.page>=v.pages.length-1) return;
@@ -2426,13 +2456,31 @@ function updateFullTextSpeakBtn(){
   const btn=document.getElementById('rdFullTextReadBtn'); if(!btn) return;
   if(!ttsAvailable()){ btn.style.display='none'; return; }
   btn.style.display='inline-block';
-  btn.textContent = isSpeaking() ? '⏹ Stop' : '🔊 Read this page';
+  btn.textContent = (isSpeaking()||isPaused()) ? '⏹ Stop reading' : '🔊 Read aloud from here';
   // the ±10s skip only means anything while actually reading — hide it
   // otherwise so the row isn't cluttered with dead controls (beta #6)
   const show = canSkipSpeech() ? 'inline-block' : 'none';
   const back=document.getElementById('rdSkipBack'), fwd=document.getElementById('rdSkipFwd');
   if(back) back.style.display=show;
   if(fwd) fwd.style.display=show;
+  // pause/resume is available whenever a book has audio at all — the whole
+  // point is that it survives being interrupted
+  const pz=document.getElementById('rdPauseBtn');
+  if(pz){
+    pz.style.display = hasAudio() ? 'inline-block' : 'none';
+    pz.textContent = isPaused() ? '▶ Resume' : '⏸ Pause';
+  }
+  const v=state.fullTextView;
+  const ch=document.getElementById('rdChapterRow');
+  if(ch) ch.style.display = v ? 'flex' : 'none';
+  const cb=document.getElementById('rdChapPrev'), cf=document.getElementById('rdChapNext');
+  const hasCh = v && chapterPages(v).length ? 'inline-block' : 'none';
+  if(cb) cb.style.display=hasCh;
+  if(cf) cf.style.display=hasCh;
+}
+export function toggleReadingPause(){
+  if(isPaused()) resumeSpeaking(); else pauseSpeaking();
+  updateFullTextSpeakBtn(); renderBookPhone();
 }
 // podcast-style skip within the page being read aloud. Re-speaks from a new
 // offset (see tts.js skipSpeech) and re-syncs the buttons after.
@@ -2445,12 +2493,70 @@ export function skipReadAloud(seconds){
 /* Per-page, not whole-book — a 50-page speech queued up front would be
    impossible to stop cleanly or resume mid-book. Reading a page and
    turning to the next is the same unit a human reader already uses, so
-   read-aloud follows the same unit instead of inventing a bigger one. */
-export function toggleFullTextReadAloud(){
-  if(isSpeaking()){ stopSpeaking(); updateFullTextSpeakBtn(); return; }
+   read-aloud follows the same unit instead of inventing a bigger one.
+
+   What changed 2026-07-27, from real use: the page finishing now TURNS THE
+   PAGE and keeps going, so "if I have to sit and listen that's fine" is
+   actually true — you can listen to a whole book without touching anything.
+   And `state.bookAudio` remembers which book is speaking, so the voice can
+   survive closing the panel, opening a chat, or walking off. */
+function speakPage(){
   const v=state.fullTextView; if(!v) return;
-  speak(v.pages[v.page], updateFullTextSpeakBtn);
+  state.bookAudio={ slug:v.slug, page:v.page };
+  speak(v.pages[v.page], ()=>{
+    // finished this page: turn to the next and carry on, or stop at the end
+    const cur=state.fullTextView;
+    if(cur && cur.slug===v.slug && cur.page<cur.pages.length-1 && state.bookAudio){
+      cur.page++;
+      if(state.ui==='reader') renderFullTextPage(); else speakPage();
+      return;
+    }
+    state.bookAudio=null;
+    updateFullTextSpeakBtn(); renderBookPhone();
+  });
   updateFullTextSpeakBtn();
+}
+export function toggleFullTextReadAloud(){
+  if(isSpeaking()||isPaused()){ stopSpeaking(); state.bookAudio=null; updateFullTextSpeakBtn(); return; }
+  const v=state.fullTextView; if(!v) return;
+  speakPage();
+}
+/* ----- Getting somewhere in a long book. "It should let me skip to the next
+   chapter, or like 10% of the book at the very least." Both, now: chapter
+   marks where the text actually has them, and a 10% jump always. */
+function chapterPages(v){
+  if(!v) return [];
+  if(v._chapters) return v._chapters;
+  const marks=[];
+  const head=/^\s*(chapter|book|part|canto|letter|section)\b[\s.:—-]*([ivxlcdm]+|\d+)?/i;
+  v.pages.forEach((text,i)=>{
+    for(const line of text.split('\n').slice(0,3)){
+      const t=line.trim();
+      if(t && t.length<70 && head.test(t)){ marks.push({page:i, label:t.slice(0,40)}); break; }
+    }
+  });
+  v._chapters = marks.length>=2 ? marks : [];
+  return v._chapters;
+}
+export function jumpChapter(dir){
+  const v=state.fullTextView; if(!v) return;
+  const marks=chapterPages(v); if(!marks.length) return;
+  const next = dir>0 ? marks.find(m=>m.page>v.page) : [...marks].reverse().find(m=>m.page<v.page);
+  if(!next){ if(dir<0) v.page=0; else return; } else v.page=next.page;
+  renderFullTextPage(); blip(dir>0?600:460,.06);
+}
+export function jumpFraction(frac){
+  const v=state.fullTextView; if(!v) return;
+  const step=Math.max(1, Math.round(v.pages.length*Math.abs(frac)));
+  v.page=Math.max(0, Math.min(v.pages.length-1, v.page + (frac<0?-step:step)));
+  renderFullTextPage(); blip(frac>0?600:460,.06);
+}
+export function jumpToPageNum(){
+  const v=state.fullTextView; if(!v) return;
+  const raw=window.prompt(`Which page? (1 – ${v.pages.length})`, String(v.page+1));
+  const n=parseInt(raw,10); if(!n||isNaN(n)) return;
+  v.page=Math.max(0, Math.min(v.pages.length-1, n-1));
+  renderFullTextPage();
 }
 export function markRead(){
   const slug=state.currentDoc; if(!slug) return;
@@ -2470,25 +2576,51 @@ export function backToShelf(){ stopSpeaking(); openShelf(state.shelfTradition||'
    hidden — the read-aloud is NEVER stopped here, and state.ui is cleared so
    the player is free to move (movement is gated on state.ui in main.js). */
 let bookPhoneTimer=null;
+/* Pocketing used to remember only the slug, so coming back dumped you at the
+   summary and lost the page you were on ("if I pocket it, it will leave the
+   page I was on"). It now carries the page too, and restores you exactly
+   where you were — mid-book, mid-sentence if it's still reading. */
 export function minimizeReader(){
   const slug=state.currentDoc; if(!slug) return;
-  state.readerPocket={ slug };
+  const v=state.fullTextView;
+  state.readerPocket={ slug, page:(v&&v.slug===slug)?v.page:null };
   state.ui=null;                                  // free to walk
   document.getElementById('readerOv').classList.remove('open');
+  showBookPocketFor(state.readerPocket);
+  blip(520,.05,'sine',.03);
+}
+/* Also used when a book is left reading and you close the panel some other
+   way — the pocket card is where a running book always lives. */
+function showBookPocketFor(p){
+  state.readerPocket = p && p.slug ? { slug:p.slug, page:(p.page ?? null) } : state.readerPocket;
+  if(!state.readerPocket) return;
   renderBookPhone();
   clearInterval(bookPhoneTimer);
-  bookPhoneTimer=setInterval(renderBookPhone,1000); // keep the "🔊 reading…" status honest as speech starts/ends
-  blip(520,.05,'sine',.03);
+  bookPhoneTimer=setInterval(renderBookPhone,1000); // keep the status honest as speech starts/ends
 }
 export function restoreReader(){
   const p=state.readerPocket; if(!p) return;
   state.readerPocket=null; hideBookPhone();
   openReader(p.slug);                             // openReader never stops speech — audio carries straight through
+  if(p.page!=null) openFullText(p.slug, p.page);  // …and back to the very page you left
   blip(700,.05,'square',.03);
 }
 export function dismissReaderPocket(){
-  state.readerPocket=null; stopSpeaking(); hideBookPhone();
+  state.readerPocket=null; state.bookAudio=null; stopSpeaking(); clearPaused(); hideBookPhone();
   blip(392,.05,'sine',.03);
+}
+/* Pause/resume straight from the pocket card, so a book you're listening to
+   while walking around can be stopped and picked up without opening anything. */
+export function togglePocketAudio(ev){
+  if(ev&&ev.stopPropagation) ev.stopPropagation();
+  if(isPaused()) resumeSpeaking();
+  else if(isSpeaking()) pauseSpeaking();
+  else { // nothing parked — start reading the pocketed page
+    const p=state.readerPocket; if(!p) return;
+    const d=Store.getDoc(p.slug); if(!d) return;
+    restoreReader(); return;
+  }
+  renderBookPhone();
 }
 function hideBookPhone(){
   clearInterval(bookPhoneTimer); bookPhoneTimer=null;
@@ -2500,10 +2632,14 @@ function renderBookPhone(){
   if(!p){ hideBookPhone(); return; }
   const d=Store.getDoc(p.slug);
   document.getElementById('bookPhoneName').textContent = d ? d.title : 'Book';
-  const reading=isSpeaking();
+  const reading=isSpeaking(), parked=isPaused();
   el.classList.toggle('reading', reading);
+  const pct=Math.round(speechProgress()*100);
+  const where=(p.page!=null)?` · p.${p.page+1}`:'';
   document.getElementById('bookPhoneStatus').textContent =
-    reading ? '🔊 reading aloud · tap to return' : 'tap to return to the book';
+    reading ? `🔊 reading${where} · ${pct}%` : parked ? `⏸ paused${where} · ${pct}% · tap ▶ to go on` : 'tap to return to the book'+where;
+  const btn=document.getElementById('bookPhoneAudio');
+  if(btn){ btn.style.display = (reading||parked) ? 'block' : 'none'; btn.textContent = parked ? '▶' : '⏸'; }
   el.classList.add('show');
 }
 
@@ -7818,6 +7954,7 @@ Object.assign(window, {
   choosePlantKind, createPlanting, plantSeedFromPouch, gatherSeeds, attemptTrial,
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
+  toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum,
   newLessonForm, saveMyLesson, deleteMyLesson,
   openStanding, setStanding, addStandingSuggestion, clearStanding,
   openPromptInspector, openStandingForCurrentChat, openPromptForCurrentChat,

@@ -125,8 +125,20 @@ your own standing instructions, so you can watch them take effect.
 - **Read a book:** face a shelf, press E, browse spines with ◀ ▶, open with
   E. Books with a **📖 Read the full text** button are complete, real,
   page-by-page texts, not summaries.
-- **Read aloud:** the 🔊 button speaks the page; ±10-second skips work like
-  a podcast. Voice and speed live in the pause menu's **🔊 Voice settings**.
+- **Read aloud, and it stays with you.** 🔊 reads the page — and when the page
+  finishes it **turns itself and keeps going**, so you can listen to a whole
+  book without touching anything. **⏸ Pause** keeps your exact place, and
+  ▶ Resume picks up mid-sentence, not from the top of the page. Voice and speed
+  live in the pause menu's **🔊 Voice settings**.
+- **Nothing you do destroys the reading any more.** Close the panel, open your
+  notes, walk off, talk to a resident — the book parks itself on the little
+  card in the bottom-left corner, which shows where you are (`⏸ paused · p.34 ·
+  41%`) and has its own ⏸/▶. If a resident speaks a reply, the book steps aside
+  and waits rather than being lost.
+- **Getting somewhere in a long book:** ±10 seconds for a misheard sentence,
+  **±10% of the book** for real distance, **Go to page…** for somewhere exact,
+  and **⏮/⏭ Chapter** when the text has chapter headings the Pavilion can find
+  (if it can't find at least two, the buttons stay hidden rather than pretend).
 - **Listen while you jot:** start read-aloud, then use the note box right there
   (the audio keeps going as you type). Want your *whole* notebook while it plays?
   Press **🗒 My notes (keeps playing)** — it opens Your Notes without stopping the
@@ -134,8 +146,8 @@ your own standing instructions, so you can watch them take effect.
 - **Pocket a book and walk around:** press **📕 Pocket & walk** to close the
   reader and roam the grounds while it keeps reading aloud — exactly like
   pocketing a conversation with the phone. A small card sits in the bottom-left
-  corner (it pulses while reading); tap it to drop back into the book, or ✕ to
-  put it down. Your place is held either way.
+  corner (it pulses while reading); tap it to drop back into the book — **on the
+  very page you left**, not at the beginning — or ✕ to put it down.
 - **Let the AI read with you:** the Reader always shows **✨ Overall impression**
   (its thoughtful take on the whole book) and, in the full text, **✨ Analyze this
   page** (a close read of the passage you're on). Click either with a local AI

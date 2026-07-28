@@ -1170,3 +1170,67 @@ physical shelves can't scale; (2) a **clean agreed taxonomy**; (3) the
 **Taxonomy shape being confirmed with the user before building** (re-tagging a
 big library later is the costly mistake to avoid). All verified (check + smoke + build clean).
 
+
+## Round — 2026-07-27 · the reader, found by actually listening to a book
+
+The most valuable round so far, because it came from real use rather than
+imagination. The user's own words: *"you were right, I have been putting off
+using it a bit — I was doing npm run dev in the terminal but not using the
+desktop app."* Six findings, all in the read-aloud/reader path, all fixed the
+same day. Every one of them compounded: together they made listening to a book
+feel broken enough to stop trying.
+
+### 1. [x] Doing anything killed the voice, permanently
+
+**What happened:** *"If I try to do anything it pauses that voice and I can't
+even unpause it."* **Cause:** `closeUI()` called `stopSpeaking()`, which is
+`speechSynthesis.cancel()` — not a pause, a destruction, with no stored
+position. Every panel in the game routes through `closeUI()`.
+**Fixed:** real pause/resume in `tts.js`, implemented by recording the absolute
+character offset and re-speaking from it rather than by
+`speechSynthesis.pause()` (which drops long utterances in Chrome — the exact
+failure being reported). Closing a panel now *parks* a book and surfaces the
+pocket card with a ▶.
+
+### 2. [x] Couldn't talk to Quill while listening
+
+**What happened:** *"If I want to talk to Quill I can't if I'm listening to the
+book."* **Cause:** any other speech (a spoken reply) called `stopSpeaking()`,
+wiping the book's buffer. **Fixed:** `yieldBookAudio()` — another voice *parks*
+the book instead of destroying it, so the conversation happens and the book is
+still there, resumable, afterwards.
+
+### 3. [x] Pocketing a book lost the page you were on
+
+**What happened:** *"If I pocket it, it will leave the page I was on."*
+**Cause:** `minimizeReader()` stored `{slug}` only; `restoreReader()` called
+`openReader()`, which resets `fullTextView` to null — dumping you at the
+summary. **Fixed:** the pocket carries the page, and `openFullText(slug, page)`
+takes you back to it.
+
+### 4. [x] No way to move through a long book
+
+**What happened:** *"It should let me skip to the next chapter, or like 10% of
+the book at the very least."* Only ±10 seconds and one-page-at-a-time existed —
+useless in a 101-page book. **Fixed:** ±10% jumps, "go to page…", and chapter
+skip where the text actually has detectable chapter headings (≥2 required, or
+the buttons stay hidden rather than lying).
+
+### 5. [x] Turning a page killed the reading
+
+**Cause:** `renderFullTextPage()` opened with `stopSpeaking()`.
+**Fixed:** it carries the voice onto the new page instead.
+
+### 6. [x] "If I have to sit and listen that's fine — but let me resume"
+
+**Fixed twice over:** a finished page now **turns itself and keeps reading**, so
+a whole book can be listened to without touching anything; and the pocket card
+shows where you are (`⏸ paused · p.34 · 41%`) with pause/resume on it.
+
+**Verified:** 16 live checks against the real Gita (101 pages), driving a
+stubbed speech engine so the actual state machine runs — including that resume
+continues *mid-text* rather than restarting the page.
+
+**The lesson worth keeping:** none of this was findable by testing. It needed
+someone to sit and listen to a book for a while. Everything in
+`plans/BETA-PREFLIGHT.md` Tier 4 exists for this reason.
