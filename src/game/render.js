@@ -586,6 +586,19 @@ function drawStation(st,ox,oy){
     }
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.42,y+S*.2,S*.16,S*.07); // a small "take one" card, standing up
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.44,y+S*.215,S*.12,S*.02);
+  } else if(st.kind==='tree'){ // The Learning Tree — a branching diagram on a board, beside the Course Board
+    ctx.fillStyle='#63402a'; ctx.fillRect(x-S*.06,y-S*.2,S*1.12,S*1.0);
+    ctx.fillStyle='#2f3a2c'; ctx.fillRect(x,y-S*.14,S*1.0,S*.88);           // a dark slate to draw on
+    ctx.strokeStyle='#7fa36b'; ctx.lineWidth=Math.max(1,S*.045); ctx.lineCap='round';
+    // a trunk that forks twice — the shape of a prerequisite tree, chalked on
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.66); ctx.lineTo(x+S*.5,y+S*.42); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.42); ctx.lineTo(x+S*.26,y+S*.24); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+S*.5,y+S*.42); ctx.lineTo(x+S*.74,y+S*.24); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+S*.74,y+S*.24); ctx.lineTo(x+S*.62,y+S*.04); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+S*.74,y+S*.24); ctx.lineTo(x+S*.88,y+S*.06); ctx.stroke();
+    const nodes=[[.5,.66],[.5,.42],[.26,.24],[.74,.24],[.62,.04],[.88,.06]];
+    nodes.forEach(([nx,ny],i)=>{ ctx.fillStyle=i<3?'#e0a43c':'#8fb4d9';      // walked, then still ahead
+      ctx.beginPath(); ctx.arc(x+S*nx,y+S*ny,S*.055,0,7); ctx.fill(); });
   } else if(st.kind==='alexandria'){ // a broken column, half-buried, scorched at the base
     ctx.fillStyle='rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.84,S*.34,S*.1,0,0,7); ctx.fill();
     // drifted sand piled against it — it is being buried, slowly, which is the point

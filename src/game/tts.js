@@ -24,7 +24,18 @@ const CHARS_PER_SEC = 14; // rough plain-speech rate at rate=1.0; scaled by sett
 
 export function ttsAvailable(){ return typeof window !== 'undefined' && 'speechSynthesis' in window; }
 export function isSpeaking(){ return ttsAvailable() && window.speechSynthesis.speaking; }
-export function stopSpeaking(){ if(ttsAvailable()) window.speechSynthesis.cancel(); current = null; paused = null; }
+/* MUST detach the utterance's handlers before cancelling. speechSynthesis
+   .cancel() fires `onend` on whatever is speaking — and once read-aloud
+   auto-advances to the next page from that callback, a plain cancel() sets off
+   a cascade: stop → onend → turn page → speak → stop → … all the way to the end
+   of the book. Reported from real use 2026-07-27 ("when I click on it again it
+   will go to the end of the book"). speakFrom() and pauseSpeaking() already
+   detached first; this one didn't. */
+export function stopSpeaking(){
+  if(current){ current.onend = null; current.onerror = null; current.onboundary = null; }
+  if(ttsAvailable()) window.speechSynthesis.cancel();
+  current = null; paused = null; fullText = ''; endCb = null;
+}
 
 /* ----- PAUSE AND RESUME (added 2026-07-27, from real use: "if I try to do
    anything it pauses that voice and I can't even unpause it... if I have to sit

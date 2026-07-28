@@ -1077,6 +1077,7 @@ export function setTTSRate(rate){
 export function previewTTSVoice(){
   speak("This is what reading aloud sounds like, at this speed.", null);
 }
+const voiceOption=(cur)=>(v)=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===cur.voiceURI?'selected':''}>${esc(v.name)} (${esc(v.lang)})</option>`;
 function renderVoiceSettings(){
   const panel=document.getElementById('voicePanel');
   if(!ttsAvailable()){
@@ -1088,6 +1089,17 @@ function renderVoiceSettings(){
   }
   const voices = ttsVoices();
   const cur = getTTSSettings();
+  /* Most machines have a dozen voices and two of them are worth using. The
+     good ones announce themselves in their names — Windows calls its neural
+     ones "Natural", browsers label theirs "Online"/"Neural" — so they get
+     sorted to the top instead of being buried alphabetically among the old
+     SAPI ones. Asked for 2026-07-27; this is the free half of the voice
+     upgrade, and it needs no download at all. */
+  const isBetter=v=>/natural|neural|online|premium|enhanced|siri|eloquence/i.test(v.name||'');
+  const uiLang=(navigator.language||'en').slice(0,2).toLowerCase();
+  const score=v=>((v.lang||'').toLowerCase().startsWith(uiLang)?0:1);
+  const better=voices.filter(isBetter).sort((a,b)=>score(a)-score(b));
+  const rest=voices.filter(v=>!isBetter(v)).sort((a,b)=>score(a)-score(b));
   panel.innerHTML = `
     <button class="xbtn" onclick="openMenu()">← Back to menu</button>
     <h2>Voice Settings</h2>
@@ -1095,11 +1107,16 @@ function renderVoiceSettings(){
       resident's spoken replies, all of it. Free, local, and built into your browser; nothing
       here is sent anywhere.</div>
     <label>Voice</label>
-    <select id="voiceSelect" onchange="setTTSVoice(this.value)" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
+    <select id="voiceSelect" onchange="setTTSVoice(this.value)" style="width:100%">
       <option value="">System default</option>
-      ${voices.map(v=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===cur.voiceURI?'selected':''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}
+      ${better.length?`<optgroup label="Better voices on this machine">${better.map(voiceOption(cur)).join('')}</optgroup>`:''}
+      <optgroup label="${better.length?'Everything else':'Voices on this machine'}">${rest.map(voiceOption(cur)).join('')}</optgroup>
     </select>
     ${voices.length ? '' : '<div class="meta">No voices listed yet — some browsers load these a moment after the page opens; check back if the dropdown above is empty.</div>'}
+    ${better.length
+      ? `<div class="meta" style="margin-top:6px">The ones at the top are the neural voices already installed on this machine — they sound markedly warmer than the older built-in ones. Preview a couple; it's the cheapest improvement available here.</div>`
+      : `<div class="meta" style="margin-top:6px"><b>Only the old robotic voices are installed.</b> Windows has far better ones for free:
+          <b>Settings → Time &amp; Language → Speech → Manage voices → Add voices</b>. Install one, reopen the Pavilion, and it will appear at the top of this list. Nothing is bought and nothing is sent anywhere — they run on your machine like everything else here.</div>`}
     <label style="margin-top:12px">Speed — <span id="voiceRateLabel">${cur.rate.toFixed(2)}×</span></label>
     <input type="range" id="voiceRateSlider" min="0.5" max="1.75" step="0.05" value="${cur.rate}"
       oninput="setTTSRate(this.value)" style="width:100%">
@@ -2084,6 +2101,10 @@ function shelfSortKey(d){ return String(d.title||'').replace(/^(the|a|an)\s+/i,'
 export function openShelf(tradition){
   state.ui='shelf'; state.shelfTradition=tradition; state.shelfIndex=0; hideAllOv();
   document.getElementById('shelfTitle').textContent = tradition==='Personal' ? 'Shelf · Your Shelf' : 'Shelf · '+tradition;
+  // "I see my books in my personal shelf — how do I sort them?" (real use,
+  // 2026-07-27). The sorting lived one room away with nothing pointing at it.
+  { const row=document.getElementById('shelfSortRow');
+    if(row) row.style.display = (tradition==='Personal'||(data.myShelves||[]).includes(tradition)) ? 'flex' : 'none'; }
   // Your Shelf gathers every book YOU added, whatever tradition you filed it
   // under — a book filed as Classics shows both there and here. Every other
   // shelf is its tradition, certified and personal side by side (personal
@@ -2506,7 +2527,8 @@ function speakPage(){
   speak(v.pages[v.page], ()=>{
     // finished this page: turn to the next and carry on, or stop at the end
     const cur=state.fullTextView;
-    if(cur && cur.slug===v.slug && cur.page<cur.pages.length-1 && state.bookAudio){
+    if(!state.bookAudio) return;            // stopped while that page was reading
+    if(cur && cur.slug===v.slug && cur.page<cur.pages.length-1){
       cur.page++;
       if(state.ui==='reader') renderFullTextPage(); else speakPage();
       return;
@@ -2517,7 +2539,10 @@ function speakPage(){
   updateFullTextSpeakBtn();
 }
 export function toggleFullTextReadAloud(){
-  if(isSpeaking()||isPaused()){ stopSpeaking(); state.bookAudio=null; updateFullTextSpeakBtn(); return; }
+  if(isSpeaking()||isPaused()){
+    state.bookAudio=null;   // clear the auto-advance marker FIRST, then stop
+    stopSpeaking(); updateFullTextSpeakBtn(); renderBookPhone(); return;
+  }
   const v=state.fullTextView; if(!v) return;
   speakPage();
 }

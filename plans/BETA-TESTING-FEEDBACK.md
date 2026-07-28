@@ -1234,3 +1234,50 @@ continues *mid-text* rather than restarting the page.
 **The lesson worth keeping:** none of this was findable by testing. It needed
 someone to sit and listen to a book for a while. Everything in
 `plans/BETA-PREFLIGHT.md` Tier 4 exists for this reason.
+
+## Round — 2026-07-27 (second pass, still from real use)
+
+*"I poked around, mostly very happy."* Four findings, three fixed immediately.
+
+### 7. [x] Stopping read-aloud raced to the end of the book
+
+**What happened:** *"When I click on it again it will go to the end of the book
+and I got to re-open it and scroll to the page again."*
+
+**Cause — and it was introduced by the auto-advance built earlier the same
+day.** `speechSynthesis.cancel()` **fires `onend` on the utterance it cancels.**
+Once a finished page turns the page from that callback, a plain `cancel()` sets
+off a cascade: stop → onend → turn page → speak → stop → … straight to the end
+of the book, losing your place. `speakFrom()` and `pauseSpeaking()` both detached
+the handlers before cancelling; `stopSpeaking()` was the one that didn't.
+
+**Fixed:** `stopSpeaking()` detaches `onend`/`onerror`/`onboundary` before
+cancelling and clears the resume buffer, and the auto-advance refuses to run if
+the book was stopped. The test stub now emulates the real browser behaviour
+(cancel firing `onend`), so this class of bug is caught from here on.
+
+### 8. [x] "I see my books in my personal shelf — how do I sort them?"
+
+Sorting existed (Your Library: search, multi-select, bulk move, custom shelves)
+but nothing on the shelf itself pointed at it. **Fixed:** a **⚙ Sort my books**
+button now appears on Your Shelf and on any shelf you invented — and not on the
+certified ones, where it would be meaningless.
+
+### 9. [x] The Learning Tree had no door of its own
+
+*"The learning tree should have its own display, probably next to the board."*
+It was a button inside the Course Board. **Fixed:** it's now its own station in
+the Study, standing beside the Course Board, with its own sign — a branching
+diagram chalked on a slate.
+
+### 10. [ ] The Course Board and the tree should read like a college index
+
+*"They should be upgraded to resemble a college or higher education index."*
+Real and not yet built — see `LIVING-TREE-AND-DISCUSSION-PLAN.md`. The graph
+renderer built for the collective tree (depth columns + drawn prerequisite
+edges) is the foundation; what's missing is the *catalogue* half — departments,
+course codes, a level ladder, and a printed-index view you can read straight
+down. Worth doing after the beta, not before.
+
+**Confirmed working, unprompted:** *"the auto read is working well, I can do
+other things on top of it."* That was the whole point of the earlier round.
