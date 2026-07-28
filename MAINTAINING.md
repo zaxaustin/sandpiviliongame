@@ -253,16 +253,25 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
-**Before handing it to anyone: `plans/BETA-PREFLIGHT.md`** — the ordered
-pre-flight, written 2026-07-27. Its headline: the only installer on disk is
-**beta.1 from 11 July**, which predates nearly everything built since; the
-desktop path is verified almost entirely in a browser; and six new save stores
-have never met an old save.
+**Read `plans/SHIPPING-THE-BETA.md` first** — one file, how to hand it over,
+and "the first ten minutes" (the path the beta is actually built around and
+held to). `plans/BETA-PREFLIGHT.md` is the older checklist; its three headline
+risks were closed on 2026-07-28 and it says so at the bottom.
+
+**Where things stand, end of 2026-07-28:** the installer is cut and verified,
+all 114 commits are pushed to GitHub, and the repo is **still private**. The
+next action is the user installing beta.2 himself; if that goes well, the repo
+goes public and a Release carries the `.exe` to friends.
 
 **The three gates to a real beta** (nothing large):
-1. **The welcome-packet decision** — only 6 of 24 seed texts read in full; the
-   marquee classics are summary-only. Bundle more, ship a MinIO starter
-   package, or label the summaries honestly. A decision, not a bug.
+1. **[done 2026-07-28] The welcome-packet decision** — resolved by honesty
+   rather than bulk. The seed is **27 texts**: 6 complete source texts, 11
+   written for the Pavilion (whole as they stand, and now including three
+   guides — a local AI explained, filling your own shelves, and what to do when
+   something misbehaves), and 10 classics carried as summaries. Each of those
+   ten now **says so in the reader**, names its source, and invites a drag-and-
+   drop that turns the page into the real book (`BETA-TESTING-FEEDBACK.md` #18,
+   #21).
 2. **[done 2026-07-28] The installer is cut** — `release/Sand Pavilion Setup 0.1.0-beta.2.exe`,
    and it is the first one ever verified as an *artifact* rather than as
    source. Before it, the packaged app **did not boot at all**: no
@@ -276,8 +285,13 @@ have never met an old save.
    JWT-shaped string, a Supabase key or MinIO credentials survive into the
    bundle (added 2026-07-28, after a network probe caught a dev build calling
    Supabase on startup — `BETA-TESTING-FEEDBACK.md` #16).
-3. **The clean-machine install test** — hardware that never built it. Still the
-   one genuinely unverified thing.
+3. **The install test** — the one genuinely unverified thing, and now the only
+   one. Nobody has clicked the installer. Note the machine already had a broken
+   **0.0.1 from 8 July** installed: its localStorage held saves under
+   `localhost:5173` and *nothing* under `file://`, confirming from disk that the
+   packaged app never once ran (#24). Dev and packaged share an app-data folder
+   but not a storage partition, so a fresh install starts empty and cannot
+   disturb the dev Pavilion.
 
 **When a local model gets something wrong, ask it something smaller** — the
 standing lesson from 2026-07-28 (`BETA-TESTING-FEEDBACK.md` #15). The lesson

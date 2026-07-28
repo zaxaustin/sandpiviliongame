@@ -216,3 +216,102 @@ STILL OPEN
   * Ten unbroken minutes listening to a real book
   * Copyright triage over the real 128 books
   * #10 -- Course Board / tree as a college index (deferred past beta)
+
+
+=======================================================================
+ SAME DAY, THIRD SESSION — getting it ready to hand over
+=======================================================================
+
+Three questions, and the last one turned out to be a confirmation.
+
+GUIDES
+------
+"Any other guides we should put into the game anyway?" -- yes, three,
+and the gap was real: everything a newcomer stumbles on was FINDABLE in
+the interface, but nowhere could you sit down and read it.
+
+  Waking the Residents -- a local AI explained to someone who has never
+    installed one, opening with the fact that they don't need it.
+  Filling Your Own Shelves -- drag a file on the window; where texts
+    actually live; why your own shelf asks you for no licence.
+  When Something Goes Wrong -- written for a beta tester, ending with
+    the only thing this project cannot do for itself: tell us.
+
+Seed library 24 -> 27.
+
+THE BACKEND, REFRAMED
+---------------------
+"I'm fine spending a bit of money to rent a server... we can minimise
+what to communicate." Taking that last clause seriously IS the plan.
+
+The unit is the packet, not the user. The server does not need to know
+who anyone is -- it needs to hold packets and list them. That deletes
+accounts, which is where all the cost, risk and liability live, and
+replaces them with a keypair per Pavilion. Three endpoints, content-
+addressed by SHA-256, reading open to anyone.
+
+Phase 1 is a read-only static mirror on a ~EUR4.50/month box: no
+server-side code, no database, no auth. Later the same folder gains an
+index.html and becomes the WEBSITE he asked for -- one artifact, two
+audiences, a person browsing guides and a Pavilion pulling data. Phase 0
+(files by hand) keeps working forever, so nothing is ever the only copy.
+
+"CAN MY COMPUTER RUN THIS?"
+---------------------------
+"Most of my friends don't even have Ollama or know how to check their
+computer's capabilities, most have laptops."
+
+The tiered guide already in the app was honest and useless to exactly
+the person who needed it: it said "8 GB RAM -> this model", which
+assumes you know your RAM. So the app measures now -- Manage AI
+connections -> Check this computer -- and answers in plain words with a
+copyable pull command. Laptop advice included, since getBattery() can
+tell.
+
+The test earned its keep immediately. A rule refusing any model over 60%
+of memory failed on a 4 GB machine offered a 1.3 GB one. The right fix
+was not a smaller model but an honest verdict: below ~6 GB there is now
+no recommendation at all -- "skip the AI on this machine, and lose
+nothing that matters", no command, and a pointer to what this place is
+actually for.
+
+AND THE CONFIRMATION
+--------------------
+"I can't use the Sand Pavilion app on my computer."
+
+That is finding #17 arriving from the other direction. The app-data
+directory settles it beyond argument: localStorage holds saves under
+localhost:5173 and NOTHING under file://. The installed copy was 0.0.1
+from 8 July, and it never booted, so it never wrote a save. The dev app
+has been the only working Pavilion all along -- which is exactly why it
+felt fine while the artifact was dead.
+
+Backed up Local Storage and the 59 personal book files before advising
+anything, because "should be safe" is not "is".
+
+REPO READY, AND PUSHED
+----------------------
+Pre-publication audit: no keys anywhere in history, no books or PDFs
+tracked, no personal paths or email, MIT, 5 MB. One real find --
+.mcp.json was tracked and carried the live Supabase project ref. An
+identifier, not a credential, and no key was ever committed, but it has
+no business in a public repo. Untracked and gitignored.
+
+114 commits pushed. Repo still private, deliberately: it goes public
+only after he installs beta.2 himself and it works.
+
+WHERE IT STANDS
+---------------
+  npm test                      clean
+  build + build:beta            clean, verifier passes
+  packaged-boot.cjs             6/6
+  preflight.mjs                 39/39, zero external requests
+  13 live suites                154 checks, 0 failures
+  installer                     0.1.0-beta.2, 95.0 MB, FB094807...
+
+TOMORROW
+--------
+  1. Install beta.2 from the release/ folder and use it.
+  2. If it works: make the repo public, cut a GitHub Release, send the
+     link with the SmartScreen warning stated up front.
+  3. Then listen. BETA-TESTING-FEEDBACK.md is the place it goes.
