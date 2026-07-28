@@ -17,7 +17,7 @@ because anything is wrong. If you'd like to check the download:
 
 ```powershell
 Get-FileHash "Sand Pavilion Setup 0.1.0-beta.2.exe" -Algorithm SHA256
-# 72D74A111ECDEFCB84511079C292690B35CFEF5015394B088B0A472CE36ED918
+# FB0948071A6009D3FEADFE8EED7019D8613870348113DF6A6E39180565FF670B
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -43,8 +43,14 @@ happens by writing a file and handing it over.
 The Library, reader, read-aloud, notes, planner, lessons and the Inheritance
 Hall all work with nothing installed. The residents — Quill, the Mountain Monk,
 Sebastian, the Tutor — wake only when a local AI is running on your machine:
-install [Ollama](https://ollama.com), run `ollama pull llama3.1:8b`, then press
-**Detect** under *Manage AI connections*.
+install [Ollama](https://ollama.com), pull a model, then press **Detect** under
+*Manage AI connections*.
+
+**Don't go looking up your laptop's specifications.** Open *Manage AI
+connections* and press **Check this computer** — the Pavilion reads the machine
+you're actually on and tells you whether it's worth doing, which model to get,
+and the one line to type, ready to copy. On a small or old machine it will tell
+you honestly not to bother, and it means it.
 
 There's a guide inside the app that explains all of it plainly — *Waking the
 Residents*, on the Practice shelf.

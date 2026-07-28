@@ -5,6 +5,7 @@ import { COMMONS_PACKETS, PACKET_KINDS } from '../data/commons-packets.js';
 import { VIS, visBadge, visLine, DATA_MAP } from '../data/visibility.js';
 import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.js';
 import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-parse.js';
+import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -1052,6 +1053,64 @@ export function openConnections(){
   renderConnections();
   showOv('connOv');
 }
+/* ----- "Can my computer run this?", answered by measuring instead of asking.
+   From the first real handover (2026-07-28): *"most of my friends don't even
+   have Ollama or know how to check their computer's capabilities, most have
+   laptops."* Looking up your own RAM is exactly the small friction that ends
+   an evening's curiosity, so the app does it.
+
+   The desktop app gets the true numbers from Node's `os`. A browser can only
+   offer navigator.deviceMemory, which is capped at 8 and rounded to a power of
+   two — so when that's all we have, the reading says so rather than pretending
+   to precision it hasn't got. getBattery() is what distinguishes a laptop,
+   which is worth knowing: on battery most of them throttle hard. */
+export async function checkMyMachine(){
+  const out=document.getElementById('machineOut'); if(!out) return;
+  out.innerHTML='<div class="meta">Reading this machine…</div>';
+  let info={ measured:false };
+  const bridge=window.desktopBridge;
+  if(bridge && bridge.machineInfo){
+    try{ const r=await bridge.machineInfo(); if(r&&r.ok) info={ ...r, measured:true }; }catch(e){ /* fall through to hints */ }
+  }
+  if(!info.measured){
+    // browser hints: coarse, and honest about it
+    info.totalMemGB = navigator.deviceMemory || 0;
+    info.cores = navigator.hardwareConcurrency || 0;
+    info.platform = navigator.platform || '';
+  }
+  try{
+    if(navigator.getBattery){ const bat=await navigator.getBattery(); info.hasBattery = !!bat && bat.charging!==undefined && bat.level<1.0 ? true : (bat? true : false); }
+  }catch(e){ /* no battery API — desktop, or a browser that won't say */ }
+  const rec=recommendModel(info);
+  const colour = rec.tier==='tight' ? '#8a6a3a' : rec.tier==='unknown' ? '#8a6a3a' : '#7fa36b';
+  out.innerHTML = `
+    <div class="card" style="cursor:default;border-color:${colour}">
+      <div class="t" style="color:${colour}">${esc(rec.verdict)}</div>
+      <div class="s" style="margin-top:5px">${esc(rec.why)}</div>
+      ${rec.model?`
+        <div class="s" style="margin-top:10px"><b>Type this one line</b> in a terminal once Ollama is installed:</div>
+        <div class="row" style="margin-top:5px;gap:6px;align-items:center;flex-wrap:wrap">
+          <code style="font-size:13px;color:var(--gold)">${esc(pullCommand(rec.model))}</code>
+          <button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="copyPullCommand('${esc(pullCommand(rec.model))}')">Copy</button>
+        </div>`
+      :`<div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost" onclick="openShelf('Practice')">📖 Read what the Pavilion is for instead</button>
+        </div>`}
+      <div class="meta" style="margin-top:10px">
+        ${rec.measured
+          ? `Read from this machine: <b>${rec.ram} GB</b> memory, <b>${rec.cores}</b> cores${info.cpu?` · ${esc(String(info.cpu).slice(0,44))}`:''}.`
+          : `<b>An estimate.</b> A browser won't report real memory (it caps the number at 8), so this is a safe guess rather than a reading. The installed desktop app measures it properly.`}
+      </div>
+      ${rec.notes.length?`<ul style="margin:8px 0 0 18px;padding:0">${rec.notes.map(n=>`<li class="s" style="margin:4px 0">${esc(n)}</li>`).join('')}</ul>`:''}
+      <div class="s" style="margin-top:10px;opacity:.85">Don't want to install anything? You never have to. The
+        Library, the reader, read-aloud, your notes, the day planner and every lesson work with no AI at all.</div>
+    </div>`;
+}
+export function copyPullCommand(cmd){
+  try{ navigator.clipboard.writeText(cmd); blip(760,.06);
+    const o=document.getElementById('machineOut'); if(o){ const m=o.querySelector('.meta'); if(m) m.insertAdjacentHTML('beforebegin','<div class="s" style="color:#7fa36b">✓ Copied.</div>'); }
+  }catch(e){ /* clipboard refused — the line is on screen to type */ }
+}
 /* ----- Voice settings (BETA-FEEDBACK.md #6) — a real voice + rate
    picker for read-aloud, persisted at data.ttsSettings. getVoices()
    can come back empty on first call in some browsers until the
@@ -1195,6 +1254,13 @@ function renderConnections(){
       server on your own machine) never sends anything anywhere else; a ☁ cloud connection sends
       your conversation — and whatever it's grounded in — to that provider's servers, same as
       using their own app would. Both are real options here; just know which one you're using.</div>
+    <div class="card" style="cursor:default;margin:10px 0;border-color:#8fb4d9">
+      <div class="t">🔍 Not sure if your computer can do this?</div>
+      <div class="s" style="margin-top:4px">Don't go looking up your specifications — press the button and
+        the Pavilion will read this machine and tell you which model to get, in one line you can copy.</div>
+      <div class="row" style="margin-top:8px"><button class="btn" onclick="checkMyMachine()">Check this computer</button></div>
+      <div id="machineOut" style="margin-top:8px"></div>
+    </div>
     <details style="margin:4px 0 10px">
       <summary style="cursor:pointer;color:#e0a43c;font-size:13px">📏 Which model fits my machine? (the tiered guide)</summary>
       <div class="meta" style="margin-top:8px">
@@ -8595,6 +8661,7 @@ Object.assign(window, {
   runCopyrightCheck,
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
+  checkMyMachine, copyPullCommand,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,

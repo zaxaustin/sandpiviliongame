@@ -29,6 +29,12 @@ contextBridge.exposeInMainWorld('desktopBridge', {
   // and the Reader loads it over plain HTTP, same as the certified texts.
   minioWrite: (name, content) => ipcRenderer.invoke('desktop-minio-write', { name, content }),
   minioDelete: (key) => ipcRenderer.invoke('desktop-minio-delete', { key }),
+  // What this machine actually is — total RAM, cores, platform. The browser
+  // can only guess (navigator.deviceMemory is capped at 8 GB and rounds), and
+  // the guess is worst exactly where it matters: a laptop. Beta testers were
+  // being asked "is your computer up to this?" and had no way to know
+  // (2026-07-28), so the app answers it for them instead.
+  machineInfo: () => ipcRenderer.invoke('desktop-machine-info'),
   // Live-streaming variant of fetchJSON, so the desktop app can stream a
   // local model's reply/reasoning instead of buffering the whole response
   // (BETA-TESTING-FEEDBACK.md #35 — "the thought slips away"). onChunk is

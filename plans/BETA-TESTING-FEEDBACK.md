@@ -1567,3 +1567,48 @@ readable before anything at all is installed:
   are closed — and the one thing worth doing, which is telling us.
 
 Seed library: 24 → **27 texts**.
+
+### 22. [x] "Can my computer run this?" — answered by measuring, not asking
+
+*"Most of my friends don't even have Ollama or know how to check their
+computer's capabilities, most have laptops."*
+
+The tiered guide already in the app was honest and useless to the person who
+needed it: it said *"8 GB RAM → this model"*, which requires you to already
+know your RAM. Most people don't, and looking it up is exactly the small
+friction that ends an evening's curiosity.
+
+So the app measures. **Manage AI connections → Check this computer** reads the
+real machine — `os.totalmem()` and `os.cpus()` through the desktop bridge, no
+identifying information, nothing leaving the process — and answers in plain
+words: whether it's worth doing here, which model, and the one line to type,
+with a Copy button. In a browser it falls back to `navigator.deviceMemory` and
+**says outright that it's an estimate** rather than faking precision.
+
+Laptop-specific, because most testers are on one: plug it in (nearly all
+throttle hard on battery), the fans spinning up is the machine working, close
+the browser tabs first, and the first question after startup is always slowest.
+`navigator.getBattery()` is what distinguishes a laptop.
+
+**The logic lives in `data/machine-advice.js` so `npm test` covers it — and the
+test immediately earned its keep.** A rule saying *never recommend a model
+bigger than 60% of memory* failed on a 4 GB machine, which was being offered a
+1.3 GB model. The right fix was not a smaller model but an honest one: below
+about 6 GB there is now **no recommendation at all** — a verdict of *"skip the
+AI on this machine, and lose nothing that matters"*, with no pull command, and
+a pointer to what the Pavilion is actually for. A frozen laptop is a miserable
+way to meet this place, and every part of the app that matters runs without it.
+
+### 23. [x] `.mcp.json` would have gone public with a private project ref
+
+Found in the pre-publication audit. The file is a local dev-tool config and was
+tracked, carrying the real Supabase project ref in its URL — and its commit is
+already on the remote. A project ref is an **identifier, not a credential**
+(the endpoint answers 401 without a key, and no key was ever committed), so the
+severity is low — but it is this machine's own infrastructure in a repo about
+to be made public, and the file has no business being there at all. Untracked
+and gitignored; still on disk, still working locally.
+
+**The rest of the audit came back clean:** no keys anywhere in history, no
+books or PDFs tracked, no personal paths or email in any tracked file, MIT
+licensed, 5 MB of history.

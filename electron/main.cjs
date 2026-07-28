@@ -159,6 +159,28 @@ const libraryDir = () => path.join(app.getPath('userData'), 'library');
 function safeLibraryName(name){
   return typeof name === 'string' && /^[a-z0-9][a-z0-9._-]{0,120}\.txt$/i.test(name) && !name.includes('..');
 }
+/* What this machine actually is. Nothing identifying — no serial, no name, no
+   MAC, nothing that leaves the process — just the three numbers that decide
+   whether a local model is a good idea here, and how big it may be. Asked for
+   2026-07-28: most of the first testers are on laptops and have no idea how to
+   check their own specs, and the browser can't tell them (navigator.deviceMemory
+   caps at 8 GB and rounds to a power of two, which is useless precisely where
+   the answer matters). */
+ipcMain.handle('desktop-machine-info', async () => {
+  try{
+    const os = require('os');
+    const cpus = os.cpus() || [];
+    return {
+      ok: true,
+      totalMemGB: Math.round(os.totalmem() / 1073741824),
+      freeMemGB: Math.round(os.freemem() / 1073741824),
+      cores: cpus.length,
+      cpu: (cpus[0] && cpus[0].model || '').trim(),
+      platform: process.platform,
+      arch: process.arch,
+    };
+  }catch(e){ return { ok:false, error:String(e) }; }
+});
 ipcMain.handle('desktop-library-write', async (event, { name, content }) => {
   if(!safeLibraryName(name) || typeof content !== 'string') return { ok:false, error:'bad name or content' };
   try{

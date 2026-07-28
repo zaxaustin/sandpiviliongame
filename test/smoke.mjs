@@ -249,6 +249,51 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+/* ---------- machine advice ----------
+   'Can my computer run this?' has to be right for the machines the first
+   testers actually have — laptops, 8 or 16 GB, integrated graphics. Erring
+   small is deliberate: a too-big model freezes a laptop and loses a tester,
+   a too-small one answers fast and keeps them curious. */
+{
+  const { recommendModel, pullCommand, MODELS } = await import('../src/game/data/machine-advice.js');
+  const cases = [
+    // a 4 GB machine gets told not to bother — the honest answer, and the one
+    // this suite forced by refusing any model over 60% of memory
+    ['a 4 GB netbook is told to skip the AI', { totalMemGB: 4, cores: 2 }, 'none', null],
+    ['a 6 GB machine gets the tiniest model', { totalMemGB: 6, cores: 4 }, 'tight', MODELS.tiny.tag],
+    ['an 8 GB laptop gets the 3B', { totalMemGB: 8, cores: 4 }, 'everyday', MODELS.small.tag],
+    ['a 16 GB laptop gets the 8B', { totalMemGB: 16, cores: 8 }, 'capable', MODELS.standard.tag],
+    ['a 32 GB desktop still starts at the 8B', { totalMemGB: 32, cores: 16 }, 'strong', MODELS.standard.tag],
+    ['an unreadable machine still gets a safe answer', {}, 'unknown', MODELS.small.tag],
+  ];
+  for (const [name, info, tier, tag] of cases) {
+    const r = recommendModel(info);
+    if (r.tier !== tier) fail(`machine-advice: ${name} gave tier ${r.tier}, expected ${tier}`);
+    const got = r.model ? r.model.tag : null;
+    if (got !== tag) fail(`machine-advice: ${name} recommended ${got}, expected ${tag}`);
+    if (!r.verdict || !r.why) fail(`machine-advice: ${name} produced no verdict or explanation`);
+    const want = tag ? 'ollama pull ' + tag : '';
+    if (pullCommand(r.model) !== want) fail(`machine-advice: ${name} built a bad pull command`);
+  }
+  // a machine told to skip the AI must still be told the app is fully usable
+  const skip = recommendModel({ totalMemGB: 4, cores: 2 });
+  if (!/works with no AI at all/i.test(skip.why)) fail('machine-advice: a machine told to skip the AI was not reassured the app still works');
+  // a laptop must be told to plug in — most throttle hard on battery
+  const lap = recommendModel({ totalMemGB: 16, cores: 8, hasBattery: true });
+  if (!lap.notes.some(n => /plug it in/i.test(n))) fail('machine-advice: a laptop was not told to plug in');
+  const desk = recommendModel({ totalMemGB: 16, cores: 8, hasBattery: false });
+  if (desk.notes.some(n => /plug it in/i.test(n))) fail('machine-advice: a desktop was told to plug in');
+  // every machine is told the first answer is slowest
+  if (!desk.notes.some(n => /first question/i.test(n))) fail('machine-advice: nobody warned about the first-load pause');
+  // never recommend a model bigger than the machine
+  for (const gb of [2, 4, 6, 8, 12, 16, 24, 64]) {
+    const r = recommendModel({ totalMemGB: gb, cores: 4 });
+    if (r.model && r.model.gb > gb * 0.6) {
+      fail(`machine-advice: a ${gb} GB machine was offered a ${r.model.gb} GB model — too big to be safe`);
+    }
+  }
+}
+
 /* ---------- library ---------- */
 const seenSlugs = new Set();
 for (const d of SEED_LIBRARY) {
