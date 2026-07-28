@@ -15,17 +15,16 @@
     "electron:build": "vite build && electron-builder",
     "build:beta": "vite build --mode beta && node scripts/verify-beta-build.mjs",
     "electron:build:beta": "vite build --mode beta && node scripts/verify-beta-build.mjs && electron-builder",
-    "verify:beta": "node scripts/verify-beta-build.mjs"
+    "verify:beta": "node scripts/verify-beta-build.mjs",
+    "icon": "node scripts/make-icon.mjs"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.110.1",
     "concurrently": "^10.0.3",
     "electron": "^43.1.0",
     "electron-builder": "^26.15.3",
     "vite": "^8.1.3",
     "wait-on": "^9.0.10"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.110.1"
   },
   "build": {
     "appId": "com.sandpavilion.app",
@@ -38,7 +37,12 @@
       "output": "release"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
     }
   }
 }

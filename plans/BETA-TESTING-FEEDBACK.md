@@ -1483,3 +1483,36 @@ invitation it actually is — this is a library you fill yourself.
 
 The Pavilion's own seven writings (`Original — Pavilion Commons`) never show
 it: they are complete as they stand and are not missing anything.
+
+### 19. [x] The installer had no icon, and carried a library it never used
+
+Two things the build log and the shipped `app.asar` admitted once anyone
+looked at them.
+
+**"default Electron icon is used — application icon is not set."** Every
+tester's taskbar, Start menu and installer would have shown the generic
+Electron atom — the first thing anyone sees, before the app even opens.
+There was no icon asset in the project at all. Now there is one, and it is
+**drawn rather than downloaded**: `scripts/make-icon.mjs` renders a 32×32
+pixel-art pavilion — a moon behind it, a dune under it — scales it by whole
+numbers to 256/128/64/32, encodes the PNGs by hand (`node:zlib` does the
+compression) and wraps them in an ICO. **No dependencies**, colours lifted
+straight out of `style.css`, and integer scaling means it stays crisp at
+every size Windows asks for. `npm run icon` redraws it.
+
+**And the asar was 521 node_modules entries to 5 dist ones.**
+electron-builder packs everything in `dependencies`, and
+`@supabase/supabase-js` was listed there — so the whole Supabase client
+source shipped inside every installer despite the Electron main process
+never requiring it (the renderer gets it from the Vite bundle, and in a
+beta build it tree-shakes to null anyway). It is a **bundle-time**
+dependency, not a runtime one. Moved to `devDependencies`:
+
+| | before | after |
+|---|---|---|
+| entries in `app.asar` | 530 | **9** |
+| what's in it | node_modules, dist, electron | just `dist`, `electron`, `package.json` |
+
+**`0.1.0-beta.2` is cut** — and unlike beta.1 it has been verified as the
+artifact rather than as source: the packaged app boots, starts, opens
+panels, carries no cloud host and no keys, and wears its own icon.
