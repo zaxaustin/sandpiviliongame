@@ -51,17 +51,26 @@ R.push(['it kept the old note', await p.evaluate(()=>JSON.parse(localStorage.get
 R.push(['it kept the old book', await p.evaluate(()=>JSON.parse(localStorage.getItem('sandPavilionSave.v2')).personalLibrary?.length===1)]);
 R.push(['it kept old lesson progress', await p.evaluate(()=>!!JSON.parse(localStorage.getItem('sandPavilionSave.v2')).curriculum?.['found-1'])]);
 
-/* open everything a visitor can reach, on an old save, with no AI */
+/* Open everything a visitor can reach, on an old save, with no AI.
+   (openArchive is deliberately absent: it is module-internal, reached through
+   other calls rather than from any onclick, so window[fn] is the wrong door.) */
 const panels=['openLearningTree','openMyLibrary','openNotesLog','openCommonsTable','openInheritanceHall',
   'openAlexandria','openCourses','openDataPanel','openVoiceSettings','openStewardIndex','openRequests',
   'openAcademy','openScienceHall','openComputer','openGrantDesk','openResearchDesk','openPlanner',
   'openReviewQueue','openPaths','openIndex','openCatalog','openNoticeBoard','openResidentsBoard',
-  'openConnections','openStanding','openArchive','openBadges','openCalendar','openInventory','openStillOpen','openWaypoints','openActivity','openUpcoming'];
+  'openConnections','openStanding','openBadges','openCalendar','openInventory','openStillOpen','openWaypoints','openActivity','openUpcoming'];
 for(const fn of panels){
   const before=errs.length;
   const ok=await p.evaluate(f=>{ if(typeof window[f]!=='function') return 'missing'; try{ window[f](); return true; }catch(e){ return e.message; } }, fn);
-  await new Promise(r=>setTimeout(r,320));
-  const drew=await p.evaluate(()=>{ const o=document.querySelector('.open .panel'); return !!o && o.textContent.trim().length>30; });
+  /* Poll rather than sleep: some of these do async work before they draw.
+     And check the opened OVERLAY, not '.panel' specifically — the Academy and
+     the Computer open the chat overlay (chatOv), which has no .panel child,
+     so a .panel-only check called two working screens broken. */
+  let drew=false;
+  for(let t=0;t<20 && !drew;t++){
+    await new Promise(r=>setTimeout(r,100));
+    drew=await p.evaluate(()=>{ const o=document.querySelector('.open'); return !!o && o.textContent.trim().length>30; });
+  }
   R.push([`${fn}() opens on an old save with no AI`, ok===true && drew && errs.length===before]);
   await p.evaluate(()=>{ if(typeof window.closeUI==='function') window.closeUI(); });
   await new Promise(r=>setTimeout(r,120));

@@ -2205,9 +2205,36 @@ export function openReader(slug){
     `<b>${esc(d.tradition)}</b> · License: <b>${esc(d.license)}</b> · Source: <b>${esc(d.attribution||'')}</b><br>${esc(d.source_url)}`
     + (d.personal ? `<br><span class="badge">👤 personal — Your Shelf, not the certified commons</span>
         <button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px" onclick="removePersonalBook('${esc(d.slug)}')">Remove from Your Shelf</button>` : '');
+  /* SAY SO WHEN THE TEXT ISN'T HERE (2026-07-28). Ten of the seed books are
+     real public-domain works the Pavilion ships a *summary* of — Meditations,
+     The Republic, the Tao Te Ching and so on. Until now they simply had no
+     "📖 Read the full text" button, and a visitor who opened Meditations
+     expecting Marcus Aurelius got an unexplained précis and no idea whether
+     the app was broken, the book was missing, or that was all there was.
+     Silence is not honesty. So the gap is named, with the one action that
+     closes it — this is a library you fill yourself, and that's the invitation,
+     not an apology.
+
+     The Pavilion's OWN writings (license "Original — Pavilion Commons") are
+     complete as they stand and must never carry this note: they aren't missing
+     anything. */
+  const ownWriting=/Original\s*—\s*Pavilion Commons/i.test(d.license||'');
+  const textMissing = !d.doc.fullText && !ownWriting && !d.personal;
   document.getElementById('rdBody').innerHTML =
     `<p class="rdSummary">${esc(d.doc.summary)}</p>` +
-    d.doc.sections.map(s=>`<h3>${esc(s.heading)}</h3><p>${esc(s.body)}</p>`).join('');
+    d.doc.sections.map(s=>`<h3>${esc(s.heading)}</h3><p>${esc(s.body)}</p>`).join('') +
+    (textMissing?`<div class="card" style="cursor:default;margin-top:16px;border-color:#8a6a3a">
+        <div class="t">📄 This is the Pavilion's summary — not the book itself</div>
+        <div class="s" style="margin-top:5px">The full text of <b>${esc(d.title)}</b> isn't bundled with the
+          Pavilion. It is <b>public domain</b>, so nothing stops you having it — it just isn't shipped, because
+          a library here is meant to be one you built, not one you downloaded whole.</div>
+        <div class="s" style="margin-top:6px">Fetch it from ${esc(d.attribution||'its source')}${d.source_url?` (<b>${esc(d.source_url)}</b>)`:''},
+          then <b>drag the file onto this window</b> — it lands on your own shelf, full text and all, and
+          this page becomes the real book.</div>
+        <div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost" style="font-size:11.5px" onclick="newReviewManualForm2()">＋ Add the text yourself</button>
+          <button class="btn ghost" style="font-size:11.5px" onclick="openRequests()">📋 Put it on the Request Board</button>
+        </div></div>`:'');
   document.getElementById('rdMark').textContent = data.read[slug] ? 'Read ✓' : 'Mark as read';
   document.getElementById('rdSpokenNote').textContent='';
   updateReaderSpeakBtns();

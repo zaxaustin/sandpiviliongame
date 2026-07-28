@@ -1414,3 +1414,72 @@ Verified both ways — it rejects a dev build and passes a beta build.
 
 Neither the key nor `dist/` was ever committed; this was a shipping hazard, not
 a leak.
+
+---
+
+## Round — 2026-07-28 (fifth pass) — the one that mattered most
+
+### 17. [x] THE PACKAGED APP DID NOT BOOT — a white window with a dead button
+
+Found while checking whether bundled book texts would load in the desktop
+app, by booting the built app **the way the installer boots it** instead of
+the way development does. It did not boot. It never had.
+
+**The cause.** `npm run electron:dev` calls
+`win.loadURL('http://localhost:5173')` — a real http origin, where Vite's
+default absolute asset paths (`/assets/index-xxx.js`) resolve fine. The
+packaged app calls `win.loadFile(dist/index.html)` instead: a **file://**
+origin, where `/assets/...` resolves to the **filesystem root** —
+`C:/assets/index-xxx.js` — which does not exist. There was no
+`vite.config.js` at all, so `base` was the default `/`.
+
+**Why nobody caught it.** The failure is quiet in the worst possible way.
+`index.html` itself loads, so the window shows the title screen and the
+"Enter the Grounds" button. Behind it: no script, no stylesheet, no error
+dialog. An unstyled page and a button that does nothing. Verified in real
+Electron 43:
+
+```
+  index.html loads at all       : true
+  THE GAME'S OWN CODE RUNS      : false
+  the stylesheet arrives        : rgba(0, 0, 0, 0)
+```
+
+Every desktop check until now went through `electron:dev`, which cannot see
+this — the gap that mattered most, hidden by the convenience that made
+testing easy. **This almost certainly means the 11 July `beta.1` installer
+was a dead app too**, which fits the record: the clean-machine install test
+is the one thing that was never done.
+
+**Fixed** by `vite.config.js` with `base: './'` — relative paths work under
+file:// *and* http, so the web build at Vercel is unaffected (it serves
+index.html from the site root, where `./assets/` and `/assets/` resolve
+identically). Confirmed: 39/39 web pre-flight checks still pass.
+
+**Guarded** by `test/live/packaged-boot.cjs`, which boots `dist/` through a
+real Electron main process with the same preload, sandbox and `loadFile`
+call the installer uses, then checks the game's own code ran, the stylesheet
+arrived, the desktop bridge is wired, the Start button actually starts, and
+a panel opens with content. Non-zero exit = do not cut an installer.
+
+**The lesson, and it is the same one as #16:** *test the artifact you ship,
+not the one you develop in.* Both of the worst findings this week — the
+Supabase call and this — were invisible to every existing test and obvious
+within minutes of running the real thing and watching what it did.
+
+### 18. [x] Ten classics showed a summary with no explanation
+
+`Meditations`, `The Republic`, the `Tao Te Ching`, `On the Origin of
+Species` and six more ship as a Pavilion **summary**; the full text isn't
+bundled. Until now those books simply had no "📖 Read the full text" button
+and said nothing about why — so a visitor opening Marcus Aurelius got an
+unexplained précis and no way to tell whether the app was broken, the book
+was missing, or that was all there was. **Silence is not honesty.**
+
+Now each one carries a plain note: this is the summary, the full text is
+public domain, here is exactly where it comes from, **drag the file onto
+this window** and this page becomes the real book. It reads as the
+invitation it actually is — this is a library you fill yourself.
+
+The Pavilion's own seven writings (`Original — Pavilion Commons`) never show
+it: they are complete as they stand and are not missing anything.
