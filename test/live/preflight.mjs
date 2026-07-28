@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer-core';
 const CHROME='C:/Program Files/Google/Chrome/Application/chrome.exe';
-const OUT='C:/Users/resto/AppData/Local/Temp/claude/c--Users-resto-Desktop-projects-sand-pavilion-game/ebf2982a-cd1f-4e42-8d75-7598850c5758/scratchpad/';
+const OUT=process.env.TEMP ? process.env.TEMP.replace(/\\/g,'/')+'/' : './'; // screenshot lands in temp, not the repo
 /* ================================================================
    [LIVE PRE-FLIGHT] — the automatable half of plans/BETA-PREFLIGHT.md.
 
