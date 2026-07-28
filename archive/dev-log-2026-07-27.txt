@@ -629,3 +629,37 @@ help the next group get there themselves."
   pile — up to 60 — and still only ever FILLS THE DROPDOWNS. Nothing is filed
   without you, and nothing is ever deleted.
 Verified: 13 new live checks on the tree, all other suites green (109 total).
+
+THE ALEXANDRIA STONE + BULK COPYRIGHT TRIAGE (user's order: "first lets do the
+tribute to alexandria then we do the bulk copyright triage, make sure to not
+remove anything but to put it into my personal shelf if it dosent have it").
+- THE STONE: a broken column, half-buried, scorched low on the shaft, with a
+  fallen piece beside it and sand drifted against its base — standing apart at
+  the west of the sand court. Told HONESTLY, and the honest version makes the
+  point better than the myth: there was no single night and no single fire.
+  Partial damage, then a century of withdrawn funding, then scholars leaving,
+  then nobody copying forward "because copying is slow and dull and there was
+  always next year." It was LET GO. What killed it was that there was only ever
+  one of it. That is precisely the failure this Hall is built against, and it's
+  a failure of habit rather than of villains — which makes it ours to avoid.
+  The counter-argument isn't rhetoric: the panel COUNTS the visitor's own
+  Pavilion (texts shelved, things planted, copies given, packets received) and
+  says plainly when nothing has been given away yet — "one machine away from
+  being forgotten, not burned, just lost the ordinary way." And it refuses to
+  promise permanence: this CAN still be forgotten; sand is the honest name for
+  it. What can't happen again is a single fire ending it, because there is no
+  single building to burn.
+- BULK TRIAGE, built to the user's rule — NEVER REMOVE ANYTHING. Runs the same
+  deterministic engine (data/copyright.js) over every personal book, reports
+  four buckets before touching a thing, and then offers to move only the
+  can't-travel ones onto "Personal — mine to read, not to pass on". Each moved
+  book records priorShelf, so the whole operation is reversible by hand. The
+  verdict is stored per book (b.sharing) and shown on the shelf as 🔒 / ❔ / 🤝.
+  Nothing is deleted, hidden, or made unreadable; a personal copy needs no
+  licence and stays readable forever. The ONLY thing triage changes is whether
+  a book may travel in a bequest or packet.
+- Verified against a library shaped like the user's real accident: 100 personal
+  books all imported onto one shelf — 40 in-copyright, 40 Gutenberg, 20
+  unlabelled. Result: correct buckets, 60 moved, 40 left, ALL 100 STILL PRESENT,
+  every moved book remembering its old shelf, and the new shelf created for
+  them. 16 live checks.

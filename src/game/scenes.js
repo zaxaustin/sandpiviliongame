@@ -392,7 +392,10 @@ function buildGrove(){
   scenes.grove = {
     name:'The Inheritance Hall', outdoor:true, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:8,y:13,to:'overworld',sx:7,sy:27},{x:9,y:13,to:'overworld',sx:8,sy:27}],
-    stations:[{x:8,y:2,kind:'inheritance',name:'THE RECORD STONE'}],
+    stations:[{x:8,y:2,kind:'inheritance',name:'THE RECORD STONE'},
+      // A broken column, half-buried, standing apart from everything else in
+      // the court. Not decoration: it is the argument the Hall exists to make.
+      {x:3,y:4,kind:'alexandria',name:'THE ALEXANDRIA STONE'}],
     signs:[
       {x:7,y:12,name:'A STONE, SET AT THE GATE',
        text:"THE INHERITANCE HALL\nSand, a wall, and an open sky. Nothing else is provided.\nFace any bare patch and press E to put something in the\nground — a collection of books, a seed holding your own\nnotes, or a course set behind a trial for whoever comes\nafter. Some things left here are buried, and will not\nsurface for anyone who hasn't done the work first.\nWhat's planted stays. You will not always be the one who\nfinds it."},

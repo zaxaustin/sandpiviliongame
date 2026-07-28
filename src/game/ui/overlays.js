@@ -1269,7 +1269,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','stewardIdxOv','standingOv','promptOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 /* Closing a panel used to CANCEL read-aloud outright, with no way back — the
    single most-complained-of thing in real use ("if I try to do anything it
    pauses that voice and I can't even unpause it"). Now: a book you're
@@ -6185,6 +6185,83 @@ function noteBody(n){ return (n && (n.body||n.text||'')) || ''; }
 function plantedByLabel(pl){ return pl.by ? esc(pl.by) : (pl.received?'someone who came before':'you'); }
 const STAGE_WORD=['a seed in the soil','a sprout','in bud','in bloom'];
 
+/* ----- The Alexandria Stone (2026-07-27, at direct request: "I feel like we
+   need a remembrance of Alexandria or something, that we can show that this can
+   be forgotten but will never be burned down again").
+
+   Told honestly, because the honest version makes the point better than the
+   myth does. The popular story is one night and one fire. The historical
+   picture is slower and sadder: partial damage across centuries, funding
+   withdrawn, scholars leaving, copies not made — a library that was mostly
+   *let* go. Which is exactly the failure this Hall is built against, and it's a
+   failure of habit rather than of villains.
+
+   The counter-argument isn't rhetoric here — it's counted from the visitor's
+   own Pavilion and shown back to them. */
+export function openAlexandria(){
+  state.ui='alexandria'; hideAllOv(); renderAlexandria(); showOv('alexandriaOv');
+}
+function renderAlexandria(){
+  const el=document.getElementById('alexandriaPanel'); if(!el) return;
+  const g=commonsStore();
+  const shelved=Store.allDocs().length;
+  const planted=(data.grove&&data.grove.plantings||[]).length;
+  const given=(g.published||[]).length + (data.grove&&data.grove.plantings||[]).filter(p=>!p.received).length;
+  const received=(g.received||[]).length + (data.grove&&data.grove.plantings||[]).filter(p=>p.received).length;
+  el.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🏛 The Alexandria Stone</h2>
+    <div class="meta">A broken column, half-buried in the sand of this court. Nobody remembers carrying
+      it in.</div>
+
+    <div class="card" style="cursor:default;margin-top:12px;border-color:#b8ae97">
+      <div style="white-space:pre-wrap;font-style:italic">“It was not one fire.
+
+That is the part everyone gets wrong, and getting it wrong lets us off.
+
+There was a fire, and it took some of it. Then a century passed and the salaries
+stopped. Then the scholars went elsewhere, because scholars go where they are
+fed. Then a war, and another, and each one took a little. Then nobody was
+copying the scrolls any more, because copying is slow and dull and there was
+always next year.
+
+No single night destroyed the library at Alexandria. It was let go — quietly,
+over generations, by people who each assumed someone else was keeping it.
+
+What actually killed it was simpler than fire: there was only ever one of it.”</div>
+    </div>
+
+    <div class="meta" style="margin-top:12px">That is the whole argument this Hall exists to make. A
+      text that lives in one place is one accident from gone — one fire, one dead hard drive, one
+      company deciding it is no longer commercially interesting, one generation that forgets to copy it
+      forward. <b>The answer was never a better building. It was more hands.</b></div>
+
+    <h3 style="margin-top:16px">Where your Pavilion actually stands</h3>
+    <div class="row" style="flex-wrap:wrap;gap:10px;margin-top:8px">
+      <div class="card" style="cursor:default;flex:1 1 140px"><div class="t">${shelved}</div><div class="s">texts on your shelves</div></div>
+      <div class="card" style="cursor:default;flex:1 1 140px"><div class="t">${planted}</div><div class="s">things standing in this court</div></div>
+      <div class="card" style="cursor:default;flex:1 1 140px"><div class="t">${given}</div><div class="s">you have made copies of, for others</div></div>
+      <div class="card" style="cursor:default;flex:1 1 140px"><div class="t">${received}</div><div class="s">reached you from someone else</div></div>
+    </div>
+    ${given===0
+      ? `<div class="meta" style="margin-top:10px"><b>Nothing here exists in more than one place yet.</b>
+          Everything on your shelves is currently one machine away from being forgotten — not burned,
+          just lost the ordinary way. Plant something, or publish something, and that stops being true
+          for that one thing.</div>`
+      : `<div class="meta" style="margin-top:10px"><b>${given} thing${given===1?'':'s'} of yours now exist
+          somewhere other than here</b> — or can, the moment you hand the file over. That is the only
+          protection any library has ever actually had.</div>`}
+
+    <div class="meta" style="margin-top:14px">This can still be forgotten. Nothing prevents that, and
+      any promise otherwise would be a lie — sand is the honest name for it. What cannot happen again is
+      a <i>single</i> fire ending it, because there is no single building to burn: only copies, in
+      hands, given away faster than they can be lost.</div>
+
+    <div class="row" style="margin-top:16px;gap:6px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="openInheritanceHall()">🗿 The Record Stone</button>
+      <button class="btn ghost" onclick="openCommonsTable()">🏛 The Commons Table</button>
+    </div>`;
+}
 export function openInheritanceHall(){ state.ui='grove'; state.groveView={mode:'hall'}; hideAllOv(); renderGrove(); showOv('groveOv'); }
 export function openPlantHere(x,y){ state.ui='grove'; state.groveView={mode:'plant',x,y}; hideAllOv(); renderGrove(); showOv('groveOv'); }
 export function openPlanting(id){ state.ui='grove'; state.groveView={mode:'one',id}; hideAllOv(); renderGrove(); showOv('groveOv'); }
@@ -7690,6 +7767,89 @@ function shelfOf(b){ return (b && b.tradition) || 'Personal'; }
 function allShelfChoices(){ return [...myShelves(), ...TRADITIONS, 'Personal']; }
 function personalBooks(){ return data.personalLibrary||[]; }
 
+/* ================================================================
+   BULK COPYRIGHT TRIAGE — 2026-07-27, from a real accident: 128 books
+   imported onto one shelf in one go, many of which probably can't be
+   shared.
+
+   The rule the user set, and it is the right one: **never remove
+   anything.** A book whose status isn't established doesn't get
+   deleted, doesn't get hidden, and doesn't get quarantined — it gets
+   moved to a personal shelf, where it needs no licence at all and is
+   yours to read forever. The only thing triage changes is whether a
+   book is allowed to *travel*.
+
+   Same engine as the single-book check (data/copyright.js): rules
+   read the text and decide, uncertain defaults to personal. It runs
+   over the whole shelf at once and reports before it touches anything.
+   ================================================================ */
+const PERSONAL_ONLY_SHELF='Personal — mine to read, not to pass on';
+export function runLibraryTriage(){
+  const out=document.getElementById('myLibTriageOut'); if(!out) return;
+  const books=personalBooks();
+  if(!books.length){ out.innerHTML='<div class="meta">No books of your own to check yet.</div>'; return; }
+  out.innerHTML='<div class="meta">Reading each book…</div>';
+  // synchronous and fast — it reads only the head and tail of each text
+  const rows=books.map(b=>{
+    const ft=(b.doc&&b.doc.fullText)||{};
+    const text=ft.text || (b.doc&&b.doc.sections||[]).map(x=>x.body).join('\n\n') || '';
+    const v=triage({ text, license:b.license||'', source:b.source_url||'' });
+    b.sharing=v.id; // remembered, so the exporters and the shelf can show it
+    return { b, v };
+  });
+  persist();
+  const open=rows.filter(r=>r.v.id==='open'), pd=rows.filter(r=>r.v.id==='pd');
+  const closed=rows.filter(r=>r.v.id==='copyright'), unk=rows.filter(r=>r.v.id==='unknown');
+  const stay=[...closed,...unk];
+  const already=stay.filter(r=>shelfOf(r.b)===PERSONAL_ONLY_SHELF).length;
+  out.innerHTML=`
+    <div class="card" style="cursor:default;margin-top:10px">
+      <div class="t">⚖ ${rows.length} book${rows.length===1?'':'s'} checked</div>
+      <div class="s" style="margin-top:6px">
+        <b style="color:#7fa36b">${open.length}</b> carry an open licence ·
+        <b style="color:#7fa36b">${pd.length}</b> look public domain ·
+        <b style="color:#c8574a">${closed.length}</b> look to be in copyright ·
+        <b style="color:#c8a04a">${unk.length}</b> can't be established either way
+      </div>
+      <div class="meta" style="margin-top:8px"><b>Nothing has been deleted, hidden, or changed.</b>
+        Every one of these is still on your shelves and still readable — a personal copy never needs a
+        licence. The only question here is which ones may <i>travel</i> in a bequest or a packet.</div>
+      ${stay.length? `<div class="meta" style="margin-top:8px">
+          <b>${stay.length}</b> should stay yours alone${already?` (${already} already are)`:''}. Moving them
+          to their own shelf keeps them out of anything shareable without touching the books themselves.</div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" onclick="applyTriageMove()">📥 Move those ${stay.length} to “${esc(PERSONAL_ONLY_SHELF)}”</button>
+        </div>`
+        : '<div class="meta" style="margin-top:8px">Everything of yours can be passed on freely. That is unusual and rather nice.</div>'}
+    </div>
+    ${stay.length?`<div style="max-height:240px;overflow:auto;margin-top:10px">
+      ${stay.slice(0,60).map(r=>`<div class="card" style="cursor:default">
+        <div class="t" style="font-size:12.5px">${r.v.id==='copyright'?'🔒':'❔'} ${esc(r.b.title||'Untitled')}</div>
+        <div class="s">${esc(r.v.reasons[0]?r.v.reasons[0].what:'nothing in the text establishes it either way')}</div>
+      </div>`).join('')}
+      ${stay.length>60?`<div class="meta">…and ${stay.length-60} more.</div>`:''}
+    </div>`:''}
+    <div class="meta" style="margin-top:8px">A recommendation, not a legal opinion — copyright differs by
+      country and only you can decide. When it isn't sure, it says so and keeps the book personal.</div>`;
+  blip(660,.07);
+}
+export function applyTriageMove(){
+  const books=personalBooks();
+  const moving=books.filter(b=>(b.sharing==='copyright'||b.sharing==='unknown') && shelfOf(b)!==PERSONAL_ONLY_SHELF);
+  if(!moving.length) return;
+  if(!myShelves().includes(PERSONAL_ONLY_SHELF)) myShelves().push(PERSONAL_ONLY_SHELF);
+  moving.forEach(b=>{ b.priorShelf=shelfOf(b); b.tradition=PERSONAL_ONLY_SHELF; });
+  persist();
+  logActivity('Moved '+moving.length+' book(s) to a personal-only shelf after a copyright check.');
+  blip(700,.08); setTimeout(()=>blip(880,.09),90);
+  const out=document.getElementById('myLibTriageOut');
+  if(out) out.innerHTML=`<div class="card" style="cursor:default;margin-top:10px;border-color:#7fa36b">
+    <div class="t">Moved ${moving.length} book${moving.length===1?'':'s'}</div>
+    <div class="s" style="margin-top:4px">They're on <b>${esc(PERSONAL_ONLY_SHELF)}</b>, still whole, still readable,
+      and each remembers the shelf it came from — so this is reversible by hand if you disagree with any of it.
+      Nothing was deleted.</div></div>`;
+  renderMyLibrary();
+}
 export function openMyLibrary(){ state.ui='mylib'; state.myLibView=state.myLibView||{q:'',sel:{}}; hideAllOv(); renderMyLibrary(); showOv('myLibOv'); }
 export function createMyShelf(){
   const name=(window.prompt('Name a shelf of your own — anything you like:\n(e.g. Electronics · Work · Recipes · Papers to read)')||'').trim();
@@ -7829,8 +7989,10 @@ function renderMyLibrary(keepFocus){
     </div>
     <div class="row" style="gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
       <button class="btn ghost" onclick="suggestShelvesWithAI()">✨ Have the librarian sort these</button>
+      <button class="btn ghost" onclick="runLibraryTriage()" title="Check every book's licence — nothing is ever deleted">⚖ Which of these can I pass on?</button>
     </div>
     <div class="meta" id="myLibAiOut" style="margin-top:6px"></div>
+    <div id="myLibTriageOut"></div>
     ${selCount?`<div class="row" style="gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">
         <b style="color:var(--gold)">${selCount} selected →</b>
         <select id="myLibMoveTo" style="width:auto;min-width:150px">
@@ -7845,7 +8007,7 @@ function renderMyLibrary(keepFocus){
       const dupe=titleCount[(b.title||'').trim().toLowerCase()]>1;
       const on=!!(v.sel||{})[b.slug];
       return `<div class="card" style="cursor:default${dupe?';border-color:#e0a43c':''}${on?';box-shadow:inset 0 0 0 2px var(--gold)':''}">
-        <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> ${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
+        <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> ${b.sharing==='copyright'?'🔒 ':b.sharing==='unknown'?'❔ ':(b.sharing==='open'||b.sharing==='pd')?'🤝 ':''}${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
         <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
           <select id="myLibShelf_${esc(b.slug)}" onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto;min-width:150px">${opts(b)}</select>
           <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
@@ -8107,6 +8269,7 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   newLessonForm, saveMyLesson, deleteMyLesson,
+  openAlexandria, runLibraryTriage, applyTriageMove,
   openStanding, setStanding, addStandingSuggestion, clearStanding,
   openPromptInspector, openStandingForCurrentChat, openPromptForCurrentChat,
   runCopyrightCheck,

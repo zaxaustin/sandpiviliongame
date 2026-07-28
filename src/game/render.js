@@ -586,6 +586,30 @@ function drawStation(st,ox,oy){
     }
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.42,y+S*.2,S*.16,S*.07); // a small "take one" card, standing up
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.44,y+S*.215,S*.12,S*.02);
+  } else if(st.kind==='alexandria'){ // a broken column, half-buried, scorched at the base
+    ctx.fillStyle='rgba(0,0,0,.16)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.84,S*.34,S*.1,0,0,7); ctx.fill();
+    // drifted sand piled against it — it is being buried, slowly, which is the point
+    ctx.fillStyle='#cbb287'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.8,S*.4,S*.14,0,0,7); ctx.fill();
+    ctx.fillStyle='#c2a87c'; ctx.beginPath(); ctx.ellipse(x+S*.38,y+S*.84,S*.24,S*.08,0,0,7); ctx.fill();
+    const colX=x+S*.5, top=y+S*.16;
+    ctx.fillStyle='#b8ae97'; ctx.fillRect(colX-S*.15,top,S*.3,S*.66);            // the shaft
+    ctx.fillStyle='#cbc2ab'; ctx.fillRect(colX-S*.15,top,S*.09,S*.66);           // its lit side
+    ctx.strokeStyle='rgba(90,80,64,.5)'; ctx.lineWidth=Math.max(1,S*.015);       // fluting
+    for(const f of [-.06,0,.06]){ ctx.beginPath(); ctx.moveTo(colX+S*f,top+S*.04); ctx.lineTo(colX+S*f,y+S*.78); ctx.stroke(); }
+    // the break — snapped, not cut: a jagged top rather than a clean one
+    ctx.fillStyle=((x+y)%2===0)?'#e3cfa1':'#e3cfa1';
+    ctx.beginPath(); ctx.moveTo(colX-S*.16,top); ctx.lineTo(colX-S*.04,top-S*.07);
+    ctx.lineTo(colX+S*.05,top+S*.02); ctx.lineTo(colX+S*.16,top-S*.05); ctx.lineTo(colX+S*.16,top-S*.16);
+    ctx.lineTo(colX-S*.16,top-S*.16); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#9c927c'; ctx.fillRect(colX-S*.15,top,S*.3,S*.03);            // the raw broken face
+    ctx.fillStyle='rgba(40,30,22,.30)';                                          // scorch, low on the shaft
+    ctx.beginPath(); ctx.ellipse(colX,y+S*.66,S*.16,S*.12,0,0,7); ctx.fill();
+    ctx.fillStyle='rgba(40,30,22,.18)';
+    ctx.beginPath(); ctx.ellipse(colX-S*.06,y+S*.5,S*.08,S*.1,0,0,7); ctx.fill();
+    // a fallen piece of the shaft, lying in the sand beside it
+    ctx.fillStyle='#b0a68f'; ctx.beginPath(); ctx.ellipse(x+S*.76,y+S*.76,S*.16,S*.06,-.15,0,7); ctx.fill();
+    ctx.strokeStyle='rgba(90,80,64,.45)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.ellipse(x+S*.76,y+S*.76,S*.16,S*.06,-.15,0,7); ctx.stroke();
   } else if(st.kind==='inheritance'){ // The Record Stone — a standing stone, tally-marked, the Hall's only furniture
     ctx.fillStyle='rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.88,S*.3,S*.09,0,0,7); ctx.fill();
     ctx.fillStyle='#8e8778'; ctx.beginPath();

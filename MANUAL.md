@@ -208,7 +208,17 @@ your own standing instructions, so you can watch them take effect.
   dropdowns — it never files anything itself; a suggestion is not a decision.
 
   Renaming a shelf carries its books with it. Removing a shelf returns its books
-  to Unfiled — **nothing is ever deleted by tidying**. None of this touches the
+  to Unfiled — **nothing is ever deleted by tidying**.
+
+- **⚖ Which of these can I pass on?** Checks every book you've added, all at
+  once, and sorts them into: carries an open licence · looks public domain ·
+  looks to be in copyright · can't be established. It then offers to move the
+  last two groups onto a shelf of their own, *"Personal — mine to read, not to
+  pass on"*. **Nothing is ever deleted, hidden, or made unreadable** — a
+  personal copy needs no licence and stays yours forever. The only thing this
+  changes is which books are allowed to travel in a bequest or a packet. Each
+  moved book remembers the shelf it came from, so you can undo any of it by
+  hand if you disagree. It's a recommendation, not a legal opinion. None of this touches the
   certified shelves.
 
 ---
@@ -464,6 +474,21 @@ and always travel. A book only travels *as a book* if its license permits it
 goes as a **card**: title, author, license, and where to get it. That isn't
 timidity; it's the same test every book passes at the Library door, applied
 to giving instead of shelving.
+
+**The Alexandria Stone.** A broken column stands in the sand at the west of the
+court. It tells what actually happened to the library at Alexandria — which is
+not the story most people know. There was no single night and no single fire:
+there was damage, then a century of withdrawn funding, then scholars leaving,
+then nobody copying the scrolls forward, because copying is slow and there was
+always next year. It was *let go*. What killed it was simply that there was only
+ever one of it.
+
+That's the argument this whole court is built on, and the stone counts your own
+Pavilion back to you: how many texts you hold, and how many exist anywhere other
+than this machine. It doesn't promise permanence — this can still be forgotten,
+and sand is the honest name for that. What it says is that no single fire can
+end it again, because there is no single building to burn: only copies, in
+hands, given away faster than they can be lost.
 
 **Nothing here is scored.** There are no points for planting and no penalty
 for an empty garden. The reward is the thing itself — a real collection, real
