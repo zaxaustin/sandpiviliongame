@@ -1544,3 +1544,26 @@ a dropdown's current value, so the question that matters while sorting —
 Verified with a 62-book library (40 unfiled, 15 Electronics, 7 Cooking):
 scroll held at 900px across a tick, every chip filtered correctly, and no
 book was lost by any of it.
+
+### 21. [x] Three guides a tester needed and could not read
+
+Everything a new person stumbles on was *findable* in the interface — a nudge
+here, a link there, a line in a panel — but nowhere could you sit down and
+**read** it. Added to the seed library, shelved beside the Visitor's Handbook,
+readable before anything at all is installed:
+
+- **Waking the Residents — a local AI, plainly explained.** The single biggest
+  point of friction. Says outright that you don't need it, explains what
+  "local" actually means (a file on your drive, nothing sent anywhere), the
+  four steps, which model to pull, **what to honestly expect from a small
+  model**, and what to do when nothing is detected.
+- **Filling Your Own Shelves.** Drag a file onto the window — that's the whole
+  process. Why the library starts nearly bare on purpose, where to actually get
+  texts (Gutenberg, Standard Ebooks, arXiv, PMC, SuttaCentral), and why your own
+  shelf asks you for no licence at all. Closes finding #32.
+- **When Something Goes Wrong.** Written for a beta tester: nothing you click
+  can break it, why a resident might hang or answer empty, why the voice list
+  looks bare for a second, why some books show a summary, why the café boards
+  are closed — and the one thing worth doing, which is telling us.
+
+Seed library: 24 → **27 texts**.
