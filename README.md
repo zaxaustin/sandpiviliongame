@@ -31,10 +31,9 @@ and opens in its own window. **Windows, 95 MB.**
 
 > **On a Mac?** Open **[sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app)**
 > instead — the same Pavilion, in Safari or Chrome, nothing to install and
-> nothing to approve. A downloadable `.dmg` is built by
-> [CI](.github/workflows/build-installers.yml) and will appear on the releases
-> page; until then the browser is the better Mac experience anyway, because an
-> unsigned Mac app makes macOS claim it is "damaged" when it isn't.
+> nothing to approve. A downloadable `.dmg` is coming; if you have a Mac and
+> want to build one yourself, it's twenty minutes and
+> **[`MAC-BUILD.md`](MAC-BUILD.md)** is the whole recipe.
 
 **You need nothing else.** No account, no sign-up, no key, no Node, no Docker,
 no AI. It works the moment it opens.

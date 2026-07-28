@@ -2,7 +2,7 @@
   "name": "sand-pavilion",
   "private": true,
   "version": "0.1.0-beta.2",
-  "description": "The Sand Pavilion — a small walkable world for reading, planning, and working, with AI residents that run on your own machine. Local-first; nothing phones home.",
+  "description": "The Sand Pavilion \u2014 a small walkable world for reading, planning, and working, with AI residents that run on your own machine. Local-first; nothing phones home.",
   "author": "The Sand Pavilion stewards",
   "type": "module",
   "main": "electron/main.cjs",
@@ -45,11 +45,19 @@
       "uninstallerIcon": "build/icon.ico"
     },
     "mac": {
-      "target": "dmg",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.png",
       "category": "public.app-category.education",
       "identity": null,
-      "artifactName": "Sand Pavilion ${version}.${ext}"
+      "artifactName": "Sand Pavilion ${version} ${arch}.${ext}"
     },
     "dmg": {
       "title": "Sand Pavilion ${version}"

@@ -8420,6 +8420,25 @@ function renderMyLibrary(keepFocus){
    beside the shelf it lands on, under a name that is an instruction rather than
    a noun. It teaches drag-and-drop first, because that is the path that works
    from any website in the world and needs nothing installed. */
+/* Where Electron's app.getPath('userData') actually lands, per platform. The
+   first version of this panel hard-coded the Windows path, which would have
+   been a confident lie on the very machines the first testers use — caught
+   2026-07-28 while auditing for a Mac build. Electron's own rules:
+     win32  → %APPDATA%\<name>
+     darwin → ~/Library/Application Support/<name>
+     linux  → ~/.config/<name>                                            */
+function isMacish(){ return /Mac|iPhone|iPad/.test(navigator.userAgent || navigator.platform || ''); }
+function isWindowsish(){ return /Win/.test(navigator.userAgent || navigator.platform || ''); }
+function libraryFolderPath(){
+  if(isMacish()) return '~/Library/Application Support/sand-pavilion/library/';
+  if(isWindowsish()) return '%APPDATA%\\sand-pavilion\\library\\';
+  return '~/.config/sand-pavilion/library/';
+}
+function libraryFolderHint(){
+  if(isMacish()) return 'In Finder, press ⇧⌘G and paste that in.';
+  if(isWindowsish()) return "Paste that into the address bar of any Explorer window.";
+  return 'Paste that into your file manager.';
+}
 export function openBookIntake(){
   state.ui='intake'; hideAllOv();
   const desktop=!!(window.desktopBridge && window.desktopBridge.isDesktop);
@@ -8465,10 +8484,10 @@ export function openBookIntake(){
     <div class="card" style="cursor:default;margin-top:8px">
       ${desktop?`<div class="s">The <b>text of every book you add</b> is written as an ordinary <code>.txt</code>
         file in this app's own data folder:</div>
-        <div class="s" style="margin-top:5px;color:var(--gold)"><code>%APPDATA%\\sand-pavilion\\library\\</code></div>
-        <div class="s" style="margin-top:5px">Paste that into the address bar of any Explorer window. They are
-        plain text — openable in Notepad, copyable, backup-able, yours. Nothing is locked in a database and
-        nothing needs this app to read it.</div>`
+        <div class="s" style="margin-top:5px;color:var(--gold)"><code>${esc(libraryFolderPath())}</code></div>
+        <div class="s" style="margin-top:5px">${esc(libraryFolderHint())} They are plain text — openable in any
+        text editor, copyable, backup-able, yours. Nothing is locked in a database and nothing needs this app
+        to read it.</div>`
       :`<div class="s">In this browser version, book text is kept in the browser's own storage for this site.
         The <b>installed desktop app</b> writes each one as an ordinary <code>.txt</code> file in a folder you
         can open, which is the better home for anything you care about.</div>`}

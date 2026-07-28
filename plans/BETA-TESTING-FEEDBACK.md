@@ -1726,3 +1726,38 @@ variable, and `scripts/verify-beta-build.mjs` runs inside it — so the deploy n
 **fails** rather than quietly shipping a cloud host. The same guard that already
 protected the installer now protects the website, which is where it should have
 been from the start: the promise was made in one place and enforced in another.
+
+### 28. [x] Mac readiness, audited rather than assumed
+
+*"What do we need to do to get ready for a Mac install?"* — with a brother who
+can run it in an IDE but has no AI assistant helping him. So: find the real
+blockers by reading the code, fix them, and leave a sheet that assumes no
+context.
+
+**The audit came back better than expected.** `electron/main.cjs` already
+handles the two macOS lifecycle conventions correctly — `window-all-closed`
+checks `darwin` before quitting, and `activate` re-creates the window. Nothing
+calls `Menu.setApplicationMenu(null)`, so Electron's default menu stands and
+`⌘C`/`⌘Q` work. Every path goes through `app.getPath('userData')` and
+`path.join`, so no separator or drive-letter assumptions anywhere.
+
+**Three real things did need fixing:**
+
+1. **The intake panel hard-coded the Windows path** — a bug introduced hours
+   earlier in this same session, and a confident lie on exactly the machines the
+   first testers use. It now resolves per platform: `%APPDATA%\…` on Windows,
+   `~/Library/Application Support/…` on macOS, `~/.config/…` on Linux, with the
+   right "how to open that folder" hint for each (⇧⌘G in Finder). Verified by
+   driving the panel under both a Windows and a macOS user-agent.
+2. **Architecture.** GitHub's `macos-latest` runner is Apple Silicon, so a
+   default build there would produce **arm64 only** — unrunnable on an Intel
+   Mac. Now builds both, with the arch in the filename.
+3. **Icon size.** electron-builder generates the `.icns` from `build/icon.png`,
+   which was 512. Bumped to **1024** — still a whole multiple of the 32px art
+   grid (32×), so the upscale stays perfectly crisp rather than blurring.
+
+**`MAC-BUILD.md`** is the standalone sheet: clone, install, `make-icon`,
+`electron:build:beta`, and — importantly — *check the packaged app actually
+opens*, with the Windows near-miss quoted as the reason to bother. Plus the
+Gatekeeper "is damaged" message explained as the lie it is, and the right-click
+→ Open / `xattr -dr com.apple.quarantine` fix.
