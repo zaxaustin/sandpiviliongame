@@ -21,38 +21,49 @@ keep your own work — one that belongs entirely to the machine it runs on.
 
 ---
 
-## Getting in
+## Download it
 
-**If you were handed an installer** (`Sand Pavilion Setup ….exe`): run it, and
-that's the whole setup. It makes a Start Menu shortcut and its own window.
+### → **[Get the latest version here](https://github.com/zaxaustin/sandpiviliongame/releases/latest)**
 
-> Windows will warn you about an **"unknown publisher."** That's expected. The
-> installer isn't code-signed, because a signing certificate costs money and
-> this is a personal project given away for free. Click through the warning if
-> you trust whoever handed it to you — and if you don't, don't.
+Download `Sand Pavilion Setup ….exe` and run it. That is the entire setup — it
+installs for you only (no administrator password), makes a Start Menu shortcut,
+and opens in its own window. **Windows, 95 MB.**
 
-**If you have the source code instead:** you'll need [Node.js](https://nodejs.org),
-then:
+**You need nothing else.** No account, no sign-up, no key, no Node, no Docker,
+no AI. It works the moment it opens.
 
-```
-npm install
-npm run electron:dev      # opens it as a desktop app
-```
+> ### One warning you'll see, and it's expected
+>
+> Windows will show a blue box: **"Windows protected your PC — unrecognised
+> app."** The default button is *Don't run.*
+>
+> Click **More info**, then **Run anyway.**
+>
+> This happens because the installer isn't code-signed — a certificate costs a
+> few hundred dollars a year, and this is a personal project given away free.
+> It isn't a sign that anything's wrong. If you'd rather check the download
+> anyway, each release lists a SHA-256 you can verify with
+> `Get-FileHash <file> -Algorithm SHA256`.
 
-There's also a browser version — `npm run dev` — and a live one at
-[sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app). The desktop
-app is the better experience; it can reach your local AI without any extra
-setup, and it can store books as real files.
+**Just want a look first?** There's a browser version at
+[sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app) — no install,
+nothing saved to anyone's server. The downloaded app is the real one, though:
+it reaches a local AI with no setup and stores your books as real files.
 
 **Controls:** arrows or WASD to walk, `E` to interact, `M` to sit/lie/stand,
 `Esc` for the menu. Everything saves by itself.
+
+*(Prefer to build it from source? That's at the [end of this
+file](#running-it-from-source) — the download is the way in for everyone else.)*
 
 ---
 
 ## Your first ten minutes
 
 1. **Walk south into the Library.** Face a shelf, press `E`, pick a book, and
-   read it. Several are complete, real books — not summaries.
+   read it. Several are complete, real books. Then press **🔊 Read aloud** and
+   let it read to you — that works instantly, with nothing installed, and it's
+   the fastest way to feel what this place is for.
 2. **Press `Esc` → 🗒 Your Notes** and write one line. It saves as you type.
 3. **Go into the Study** (its own door on the Grounds) and set an intention for
    the day at the Writing Desk.
@@ -84,18 +95,29 @@ The full room-by-room guide — every desk, every resident, what each one is for
 
 ## Making the residents talk
 
-Out of the box the residents say scripted lines. To have real conversations,
-you connect an AI **that runs on your own computer** — it isn't ours, we never
-see it, and it works with no internet once it's installed.
+**This part is optional, and it's genuinely fine to skip.** Out of the box the
+residents say scripted lines. To have real conversations you connect an AI
+**that runs on your own computer** — it isn't ours, we never see it, and it
+works with no internet once installed.
+
+**Don't go looking up your laptop's specifications.** Press `Esc` → **⚙ Manage
+AI connections** → **🔍 Check this computer**. The Pavilion reads the machine
+you're actually sitting at and tells you in plain words whether this is worth
+doing here, which model to get, and the exact line to type — with a Copy
+button. On a small or older machine it will tell you honestly **not to bother**,
+and it means it: everything above this section works without any of it.
 
 1. **Install [Ollama](https://ollama.com)** (or `winget install Ollama.Ollama`).
-2. **Pull one model:** `ollama pull llama3.2` — small, fast, and it answers.
-   **Avoid "thinking" models** (`deepseek-r1`, `qwq`, `qwen3.5`) to start with:
-   they pause for a long time before replying, which feels broken when it
-   isn't. [`PROTOCOLS.md`](PROTOCOLS.md) Protocol 2 has a proper guide to
-   picking one for your machine.
-3. **Open the Pavilion.** Under "Enter the Grounds" it will say
-   *"● Connected to Ollama"*. Talk to Quill in the Library.
+2. **Run the line the app gave you** — something like `ollama pull llama3.2:3b`.
+   A few gigabytes will download, so make tea. **Avoid "thinking" models**
+   (`deepseek-r1`, `qwq`, `qwen3.5`) at first: they pause a long time before
+   replying, which feels broken when it isn't.
+3. **Press Detect** in that same panel. It looks only at your own machine. Now
+   go and talk to Quill in the Library.
+
+**On a laptop:** plug it in first — nearly all of them slow down deliberately on
+battery — and expect the fans. The very first question after starting up is
+always the slowest; that's the model loading into memory.
 
 *(In a browser — not the desktop app — you also need
 `setx OLLAMA_ORIGINS "http://localhost:5173,http://localhost:5174"` and a
@@ -109,13 +131,22 @@ clear whose machine a conversation is happening on.
 
 ## Filling your Library
 
-The Pavilion ships with 24 texts. It's meant to grow, by you.
+The Pavilion ships with **27 texts** — 6 complete source books (the Dhammapada,
+the Bhagavad Gita, three suttas), 11 written for the Pavilion itself, and 10
+classics carried as summaries. **Those ten say so when you open them**, name
+exactly where the real text lives, and invite you to bring it in. Do that once
+and the same page becomes the whole book.
 
-**The easy way, no terminal:** Workshop → the **Caravan Desk** → *"Add a text
-by hand."* Drag in a `.txt` or `.epub` — one, or a whole pile at once. Pick
-which shelf it belongs on. If it came from a site the Pavilion knows, the
-title, author and license fill themselves in; if it didn't, **type the source
-yourself, or leave it blank.**
+**The easiest way — drag a file onto the window.** A `.txt` or an `.epub`,
+dropped anywhere on the Pavilion, lands on your own shelf and is readable
+immediately. No dialog, no import wizard. If a website has no tidy way to send
+you a book but your browser can download one, this still works — that's the
+point.
+
+**Or, with more control:** Workshop → the **Caravan Desk** → *"Add a text by
+hand."* One, or a whole pile at once, and you pick the shelf. If it came from a
+site the Pavilion knows, title, author and license fill themselves in; if not,
+**type the source yourself, or leave it blank.**
 
 **Your Shelf is yours.** A personal copy needs no license and no source —
 that's your business, not anyone else's. A license only matters for something
@@ -233,11 +264,47 @@ want to:
 
 ---
 
+## Running it from source
+
+Only if you want to change it, or you'd rather build it yourself than trust an
+installer. You'll need [Node.js](https://nodejs.org):
+
+```bash
+npm install
+npm run electron:dev      # the desktop app, with live reload
+npm run dev               # or just the browser version
+npm test                  # the smoke suite — fast, no browser needed
+```
+
+To build an installer of your own:
+
+```bash
+npm run electron:build:beta
+```
+
+Use the `:beta` script, **not** the plain `electron:build` — the beta one reads
+`.env.beta`, which empties every service variable so the build ships local-only.
+`scripts/verify-beta-build.mjs` runs inside it and fails the build if a cloud
+host or anything key-shaped ends up in the bundle.
+
+Before handing any build to another person, run the guard that exists because
+the packaged app once silently didn't work at all:
+
+```bash
+env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
+```
+
+Exit code 0 means it boots, starts and opens panels. Anything else means don't
+send it.
+
+---
+
 ## For maintainers
 
 Architecture, invariants, the code map, the backend plan, release steps and
 what's next are in **[`MAINTAINING.md`](MAINTAINING.md)**. Every open plan is
-in [`plans/`](plans/); the build history is in [`archive/`](archive/).
+in [`plans/`](plans/); the build history is in [`archive/`](archive/). How to
+hand the app to someone is [`SHIPPING-THE-BETA.md`](plans/SHIPPING-THE-BETA.md).
 
 MIT licensed. Everything shelved carries its own license and source.
 
