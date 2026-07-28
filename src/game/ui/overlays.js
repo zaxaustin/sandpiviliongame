@@ -6886,6 +6886,18 @@ const DROP_SOURCES = {
   arxiv: { label:'arXiv', license:"Check the paper's own license — arXiv hosting isn't one" },
   openalex: { label:'OpenAlex (via publisher)', license:"Check the paper's own license — varies by publisher" },
   archiveorg: { label:'Internet Archive', license:"Check the item's own rights statement — varies" },
+  // added 2026-07-27 — the open-access world, so a dropped paper's licence is
+  // filled in from where it came from rather than typed from memory
+  wikisource: { label:'Wikisource', license:'Public Domain / CC BY-SA (check the page)' },
+  openlibrary: { label:'Open Library', license:"Check the item's own rights statement — varies" },
+  doaj: { label:'DOAJ (open-access journal)', license:"Open access — check the article's own CC licence" },
+  core: { label:'CORE (open-access aggregator)', license:"Check the paper's own licence — varies by source" },
+  pmc: { label:'PubMed Central (OA subset)', license:"Open access — check the article's own licence" },
+  zenodo: { label:'Zenodo', license:"Check the record's own licence — always stated" },
+  biorxiv: { label:'bioRxiv / medRxiv (preprint)', license:'Preprint — not peer reviewed; check its licence' },
+  openstax: { label:'OpenStax', license:'CC BY 4.0 (OpenStax)' },
+  globalgrey: { label:'Global Grey', license:'Public Domain (Global Grey)' },
+  librivox: { label:'LibriVox', license:'Public Domain (LibriVox)' },
 };
 const DROP_TITLE_RE=/^Title:\s*(.+)$/m;
 const DROP_AUTHOR_RE=/^Author:\s*(.+)$/m;

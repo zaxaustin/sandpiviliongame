@@ -101,3 +101,67 @@ them, walked daily until it's smooth:
 **The order's logic, in one line:** prove it (0) → live it (1) → use it
 to actually learn something (2) → open it (3) — ease first, direction
 second, knowledge-into-use third, and only then more world.
+
+---
+
+## Three practical asks, 2026-07-27 — notes, a resume, and reading with Quill
+
+All three are the same shape: *the Pavilion already holds the raw material, and
+does nothing with it.*
+
+### 1 · "Help me take notes and have the AI expand on them and make them good"
+
+**What exists:** notes save and link to a book; the Reader's ✨ analysis writes
+into book notes; a note can become an AI lesson plan.
+**What doesn't:** taking a rough note and asking the model to *make it good* —
+the single most common thing anyone actually wants from an AI and a notebook.
+
+**The build (small):** an **✨ Expand this** action on any note, offering three
+honest modes rather than one vague "improve":
+- **Tidy** — same content, readable. No new claims.
+- **Expand** — fill out the thinking that's implied but unwritten.
+- **Question it** — what this note assumes, and what would show it's wrong.
+
+**The rule that keeps it trustworthy:** the expansion is written *underneath*
+your own words, marked ✨ as the AI's, never replacing what you wrote. Same
+discipline the book-note analysis already follows. Your sentence stays yours.
+
+### 2 · "If I want to make a resume with Sebastian that would be nice"
+
+Genuinely good, and the Pavilion is unusually well placed for it: it already
+knows what you've actually *done* — courses walked, lessons written, Learning
+Tree nodes finished, Archive Desk documents, Research and Grant projects,
+investigations and self-experiments, books read.
+
+**The build:** a **Résumé** view at Sebastian's desk that drafts from those real
+records under `BUTLER_CHARTER`, then lets you edit every line. Export as
+Markdown, and as plain text for pasting into a form.
+
+**Two rules, both non-negotiable:**
+- **It may never invent a credential.** Everything it drafts must trace to
+  something actually in your save, and the draft says which. An AI-embellished
+  CV is a way to get someone caught lying.
+- **It is not a certificate.** The Pavilion confers nothing — Moss says so on
+  the Grounds already. A résumé here is *your own record of your own work*,
+  which is the honest and still useful version.
+
+### 3 · "It would be nice to review chapters and things with Quill"
+
+**The real gap, and it's a role mix-up we made:** the Reader's "Ask about this
+book" talks to **Sebastian** — but the standing role split is *Quill teaches,
+Sebastian runs the day*. Discussing a chapter is teaching. It should have been
+Quill from the start.
+
+**The build:**
+- Point the Reader's book/page conversation at **Quill**, with Sebastian
+  remaining available for "how does this fit in my week."
+- Add **"Review this chapter with Quill"** — grounded in the pages you've
+  actually read, not the whole book: what it argued, what you seemed to skim,
+  and one question to check you got it. That turns the Reader from a display
+  into a study session, which is the whole difference between a library and a
+  school.
+- Chapter marks already exist for the ⏮/⏭ jump added 2026-07-27, so "this
+  chapter" is already a thing the code can name.
+
+**Order:** #3 first (smallest, and fixes a genuine inconsistency), then #1, then
+#2 — none before the beta ships.

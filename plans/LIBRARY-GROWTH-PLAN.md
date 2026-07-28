@@ -500,3 +500,54 @@ hand — stays manual, on purpose, no matter how many connectors exist or
 how automated fetching gets. That's the one step in this whole pipeline
 that's a steward's judgment, not a script's output, and it's the reason
 a visitor can trust what's on a shelf here at all.
+
+---
+
+## More open sources — asked directly 2026-07-27 ("anything like Google Scholar?")
+
+**On Google Scholar specifically: no.** It has no public API and its terms
+forbid automated access; every "Scholar API" is a scraper that will break and
+would put a user in the wrong. Say so plainly rather than half-building it. The
+good news is that the legitimate open-access world is *better* for this purpose,
+because it hands you a licence with the text.
+
+**The honest substitutes for Scholar, in order of usefulness here:**
+
+- **[OpenAlex](https://openalex.org)** — already connected (`openalex.py`). A
+  full open catalogue of ~250M works, free API, no key. This *is* the Scholar
+  replacement for search and metadata.
+- **[CORE](https://core.ac.uk)** — the biggest aggregator of open-access
+  full text (not just metadata). Free API key. **The best single addition** if
+  you want papers you can actually read rather than cite.
+- **[Unpaywall](https://unpaywall.org)** — give it a DOI, get back a legal
+  open-access copy if one exists. Tiny, free, and exactly the "I found a paper,
+  can I legally read it?" tool. Pairs with everything above.
+- **[DOAJ](https://doaj.org)** — every journal on it is fully open access, so
+  the licence question is answered before you start.
+- **[PubMed Central OA subset](https://www.ncbi.nlm.nih.gov/pmc/tools/openftlist/)**
+  — medicine and biology, with a machine-readable licence per article.
+- **[Zenodo](https://zenodo.org)** — CERN-run; papers, datasets, and software,
+  every item with an explicit licence.
+- **bioRxiv / medRxiv** — preprints, free APIs. Preprints, so: not peer
+  reviewed, and the Hall's appraisal method matters more here, not less.
+
+**More books, beyond what's already listed above:**
+
+- **[Open Library](https://openlibrary.org)** (Internet Archive) — a real API,
+  and the cleanest way to look a book up by ISBN and get its metadata.
+- **[Wikisource](https://wikisource.org)** — already on the list above and still
+  the best unbuilt connector: crowd-transcribed public-domain texts with a real
+  API and no scraping needed.
+- **[LibriVox](https://librivox.org)** — public-domain *audiobooks*. Worth
+  naming because the Pavilion already reads aloud; a real human recording of a
+  public-domain classic is better than any TTS, and it's free.
+- **[Global Grey](https://www.globalgreyebooks.com)** and
+  **[ManyBooks](https://manybooks.net)** — smaller curated public-domain
+  collections, useful for filling gaps Gutenberg formats badly.
+
+**What to actually do first:** these all need the desktop fetch door
+(`MAINTAINING.md`, the backend section) before they can be in-game, because a
+browser can't reach them. Until then the honest path is the same as now:
+download by hand, drag it in. **What was added today** is the cheap half —
+these sources now appear in the drag-and-drop "where did it come from?" list, so
+the licence field fills itself in correctly instead of being typed from memory.

@@ -348,3 +348,108 @@ decision.
 **One line to hold onto:** a Library holds what's known; a laboratory asks
 what's true — and a tradition brave enough to build the second, honestly, has
 nothing to fear from the first.
+
+---
+
+# THE LAB — the basement room, and making things real (2026-07-27)
+
+At direct request: *"I have some ideas for the Science and Research Hall... make
+it interactive as we can, maybe a whole room in the basement. I have a 3D
+printer so tools for that would be dope, and also learning physics and
+electronics should be interactive."*
+
+This is Phase 5 ("a real room") grown into its own wing. Three strands, and they
+belong together because they are the same loop at three scales: **predict →
+build → measure → be wrong → write it down.**
+
+## Why the basement, and why that's the right instinct
+
+The Library already has a basement reached by walking into a bookshelf — the
+Pavilion's one existing secret. A lab underneath the Workshop or the Hall reads
+correctly for a different reason: **a lab is where you are allowed to break
+things.** Upstairs is where claims are appraised carefully; downstairs is where
+you burn out a resistor to find out what "too much current" means. Keeping those
+physically apart is honest about their different standards of care.
+
+**Room shape:** a workbench along one wall, a bench-supply/meter station, a
+printer in the corner, a scrap bin, and a board on the wall where a running
+experiment's numbers live. Reached by a stair from the Workshop ground floor
+(the Workshop is already the making building; the Hall is already the appraising
+one, and it lives off the Research Desk).
+
+## Strand A — electronics you can actually poke
+
+**The honest bar:** this must not become a toy that teaches wrong intuitions. A
+circuit sim that is *approximately* right is worse than none, because a learner
+cannot tell where it lied.
+
+So: **a DC circuit sandbox with exact, checkable maths.** Battery, resistors,
+LED, switch, wire. Series and parallel. It solves by nodal analysis — real
+linear algebra on a handful of nodes, which is a page of code and is *exact* for
+DC. Show V, I and R on every element, live, as you drag values.
+
+- **The teaching move:** make the visitor **predict before revealing**. Type
+  what you think the current will be, *then* it solves. Being wrong on the
+  screen is the entire pedagogy, and it's the same falsifier discipline the Hall
+  already runs on papers.
+- **Burn things out.** Exceed an LED's forward current and it visibly dies, with
+  the number that killed it. Cheap to implement, unforgettable to learn.
+- **Deliberately NOT:** AC, transistors, op-amps, or a full SPICE. The moment it
+  needs a solver we can't verify by hand, it stops being honest. Ohm's law,
+  Kirchhoff, series/parallel, power dissipation — that's the whole scope, and
+  it's most of what a beginner actually needs.
+
+## Strand B — physics you can measure
+
+Same rule: **only simulate what has a closed-form answer we can check.**
+
+- **Projectiles** (gravity, no drag, then with linear drag — both exact).
+- **Pendulum** (small-angle exact; large-angle numerically integrated and
+  *labelled as approximate*, which is itself a lesson).
+- **Springs, inclines, collisions** — all analytically solvable.
+- Each one is a **self-experiment in the Hall's existing sense**: state a
+  prediction, run it, record the number, and let the Investigator read your
+  results honestly. That reuses `data.hall.experiments` rather than inventing a
+  parallel store.
+
+**The bridge to the real world, which is the actual point:** every sandbox ends
+with *"now do it with a real object and a phone timer, and log THAT."* A
+simulation you can't check against reality is a video game; a simulation you
+then falsify with a stopwatch is science.
+
+## Strand C — the 3D printer bench
+
+The most *immediately* useful strand, because there's a real printer in the room.
+
+- **A print log** — what you printed, filament, nozzle/bed temp, layer height,
+  speed, result, and what you'd change. This is a lab notebook for printing, and
+  it's the thing almost nobody keeps and everybody wishes they had.
+- **Failure triage** — a checklist keyed to the symptom (warping, stringing,
+  elephant's foot, layer shift, under-extrusion), each pointing at the two or
+  three causes worth checking first, in order. Grounded in the log: *"the last
+  three times you saw stringing, dropping the temp 5° fixed it."*
+- **A material sheet** — PLA / PETG / ABS / TPU with real temperature ranges,
+  bed adhesion, and what each is actually good and bad for.
+- **The AI's honest role:** read your log and your symptom and suggest what to
+  change next. It must never assert a temperature as fact — it proposes, you
+  test, the log records what actually happened. Same evidence discipline as
+  everywhere else here.
+- **Later, if wanted:** parse a sliced G-code header for the real settings
+  instead of typing them (a small, purely local file read), and a "calibration
+  ladder" course in the Learning Tree — first layer, temp tower, retraction,
+  flow — as a real progression.
+
+## Phasing, smallest useful first
+
+- **L0 — the print log.** No room needed, no simulation, immediately useful with
+  a printer sitting there. Prove the loop with something real.
+- **L1 — the basement room.** Stairs, workbench, the stations as honest
+  "not open yet" until each is filled — the pattern the Workshop's third floor
+  already uses.
+- **L2 — the DC circuit sandbox**, predict-first, with exact maths.
+- **L3 — the physics benches**, each wired into a self-experiment.
+- **L4 — G-code parsing and the calibration progression.**
+
+**The tie back to the Hall's creed:** every one of these produces a number you
+predicted and a number you measured. That gap is the only thing the Hall has
+ever cared about.

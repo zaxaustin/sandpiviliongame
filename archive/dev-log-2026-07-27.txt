@@ -663,3 +663,63 @@ remove anything but to put it into my personal shelf if it dosent have it").
   unlabelled. Result: correct buckets, 60 moved, 40 left, ALL 100 STILL PRESENT,
   every moved book remembering its old shelf, and the new shelf created for
   them. 16 live checks.
+
+PLANS WRITTEN for the next wave (user: "build out that plan for now, then make
+the basement for the lab in there... after that lets make sure things are solid
+then we can work on the welcome packet and the installer").
+- SCIENCE-RESEARCH-HALL-PLAN.md gained THE LAB — Phase 5 grown into its own
+  wing. Three strands that are the same loop at three scales: predict, build,
+  measure, be wrong, write it down. (A) A DC circuit sandbox with EXACT maths —
+  nodal analysis, which is a page of code and exactly right for DC — and the
+  teaching move is PREDICT BEFORE REVEALING, plus LEDs that visibly burn out
+  with the number that killed them. Deliberately no AC, transistors or SPICE:
+  the moment it needs a solver we can't check by hand it stops being honest.
+  (B) Physics benches, only ever simulating what has a closed-form answer, each
+  one wired into the Hall's EXISTING self-experiment store, and each ending with
+  "now do it with a real object and a phone timer and log THAT" — a simulation
+  you can't check against reality is a video game. (C) The 3D printer bench: a
+  print log (the lab notebook nobody keeps and everybody wishes they had),
+  symptom-keyed failure triage grounded in that log, a material sheet, and later
+  G-code header parsing + a calibration progression in the Learning Tree.
+  Phasing starts at L0 = the print log, because it needs no room and no
+  simulation and there is a real printer in the room.
+  The basement is the right instinct for a reason worth writing down: upstairs
+  is where claims are appraised carefully, downstairs is where you're allowed to
+  burn out a resistor. Keeping them physically apart is honest about their
+  different standards of care.
+- VOICE-PLAN.md — open-source TTS, compared honestly. RECOMMENDATION: Piper
+  (MIT, ~20-60MB/voice, real-time on CPU, built for exactly this) first, Kokoro
+  (Apache, ~330MB) as the quality option. RULED OUT ON PRINCIPLE: XTTS-v2, whose
+  licence is non-commercial and would poison an MIT project given away free.
+  Not before the beta. The genuinely cheaper idea, named: LibriVox is
+  public-domain HUMAN recordings of exactly these classics — a real person
+  reading Walden beats any local model and costs no compute.
+  Also noted the one real catch: the pause/resume built today re-speaks from a
+  character offset; a file-based engine needs paragraph chunking instead, which
+  makes seeking EXACT rather than estimated — an improvement, not a workaround.
+- LIBRARY-GROWTH-PLAN.md — the Google Scholar question answered plainly: NO, it
+  has no API and forbids automated access, and every "Scholar API" is a scraper
+  that would put a user in the wrong. The legitimate替 substitutes are better
+  anyway because they hand you a licence with the text: OpenAlex (already
+  connected) for search, CORE for actual full text, Unpaywall for "is there a
+  legal copy of this DOI", DOAJ, PMC OA, Zenodo, bioRxiv. Plus Open Library,
+  Wikisource, LibriVox, Global Grey for books. BUILT the cheap half today: all
+  of them added to DROP_SOURCES, so a dropped file's licence fills itself in
+  from where it came from instead of being typed from memory.
+- DAILY-HEAVY-LIFTING-PLAN.md — three practical asks, all the same shape (the
+  Pavilion holds the raw material and does nothing with it): (1) "✨ Expand this"
+  on a note, in three honest modes (tidy / expand / question it), written
+  UNDERNEATH your own words and marked as the AI's, never replacing them.
+  (2) A résumé at Sebastian's desk drafted from what you've ACTUALLY done —
+  courses walked, lessons written, projects, experiments — with two
+  non-negotiables: it may never invent a credential, and it is not a
+  certificate. (3) "Review this chapter with Quill" — and the honest finding
+  that the Reader's "Ask about this book" talks to SEBASTIAN, which is a role
+  mix-up of ours: Quill teaches, Sebastian runs the day. Discussing a chapter is
+  teaching.
+SOLIDITY PASS before any beta build: 135 live checks across 11 suites, all
+green; npm test clean; build + build:beta clean. Beta bundle re-verified by
+grep — supabase.co: 0, MINIO_ROOT: 0. The three localhost:9000 hits are the
+default MinIO health-check fallback and a lesson quoting a curl command; on a
+clean install it is never even called, since refreshLibraryStorageStatus only
+pings when a doc actually carries a MinIO pointer and no seed book does.
