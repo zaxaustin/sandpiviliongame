@@ -6,6 +6,7 @@ import { VIS, visBadge, visLine, DATA_MAP } from '../data/visibility.js';
 import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.js';
 import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-parse.js';
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
+import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -8197,6 +8198,19 @@ export function acceptAllSuggestions(){
   const out=document.getElementById('myLibAiOut');
   if(out) out.textContent=`Filed ${n} book${n===1?'':'s'}. Nothing was deleted — every one is still on your shelves, just in a better place.`;
 }
+/* The work order is the "list the problems or request out" idea (2026-07-28):
+   whatever neither rules nor the local model could place is handed back as a
+   plain, pasteable request. The local model doing what it can and then naming
+   precisely what it can't is more useful than it guessing — and the request is
+   portable, so a bigger model in another window can finish the job. */
+export function copyWorkOrder(){
+  const t=(state.myLibView||{}).workOrder||''; if(!t) return;
+  try{ navigator.clipboard.writeText(t); blip(760,.06);
+    const el=document.getElementById('myLibAiOut');
+    if(el) el.textContent='Copied — paste it to any model, then bring the answers back here.';
+  }catch(e){ /* clipboard refused; the list is on screen either way */ }
+}
+export function dismissWorkOrder(){ if(state.myLibView) state.myLibView.workOrder=''; renderMyLibrary(); }
 export function dismissSuggestions(){ state.myLibView.suggested=null; renderMyLibrary(); }
 export function acceptOneSuggestion(slug){
   const sug=state.myLibView.suggested||{}; if(!sug[slug]) return;
@@ -8221,7 +8235,6 @@ export async function suggestShelvesWithAI(){
   // look the element up EVERY time: renderMyLibrary() replaces the panel, and a
   // captured reference becomes a detached node whose text nobody ever sees.
   const say=t=>{ const el=document.getElementById('myLibAiOut'); if(el) el.textContent=t; };
-  if(!isAIActive()) return say('No local AI connected (⚙ Manage AI connections). Filing by hand works exactly the same.');
   // Whatever you have selected, else whatever your search is showing, else the
   // unfiled pile. Misfiling a whole import onto one shelf is the normal
   // accident (128 books onto Theravada, in the case that prompted this), and
@@ -8234,6 +8247,35 @@ export async function suggestShelvesWithAI(){
   const unfiled=pool.slice(0,60);
   if(!unfiled.length) return say('Nothing to sort — select some books, search for a shelf, or leave some unfiled.');
   const shelves=allShelfChoices().filter(s=>s!=='Personal');
+
+  /* RULES FIRST, MODEL SECOND (2026-07-28) — the standing budget rule: only ask
+     a model for what code cannot do. Most books are not ambiguous; a title with
+     "Sutta" in it does not need a language model's opinion. So shelf-rules.js
+     files the obvious ones instantly and only the genuine leftovers go to a
+     model. Faster, cheaper, more reliable (a rule cannot hallucinate a shelf) —
+     and, the part that matters most, it works with NO AI AT ALL, which is the
+     whole point for a laptop that can't run one. */
+  const alreadyFiled=personalBooks().filter(b=>shelfOf(b)!=='Personal');
+  const { filed:byRule, unsure } = preSortShelves(unfiled, shelves, alreadyFiled);
+  const picks={}; const why={};
+  byRule.forEach(f=>{ picks[f.slug]=f.shelf; why[f.slug]=f.why; });
+  const ruled=byRule.length;
+
+  if(!isAIActive()){
+    // No model? The rules still did real work — show it rather than refusing.
+    state.myLibView.suggested=picks; state.myLibView.suggestWhy=why;
+    state.myLibView.workOrder=unsortedWorkOrder(unsure, shelves);
+    renderMyLibrary();
+    return say(ruled
+      ? `Filed ${ruled} of ${unfiled.length} by rule alone — no AI needed. ${unsure.length} still need a look; nothing has moved yet.`
+      : 'No local AI connected (⚙ Manage AI connections), and no rule matched these titles. Filing by hand works exactly the same.');
+  }
+  if(!unsure.length){
+    state.myLibView.suggested=picks; state.myLibView.suggestWhy=why;
+    state.myLibView.workOrder=''; renderMyLibrary();
+    return say(`Filed all ${ruled} by rule — the AI wasn't needed at all. Nothing has moved yet.`);
+  }
+
   /* A HANDFUL AT A TIME (2026-07-28). Sixty titles in one ask is the same
      mistake the lesson-drafting made: a small model given a long list files
      the first few, invents shelves for the middle, and quietly drops the rest —
@@ -8242,12 +8284,12 @@ export async function suggestShelvesWithAI(){
      worth something, because each batch's picks are kept even if a later one
      fails. It also gives the person a real count instead of a spinner. */
   const BATCH=8, batches=[];
-  for(let i=0;i<unfiled.length;i+=BATCH) batches.push(unfiled.slice(i,i+BATCH));
-  const picks={}; let n=0, flickered=false;
+  for(let i=0;i<unsure.length;i+=BATCH) batches.push(unsure.slice(i,i+BATCH));
+  let n=0, flickered=false;
   for(let bi=0; bi<batches.length; bi++){
     const group=batches[bi];
-    say(batches.length>1 ? `Reading your titles — ${bi+1} of ${batches.length} (${n} filed so far)…`
-      : 'Reading your titles… (a bigger model may take a moment)');
+    say(`Filed ${ruled} by rule. Asking the AI about the other ${unsure.length}`
+      + (batches.length>1 ? ` — batch ${bi+1} of ${batches.length}…` : '…'));
     try{
       const reply=await AI.chat([
         {role:'system', content:WORK_CHARTER+'\n\nYou file books onto shelves. Answer ONLY with lines of the form '
@@ -8261,14 +8303,19 @@ export async function suggestShelvesWithAI(){
         if(!shelf) continue;
         const b=group.find(x=>(x.title||'').trim().toLowerCase()===title);
         if(!b) continue;
-        picks[b.slug]=shelf; n++;
+        picks[b.slug]=shelf; why[b.slug]='the AI read the title'; n++;
       }
     }catch(e){ flickered=true; } // keep what earlier batches earned
   }
-  state.myLibView.suggested=picks; renderMyLibrary();
-  say(n?`Suggested a shelf for ${n} of ${unfiled.length} book${unfiled.length===1?'':'s'}${flickered?' (the connection dropped part-way — run it again for the rest)':''}. Nothing has moved — accept them all, or change any one first. A suggestion is not a decision.`
-      :(flickered?'The connection flickered — nothing suggested.'
-        :'It answered, but nothing matched your titles closely enough to be safe. Filing by hand always works.'));
+  const stillStuck=unsure.filter(b=>!picks[b.slug]);
+  state.myLibView.suggested=picks; state.myLibView.suggestWhy=why;
+  state.myLibView.workOrder=unsortedWorkOrder(stillStuck, shelves);
+  renderMyLibrary();
+  const total=Object.keys(picks).length;
+  say(total
+    ? `Filed ${ruled} by rule, asked the AI about ${unsure.length} — ${total} of ${unfiled.length} now have a shelf${flickered?' (the connection dropped part-way — run it again for the rest)':''}. Nothing has moved: accept them all, or change any first. A suggestion is not a decision.`
+    : (flickered?'The connection flickered — nothing suggested.'
+      :'No rule matched, and the AI could not place these safely either. They are listed below to sort by hand.'));
 }
 /* Which element actually scrolls behind a panel — `.panel` doesn't, the
    `.overlay` around it does. Filing books means ticking one box after another
@@ -8334,6 +8381,15 @@ function renderMyLibrary(keepFocus){
       <button class="btn ghost" onclick="runLibraryTriage()" title="Check every book's licence — nothing is ever deleted">⚖ Which of these can I pass on?</button>
     </div>
     <div class="meta" id="myLibAiOut" style="margin-top:6px"></div>
+    ${v.workOrder?`<div class="card" style="cursor:default;margin-top:10px;border-color:#8a6a3a">
+        <div class="t">📋 ${v.workOrder.split(String.fromCharCode(10)).filter(l=>l.startsWith('- ')).length} nothing could place</div>
+        <div class="s" style="margin-top:4px">Not a failure — a list. Being unable to finish is worth saying out loud;
+          an unlabelled gap isn't. Sort these by hand below, or take the request to a bigger model in another window
+          and paste its answer back.</div>
+        <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="copyWorkOrder()">📋 Copy the request</button>
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="dismissWorkOrder()">✕ Hide</button>
+        </div></div>`:''}
     <div id="myLibTriageOut"></div>
     ${sugCount?`<div class="card" style="cursor:default;margin-top:10px;border-color:#7fa36b">
         <div class="t" style="color:#7fa36b">✨ The librarian suggests a shelf for ${sugCount} book${sugCount===1?'':'s'}</div>
@@ -8375,7 +8431,8 @@ function renderMyLibrary(keepFocus){
           <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> <span title="${isUnfiled?'not filed yet':'filed'}">${isUnfiled?'📥':'✓'}</span> ${b.sharing==='copyright'?'🔒 ':b.sharing==='unknown'?'❔ ':(b.sharing==='open'||b.sharing==='pd')?'🤝 ':''}${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
           <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
             <select id="myLibShelf_${esc(b.slug)}" onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto;min-width:150px">${opts(b)}</select>
-            ${sug[b.slug]?`<button class="btn" style="font-size:11px;padding:3px 10px;border-color:#7fa36b" onclick="acceptOneSuggestion('${esc(b.slug)}')" title="File it where the librarian suggests">✨ → ${esc(sug[b.slug])}</button>`:''}
+            ${sug[b.slug]?`<button class="btn" style="font-size:11px;padding:3px 10px;border-color:#7fa36b" onclick="acceptOneSuggestion('${esc(b.slug)}')" title="${esc((v.suggestWhy||{})[b.slug]||'suggested')}">✨ → ${esc(sug[b.slug])}</button>
+              <span class="s" style="opacity:.75;font-size:11px">${esc((v.suggestWhy||{})[b.slug]||'')}</span>`:''}
             <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
             <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:var(--danger);color:var(--danger-soft)" onclick="removePersonalBook('${esc(b.slug)}','mylib')">Remove</button>
           </div>
@@ -8770,7 +8827,7 @@ Object.assign(window, {
   checkMyMachine, copyPullCommand,
   openBookIntake,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
-  myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, newReviewManualForm2,
+  myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
   writePacketFile, triggerImportPacket, setCommonsName,
 });

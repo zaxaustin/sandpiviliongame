@@ -294,6 +294,88 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+/* ---------- shelf rules ----------
+   The budget rule made testable: file the obvious ones with no model, and —
+   more importantly — STAY QUIET when a title is genuinely ambiguous. Over-
+   filing is the worse failure, because a wrongly shelved book is one you will
+   never find again. */
+{
+  const { preSortShelves, unsortedWorkOrder } = await import('../src/game/data/shelf-rules.js');
+  const SHELVES = ['Electronics', 'Cooking', 'Theravada', 'Daoism', 'Science', 'Practice'];
+  const bk = (slug, title, extra = {}) => ({ slug, title, ...extra });
+
+  const filedAlready = [
+    bk('a1', 'The Art of Electronics', { tradition: 'Electronics', attribution: 'Horowitz' }),
+    bk('a2', 'Learning the Art of Electronics', { tradition: 'Electronics', attribution: 'Horowitz' }),
+  ];
+
+  const cases = [
+    ['a lineage word files it', bk('b1', 'Satipatthana Sutta'), 'Theravada'],
+    ['a shelf name in the title files it', bk('b2', 'Practical Electronics for Inventors'), 'Electronics'],
+    ['a duplicate goes where its twin lives', bk('b3', 'The Art of Electronics'), 'Electronics'],
+    ['a known author files it', bk('b4', 'Some Other Book', { attribution: 'Horowitz' }), 'Electronics'],
+    ['the Tao Te Ching is Daoism', bk('b5', 'Tao Te Ching'), 'Daoism'],
+    ['meditation goes to Practice', bk('b6', 'A Guide to Meditation'), 'Practice'],
+  ];
+  for (const [name, book, want] of cases) {
+    const r = preSortShelves([book], SHELVES, filedAlready);
+    const got = r.filed[0] && r.filed[0].shelf;
+    if (got !== want) fail(`shelf-rules: ${name} gave ${got}, expected ${want}`);
+    if (r.filed[0] && !r.filed[0].why) fail(`shelf-rules: ${name} filed without saying why`);
+  }
+
+  /* A note on where the safety actually comes from, surfaced by writing these:
+     "The Tao of Physics" files to Science, which is arguable but defensible.
+     That is fine, and deliberately so — nothing here is ever auto-applied. Every
+     rule produces a SUGGESTION a person accepts or changes, so the system's
+     safety comes from the accept step, not from any rule being infallible. What
+     must never happen is a confident answer where there is genuinely no signal
+     at all, which is what the cases below pin down. */
+
+  /* The cases that matter more — it must decline rather than guess. */
+  const mustDecline = [
+    // a genuine double-hit: 'meditation' says Practice, 'sutta' says Theravada.
+    // Two shelves is not a tie to break, it is a question for a person.
+    ['two lineages at once is a real ambiguity', bk('c1', 'Meditation on the Satipatthana Sutta')],
+    ['a bare title tells it nothing', bk('c2', 'Tartine Bread')],
+    ['a substring is not a word — Automation is not about the Tao', bk('c3', 'Automation and Autonomy')],
+    ['an unknown author proves nothing', bk('c4', 'A Book', { attribution: 'Nobody In Particular' })],
+  ];
+  for (const [name, book] of mustDecline) {
+    const r = preSortShelves([book], SHELVES, filedAlready);
+    if (r.filed.length) fail(`shelf-rules: ${name} — it filed onto ${r.filed[0].shelf} instead of declining`);
+    if (r.unsure.length !== 1) fail(`shelf-rules: ${name} did not pass the book on for a second look`);
+  }
+
+  // an author on two different shelves teaches nothing, so it must not be used
+  const twoShelves = [
+    bk('d1', 'One', { tradition: 'Science', attribution: 'Same Person' }),
+    bk('d2', 'Two', { tradition: 'Cooking', attribution: 'Same Person' }),
+  ];
+  const amb = preSortShelves([bk('d3', 'Three', { attribution: 'Same Person' })], SHELVES, twoShelves);
+  if (amb.filed.length) fail('shelf-rules: an author spread across two shelves was still used to file');
+
+  // a hint must never file onto a shelf this Pavilion does not have
+  const noShelf = preSortShelves([bk('e1', 'Satipatthana Sutta')], ['Cooking'], []);
+  if (noShelf.filed.length) fail('shelf-rules: filed onto a shelf that does not exist here');
+
+  // the work order names the leftovers and says what shape the answer takes
+  const wo = unsortedWorkOrder([bk('f1', 'Tartine Bread')], SHELVES);
+  if (!/Tartine Bread/.test(wo)) fail('shelf-rules: the work order left out a book');
+  if (!/TITLE => SHELF/.test(wo)) fail('shelf-rules: the work order does not say what shape the answer takes');
+  if (unsortedWorkOrder([], SHELVES) !== '') fail('shelf-rules: an empty work order should be empty');
+
+  // and the whole point: a big mixed pile mostly sorts itself, with no model
+  const pile = [
+    bk('g1', 'Dhammapada'), bk('g2', 'Anapanasati Sutta'), bk('g3', 'Zhuangzi'),
+    bk('g4', 'Electronics Cookbook'), bk('g5', 'Quantum Physics'), bk('g6', 'Mindfulness'),
+    bk('g7', 'Something Unguessable'), bk('g8', 'Another Mystery'),
+  ];
+  const big = preSortShelves(pile, SHELVES, []);
+  if (big.filed.length + big.unsure.length !== pile.length) fail('shelf-rules: a book was lost in the pre-sort');
+  if (big.filed.length < 4) fail(`shelf-rules: only ${big.filed.length} of 8 obvious books filed by rule — the rules have gone quiet`);
+}
+
 /* ---------- library ---------- */
 const seenSlugs = new Set();
 for (const d of SEED_LIBRARY) {

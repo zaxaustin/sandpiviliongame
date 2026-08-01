@@ -13,7 +13,7 @@ follow a link.
 
 ```
 release/Sand Pavilion Setup 0.1.0-beta.2.exe        95.0 MB
-SHA256  FB0948071A6009D3FEADFE8EED7019D8613870348113DF6A6E39180565FF670B
+SHA256  D3B883A14627A769AD5EC564563EBC458585FC5FD01FCF9A3FF7DBF3111EA0B0
 ```
 
 One file. It's a one-click NSIS installer: no options, installs per-user
@@ -24,6 +24,21 @@ npm, no Docker, no Ollama required to open it.**
 Rebuild it with `npm run electron:build:beta`. Never plain `electron:build`
 — that one bakes this machine's own Supabase keys into the installer, and
 `scripts/verify-beta-build.mjs` will stop you.
+
+**If the build fails with `EPERM ... rename win-unpacked.tmp`** (seen
+2026-07-28, reproducible): something inside the project folder is holding
+`release/` — an editor watcher or an indexer. electron-builder writes ~200 MB
+and then renames the directory, and the rename loses. It is not a code problem.
+Build outside the project instead, then copy the `.exe` back:
+
+```bash
+npm run build:beta
+./node_modules/.bin/electron-builder --config.directories.output="$TEMP/sp-build"
+cp "$TEMP/sp-build/"*.exe release/
+```
+
+Or let CI do it — `.github/workflows/build-installers.yml` runs on clean
+runners with nothing watching, and builds both platforms.
 
 **Before handing over any new build**, run the guard that exists because the
 packaged app once silently didn't work at all:
