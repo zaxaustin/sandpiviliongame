@@ -1,5 +1,12 @@
 # The Platform — vision, philosophy, and the road to it
 
+> **Positioning settled 2026-07-28** — see
+> [`TRUST-LEVELS-AND-GATEWAYS-PLAN.md`](TRUST-LEVELS-AND-GATEWAYS-PLAN.md).
+> The website is the **commons**; the installed app is **your Pavilion**. Not a
+> lite version and a full version — two different things, one you visit and one
+> you live in. That is where the sense of ownership comes from, and it is the
+> answer to the "web vs desktop" tension this roadmap left open.
+
 Written 2026-07-12, at direct request: *"take stock of the overall product…
 set this plan out, get it written down, tackle each thing over time."* This is
 the **master roadmap** — the spine that orders every other plan against one

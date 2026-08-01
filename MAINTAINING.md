@@ -331,6 +331,17 @@ customization; the visual polish tail.
 (above), and the seam between this personal instance and a lean shareable one
 (`TOOL-COMMONS-PLAN.md`).
 
+**The positioning decision, 2026-07-28** (`plans/TRUST-LEVELS-AND-GATEWAYS-PLAN.md`):
+**the website is the commons, the installed app is your Pavilion.** Different
+things, different jobs — the site is a library you visit, the app is a house you
+live in, and ownership is the point of the split. The commons site is *additional,
+never a replacement*: do not remove the playable browser build, which is currently
+the only Mac answer. Same plan covers cloud gateways (the provider layer already
+speaks `ollama`, `openai-compatible` and `anthropic`, so it is presets and
+task-routing, not protocol) and the green/yellow/red badge — where the colour
+answers exactly one question, *what leaves this machine*, and red means "we cannot
+honestly say", never "you are compromised", which nothing can detect from inside.
+
 **Two plans written 2026-07-28 that shape near-term work:**
 `plans/CAPTURE-PATHWAYS-PLAN.md` — bringing a page you're reading into the
 Pavilion, with the load-bearing decision that **extraction is deterministic
