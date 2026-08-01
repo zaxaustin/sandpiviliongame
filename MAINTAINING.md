@@ -331,6 +331,15 @@ customization; the visual polish tail.
 (above), and the seam between this personal instance and a lean shareable one
 (`TOOL-COMMONS-PLAN.md`).
 
+**Two plans written 2026-07-28 that shape near-term work:**
+`plans/CAPTURE-PATHWAYS-PLAN.md` — bringing a page you're reading into the
+Pavilion, with the load-bearing decision that **extraction is deterministic
+Python (a Caravan connector), never an AI job**; the model only ever sees clean
+text. And `plans/ONE-STEP-AT-A-TIME-PLAN.md` — Sebastian and the Learning Paths
+as chains of small asks rather than forms and walls, generalising the morning's
+lesson-drafting fix into a house pattern. Its first item (Sebastian's stand-up
+as a chain) is the highest feeling-per-line-of-code change currently available.
+
 **The longest-horizon thinking** is `plans/OPEN-COMMONS-PLAN.md` (2026-07-28):
 sharing what you build, an AI representative that filters for *you* rather than a
 platform filtering at you, provenance-not-verdicts on downloads, and reading the

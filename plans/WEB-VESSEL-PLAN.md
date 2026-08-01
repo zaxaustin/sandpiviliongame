@@ -1,5 +1,11 @@
 # The Web Vessel — the Pavilion as a ship you sail through the internet
 
+> **Superseded in part, 2026-07-28.** The goal below is right; the architecture
+> is sharper in [`CAPTURE-PATHWAYS-PLAN.md`](CAPTURE-PATHWAYS-PLAN.md), which
+> settles the key question this plan left open — *extraction is deterministic
+> Python, not an AI job* — and adds the bookmarklet route that gets a page you
+> already have open into the Pavilion without widening the fetch bridge at all.
+
 Written 2026-07-12, from the user's framing: *"a vessel for a ship growing
 through the internet."* You already have a real process to bring a **book** in
 and break it down (notes, sparks, read-aloud), and one being built for **papers**
