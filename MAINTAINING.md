@@ -331,6 +331,12 @@ customization; the visual polish tail.
 (above), and the seam between this personal instance and a lean shareable one
 (`TOOL-COMMONS-PLAN.md`).
 
+**The longest-horizon thinking** is `plans/OPEN-COMMONS-PLAN.md` (2026-07-28):
+sharing what you build, an AI representative that filters for *you* rather than a
+platform filtering at you, provenance-not-verdicts on downloads, and reading the
+internet into your own Library. Written as a plan, deliberately unbuilt — every
+line of it is better designed after real users than before them.
+
 **The master roadmap** is `plans/PLATFORM-ROADMAP.md`; the north star, stated
 by the user, is *ease, direction, and turning knowledge into use* — the
 tie-breaker for what gets built next.

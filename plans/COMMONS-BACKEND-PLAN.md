@@ -199,6 +199,20 @@ framework worth arguing about.
 Rate limit by key. Cap packet size. Keep every version — nothing is ever
 overwritten, because content addressing makes overwriting meaningless.
 
+### Beyond — people, agents and trust
+
+The four ideas raised 2026-07-28 — sharing what you built, an AI representative
+that filters *for you* rather than a platform filtering *at* you, provenance
+records on downloads, and reading the internet with a resident's help — have
+their own plan: [`OPEN-COMMONS-PLAN.md`](OPEN-COMMONS-PLAN.md). It sits entirely
+on top of the packet, the keypair and the static mirror described here, and
+changes none of them.
+
+One line from it belongs here too, because it constrains the backend: **the
+server never renders a verdict.** Not on safety, not on quality, not on people.
+It holds packets, lists them, and records attributed facts. Every judgement
+happens on someone's own machine, by their own standards.
+
 ### Phase 3 — federation, if it is ever actually wanted.
 
 The index is just a URL. A Pavilion that can pull one can pull several. At that
