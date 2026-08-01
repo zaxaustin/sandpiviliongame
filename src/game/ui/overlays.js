@@ -5008,15 +5008,29 @@ const CURRICULUM = [
       {title:'Notice where it all happened', body:"Every one of those conversations ran on your own machine and left it never. That's the whole idea — help that's genuinely yours."},
     ]},
   // ---- Coding (the next track — shown so you can see the shape and what's missing) ----
-  { id:'coding-101', track:'Coding', level:101, prereqs:['beating-heart'], status:'planned',
-    title:'Coding 101 — the terminal, and your first real change',
-    summary:"Where learning to code starts, built around this very project. Being written now — the outline below is the planned shape (drawn from LEARNING-PATH Stages 1–6), here so you can see the tree extend and tell me what's missing before we build it for real.",
+  /* WRITTEN FOR REAL 2026-07-28, and deliberately reordered from the outline it
+     replaces. The old shape saved "make a change" for last, as a reward for
+     understanding. That is backwards: changing one line and watching it happen
+     is what makes the rest worth learning, so it moved to step 2. Everything
+     after it exists to make changing things feel safe rather than frightening. */
+  { id:'coding-101', track:'Coding', level:101, prereqs:['beating-heart'],
+    title:'Coding 101 — your first real change to this actual place',
+    summary:"Not a course about programming in the abstract — six steps in this codebase, on your machine. By the end you will have changed something in the Pavilion, proved you didn't break it, and saved that change under your own name. That is the whole unlock: after it, every idea you have becomes something you can try instead of something you have to ask for.",
     steps:[
-      {title:"The terminal isn't scary, it's literal", body:"(planned) What a command line actually is, and the handful of commands you'll really use."},
-      {title:'HTML, CSS, and JS are three different jobs', body:"(planned) The three languages of a page, and which does what."},
-      {title:'How the files talk to each other', body:"(planned) Imports, the module graph, how this project is wired."},
-      {title:'What "local" and "API" mean, from the inside', body:"(planned) The same beating-heart pipeline you set up, understood."},
-      {title:'Make a real change yourself', body:"(planned) Edit something in this actual codebase and see it work — the capstone of the on-ramp."},
+      {title:'Five commands, and that is genuinely most of it',
+       body:"Open a terminal in the project folder. `npm run dev` starts it and gives you a localhost link. `npm test` checks nothing is broken. `git status` shows what you changed. `git diff` shows exactly what. `git log --oneline -5` shows the last five things anyone did. That is the working set — everything else you can look up when you need it. The terminal is not a skill, it is a habit of typing five things."},
+      {title:'Change one line, and watch it change',
+       body:"With `npm run dev` running: open `src/game/ui/overlays.js`, find any sentence you have read in the app — search for a phrase you remember seeing — and edit it. Save. The browser updates by itself, instantly. That's it. That's the whole loop, and it is the same loop for a one-word fix and a new room. Sit with how small it is for a second, because the size of that gap is the thing that was stopping you."},
+      {title:'Break something on purpose, then read the error',
+       body:"Delete a closing brace and save. The app goes blank and the console (F12 → Console) says exactly where. Put it back. Do this once deliberately, while nothing is at stake, so that the first time it happens by accident you recognise it as information rather than disaster. Every error message names a file and a line number; that is the message telling you where to look, not scolding you."},
+      {title:'Prove you did not break anything else',
+       body:"Run `npm test`. It takes about a second and checks the things this project has actually got wrong before: a button wired to a function that doesn't exist, a room with no exit, a save field that never got a privacy line. If it passes, your change is safe. This is why changing things stops being frightening — you are not relying on care, you have a net."},
+      {title:'Save it under your own name',
+       body:"`git add -A`, then `git commit -m \"my first change\"`. That version now exists forever and you can always return to it — which means from here on, nothing you try can lose anything. This is the actual reason git matters, and it is worth learning for that reason alone rather than because it is professional.",
+       action:{label:'Read The Log — the same idea, for days', fn:'openActivity'}},
+      {title:'Trace one button from click to answer',
+       body:"Pick a button in the app. Search `overlays.js` for its label, find the `onclick=\"someName()\"` beside it, then search for `function someName`. Read that function. You have now followed a real path from a thing you pressed to the code that answered — the single most useful thing you can learn to do, because after this you can find anything by pulling on the visible end of it.",
+       action:{label:'Open the Computer and ask it to walk you through one', fn:'openComputer'}},
     ]},
   // ---- Electronics (the beta test for the lab + research room — RESEARCH-ROOM-PLAN.md) ----
   { id:'electronics-101', track:'Electronics', level:101, prereqs:[],

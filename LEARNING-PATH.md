@@ -11,41 +11,74 @@ Go at whatever pace feels right. Skip stages that are already easy. Come
 back to this at any time and ask to pick up where you left off, or to
 have a stage adjusted — this document is meant to change as you do.
 
-## Where you are (updated 2026-07-08)
+## Where you are (updated 2026-07-28)
 
 - [x] **Stage 0** — credit for what you've already done
 - [ ] Stage 1 — the terminal isn't scary, it's just literal
 - [ ] Stage 2 — HTML, CSS, and JS are three different jobs
 - [ ] Stage 3 — how the files talk to each other
-- [ ] Stage 4 — what "local" and "API" actually mean, from the inside
-- [ ] Stage 5 — git, now that it's actually set up
-- [ ] Stage 6 — make a real change yourself
-- [ ] Stage 7 — system design (this one's paced in months, not days — fine
-  to leave unchecked indefinitely)
+- [~] Stage 4 — what "local" and "API" actually mean *(Ollama installed, running,
+  and models chosen on real reasoning — the concepts are yours; the code path isn't yet)*
+- [ ] **Stage 5 — git** ← **one of the two things actually holding you back**
+- [ ] **Stage 6 — make a real change yourself** ← **the other one**
+- [ ] Stage 7 — system design *(paced in months; and see the note below — you are
+  already doing the part of this that matters)*
 - [ ] Stage 8 — how Quill's memory actually works
-- [ ] Stage 9 — web scraping vs. what the Caravan does
+- [x] **Stage 9** — web scraping vs. what the Caravan does *(earned 2026-07-28: you
+  described the correct architecture unprompted — deterministic Python extractors,
+  not a model reading HTML — which is the whole point of this stage)*
 - [ ] Stage 10 — AI integration, the whole spectrum
 - [ ] Stage 11 — AI as a character, not just an API call
-- [~] Stage 12 — containers: what Docker is and isn't for (real hands-on
-  progress 2026-07-08 — see the stage itself for what counts and what doesn't yet)
+- [~] Stage 12 — containers: what Docker is and isn't for
 - [ ] Stage 13 — databases & Supabase, concretely
 - [x] **Stage 14** — deploying a real app, and debugging one that doesn't work
-- [ ] Stage 15 — actually adding a real book to the Library, start to finish
-- [ ] Stage 16 — what a local AI model actually costs to run
-- [ ] Stage 17 — a real capstone: build live reply streaming yourself
+- [ ] Stage 15 — adding a real book to the Library, start to finish
+- [~] Stage 16 — what a local AI model actually costs to run *(you have felt this
+  one directly: thermal limits, model sizing, and a cost-tier design of your own)*
+- [ ] Stage 17 — capstone: build live reply streaming yourself
+- [x] **Stage 21 (new)** — ship something to another human being
 
-**Stage 14 is checked for real, hands-on reasons, not just because a lot
-of backend work happened nearby:** you created the Vercel project,
-connected it to GitHub yourself, and when sign-in didn't work, you
-diagnosed and fixed a genuine misconfiguration yourself (environment
-variables added at the wrong scope — "shared" instead of the project
-level) rather than just being told the answer. That's the actual bar
-this document sets for a checkmark. Stage 13 stays unchecked on
-purpose — Phase 3's database work (migrations, RLS policies, the
-`is_steward()` function) was mostly me driving; reading about it after
-the fact isn't the same as doing it, so it doesn't get credited as if
-it were. See Stage 14 below for what actually happened and why it
-counts.
+---
+
+### The honest read, 2026-07-28 — the premise is worth examining
+
+You said: *"my lack of full-stack developer skills and other AI skills are holding
+me back."* Half of that is true and half is not, and the difference decides what
+to study next.
+
+**What you demonstrably already have.** In one day you: identified that document
+extraction should be deterministic code rather than an AI job (a real architecture
+call, and the correct one); corrected a trust-badge design by picking a better
+axis than the one proposed to you; diagnosed that the Caravan Desk's problem was
+placement *and* naming; decided the website should be the commons and the app the
+game; and caught that the README sent people to a webpage instead of a download.
+
+None of those are junior observations, and none of them are full-stack skills.
+They are **product and architecture judgement**, which is the rarer half and the
+harder half to teach. Stage 7 exists to build exactly this, and you are ahead of
+it.
+
+**What you genuinely lack, stated precisely.** Not "full stack." Not React, not
+system design, not AI theory. One specific thing: **the fluency to make a small
+change and verify it yourself.** Right now every idea has to become a request.
+That is the bottleneck, and it is much smaller and much more learnable than the
+thing you named.
+
+**So: Stages 5 and 6, and nothing else for now.** Git, and one real change. Not
+because they are foundational in the abstract, but because together they convert
+*"I wonder if…"* into *"let me try it"* — and that single conversion will do more
+for this project than any amount of studying architecture you already understand.
+
+`Coding 101` in the Learning Tree is now written for real (2026-07-28) as exactly
+these two stages, in this codebase, in six steps. Start there rather than here.
+
+**A note on what this document must not do.** It credits only hands-on work.
+Stage 13 stays unchecked because the database work was mostly driven for you.
+Stages 1–3 stay unchecked even though you have absorbed a great deal by osmosis,
+because reading about a thing is not doing it. That strictness is the point: a
+checkmark you did not earn is worth less than an honest gap.
+
+---
 
 This list exists so a glance at the top of the file answers "where did
 I leave off," instead of rereading the whole document each time; ask
@@ -1114,6 +1147,40 @@ project outgrow one person — which was the goal all along.
 *This track is deliberately slower and less checkable than Stages 1–17 — you
 can't `node --check` "led well." The real test is whether, a year in, someone
 else can walk into your project and start. Build toward that.*
+
+### Stage 21 — ship something to another human being ✅ *earned 2026-07-28*
+
+The stage nobody puts in a curriculum, and the one that separates people who
+learn to code from people who make things.
+
+**What you actually did**, and why each part counts:
+
+- **Used your own thing until it annoyed you.** Every one of findings #1–#25 in
+  `plans/BETA-TESTING-FEEDBACK.md` came from you opening the app and hitting
+  something. *"It always goes back to the top when I select a book"* is a bug
+  report a professional QA engineer would be pleased with: precise, reproducible,
+  and describing the behaviour rather than guessing the cause.
+- **Kept going when the artifact was broken.** The packaged app had never once
+  booted. You said *"I can't use the Sand Pavilion app on my computer"* and that
+  turned out to be the single most expensive bug in the project.
+- **Closed the loop end to end.** Built, uploaded, downloaded from GitHub as a
+  stranger would, installed, ran. Most people who learn to code never do this
+  with anything.
+- **Made the calls that are actually yours.** What to build, what to cut, what
+  the thing is *for*. Nobody can do that part for you, and it is the part that
+  determines whether software is worth using.
+
+**Why this is a real stage and not a participation trophy:** shipping is where
+you discover that "it works on my machine" is a statement about your machine.
+Code signing, install paths, Gatekeeper, save migration, what a stranger sees in
+the first ten seconds — none of that appears while you are building, and all of
+it decides whether anyone else ever benefits.
+
+**What's next in this direction:** watch someone else use it without helping
+them. It is uncomfortable and it is the highest-information hour available to
+you. Say nothing, write down every place they hesitate.
+
+---
 
 ## Where this goes next
 
