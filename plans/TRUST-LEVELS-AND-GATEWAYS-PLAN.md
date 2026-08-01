@@ -16,9 +16,18 @@ Written **2026-07-28**, from three connected ideas raised together:
 > and not working right or is compromised in a way that can be fixed."*
 
 They belong in one plan because they answer one another. The split says *where
-work happens*. The gateways say *what may leave*. The colours are how a person
-sees which is which — and without them, the gateways would quietly erode the
-whole promise.
+work happens*. The gateways say *what a person can plug in*. The colours say
+*what it costs them*.
+
+**The colour scheme was revised later the same day** (§4) and the revision is
+the better idea: **the badge is about money, not privacy.** Egress already has a
+mark — the 🏠/☁ badge that has been on every connection since cloud AI was added
+— and making the colour say the same thing twice was the original mistake. Cost
+is the harm that actually lands on the person this is for: someone on a laptop
+with no local AI, who should never be surprised by a bill.
+
+§5 is the half that matters most and applies whether or not money is involved:
+**token thrift** — only ask a model for what Python cannot do.
 
 ---
 
@@ -148,78 +157,130 @@ never for ordinary conversation.
 
 ---
 
-## 4 · The traffic light — the idea is good, with one correction
+## 4 · The traffic light — revised 2026-07-28, and it is now about money
 
-This is the piece that makes the rest safe, and it is worth getting exactly
-right, because **a vague trust indicator is worse than none** — it produces
-confidence without grounds.
+> *"I think yellow should be for subscription connections like Claude Pro, and
+> red should be for money-burning API which I am not installing at this time.
+> This should be more for laptop users who can get some use out of this app
+> without having local AI capabilities, but I don't want anyone wasting tokens."*
 
-### The correction: that's two axes, not one
+**This is a better axis than the one first proposed here, and it fixes an
+objection this plan raised against itself.** The earlier draft argued the colour
+must answer exactly one question, then picked *"what leaves this machine"* — but
+egress **already has a mark**: the 🏠/☁ badge on every connection, which has been
+there since cloud AI was added. Making the colour say the same thing twice was
+the real mistake.
 
-As proposed, green/yellow measure *where data goes* and red measures *whether
-things are working*. Those are independent. A perfectly private, fully local
-setup can also be broken; a working cloud setup is not "less broken" than a
-broken local one. One colour trying to say both will eventually lie.
+So: two orthogonal marks, each answering one question, neither pretending to
+answer the other.
 
-**The fix — the colour answers exactly one question:**
+| Mark | Answers | Already exists? |
+|---|---|---|
+| 🏠 / ☁ | **where do my words go?** | yes — keep it, everywhere |
+| 🟢 🟡 🔴 | **what does this cost me?** | new |
 
-> **What leaves this machine when I do this?**
+Cost is the right thing to make loud, because it is the harm that actually
+lands. A laptop user who cannot run a local model is the exact person this is
+for, and an unexpected bill is the thing that would make them regret trying.
 
-That is checkable, honest, and never ambiguous. Health gets its own indicator.
+### The three levels
 
-### What each colour means
+**🟢 GREEN — free. Costs nothing but electricity.**
+A local model, or no model at all. Everything the Pavilion is *for* is green and
+stays green: the Library, reading, read-aloud, notes, the day, lessons, the
+Hall. This is the default and the point.
 
-**🟢 GREEN — nothing leaves this machine.**
-A local model, or no model at all. Everything the Pavilion is *for* — the
-Library, reading, read-aloud, notes, the day, lessons, the Hall — is green,
-always, permanently. This is the default and the reason the project exists.
-The badge is not a reassurance; it is a **statement of fact that can be
-verified**: green means zero network requests, which `test/live/preflight.mjs`
-already proves and `verify-beta-build.mjs` already enforces at build time.
+**🟡 YELLOW — a flat fee you already pay.**
+Using it more this month costs no more than using it less. Nothing to meter,
+nothing to fear, nothing to watch. **This is the tier for the audience actually
+being described** — someone on a laptop with no local AI who wants the Pavilion
+to be genuinely useful anyway.
 
-**🟡 YELLOW — this text goes to a named third party.**
-Not a warning. A **label with a name on it**: *"This will send 4,200 words to
-Anthropic."* And, crucially, **press to read exactly what** — the prompt
-inspector already holds the real message array, not a reconstruction. Yellow is
-fine. Most people will want it for the heavy jobs. The point is never to
-discourage it, only to ensure nobody is ever surprised by it.
+**🔴 RED — metered. Every request spends money.**
+Pay-per-token API keys. Not being installed now, and the badge exists precisely
+so that stays a deliberate choice rather than a thing that happens. Red is not
+"forbidden" — it is *"this is a taxi with the meter running."* If it is ever
+enabled, it wants a visible estimate before each send and a running total.
 
-**🔴 RED — the promise cannot currently be kept.**
-And here is the honest part: **the app cannot detect that it has been
-compromised.** Nothing can, from the inside. Claiming otherwise would be exactly
-the "safe download" mistake from `OPEN-COMMONS-PLAN.md` — a verdict where only
-facts are available.
+### The hard fact about subscriptions, before any preset gets built
 
-So red must mean something real and detectable:
+**A Claude Pro or ChatGPT Plus subscription cannot be connected to this app.**
+Those subscriptions buy access to *their* chat products — claude.ai, the ChatGPT
+app — and deliberately do not expose a general API. Programmatic access from a
+third-party application requires an **API key**, which is metered: red, by the
+scheme above.
 
-- a cloud connection is enabled but a resident is about to use it *unlabelled*
-- a send failed **part-way**, so what arrived at the other end is unknown
-- the build did not pass `verify-beta-build.mjs` — it may carry keys or a cloud
-  host
-- a connection points somewhere unexpected (an `ollama` kind at a remote URL)
-- a key is stored somewhere the person did not choose
+This matters now rather than later, because building a "Claude Pro" preset that
+cannot possibly work would waste the effort and disappoint precisely the person
+it was meant to serve.
 
-**Red is "we cannot honestly tell you this is green or yellow" — a state to be
-resolved, not an alarm.** Every red should come with the specific reason and the
-specific fix, which is what *"compromised in a way that can be fixed"* really
-describes.
+**So yellow is a real and worthwhile tier — but the examples need checking, not
+assuming.** The clearest genuine case today is **Ollama Cloud**, which sells a
+flat monthly plan that includes API-style access to hosted models — a true
+yellow, and a natural fit since the Pavilion already speaks the Ollama protocol.
+Some other providers sell flat-rate plans with real API access too; these change
+often enough that **each one must be verified against its current terms before a
+preset ships**, and the badge must reflect what is actually true rather than
+what would be convenient.
 
-### On encryption, honestly
+Where a provider only offers metered keys, say so plainly in the picker rather
+than letting someone discover it after wiring up a key.
 
-Worth offering; worth being precise about, because "encrypted" is the easiest
-word in software to hide behind.
+---
 
-Encrypting the save at rest with a passphrase protects against **one thing**:
-someone with access to your disk or a copy of your backup. That is a real threat
-for a shared or portable machine — and it pairs naturally with the drive build
-above.
+## 5 · Token thrift — the doctrine, and it is the more important half
 
-It does **not** protect anything sent to a cloud model, it does not make yellow
-into green, and losing the passphrase loses everything with no recovery.
+> *"Let's make sure we are only having the units do the sorting, or the things
+> we can't do with Python or with Python assistance."*
 
-**So: offer it, never default it, and never let it colour the badge.** The
-colour answers where data goes. Encryption answers who can read what stays. Two
-different questions, and conflating them is how "secure" becomes meaningless.
+This is the same principle as `CAPTURE-PATHWAYS-PLAN.md` — *don't give a model
+work that deterministic code does better* — promoted from a parsing decision to
+a **standing budget rule**. It should apply whether the model is free or not,
+because on a laptop the currency is heat and minutes even when it is not money.
+
+### The ladder — try each rung before the next
+
+1. **Deterministic code.** Is there a right answer a function can compute?
+   Sorting by date, deduplicating by title, parsing a file, arithmetic on a
+   schedule, matching a title against a catalogue. **Never ask a model.**
+2. **Heuristics with a confidence threshold.** Keyword and metadata matching
+   gets most of the way with no model at all. Take the confident ones; keep the
+   rest.
+3. **The model, on the remainder only.** Genuine ambiguity is what a model is
+   *for*. Send it the leftovers, not the pile.
+4. **The model on everything** — last resort, and it should feel like one.
+
+### The worked example: the librarian, today
+
+`suggestShelvesWithAI()` currently sends **every** selected book to the model in
+batches of eight. For the 128-book import that prompted the feature, that is
+**sixteen model calls** — and most of those books are not ambiguous at all.
+
+A pre-sort pass would file, with no model whatsoever:
+
+- an exact or near-exact title match against a shelf name
+- a title containing an unambiguous keyword for an existing shelf
+  (*"Electronics"*, *"Cookbook"*, *"Sutta"*)
+- anything whose author or source already appears on exactly one shelf
+- an exact duplicate of a book already filed
+
+Then the model is asked only about what is genuinely unclear. If rules confidently
+place even half, that is **eight calls instead of sixteen** — faster, cheaper,
+more reliable (deterministic rules do not hallucinate a shelf), and it degrades
+gracefully to *"here is what I could sort without any AI at all"* for someone
+with no connection.
+
+**The same shape applies to the other heavy job named.** Drafting a full course:
+Python can lay out the weeks, space the sessions, order by prerequisite and
+build the scaffold. The model writes prose into a structure it did not have to
+invent — which is both cheaper and, as this project learned this morning, *more
+reliable*, because a smaller ask is an ask a model can actually meet.
+
+### Make the saving visible
+
+When a run finishes, say what was avoided: *"Filed 74 by rule, asked the model
+about 12."* It teaches the habit, it proves the app is not wasting anyone's
+money, and it makes the thrift a feature rather than an invisible virtue.
 
 ---
 
@@ -227,21 +288,25 @@ different questions, and conflating them is how "secure" becomes meaningless.
 
 Nothing here is urgent, and the ordering matters more than the speed.
 
-1. **The colour vocabulary, before the gateways.** Three badges and one honest
-   sentence each, on every surface that already carries 🏠/☁. Cheap, and it must
-   exist *before* cloud use becomes convenient — otherwise convenience arrives
-   first and the labelling is retrofitted onto habits already formed.
-2. **"Read exactly what will be sent"** wired to the existing prompt inspector.
-   This is the single most trust-building thing available and the machinery is
-   already built.
-3. **Gateway presets** — Claude, OpenAI, Grok, Ollama Cloud — as one-click
-   setups over the three connection kinds that already exist.
-4. **The heavy-lifting connection**, opt-in per task, on the two jobs that
-   actually want it: bulk shelf sorting, and drafting a full course.
-5. **Red-state detection**, as a specific, fixable list rather than a mood.
+1. **Token thrift, starting with the librarian's pre-sort.** The only item here
+   that pays off immediately, needs no new UI, no gateway and no decisions —
+   and it makes every future connection cheaper by default. File what rules can
+   file; ask the model only about the remainder; show the count of what was
+   avoided.
+2. **The cost badge vocabulary** — 🟢 free / 🟡 flat fee / 🔴 metered, three
+   badges and one honest sentence each, sitting beside the existing 🏠/☁.
+   **Before** any gateway becomes convenient, so the labelling is not retrofitted
+   onto habits already formed.
+3. **Verify which providers actually sell flat-rate API access**, and build
+   presets only for those. Ollama Cloud is the clearest real yellow today.
+   Anything metered-only should say so in the picker, not after a key is wired.
+4. **"Read exactly what will be sent"**, wired to the prompt inspector that
+   already captures the real message array. The single most trust-building thing
+   available, and the machinery exists.
+5. **The heavy-lifting outlet**, opt-in per task, on the two jobs that want it:
+   bulk shelf sorting and drafting a full course — both *after* the pre-sort has
+   already reduced what they need to ask.
 6. **The portable build**, whenever carrying it somewhere becomes a real want.
-
----
 
 ## The line that must not move
 
