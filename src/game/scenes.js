@@ -320,12 +320,19 @@ function buildWorkshop(){
            {x:12,y:3,to:'workshopfloor2',sx:5,sy:3}],
     signs:[{x:2,y:4,name:'ROUGH TIMBER SIGN',
       text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. THE CARAVAN DESK, by\nthe west pillar — where texts from outside actually\nenter the Library, one reviewed piece at a time. Face\na desk and press E.\nSEBASTIAN the butler keeps this floor — talk to him to\nplan your day, or to be told the honest shape of it. His\nCALENDAR stands at his desk; face it and press E."},
-           {x:12,y:2,name:'A NARROW STAIRCASE',text:"Up. The Workshop keeps growing — one real floor at a\ntime."}],
+           {x:12,y:2,name:'A NARROW STAIRCASE',text:"Up. The Workshop keeps growing — one real floor at a\ntime.\nThere's a LIFT by the south wall too, if you know where\nyou're going."}],
     stations:[
       {x:6,y:3,kind:'archive',name:'THE ARCHIVE DESK'},
       {x:10,y:6,kind:'research',name:'THE RESEARCH DESK'},
       {x:3,y:6,kind:'review',name:'THE CARAVAN DESK'},
       {x:10,y:7,kind:'calendar',name:"SEBASTIAN'S CALENDAR"},
+      // THE LIFT, 2026-08-02. Reported from real use: "we have talked a lot
+      // about having a research station and the electronics build — I can't
+      // find anything like that." The Lab was four hops up a staircase, on a
+      // floor that until that morning said "nothing open here", so anyone who
+      // explored early had learned to stop climbing. A building with three
+      // floors needs a way to reach the third without rediscovering the second.
+      {x:12,y:6,kind:'lift',name:'THE LIFT'},
     ],
     npcs:[{x:8,y:7,color:'#4a6a8a',glow:'#a9c7e8',name:'SEBASTIAN · Butler',wander:false,ai:true,aiAgent:'sebastian',lines:[
       "Welcome to the Workshop. Sebastian, at your service — I keep the day, so you're free to spend it.",
@@ -352,7 +359,8 @@ function buildWorkshopFloor2(){
            {x:8,y:1,to:'workshopfloor3',sx:2,sy:1}],
     signs:[{x:4,y:1,name:'ROUGH TIMBER SIGN',
       text:"THE RECORDS HALL\nThe Pavilion's own memory, made walkable instead of\njust committed. Face the hall and press E."}],
-    stations:[{x:5,y:4,kind:'records',name:'THE RECORDS HALL'}],
+    stations:[{x:5,y:4,kind:'records',name:'THE RECORDS HALL'},
+      {x:8,y:6,kind:'lift',name:'THE LIFT'}],
     npcs:[],
     spawn:{x:5,y:3}
   };
@@ -373,7 +381,7 @@ function buildWorkshopFloor3(){
     name:'The Workshop — the Unfinished Floor', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:2,y:7,to:'workshopfloor2',sx:7,sy:1}],
     signs:[{x:2,y:1,name:'ROUGH TIMBER SIGN',
-      text:"THE UNFINISHED FLOOR\nFraming and good intentions, same as the sign outside\nalways said — just a real floor now instead of a line.\nFive rooms. The Lab is open; the other four aren't.\nFace one and press E."}],
+      text:"THE UNFINISHED FLOOR\nFraming and good intentions, same as the sign outside\nalways said — just a real floor now instead of a line.\nFive rooms. THE LAB is open — that's the workbench,\nthe research gathering-place, and where a build gets\nlogged. The other four aren't. Face one and press E.\nThe LIFT by the west wall goes straight back down."}],
     stations:[
       {x:5,y:2,kind:'ledger',name:'THE LEDGER'},
       // Opened 2026-08-02. Was THE MAKER'S BENCH, whose placeholder promised
@@ -384,6 +392,7 @@ function buildWorkshopFloor3(){
       {x:5,y:5,kind:'greenhouse',name:'THE GREENHOUSE'},
       {x:10,y:5,kind:'roundtable',name:'THE ROUND TABLE'},
       {x:13,y:4,kind:'mailroom',name:'THE MAILROOM'},
+      {x:2,y:5,kind:'lift',name:'THE LIFT'},
     ],
     npcs:[],
     spawn:{x:2,y:1}

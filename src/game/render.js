@@ -612,6 +612,17 @@ function drawStation(st,ox,oy){
     }
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.42,y+S*.2,S*.16,S*.07); // a small "take one" card, standing up
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.44,y+S*.215,S*.12,S*.02);
+  } else if(st.kind==='lift'){ // The Lift — a brass-framed cage door, three floor lamps above it
+    ctx.fillStyle='#3a3128'; ctx.fillRect(x, y-S*.24, S, S*1.16);            // the shaft opening
+    ctx.fillStyle='#1a1612'; ctx.fillRect(x+S*.1, y-S*.14, S*.8, S*.98);     // the dark car behind
+    ctx.strokeStyle='#b8964a'; ctx.lineWidth=Math.max(1,S*.05);              // brass frame
+    ctx.strokeRect(x+S*.08, y-S*.16, S*.84, S*1.02);
+    ctx.strokeStyle='#8a7038'; ctx.lineWidth=Math.max(1,S*.03);              // the concertina gate
+    for(let i=1;i<5;i++){ const gx=x+S*(.08+i*.168);
+      ctx.beginPath(); ctx.moveTo(gx, y-S*.16); ctx.lineTo(gx, y+S*.86); ctx.stroke(); }
+    const lamps=['#7fa36b','#b8964a','#8fb4d9'];                             // three floors, three lights
+    lamps.forEach((c,i)=>{ ctx.fillStyle=c;
+      ctx.beginPath(); ctx.arc(x+S*(.26+i*.24), y-S*.30, S*.07, 0, Math.PI*2); ctx.fill(); });
   } else if(st.kind==='tree'){ // The Learning Tree — a branching diagram on a board, beside the Course Board
     ctx.fillStyle='#63402a'; ctx.fillRect(x-S*.06,y-S*.2,S*1.12,S*1.0);
     ctx.fillStyle='#2f3a2c'; ctx.fillRect(x,y-S*.14,S*1.0,S*.88);           // a dark slate to draw on

@@ -11,7 +11,7 @@ import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine } from '../data/the-day.js';
 import { rememberInto } from '../data/memory.js';
 import { BADGES } from '../data/badges.js';
-import { blip, setHud } from '../main.js';
+import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
@@ -1478,6 +1478,18 @@ function renderMenu(){
       item('openNotesLog()', '🗒 Your Notes'),
       item('openLearningTree()', '🌳 Lesson plans'),
       item('openAcademy()', '🎓 The Academy'),
+      /* The Lab is four hops away — Grounds, Workshop, up, up — on a floor that
+         until 2026-08-02 said "nothing open here", so anyone who explored early
+         learned to skip it. Reported the same day: "we have talked a lot about
+         having a research station and the electronics build, is that just a
+         plan? I can't find anything like that." It was built and unreachable,
+         which is the same thing as unbuilt. A room still deserves its place in
+         the world; it just should not be the ONLY way in. */
+      item('openLab()', `🔬 The Lab${(function(){
+        const b=(data.hall&&data.hall.builds)||[];
+        const open=b.reduce((n,x)=>n+(x.entries||[]).filter(e=>!e.closed).length,0);
+        return open?' · '+open+' waiting':'';
+      })()}`),
       item('openBadges()', '🏅 Badges'),
     ])}
     ${section('Library', [
@@ -5463,6 +5475,37 @@ export function readBuildWithInvestigator(id){
    nothing and duplicates nothing; every count here is read live from
    where the thing already lives, and every button walks you there.
    ================================================================ */
+/* THE LIFT — added 2026-08-02, at the steward's own suggestion after they
+   could not find the Lab: "there should be a staircase or an elevator."
+   The Workshop has three real floors and the only way to the third was two
+   separate staircases, on a floor that until that morning said nothing was
+   open. A building tall enough to get lost in needs a way to name where you
+   are going. Every floor has one; the one you are on is marked. */
+const WORKSHOP_FLOORS = [
+  { scene:'workshop',        label:'Ground floor',  what:'Sebastian, his calendar, and the Archive / Research / Caravan desks', sx:12, sy:6 },
+  { scene:'workshopfloor2',  label:'Records Hall',  what:"the Pavilion's own memory, made walkable",                            sx:8,  sy:6 },
+  { scene:'workshopfloor3',  label:'The Lab',       what:'the Bench, your datasheets and paper books, and the research you have gathered', sx:2, sy:5 },
+];
+export function openLift(){ state.ui='lift'; hideAllOv(); renderLift(); showOv('liftOv'); }
+function renderLift(){
+  const here=state.scene;
+  document.getElementById('liftPanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🛗 The Lift</h2>
+    <div class="meta">Three floors. Pick one.</div>
+    <div style="margin-top:12px">${WORKSHOP_FLOORS.map(f=>{
+      const on=f.scene===here;
+      return `<div class="card" ${on?'style="cursor:default;opacity:.6"':`style="cursor:pointer" onclick="takeLift('${f.scene}')"`}>
+        <div class="t">${esc(f.label)}${on?' <span class="badge lic">you are here</span>':''}</div>
+        <div class="s" style="margin-top:4px">${esc(f.what)}</div>
+      </div>`;
+    }).join('')}</div>`;
+}
+export function takeLift(scene){
+  const f=WORKSHOP_FLOORS.find(x=>x.scene===scene); if(!f) return;
+  closeUI(); blip(520,.07);
+  warpTo(f.scene, f.sx, f.sy);
+}
 export function openLab(){ state.ui='lab'; hideAllOv(); renderLab(); showOv('labOv'); }
 function renderLab(){
   const el=document.getElementById('labPanel'); if(!el) return;
@@ -9909,7 +9952,7 @@ Object.assign(window, {
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   setNotesLogSort,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
-  acceptBundle, setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
+  openLift, takeLift, acceptBundle, setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
   writePacketFile, triggerImportPacket, setCommonsName,
 });

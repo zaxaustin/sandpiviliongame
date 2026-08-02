@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { scenes, SOLID } from '../src/game/scenes.js';
 import { SEED_LIBRARY, TRADITIONS } from '../src/game/data/seed.js';
 
-const KNOWN_STATION_KINDS = ['planner', 'courses', 'archive', 'computer', 'requests', 'notice', 'hearth', 'grantdesk', 'residents', 'research', 'coffee', 'review', 'records', 'calendar', 'ledger', 'makersbench', 'greenhouse', 'roundtable', 'mailroom', 'yourshelf', 'intake', 'notes', 'inheritance', 'commons', 'alexandria', 'tree'];
+const KNOWN_STATION_KINDS = ['planner', 'courses', 'archive', 'computer', 'requests', 'notice', 'hearth', 'grantdesk', 'residents', 'research', 'coffee', 'review', 'records', 'calendar', 'ledger', 'makersbench', 'greenhouse', 'roundtable', 'mailroom', 'yourshelf', 'intake', 'notes', 'inheritance', 'commons', 'alexandria', 'tree', 'lift'];
 
 const failures = [];
 const fail = (msg) => failures.push(msg);

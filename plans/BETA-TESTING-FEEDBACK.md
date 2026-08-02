@@ -1923,3 +1923,108 @@ ignored their file and stop trying.
 just needs a door on the outside. Bundles were built with this in mind and no
 longer require a panel to be open.
 
+
+---
+
+## Round 4 — 2026-08-02 evening, from a real sorting session
+
+The steward sorted a real shelf: **the AI filed 111 books, the rest by hand,
+"very painless."** That is the librarian working as intended, and it is the
+first time the rules-then-model ladder has been exercised at that scale.
+Everything below came out of actually using it afterwards.
+
+### #34 — The Lab was unreachable. FIXED same day.
+> *"we have talked a lot about having a research station and the electronics
+> build, is that just a plan? i cant find anything like that to interact with"*
+
+It was built that morning and might as well not have been. Grounds → Workshop →
+staircase → staircase → find the station: four hops, and the third floor had
+said "nothing open here" since it was made, so anyone who explored early had
+learned to stop climbing. **Built and unreachable is the same as unbuilt.**
+
+Fixed two ways, at the steward's own suggestion (*"there should be a staircase
+or an elevator"*):
+- **🛗 The Lift** — a station on all three Workshop floors, naming each floor
+  and what is on it, marking where you are. `warpTo()` in main.js is the new
+  reusable move (the warp block in the movement loop could not be called from a
+  panel).
+- **🔬 The Lab in the pause menu**, with a count of predictions still waiting.
+  A room still deserves its place in the world; it should not be the only door.
+
+### #35 — The Index does not list every shelf
+> *"the index on the bookshelves dont show all the shelves and the full index
+> does not show all options. i did something to pull them up but it wasn't out
+> and easy to look through"*
+
+Confirmed as a report; not yet diagnosed. The Index and the Stacks predate
+custom shelves (`data.myShelves`) and the four `kind` marks added today, so the
+likely cause is that they enumerate `TRADITIONS` rather than "every shelf that
+actually has something on it." **Next session: make both views derive their
+list from the shelves that exist, not a fixed array.**
+
+### #36 — Sorted books stay in the sort view, and it feels unsafe
+> *"after i sort the books i can still see them all, im afraid that im gonna
+> undo the work. is there a commit button or save these features to take them
+> off the sort page?"*
+
+This is the important one, because the feeling is the bug. Filing a book does
+persist immediately — there is nothing to commit and nothing to lose — but the
+view gives no sign of that, so a long sorting session feels like unsaved work
+right up until you close it and hope.
+
+Two fixes, and they are different:
+1. **Say it is saved.** A filed book should visibly leave the "still to sort"
+   pile — the pile is the job, and it should shrink as you work. That alone
+   would have prevented the fear.
+2. **Then a "done for now" that hides what is filed**, so the page is only ever
+   the remaining work.
+
+Note the steward's own framing — *"we can always move a book later or have a
+way to do so if we need to"* — which is exactly right and already true. The
+answer is not a commit button; it is showing that the work is already kept.
+
+### #37 — The pocketed book reopens on the page you closed
+> *"i love how the book keeps reading but besides the little icon it goes back
+> to the page i closed the book on"*
+> *"that flow with reading works if the book is open but not if its in the
+> phone app and im walking around"*
+
+Read-aloud continues while pocketed, and the pocket card is the only thing that
+knows where the voice has got to — reopening returns to the closed page rather
+than the page being read. Also reported: it reads one page and stops, needing a
+manual advance. **The reader and the voice have separate ideas of "where we
+are," and the voice's is the true one while pocketed.** Worth fixing together:
+reopening should land where the voice is, and page-turn should follow the voice
+rather than wait for a press.
+
+### #38 — Voice quality. Wants better than the OS default.
+> *"i want to take a good look at the free voice options cause the google thing
+> ain't doing it with me. it's better than nothing but can i get an upgrade?"*
+
+Read-aloud uses `speechSynthesis`, i.e. whatever the OS ships. On Windows that
+is usually a small set of thin ones. Genuinely better and still local/free:
+- **Windows' own better voices** are often installed but not exposed — Settings
+  → Time & Language → Speech → Add voices (the "Natural" ones are markedly
+  better). Cheapest possible win: a line in Voice Settings telling people this
+  exists, since most never find it.
+- **Piper** (rhasspy/piper) — genuinely good neural TTS, runs locally on CPU,
+  MIT, models a few tens of MB. Would need a small local server or an Electron-
+  side binary, which is real work but exactly the project's kind: local, free,
+  no account, ours.
+
+**This is the honest upgrade path and it should get its own plan** — see
+`VOICE-PLAN.md`, which predates the complaint and now has a real reason.
+
+### #39 — The Computer as a way to learn the terminal (a want, not a bug)
+> *"the computer should be a way for people to learn terminal commands i love
+> it!"*
+
+It already teaches by being one — `ls`, `find`, `open 3`, `ds <part>` are real
+shapes. Making it deliberate would be small: a `man <command>` that explains
+what the real-world equivalent does, and a note that `ls` and `find` are the
+same words a terminal uses. Cheap, and it turns a convenience into a doorway.
+
+### #40 — "should we make them sit down to read lol"
+Filed because it is not actually a joke. The four postures already exist (`M`),
+and reading while seated is the kind of small in-world honesty this project
+tends to be right about. No action, just recorded.

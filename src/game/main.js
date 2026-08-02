@@ -7,7 +7,7 @@ import {
   blocked, facingTile, opposite, MOVE_TIME, dueSoon, todayKey,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome, sweepReminders, openFoldReflection, openInheritanceHall, openPlantHere, openPlanting, openCommonsTable, openMyLibrary, openAlexandria, openLearningTree, openLab, openBookIntake, openNotesLog } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome, sweepReminders, openFoldReflection, openInheritanceHall, openPlantHere, openPlanting, openCommonsTable, openMyLibrary, openAlexandria, openLearningTree, openLab, openLift, openBookIntake, openNotesLog } from './ui/overlays.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -88,6 +88,17 @@ document.getElementById('menuBtn').addEventListener('click', openMenu);
 
 /* ---------- HUD ---------- */
 function setLoc(){ document.getElementById('loc').textContent=scene().name; }
+/* Move somewhere without walking through a warp tile. Added 2026-08-02 for the
+   Workshop lift; the warp block in the movement loop does this inline and
+   cannot be called from a panel. Kept to the same steps so a lift arrival and a
+   walked arrival are indistinguishable afterwards. */
+export function warpTo(sceneKey, sx, sy){
+  const p=state.player;
+  state.scene=sceneKey;
+  p.x=sx; p.y=sy; p.px=p.x; p.py=p.y; p.tx=p.x; p.ty=p.y; p.moving=false; p.dir='down';
+  setLoc(); persist(); logActivity('Took the lift to '+scene().name+'.');
+  blip(392,.1); setTimeout(()=>blip(523,.12),100);
+}
 export function setHud(){
   document.getElementById('fishCount').textContent=data.fish;
   document.getElementById('readCount').textContent=Object.keys(data.read).length;
@@ -150,6 +161,7 @@ function onAction(){
     else if(st.kind==='commons') openCommonsTable();
     else if(st.kind==='alexandria') openAlexandria();
     else if(st.kind==='tree') openLearningTree();
+    else if(st.kind==='lift') openLift();
     else if(st.kind==='ledger') openDialog('THE LEDGER',["Real numbers, not general encouragement — pairs with Wealth of\nNations and Ten Acres Enough, already on the Library shelves.\nNot open yet. Still just framing and good intentions."]);
     // OPEN, 2026-08-02 — the placeholder's own description ("a home for real-world
     // physical projects — a build, a repair") turned out to be exactly what the
