@@ -9231,7 +9231,29 @@ export function applyTriageMove(){
       Nothing was deleted.</div></div>`;
   renderMyLibrary();
 }
-export function openMyLibrary(){ state.ui='mylib'; state.myLibView=state.myLibView||{q:'',sel:{}}; hideAllOv(); renderMyLibrary(); showOv('myLibOv'); }
+export function openMyLibrary(){
+  state.ui='mylib';
+  /* OPEN ON WHAT IS LEFT TO DO — 2026-08-02, from real use. Reported after
+     sorting a hundred books: "after i sort the books i can still see them all,
+     im afraid that im gonna undo the work. is there a commit button?"
+
+     There is nothing to commit — every move is written to the save the instant
+     you make it. But the view showed the whole library either way, so an hour
+     of work produced no visible change and felt unsaved right up until you
+     closed it and hoped. The fear was correct about the FEEDBACK and wrong
+     about the DATA, which is the worst combination.
+
+     So: if there is a pile, the page opens on the pile. It shrinks as you work,
+     which is the only reassurance that actually reassures. Everything is one
+     chip away, and re-filing a sorted book is still a dropdown, exactly as
+     before — the steward's own note, "we can always move a book later", is
+     already true and stays true. */
+  if(!state.myLibView){
+    const unfiled=personalBooks().filter(b=>shelfOf(b)==='Personal').length;
+    state.myLibView={ q:'', sel:{}, show: unfiled ? 'unfiled' : 'all' };
+  }
+  hideAllOv(); renderMyLibrary(); showOv('myLibOv');
+}
 export function createMyShelf(){
   const name=(window.prompt('Name a shelf of your own — anything you like:\n(e.g. Electronics · Work · Recipes · Papers to read)')||'').trim();
   if(!name) return;
@@ -9595,6 +9617,14 @@ function renderMyLibrary(keepFocus){
         ${chip('unfiled','📥 Still to sort',counts['Personal']||0,'#8a6a3a')}
         ${chip('filed','✓ Sorted',filedTotal,'#7fa36b')}
         ${shelvesWith.map(s=>chip(s,'📗 '+esc(s),counts[s])).join('')}
+      </div>
+      <div class="meta" style="margin-top:6px">
+        ${(counts['Personal']||0)
+          ? `<b style="color:#8a6a3a">${counts['Personal']} still to sort.</b> `
+          : `<b style="color:#7fa36b">Nothing left to sort.</b> `}
+        Every move is saved the moment you make it — there is nothing to commit and no way to
+        lose the work. Books you file leave this pile; they are never gone, just on a shelf, and
+        moving one again is the same dropdown.
       </div>`;
       const card=b=>{
         const dupe=titleCount[(b.title||'').trim().toLowerCase()]>1;
