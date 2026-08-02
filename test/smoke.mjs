@@ -272,6 +272,24 @@ for (const [key, s] of Object.entries(scenes)) {
 }
 
 
+/* ---------- no shipped book may need Docker ----------
+   The Library has two tiers: books whose text is in hand, and books whose text
+   lives in the MinIO pool (doc.fullText.storage = {bucket,key}). The reader
+   handles both, which is what makes bundles possible at all — see
+   plans/BOOK-BUNDLES-AND-THE-POOL.md.
+
+   But a book in the SHIPPED SEED must always carry its own text or be an honest
+   summary. If one ever ships with a pool pointer, every tester without Docker
+   gets a book that will not open and a storage warning they cannot act on, for
+   a service nobody told them to install. Zero do today; this keeps it so. */
+{
+  const offenders = SEED_LIBRARY.filter(d => d.doc && d.doc.fullText && d.doc.fullText.storage);
+  for (const d of offenders) {
+    fail(`seed.js: "${d.title}" ships with a MinIO storage pointer — a tester with no Docker cannot open it, and the shipped library must never depend on a service. Inline the text (src/game/data/library-texts/) or carry it as a summary.`);
+  }
+}
+
+
 /* ---------- resident memory ----------
    What a resident carries between visits. The bar this has to clear is the one
    the gap was described by: a tag list ("you've asked about electronics") is
