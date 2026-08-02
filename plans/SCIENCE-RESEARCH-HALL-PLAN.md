@@ -441,8 +441,25 @@ The most *immediately* useful strand, because there's a real printer in the room
 
 ## Phasing, smallest useful first
 
-- **L0 — the print log.** No room needed, no simulation, immediately useful with
-  a printer sitting there. Prove the loop with something real.
+- **L0 — the print log. ✅ BUILT 2026-08-02, as *the Bench*.** Generalised past
+  3D printing on the way in, because the first real occupant turned out to be a
+  universal TV remote (`UNIVERSAL-REMOTE-PROJECT.md`) rather than a print — and
+  a circuit, a print, a repair and a recipe all log identically. `data.hall.builds`,
+  in the Hall beneath self-experiments.
+
+  The shape that made it worth building separately: a self-experiment is
+  `a practice + one 1–5 measure, daily` — right for meditation, wrong for making
+  a thing. A build step is **what I expected → what I did → what actually
+  happened**, and it is deliberately **two-phase**: the prediction saves on its
+  own, and only then is the result half reachable. You cannot backfill a guess
+  once you know the answer. That constraint is this plan's creed made structural,
+  the same trick as the investigation form's required falsifier — and it is
+  guarded by `test/live/bench.mjs` (12 checks) precisely because it could rot
+  into a single form with all the fields at once and still look fine.
+
+  The Investigator reads a build log under a `buildContext` branch, aimed at the
+  one thing he's uniquely good for: the pattern across steps you're too close to
+  see — the same wrong assumption showing up three times.
 - **L1 — the basement room.** Stairs, workbench, the stations as honest
   "not open yet" until each is filled — the pattern the Workshop's third floor
   already uses.

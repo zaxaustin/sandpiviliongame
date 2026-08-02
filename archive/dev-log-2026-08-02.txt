@@ -1,0 +1,122 @@
+2026-08-02 — THE BENCH, and the research room gets a real subject
+================================================================
+
+The ask: "for the sand pavilion i want to work on the science hall and
+research room. the project i want to work on is i want to make a universal
+remote for my tv from scratch... i am learning about eletronics and how to
+put things together, let me figure out what books and papers to get and we
+can start from there and use that to beta test this new building."
+
+This landed on prepared ground in a way that doesn't happen often.
+RESEARCH-ROOM-PLAN.md (written 2026-07-12) already said, in as many words,
+that the way to find out what the research room actually needs is to use it
+on a real subject, and it already named electronics. What it never had was a
+PROJECT. A universal remote is a better one than I would have chosen, and
+the reasons are worth writing down because they're the reasons it works as
+a test of the Hall rather than just a fun build:
+
+  - It is checkable. The TV changes channel or it doesn't. The Hall's four
+    seed investigations are ALL soft-science claims where being wrong is
+    arguable, and that has been quietly flattering the room. Electronics is
+    nothing but falsifiable.
+  - It has a real idea at its heart. Remotes don't send plain IR — they
+    chop the beam at ~38 kHz so the receiver can band-pass everything else
+    away. That's AM and noise rejection, the spine of radio, met on a
+    breadboard for eight dollars.
+  - Its primary literature is genuinely free AND legitimately shelvable:
+    datasheets and manufacturer app notes are published free, and the two
+    best textbooks (Kuphaldt's "Lessons In Electric Circuits", Design
+    Science License; NEETS, US Navy, public domain) can go on the Science
+    shelf without bending provenance-at-the-door at all. That is unusual.
+  - It ends in an object. The printer in the room prints the case.
+
+WHAT WAS WRITTEN
+----------------
+plans/UNIVERSAL-REMOTE-PROJECT.md — the reading list split three ways
+(free-and-shelvable / worth buying / the actual working documents), the
+NEC timing spec kept inline so a capture has something to check against,
+~$30 of parts, a six-stage ladder each ending in something that works, the
+five investigations the project will naturally produce, and an honest audit
+of what the Pavilion supports today.
+
+The audit is the useful half. Supporting it already: the Research Desk (build
+log + paste-a-datasheet), Hall investigations (the five questions drop
+straight in), dissect-a-paper, the personal shelf, the Request Board,
+pdf-to-text.py, Electronics 101. Missing: five things, listed below.
+
+WHAT WAS BUILT — THE BENCH (gap #1)
+-----------------------------------
+A build had no home. This took a minute to see clearly, because the Hall
+LOOKS like it has one: self-experiments. But a self-experiment is shaped
+`a practice + one 1-5 measure, logged daily`. That is exactly right for
+meditation and exactly wrong for making a thing. Building is:
+
+    what I expected  ->  what I did  ->  what actually happened
+
+and the ORDER is the whole point, not a formatting preference.
+
+So the Bench is deliberately TWO-PHASE. You save a prediction on its own,
+and only then does the "what happened" half become reachable. There is no
+path anywhere in the UI to edit a guess after you know the answer, because
+by then it's already written down. That single constraint is this room's
+creed made structural — the same trick the investigation form plays with
+its required falsifier field, and the same reason Stage 2 of the remote
+project decodes a frame by hand before letting a library do it.
+
+This is SCIENCE-RESEARCH-HALL-PLAN.md's "L0 - the print log", generalised
+past 3D printing on the way in: a circuit, a print, a repair and a recipe
+all log identically, and the first occupant turned out to be a remote.
+
+  - data.hall.builds, migrated for old saves in entities.js
+  - four outcomes (as-predicted / surprised / failed / inconclusive), the
+    same badge treatment as VERDICTS
+  - the Investigator reads a log under a new buildContext branch, pointed
+    at the one thing he's uniquely good for: the pattern ACROSS steps that
+    you are too close to see — the same wrong assumption showing up three
+    times, a quantity you keep guessing high, a step where you stopped
+    measuring and started hoping.
+
+TESTING
+-------
+test/live/bench.mjs — 12 checks, all passing. It exists because the
+two-phase property is exactly the kind of thing that rots into a single
+all-at-once form during a later cleanup and STILL LOOKS FINE and still
+passes a smoke test. The checks that matter:
+
+    A STEP WITH NO PREDICTION IS REFUSED
+    and it is saved OPEN — the result half is empty
+    THE ORIGINAL PREDICTION SURVIVES THE RESULT
+    a closed step offers no way to rewrite the guess
+
+One test bug worth remembering: puppeteer's evaluateOnNewDocument re-fires
+on reload, so the "survives a restart" check was wiping the save it meant
+to verify. Fixed by carrying the WRITTEN save onto a second page instead of
+reloading the first. Same family of mistake as the packaged-app one from
+2026-07-28: verify the artifact, not the thing you set up.
+
+npm test clean. preflight 39/39, zero external requests — old saves without
+hall.builds migrate without a murmur. Visual check taken against the live
+preview; the open (amber) card and the closed card both read correctly and
+match the Hall's existing aesthetic.
+
+WHAT'S STILL MISSING (from the audit, in order)
+-----------------------------------------------
+2. The Electronics track stops at 101. 201 is three `(planned)` stubs and
+   there is no 301. The six-stage ladder in the project file should BE that
+   track — that's the obvious next build.
+3. Datasheets have nowhere to live AS datasheets. Not a book, not a paper —
+   a reference you return to fifty times. category:'research' exists in
+   seed.js and nothing routes to it.
+4. No "My Research" home (RESEARCH-ROOM-PLAN.md Phase 1, still unbuilt).
+5. Every seed investigation in the Hall is soft science. Nothing shows what
+   a hard, measured, one-evening investigation looks like. The carrier-
+   frequency question ("does 38 kHz actually matter, or would any chopping
+   do?") would be the best exemplar card the Hall could have.
+
+The steward's own next move is off-screen and correct: order a multimeter,
+read Kuphaldt Volume I chapters 1-3, and get the parts. The Bench will be
+sitting there when Stage 1 arrives.
+
+One line to hold onto: every stage of this project ends in a number you
+predicted and a number you measured, and the gap between them is the only
+thing the Hall has ever cared about.

@@ -272,6 +272,28 @@ and used** — the last genuinely unverified thing is closed. Everything is push
 the repo is **still private by choice**. The next action is making it public and
 cutting the Release.
 
+**2026-08-02 — the Science Hall gained the Bench, and the research room finally
+has a real subject.** The steward brought a concrete project — *build a universal
+TV remote from scratch* — as the beta test `RESEARCH-ROOM-PLAN.md` always said
+electronics should be. The reading list, the six-stage ladder, the parts, and the
+five investigations it will produce are in
+[`plans/UNIVERSAL-REMOTE-PROJECT.md`](plans/UNIVERSAL-REMOTE-PROJECT.md), along
+with an honest audit of what the Hall supports today.
+
+That audit's first finding is built: **a build had no home.** Self-experiments
+are `a practice + one 1–5 measure, daily` — right for meditation, wrong for
+making a thing. So the **Bench** (`data.hall.builds`, in the Hall under
+self-experiments) logs *what I expected → what I did → what actually happened*,
+and does it in **two phases on purpose**: the prediction saves alone, and only
+then is the result half reachable. There is no path to edit a guess after the
+fact. Guarded by `test/live/bench.mjs` (12 checks) because that property could
+rot into one all-at-once form and still look perfectly fine.
+
+**Four gaps remain from that audit**, listed at the end of the project file —
+next up is the Electronics track (201 is three `(planned)` stubs and there's no
+301; the six-stage ladder should *be* that track), then the "My Research" home
+(`RESEARCH-ROOM-PLAN.md` Phase 1).
+
 **The one open platform gap: macOS.** Most of the first testers are on Macs and
 the `.exe` is Windows-only. A macOS app cannot be built on Windows, so there are
 three answers, in [`SHIPPING-THE-BETA.md`](plans/SHIPPING-THE-BETA.md): the web

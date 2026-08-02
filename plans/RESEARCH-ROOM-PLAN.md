@@ -78,6 +78,15 @@ add the "My Research" home when we build it, and let real use pick the room.
 
 ## The beta test: teach yourself electronics in the lab
 
+> **UPDATE 2026-08-02 — the beta test now has a real subject: a universal TV
+> remote, built from scratch.** See **`UNIVERSAL-REMOTE-PROJECT.md`** for the
+> reading list (the free/shelvable textbooks, the datasheets and app notes that
+> are the actual primary sources, and the ~$30 of parts), the six-stage ladder,
+> and the five investigations it will naturally produce. The first "where do I
+> put this?" it surfaced has already been answered: **a build had no home**, so
+> the Bench was built (see the Hall plan's L0). Four gaps remain, listed at the
+> end of that file — the next one is Phase 1 below.
+
 Electronics is a *great* test subject because it exercises **every** part of the
 research room at once, and it's checkable (a circuit works or it doesn't — the
 same honesty the Hall loves):

@@ -441,6 +441,19 @@ const CHAT_AGENTS = {
             +"flattering one. If the data is too thin to say anything yet, say so kindly and suggest how many "
             +"more days would help. Here is their experiment and log:\n"+state.dialog.experimentContext
           : '')
+        +((state.dialog&&state.dialog.buildContext)
+          ? "\n\nThe visitor has brought you the log from something they are BUILDING at the Bench — a "
+            +"circuit, a print, a repair. Every step was written in two halves: what they predicted BEFORE "
+            +"trying it, and what actually happened after. Read it as an engineer, not a cheerleader. The "
+            +"thing you are uniquely useful for is the pattern ACROSS steps that they are too close to see: "
+            +"the same wrong assumption showing up three times, a quantity they keep guessing high, a step "
+            +"where they stopped measuring and started hoping. Name that pattern plainly. Where a prediction "
+            +"and a measurement disagree, treat the disagreement as the interesting part rather than an "
+            +"error to move past — ask what the gap implies about the model in their head. If they measured "
+            +"nothing and only recorded impressions, say so kindly and suggest the one number worth taking "
+            +"next time. Be concrete and brief, and suggest a next step only when the log actually points "
+            +"at one. Here is the build and its log:\n"+state.dialog.buildContext
+          : '')
         +"\n\nThe Hall's investigations so far:\n"+investigationsForPrompt()
         +"\n\nThe most relevant shelves, if useful (cite a text by name rather than inventing one):\n"+hallShelfSummary()
         +pastAsksBlock('investigator');
@@ -5255,6 +5268,120 @@ export function readExperimentWithInvestigator(id){
   });
   if(state.dialog) state.dialog.experimentContext=ctx;
 }
+
+/* ================================================================
+   THE BENCH — where a BUILD lives. Added 2026-08-02, driven by the
+   universal-remote project (plans/UNIVERSAL-REMOTE-PROJECT.md), which
+   surfaced the real gap in this room: a self-experiment is shaped
+   `a practice + one 1-5 measure, daily`. That is exactly right for
+   meditation and exactly wrong for making a thing. Building has a
+   different shape:
+
+        what I expected  ->  what I did  ->  what actually happened
+
+   ...and the ORDER is the entire point, not a formatting choice. So
+   the Bench is deliberately TWO-PHASE: you save a prediction first,
+   and only then does the "what happened" half become reachable. You
+   cannot quietly backfill a prediction once you know the answer,
+   because by then it is already written down. That one constraint is
+   the Hall's creed made structural — the same trick the investigation
+   form plays with its required falsifier field, and the same reason
+   Stage 2 of the remote project decodes a frame by hand before letting
+   a library do it.
+
+   This is SCIENCE-RESEARCH-HALL-PLAN.md's "L0 — the print log",
+   generalised past 3D printing: a circuit, a print, a recipe and a
+   repair all log the same way.
+   ================================================================ */
+const OUTCOMES = {
+  'as-predicted':{ label:'Went as I predicted',  color:'#7fb069', bg:'rgba(127,176,105,.14)' },
+  'surprised':   { label:'Worked — but not how I expected', color:'#e0a43c', bg:'rgba(224,164,60,.14)' },
+  'failed':      { label:'Did not work',          color:'#d98c8c', bg:'rgba(217,140,140,.14)' },
+  'inconclusive':{ label:'Could not tell yet',    color:'#8fb4d9', bg:'rgba(143,180,217,.14)' },
+};
+function buildRec(id){ return (data.hall.builds||[]).find(b=>b.id===id); }
+export function newBuildForm(){ state.hallView={mode:'build'}; renderScienceHall(); }
+export function createBuild(){
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  const name=g('bldName'), goal=g('bldGoal');
+  const warn=document.getElementById('bldWarn');
+  if(!name){ if(warn) warn.textContent='Give the build a name — even a rough one. "A universal remote" is plenty.'; return; }
+  if(!data.hall.builds) data.hall.builds=[];
+  data.hall.builds.unshift({ id:'bld-'+Date.now(), name, goal, created:todayKey(), entries:[] });
+  persist(); logActivity('Started a build at the Bench: "'+name+'".'); blip(740,.09);
+  state.hallView={mode:'list'}; renderScienceHall();
+}
+export function deleteBuild(id){
+  const b=buildRec(id); if(!b) return;
+  const n=(b.entries||[]).length;
+  if(n && !window.confirm('Close "'+b.name+'" and delete its '+n+' logged step'+(n===1?'':'s')+'?\n\nThe log is the point of a bench — this cannot be undone.')) return;
+  data.hall.builds=(data.hall.builds||[]).filter(x=>x.id!==id);
+  persist(); renderScienceHall();
+}
+// Phase one of an entry: the prediction, saved BEFORE you go and try it.
+export function predictForm(buildId){ state.hallView={mode:'predict',buildId}; renderScienceHall(); }
+export function createPrediction(){
+  const v=state.hallView||{};
+  const b=buildRec(v.buildId); if(!b) return;
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  const stage=g('preStage'), predicted=g('prePredict'), why=g('preWhy');
+  const warn=document.getElementById('preWarn');
+  const missing=[];
+  if(!stage) missing.push('what you are about to try');
+  if(!predicted) missing.push('what you expect to happen');
+  if(missing.length){
+    if(warn) warn.textContent='The Bench needs '+missing.join(' and ')+'. Writing the guess down before you find out is the whole reason this room exists — a prediction recorded afterwards is just a description.';
+    return;
+  }
+  b.entries.unshift({ id:'e-'+Date.now(), stage, predicted, why, opened:todayKey(),
+    did:null, measured:null, outcome:null, next:null, closed:null });
+  persist(); logActivity('Predicted a bench step: "'+(stage.length>50?stage.slice(0,50)+'…':stage)+'".'); blip(659,.07);
+  state.hallView={mode:'list'}; renderScienceHall();
+}
+// Phase two: what actually happened. Only reachable on an entry that
+// already has a prediction sitting above it.
+export function closeBenchEntry(buildId,entryId){
+  const b=buildRec(buildId); if(!b) return;
+  const e=(b.entries||[]).find(x=>x.id===entryId); if(!e) return;
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  const did=g('bDid-'+entryId), measured=g('bMeas-'+entryId), next=g('bNext-'+entryId);
+  const outcome=g('bOut-'+entryId);
+  const warn=document.getElementById('bWarn-'+entryId);
+  if(!outcome){ if(warn) warn.textContent='Say how it went against what you predicted — that comparison is the only thing being logged here.'; return; }
+  e.did=did; e.measured=measured; e.outcome=outcome; e.next=next; e.closed=todayKey();
+  persist(); logActivity('Logged a bench result ('+((OUTCOMES[outcome]||{}).label||outcome)+').'); blip(784,.08);
+  renderScienceHall();
+}
+export function reopenBenchEntry(buildId,entryId){
+  const b=buildRec(buildId); if(!b) return;
+  const e=(b.entries||[]).find(x=>x.id===entryId); if(!e) return;
+  e.outcome=null; e.closed=null; persist(); renderScienceHall();
+}
+// Read the build log back with the Investigator — the same move as reading a
+// self-experiment's data, pointed at a run of predictions and results. What he
+// is actually good for here is the pattern across entries that you are too
+// close to see: the same wrong assumption showing up four times.
+export function readBuildWithInvestigator(id){
+  const b=buildRec(id); if(!b) return;
+  const done=(b.entries||[]).filter(e=>e.closed);
+  const open=(b.entries||[]).filter(e=>!e.closed);
+  const ctx=`Build: ${b.name}\nGoal: ${b.goal||'(not stated)'}\nStarted: ${b.created}\n`
+    +`\nSteps logged and finished (${done.length}), newest first:\n`
+    +(done.length?done.map(e=>
+        `- [${e.opened}${e.closed&&e.closed!==e.opened?' → '+e.closed:''}] ${e.stage}\n`
+        +`    PREDICTED: ${e.predicted}${e.why?' (because: '+e.why+')':''}\n`
+        +`    DID: ${e.did||'(not written)'}\n`
+        +`    MEASURED: ${e.measured||'(nothing measured)'}\n`
+        +`    OUTCOME: ${(OUTCOMES[e.outcome]||{}).label||e.outcome}${e.next?`\n    NEXT: ${e.next}`:''}`
+      ).join('\n'):'(none finished yet)')
+    +(open.length?`\n\nPredicted but not yet run (${open.length}):\n`
+      +open.map(e=>`- ${e.stage} — expects: ${e.predicted}`).join('\n'):'');
+  openChatDialog({
+    name:'the Investigator', aiAgent:'investigator', color:'#2a2118', glow:'#8fb4d9',
+    lines:['Let’s read the bench log. I’m less interested in whether it works yet than in where your predictions and your measurements keep disagreeing — that gap is where the learning actually is.'],
+  });
+  if(state.dialog) state.dialog.buildContext=ctx;
+}
 function renderScienceHall(){
   const v=state.hallView||{mode:'list'};
   const panel=document.getElementById('hallPanel');
@@ -5305,6 +5432,49 @@ function renderScienceHall(){
       <div class="meta" id="expWarn" style="color:#e0a43c;margin-top:10px"></div>
       <div class="row" style="margin-top:12px">
         <button class="btn" onclick="createExperiment()">Begin</button>
+        <button class="btn ghost" onclick="backToHallList()">← Cancel</button>
+      </div>`;
+    return;
+  }
+  if(v.mode==='build'){
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>🔧 Start a build</h2>
+      <div class="meta">A build is a thing you are making — a circuit, a print, a repair, a recipe.
+        The Bench doesn't care what it is; it cares that every step gets a <b>prediction before you try
+        it</b> and a <b>result after</b>. That's all it does, and it's the difference between a project
+        you finished and a project you learned something from.</div>
+      <label>What are you making?</label>
+      <input type="text" id="bldName" placeholder="e.g. A universal remote for the TV">
+      <label>What would count as done? (optional, but worth a sentence)</label>
+      <input type="text" id="bldGoal" placeholder="e.g. It changes the channel from across the room, on a battery, in a printed case">
+      <div class="meta" id="bldWarn" style="color:#e0a43c;margin-top:10px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="createBuild()">Open the bench</button>
+        <button class="btn ghost" onclick="backToHallList()">← Cancel</button>
+      </div>`;
+    return;
+  }
+  if(v.mode==='predict'){
+    const b=buildRec(v.buildId);
+    if(!b){ state.hallView={mode:'list'}; renderScienceHall(); return; }
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Predict, then go and find out</h2>
+      <div class="s" style="margin-top:2px;opacity:.85">${esc(b.name)}</div>
+      <div class="meta" style="margin-top:8px">Write this <b>before</b> you go to the bench, not after. Once
+        you save it you cannot edit the guess — that's deliberate, and it's the only rule this room has.
+        Being wrong here in writing is worth more than being right from memory, so guess honestly rather
+        than safely.</div>
+      <label>What are you about to try? <b>*</b></label>
+      <input type="text" id="preStage" placeholder="e.g. Drive the IR LED straight off the Arduino pin, no transistor">
+      <label>What do you expect to happen? <b>*</b> — be specific enough to be wrong</label>
+      <textarea id="prePredict" rows="3" placeholder="e.g. It'll work but with short range — maybe a metre. A number is better than a feeling: guess the number."></textarea>
+      <label>Why do you think that? (optional — this is the field you'll learn most from re-reading)</label>
+      <textarea id="preWhy" rows="2" placeholder="e.g. The pin can only give about 20mA and the datasheet rates the LED at 100mA, so roughly a fifth of the light."></textarea>
+      <div class="meta" id="preWarn" style="color:#e0a43c;margin-top:10px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="createPrediction()">Save the prediction</button>
         <button class="btn ghost" onclick="backToHallList()">← Cancel</button>
       </div>`;
     return;
@@ -5404,6 +5574,60 @@ function renderScienceHall(){
       </div>`;
     }).join('')}</div>
     <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="newExperimentForm()">+ Start a self-experiment</button></div>
+    <h3 style="margin-top:22px">🔧 The Bench</h3>
+    <div class="meta">For things you are <b>making</b> rather than claims you are weighing — a circuit, a
+      print, a repair. Every step here is written in two halves: what you expect, saved <i>before</i> you
+      try it, and what actually happened, after. You can't go back and improve the guess, which is the
+      point. The gap between those two halves is the only thing anyone ever learns from.</div>
+    <div style="margin-top:8px">${(data.hall.builds||[]).map(b=>{
+      const es=b.entries||[], done=es.filter(e=>e.closed), open=es.filter(e=>!e.closed);
+      const surprises=done.filter(e=>e.outcome&&e.outcome!=='as-predicted').length;
+      return `<div class="card" style="cursor:default">
+        <div class="t">🔧 ${esc(b.name)}</div>
+        ${b.goal?`<div class="s" style="margin-top:3px"><b>Done when:</b> ${esc(b.goal)}</div>`:''}
+        <div class="s" style="margin-top:3px">${done.length} step${done.length===1?'':'s'} finished${open.length?` · ${open.length} predicted, not yet run`:''}${done.length?` · ${surprises} went differently than expected`:''} · started ${esc(b.created)}</div>
+        ${open.length?`<div style="margin-top:10px">${open.map(e=>`
+          <div class="card" style="cursor:default;border-color:#e0a43c;background:rgba(224,164,60,.06)">
+            <div class="s" style="opacity:.85">Predicted ${esc(e.opened)} · not yet run</div>
+            <div class="t" style="font-size:13px">${esc(e.stage)}</div>
+            <div class="s" style="margin-top:5px"><b>You expected:</b> ${esc(e.predicted)}</div>
+            ${e.why?`<div class="s" style="margin-top:3px"><b>Because:</b> ${esc(e.why)}</div>`:''}
+            <div class="s" style="margin-top:9px;color:#e0a43c">Now go and try it. Then come back and say what happened:</div>
+            <label style="font-size:11.5px">What you actually did</label>
+            <input type="text" id="bDid-${e.id}" placeholder="what you built or changed, in a line">
+            <label style="font-size:11.5px">What you measured — a number if you have one</label>
+            <input type="text" id="bMeas-${e.id}" placeholder="e.g. worked to 1.4 m, then dropped out entirely">
+            <label style="font-size:11.5px">Against your prediction, how did it go?</label>
+            <select id="bOut-${e.id}"><option value="">— pick one —</option>${Object.keys(OUTCOMES).map(k=>`<option value="${k}">${OUTCOMES[k].label}</option>`).join('')}</select>
+            <label style="font-size:11.5px">What you'd change next (optional)</label>
+            <input type="text" id="bNext-${e.id}" placeholder="the next thing to try, while it's fresh">
+            <div class="meta" id="bWarn-${e.id}" style="color:#e0a43c;margin-top:8px"></div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn ghost" style="font-size:11.5px" onclick="closeBenchEntry('${b.id}','${e.id}')">Record what happened</button>
+            </div>
+          </div>`).join('')}</div>`:''}
+        ${done.length?`<div style="margin-top:10px">${done.map(e=>{
+          const o=OUTCOMES[e.outcome]||{label:e.outcome||'—',color:'#b7ad98',bg:'rgba(183,173,152,.14)'};
+          return `<div class="card" style="cursor:default">
+            <div class="s" style="opacity:.85">${esc(e.opened)}${e.closed&&e.closed!==e.opened?' → '+esc(e.closed):''}</div>
+            <div class="t" style="font-size:13px">${esc(e.stage)}</div>
+            <div style="margin:5px 0"><span class="badge" style="background:${o.bg};color:${o.color};border-color:${o.color}">${esc(o.label)}</span></div>
+            <div class="s" style="margin-top:4px"><b>Expected:</b> ${esc(e.predicted)}</div>
+            ${e.why?`<div class="s" style="margin-top:3px;opacity:.85"><b>Reasoning:</b> ${esc(e.why)}</div>`:''}
+            ${e.did?`<div class="s" style="margin-top:3px"><b>Did:</b> ${esc(e.did)}</div>`:''}
+            ${e.measured?`<div class="s" style="margin-top:3px"><b>Measured:</b> ${esc(e.measured)}</div>`:''}
+            ${e.next?`<div class="s" style="margin-top:3px"><b>Next time:</b> ${esc(e.next)}</div>`:''}
+            <div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="reopenBenchEntry('${b.id}','${e.id}')">Amend the result</button></div>
+          </div>`;
+        }).join('')}</div>`:''}
+        <div class="row" style="margin-top:10px;flex-wrap:wrap">
+          <button class="btn ghost" style="font-size:11.5px" onclick="predictForm('${b.id}')">+ Predict the next step</button>
+          ${aiOn&&done.length?`<button class="btn ghost" style="font-size:11.5px" onclick="readBuildWithInvestigator('${b.id}')">🔬 Read the log with the Investigator</button>`:''}
+          <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="deleteBuild('${b.id}')">Close &amp; delete</button>
+        </div>
+      </div>`;
+    }).join('')}</div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="newBuildForm()">+ Start a build</button></div>
     <h3 style="margin-top:22px">Worked examples</h3>
     <div class="meta">Four to start — both everyday science and the contemplative questions, one of each
       kind of verdict, so the honesty bar is visible before you open your own.</div>
@@ -9459,6 +9683,8 @@ Object.assign(window, {
   newInvestigationForm, backToHallList, createInvestigation, deleteInvestigation,
   dissectPaper, clearDissect, investigationFromDissect, keepDissection, reviewDissection, deleteDissection,
   newExperimentForm, createExperiment, logExperimentToday, deleteExperiment, readExperimentWithInvestigator,
+  newBuildForm, createBuild, deleteBuild, predictForm, createPrediction,
+  closeBenchEntry, reopenBenchEntry, readBuildWithInvestigator,
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
   openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,
   openAcademy, studyLessonWithTutor,
