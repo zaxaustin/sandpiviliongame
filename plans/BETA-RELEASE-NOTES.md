@@ -120,8 +120,14 @@ notes and save carry across untouched.
   The Republic, the Tao Te Ching and so on. Each of those ten says outright that
   it's a summary, names where the real text lives, and invites you to drag it in;
   the page then becomes the book. Filling it is the point, not a chore before it.
-- **Two lessons are marked "being written"** because they are — Electronics 201
-  and Security 101. Everything else in the Learning Tree is real.
+- **One lesson is marked "being written"** because it is — Security 101.
+  Everything else in the Learning Tree is real, including the full Electronics
+  track: 101 (light an LED), 201 (measure for real, read a schematic, the
+  transistor and the capacitor), and 301 — build a universal TV remote from
+  scratch, in six stages that each end in something that works.
+- **A lesson you haven't unlocked yet still opens, in full.** The prerequisite
+  holds back the tick, never the reading. If you already know the material,
+  don't tick it — produce what it asks for.
 - **The Course Board starts bare.** It's yours to pin.
 - **The café boards are closed** — they wait on a shared server that doesn't
   exist yet.
