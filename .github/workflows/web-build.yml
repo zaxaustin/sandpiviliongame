@@ -1,0 +1,55 @@
+# Reproduces the VERCEL build, on every push — because it silently broke once
+# and the only symptom was a failure email nobody could act on.
+#
+# The failure (2026-08-02): every dependency in this project is a devDependency
+# (there are no runtime `dependencies` at all, on purpose — electron-builder
+# packs `dependencies` into the desktop installer, so putting vite there would
+# bloat the .exe with the whole build toolchain). Vercel builds with
+# NODE_ENV=production, and npm skips devDependencies when that is set. So the
+# install step installed NOTHING and `vite build` died with "vite: not found".
+#
+# The fix is vercel.json's installCommand (`npm install --include=dev`). This
+# workflow exists so that if anyone ever removes it, or a future dependency
+# change reintroduces the same shape, CI says so here rather than the website
+# quietly stopping updating.
+name: web build (Vercel parity)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # The two things that made Vercel behave differently from a dev machine.
+      NODE_ENV: production
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Deliberately NOT `npm ci` on its own — the point is to run the same
+      # install Vercel runs, under the same NODE_ENV, and prove it yields a
+      # toolchain that can actually build.
+      - name: Install the way Vercel does
+        run: npm install --include=dev
+
+      - name: The web build must produce a bundle
+        run: npm run build:beta
+
+      - name: And it must be local-only (no keys, no cloud host)
+        run: npm run verify:beta
+
+      - name: Sanity — index.html and assets actually exist
+        run: |
+          test -f dist/index.html || { echo "no dist/index.html"; exit 1; }
+          test -d dist/assets    || { echo "no dist/assets";    exit 1; }
+          echo "dist looks shippable:"; ls -la dist
+
+      - name: The test suite still passes
+        run: npm test
