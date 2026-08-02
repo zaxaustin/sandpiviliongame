@@ -57,6 +57,41 @@ about **how it was gathered**.
 
 ## Part 1 — the gathering axis, four levels
 
+### First, the stance — corrected 2026-08-02, and it governs the rest
+
+> *"We are not the rule makers or enforcers. All we can do is try to guide
+> people to do things properly, and make sure that is our official stance.
+> That doesn't mean we should cut off people's ability to self-govern in this
+> aspect of education."*
+>
+> *"Local libraries for personal use can be OK. **Spreading it for free is
+> where we draw the line.**"*
+
+This sharpens the original draft, which drew the line at **acquiring**. That was
+half a step too far. The line is at **spreading**, and the difference matters:
+
+- **Your own shelf is your own business.** What you keep on your machine for your
+  own study is between you and the law of wherever you live. The Pavilion does
+  not audit it, does not scan for it, and does not withhold your own files from
+  you. An adult self-governing their own education is not a problem to be solved.
+- **Redistribution is where we stop**, and it is the only place we stop. The
+  shared commons, the review queue, a published packet, a bequest — those carry
+  the Pavilion's name and everyone else's risk, not just yours.
+
+**Why we still won't build a fetcher for a shadow library**, even under this
+looser line, stated plainly so it doesn't read as inconsistency: a tool shipped
+to everybody *is* distribution. One person dragging in one file is a personal
+act. A connector in the product doing it for thousands of people is a channel,
+and a channel is exactly the thing we said we wouldn't be. **So: no fetcher, and
+no interrogation of your shelf either.** Both follow from the same rule.
+
+**We guide; we do not enforce.** Everything below is the Pavilion saying clearly
+what's clean and what isn't, so you can decide well — not a gate that decides
+for you. The one thing that is genuinely gated is entry into the shared commons,
+because that is the one place your choice becomes everyone's problem.
+
+---
+
 The verdict below is about the **act of acquiring**, never about the file.
 
 ### 🤝 Freely given
@@ -80,33 +115,36 @@ personal only, and *record where it came from* — because in a year you will no
 remember, and "I don't know where I got this" is how a commons ends up holding
 something it had no right to.
 
-### ⛔ Not from here
-The line. Not a licence question — an **acquisition** question, and the answer
-is no regardless of what the text says:
+### ⛔ Never spread
+The line, and — corrected 2026-08-02 — it is drawn at **spreading**, not at
+holding. Sources whose material must never travel onward from here:
 
 - shadow libraries (Library Genesis, Sci-Hub, Z-Library and their kin)
-- circumventing DRM
-- getting round a paywall or an access control
+- anything obtained by circumventing DRM or an access control
 - bulk-scraping a site against its stated terms or `robots.txt`
 - anything obtained by misrepresenting who you are
 
-**What the Pavilion actually does about it — stated plainly, because the
-opposite would be worse:**
+**What the Pavilion actually does about it:**
 
-- It **will not help you acquire** from here. No connector, no fetcher, no
-  "paste the link and I'll grab it." The Caravan's hand-picked connectors are
-  already exactly this rule in code, chosen one at a time rather than a general
-  scraper — see `LIBRARY-GROWTH-PLAN.md`.
-- It **will never certify** anything at this level, or the level above, into a
-  shared shelf.
-- It **does not police your disk.** It will not scan your files, will not
-  refuse to open a book you drag in, and will not lecture you. You are an adult
-  in your own house.
+- It **never lets it travel.** Not into the review queue, not into a published
+  packet, not into a bequest, not into the shared commons. This is the one hard
+  gate in the whole system, and it is hard because at that point your decision
+  stops being yours alone.
+- It **will not build a channel.** No connector, no fetcher, no "paste the link
+  and I'll grab it" — because a tool shipped to everybody is itself
+  distribution. The Caravan's hand-picked connectors, chosen one at a time
+  rather than a general scraper, were already this rule in code before it had a
+  name (`LIBRARY-GROWTH-PLAN.md`).
+- It **does not police your disk.** It will not scan your files, will not refuse
+  to open a book you drag in, will not ask you to justify your own shelf, and
+  will not lecture you. What you keep for your own study is between you and the
+  law where you live.
 
-That last point matters and is not a hedge. A tool that searched your drive and
-withheld your own files would be doing to you precisely what the gatekeepers do,
-in the name of stopping them. **The Pavilion is a doorman for the commons, not a
-warden for your library.**
+That last point is not a hedge, it is the position. A tool that searched your
+drive and withheld your own files would be doing to you precisely what the
+gatekeepers do, in the name of stopping them. **The Pavilion is a doorman for the
+commons, not a warden for your library** — and people are entitled to govern
+their own education.
 
 ### Why this is the *stronger* position, not the timid one
 
@@ -220,8 +258,30 @@ pointed at is not shown.**
 
 ## Part 3 — where money is allowed
 
-The request was exact: money *"can be used, but only fairly and at the right
-time."* Here is the line, in one sentence:
+The request was exact, and sharpened again on 2026-08-02:
+
+> *"If things make money, so be it — but it cannot be the focus here. The main
+> thing should be reputation, and then links to donate to their cause or their
+> own website."*
+
+That names the mechanism, and it is a better one than anything I would have
+built. **The Pavilion holds no money, processes no payment, takes no cut, and
+knows nothing about anyone's finances.** A contributor's record simply carries a
+link they chose — their site, their project, their donation page — and a reader
+who values the work follows it. Off our machine, off our server, out of our
+hands, entirely between two people.
+
+This gets everything wanted and avoids everything feared. There is no payment
+integration to build, no fees, no accounts, no ledger, no compliance surface,
+no chargebacks, and — the important one — **no way for money to touch ranking,
+because the money never passes through anything we control.** A link is not a
+transaction. It cannot be sorted by, bid on, or A/B tested.
+
+Two rules keep it honest: **the link never affects placement or order**, and
+**it is never shown before the work** — you find it because you read something
+good, not on the way in.
+
+Here is the line, in one sentence:
 
 > **Money follows the work. The work never follows money.**
 
@@ -230,6 +290,9 @@ payment decides what gets made, what gets seen, or what gets said, the commons
 has become an advertising channel and is worth nothing.
 
 **Money may:**
+- **be reached by a link the contributor chose** — their own site, their cause,
+  their donation page. The primary shape, per above: the Pavilion is a signpost,
+  never a till.
 - **thank someone, after the fact, at the giver's discretion.** A tip jar, never
   a paywall. The work was already free and stays free whether or not anyone pays.
 - **pay real costs, named openly with the number shown** — server rent, a code
@@ -284,6 +347,28 @@ domain, each linked to its artifact.
 **S4 — money, last and deliberately.** Nothing above requires it. When it comes,
 it comes as a tip jar and an openly published cost sheet, and not before there
 is something worth thanking anyone for.
+
+---
+
+## Why any of this exists — the steward's own statement of it
+
+> *"I want to be able to give people the jobs they dream of, by giving them the
+> education they need and the framework to learn it."*
+
+Worth keeping at the bottom of this document, because it is the thing every rule
+above is in service of and the test for any rule added later.
+
+It also explains why the framework is shaped the way it is. If the goal were
+merely *sharing texts*, provenance would be an annoyance to route around. But the
+goal is that someone finishes a ladder here and can **hold up something real** —
+a course they completed, a build that works, a record of correction and
+reproduction that a stranger can check. **That only has value if it is
+trustworthy**, and it is only trustworthy if the chain underneath it is clean:
+where the material came from, who did the work, what others independently found.
+
+Which is to say: the discipline in this document is not a tax on the mission. It
+*is* the mission. A credential nobody can check is worth exactly nothing, and
+that is precisely the failure the gatekeepers are selling protection from.
 
 ---
 

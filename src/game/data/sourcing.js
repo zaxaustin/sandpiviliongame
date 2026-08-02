@@ -26,17 +26,33 @@
    from a licence header — it can only be inferred from the SOURCE, and
    otherwise it must be asked.
 
-   WHAT THIS DOES NOT DO, deliberately:
-     - it does not scan your disk
-     - it does not refuse to open anything you drag in
-     - it does not lecture you about your own library
+   WHERE THE LINE IS DRAWN — corrected 2026-08-02 by the steward, and
+   the correction matters:
+
+     "Local libraries for personal use can be OK, but SPREADING it for
+      free is where we draw the line. We are not the rule makers or
+      enforcers — all we can do is guide people to do things properly.
+      That doesn't mean we should cut off people's ability to
+      self-govern in this aspect of education."
+
+   So the line is at DISTRIBUTION, not acquisition. This file therefore:
+     - does NOT scan your disk
+     - does NOT refuse to open anything you drag in
+     - does NOT ask you to justify your own shelf
+     - DOES hard-gate entry to the shared commons (mayEnterCommons)
 
    A tool that searched your files and withheld them would be doing to
    you exactly what the gatekeepers do, in the name of opposing them.
-   This is a doorman for the COMMONS, not a warden for your shelves.
-   The teeth are: we won't help you fetch from the last level, and
-   nothing from the last two levels is ever certified into a shared
-   shelf. See plans/CREDIT-AND-COMMONS-FRAMEWORK.md.
+   Doorman for the COMMONS; not warden for your shelves.
+
+   And why there is still no shadow-library connector under this looser
+   line, stated so it doesn't read as inconsistency: a tool shipped to
+   everybody IS distribution. One person dragging in one file is a
+   personal act; a fetcher in the product doing it for thousands is a
+   channel, and being a channel is the thing we said we wouldn't be.
+   Both halves follow from the same rule.
+
+   See plans/CREDIT-AND-COMMONS-FRAMEWORK.md.
    ================================================================ */
 
 export const LEVELS = {
@@ -56,9 +72,9 @@ export const LEVELS = {
     advice:'No licence stated anywhere, or an orphan work, or a page you scraped, or a transcript, or a PDF someone sent you. Usually fine to read; genuinely unclear to keep or pass on. The one thing that matters: record where it came from, because in a year you will not remember, and "I don\'t know where I got this" is how a commons ends up holding something it had no right to.',
   },
   no: {
-    id:'no', mark:'⛔', label:'Not from here', tone:'#c8574a',
-    short:'The Pavilion will not help you get this.',
-    advice:'This is not a licence question — it is about the act of acquiring. Shadow libraries, getting round DRM or a paywall, bulk-scraping against a site\'s terms. The Pavilion has no connector for it and never will, and nothing from here is ever certified into a shared shelf. Not squeamishness: a commons with one stolen shelf gets dismissed entirely, and the theft becomes the story instead of every honest thing beside it.',
+    id:'no', mark:'⛔', label:'Never spread', tone:'#c8574a',
+    short:'Yours to answer for. Never ours to pass on.',
+    advice:'Shadow libraries, getting round DRM or a paywall, bulk-scraping against a site\'s terms. The line here is drawn at SPREADING, not at holding: what you keep for your own study is between you and the law where you live, and the Pavilion will not audit your shelf or withhold your own files. But nothing from here ever travels onward — not into the shared commons, not a published packet, not a bequest — because at that point your decision stops being only yours. We are not the rule-makers; we guide, and we refuse to be the channel. A commons with one stolen shelf gets dismissed entirely, and the theft becomes the story instead of every honest thing beside it.',
   },
 };
 export const LEVEL_ORDER = ['given','held','ask','no'];

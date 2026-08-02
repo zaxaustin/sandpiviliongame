@@ -9592,11 +9592,17 @@ export function openBookIntake(){
           <b style="color:${L.tone}">${L.mark} ${esc(L.label)}</b> — <i>${esc(L.short)}</i>
           <div style="margin-top:3px;opacity:.9">${esc(L.advice)}</div>
         </div>`; }).join('')}
-      <div class="s" style="margin-top:12px;opacity:.9"><b>What this actually does:</b> the Pavilion won't
-        help you fetch from the last one — there's no connector for it and there won't be — and nothing from
-        the last two is ever certified onto a shared shelf. It does <b>not</b> scan your disk, refuse to open
-        anything you drag in, or lecture you about your own library. You're an adult in your own house; this
-        is a doorman for the commons, not a warden for your shelves.</div>
+      <div class="s" style="margin-top:12px;opacity:.9"><b>Where the line actually is:</b> at
+        <b>spreading</b>, not at holding. What you keep on your own machine for your own study is between
+        you and the law where you live — the Pavilion does not scan your disk, does not refuse to open
+        anything you drag in, and will never ask you to justify your own shelf. People are entitled to
+        govern their own education. What <i>is</i> gated is entry to the shared commons, because that is the
+        one place your decision stops being only yours.</div>
+      <div class="s" style="margin-top:8px;opacity:.9">We are not the rule-makers or the enforcers. All this
+        does is say clearly what's clean and what isn't, so you can decide well. (And there's no
+        shadow-library fetcher, under this looser line, for a consistent reason: a tool shipped to everybody
+        <i>is</i> distribution. One person dragging in one file is a personal act; a connector doing it for
+        thousands is a channel.)</div>
       <div class="s" style="margin-top:8px;opacity:.9">And the clean path is the strong one, not the timid
         one: a commons anyone can check cannot be dismissed, while one stolen shelf becomes the whole story
         and buries every honest thing beside it. There's more free material than anyone has organised —
