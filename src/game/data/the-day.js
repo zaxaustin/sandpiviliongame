@@ -106,7 +106,11 @@ export function theDayItems(ctx = {}) {
 
   /* 4 — a paper you brought in and never pulled apart. The Hall exists
         for exactly this and nobody could find it. */
-  const isPaper = b => /arxiv|doi|pubmed|semanticscholar|openalex/i.test((b.source_url || '') + ' ' + (b.attribution || ''))
+  /* An explicit mark beats a guess. `kind:'paper'` is set at intake by the
+     person who actually knows; the heuristic below is only the fallback for
+     everything shelved before that existed, or dragged in with no source. */
+  const isPaper = b => b.kind === 'paper'
+    || /arxiv|doi|pubmed|semanticscholar|openalex/i.test((b.source_url || '') + ' ' + (b.attribution || ''))
     || /paper|preprint|journal/i.test((b.category || '') + ' ' + (b.title || ''));
   const analysed = new Set(dissections.map(d => String(d.title || '').toLowerCase()));
   const looseP = books.filter(b => isPaper(b) && !analysed.has(String(b.title || '').toLowerCase()));

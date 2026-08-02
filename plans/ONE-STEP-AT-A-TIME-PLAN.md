@@ -173,6 +173,33 @@ ever done *to* the person's work on their behalf.
 
 ---
 
+## Items 1 and 2 are BUILT — 2026-07-28
+
+**Sebastian's stand-up is live**, and it is the fix for *"he asks and doesn't
+bring."* He opens with **one question** — *"What has to be true by tonight?"* —
+then stops asking and starts **carrying things in**, one at a time, each with a
+real choice:
+
+```
+2 of 5
+  This one is late, sir.
+  ⏳ Meditation daily
+     was due 6 days ago
+  [ Do it now ]  [ Keep it for later ]
+```
+
+Verified end to end: the one line lands on the Writing Desk as the day's
+intention, *"Let it go"* on a carried spark genuinely clears it, and **not one
+network request is made at any point**. There is no AI anywhere in it — his
+questions are fixed and the items are computed from saved data, which is what
+makes it work on a laptop that cannot run a model.
+
+**The evening close** shares the same machine (`openStandUp('evening')`): what
+actually happened, and anything still open you have stopped wanting.
+
+What remains from the list below: the tree opening on *where you are*, `where`
+on lesson steps, and the Tutor asking rather than lecturing.
+
 ## What to build first — cheap, in order
 
 Each is small and useful alone. None needs a server, a new dependency, or a

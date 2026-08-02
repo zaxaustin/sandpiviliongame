@@ -1369,7 +1369,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','computerOv','thedayOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','computerOv','thedayOv','standupOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 /* Closing a panel used to CANCEL read-aloud outright, with no way back — the
    single most-complained-of thing in real use ("if I try to do anything it
    pauses that voice and I can't even unpause it"). Now: a book you're
@@ -4139,6 +4139,142 @@ export function runBulkImport(){
    you walk up to. Reuses openChatDialog's exact plumbing — a "resident"
    here is just a plain object with a name/agent/color/lines, and the
    Computer qualifies as well as any NPC does. */
+/* ----- SEBASTIAN'S STAND-UP (2026-07-28) — ONE-STEP-AT-A-TIME-PLAN.md, item 1.
+
+   The complaint this answers: *"the Sebastian interface, while very good, is
+   not enough for me to use daily."* The diagnosis in the plan is that he ASKS
+   and does not BRING. A planner you fill in is work; a colleague who says
+   "you've moved this four days running, do you still want it?" is worth showing
+   up for.
+
+   So: one question at a time, each answered before the next arrives, and he
+   opens by carrying in what Today already knows rather than by presenting an
+   empty form. This is the same medicine as the lesson-drafting chain — small
+   asks beat one big one — except here the win is entirely on the human side.
+
+   NO AI IS REQUIRED for any of it. The skeleton is deterministic: his questions
+   are fixed, the items he brings are computed from saved data. A connected
+   model can phrase things more warmly, but nothing here waits on one, which is
+   the point for anyone on a laptop that cannot run one. */
+export function openStandUp(mode){
+  const items=currentDayItems();
+  state.standUp={ mode: mode==='evening'?'evening':'morning', i:0, one:'', done:[], items };
+  state.ui='standup'; hideAllOv(); renderStandUp(); showOv('standupOv');
+  setTimeout(()=>{ const el=document.getElementById('suIn'); if(el) el.focus(); },40);
+}
+/* Each step is one question. Steps 0 and 1 are his, the rest are the items
+   Today found — walked one at a time, each with a real choice, so the visitor
+   is answering rather than reading. */
+function standUpSteps(){
+  const su=state.standUp||{};
+  const head = su.mode==='evening'
+    ? [{ ask:'What actually happened today?', place:'one line — the true version, not the tidy one', key:'happened' },
+       { ask:'Anything still open that you have stopped wanting?', place:'name it and it goes; leave blank and it stays', key:'drop' }]
+    : [{ ask:'What has to be true by tonight?', place:'one thing — the thing that would make today count', key:'one' }];
+  return head.concat((su.items||[]).map(function(it){ return { item:it }; }));
+}
+export function standUpAnswer(){
+  const su=state.standUp; if(!su) return;
+  const el=document.getElementById('suIn');
+  const val=el?el.value.trim():'';
+  const steps=standUpSteps();
+  const step=steps[su.i];
+  if(step && step.key && val){
+    su.done.push({ q:step.ask, a:val });
+    if(step.key==='one'){
+      su.one=val;
+      const k=todayKey();
+      const day=data.planner[k]||(data.planner[k]={ intention:'', ember:'', blocks:DEFAULT_BLOCKS.map(function(n){return {name:n,state:'waiting'};}), sparks:[] });
+      if(!day.intention) day.intention=val; else { (day.sparks=day.sparks||[]).push({ text:val, done:false }); }
+      persist(); logActivity('Set the day with Sebastian: "'+val+'".');
+    }
+    if(step.key==='happened'){ logActivity('Closed the day with Sebastian: "'+val+'".'); persist(); }
+  }
+  su.i++; renderStandUp();
+  setTimeout(function(){ const i2=document.getElementById('suIn'); if(i2) i2.focus(); },40);
+}
+/* "Keep" and "let it go" on a carried item. Letting go is a real action with a
+   real effect, because an observation you cannot act on is just a reminder with
+   extra steps. */
+export function standUpItem(act){
+  const su=state.standUp; if(!su) return;
+  const steps=standUpSteps(); const step=steps[su.i];
+  if(step && step.item){
+    if(act==='do'){ const it=step.item; su.i++;
+      setTimeout(function(){ closeUI(); if(typeof window[it.fn]==='function'){ it.arg!==undefined?window[it.fn](it.arg):window[it.fn](); } },60);
+      return;
+    }
+    if(act==='drop' && step.item.key==='stale'){
+      // clear the oldest carried spark — the thing he just asked about
+      const all=openSparks();
+      const oldest=all.slice().sort(function(a,b){ return String(a.dayKey).localeCompare(String(b.dayKey)); })[0];
+      if(oldest && data.planner[oldest.dayKey] && data.planner[oldest.dayKey].sparks[oldest.i]){
+        data.planner[oldest.dayKey].sparks[oldest.i].done=true;
+        persist(); logActivity('Let go of "'+(oldest.text||'something carried')+'".');
+      }
+    }
+  }
+  su.i++; renderStandUp();
+}
+export function endStandUp(){ state.standUp=null; closeUI(); }
+function renderStandUp(){
+  const el=document.getElementById('standupPanel'); if(!el) return;
+  const su=state.standUp||{}; const steps=standUpSteps(); const n=steps.length;
+  const evening=su.mode==='evening';
+  const head='<button class="xbtn" onclick="closeUI()">Esc ✕</button>'
+    + '<h2>🤵 '+(evening?'Closing the day':'Sebastian')+'</h2>';
+
+  if(su.i>=n){
+    const kept=(su.done||[]).length;
+    el.innerHTML = head
+      + '<div class="meta">'+(evening
+          ? 'Noted, sir. It is on the record and the day can end.'
+          : 'That is the shape of it, sir. The rest will keep.')+'</div>'
+      + (su.one?'<div class="card" style="cursor:default;margin-top:12px;border-color:#7fa36b">'
+          + '<div class="t" style="color:#7fa36b">Today, in one line</div>'
+          + '<div class="s" style="margin-top:4px">'+esc(su.one)+'</div>'
+          + '<div class="s" style="margin-top:6px;opacity:.8">It is on the Writing Desk.</div></div>':'')
+      + '<div class="meta" style="margin-top:12px">'+kept+' answered · nothing here was sent anywhere.</div>'
+      + '<div class="row" style="margin-top:14px;gap:6px;flex-wrap:wrap">'
+      + '<button class="btn" onclick="openPlanner()">✍ Open the Writing Desk</button>'
+      + (evening?'':'<button class="btn ghost" onclick="openStandUp(\'evening\')">🌙 Close the day instead</button>')
+      + '<button class="btn ghost" onclick="endStandUp()">Done</button></div>';
+    return;
+  }
+
+  const step=steps[su.i];
+  const progress='<div class="meta" style="margin-top:2px">'+(su.i+1)+' of '+n+'</div>';
+
+  if(step.item){
+    const it=step.item;
+    const line = it.icon==='⏳' ? 'This one is late, sir.'
+      : it.icon==='📌' ? 'This is due today.'
+      : it.icon==='🌱' ? 'You were part-way through this.'
+      : it.icon==='🔁' ? 'You have carried this a while.'
+      : it.icon==='📄' ? 'You brought this in and never pulled it apart.'
+      : 'This has been sitting unopened.';
+    el.innerHTML = head + progress
+      + '<div class="card" style="cursor:default;margin-top:12px">'
+      + '<div class="s" style="opacity:.85">'+esc(line)+'</div>'
+      + '<div class="t" style="margin-top:6px">'+it.icon+' '+esc(it.title)+'</div>'
+      + '<div class="s" style="margin-top:4px">'+esc(it.note)+'</div></div>'
+      + '<div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap">'
+      + '<button class="btn" onclick="standUpItem(\'do\')">Do it now</button>'
+      + '<button class="btn ghost" onclick="standUpItem(\'keep\')">Keep it for later</button>'
+      + (it.key==='stale'?'<button class="btn ghost" style="border-color:var(--danger);color:var(--danger-soft)" onclick="standUpItem(\'drop\')">Let it go</button>':'')
+      + '</div>';
+    return;
+  }
+
+  el.innerHTML = head + progress
+    + '<div class="meta" style="margin-top:10px;font-size:14px;color:var(--ink)">'+esc(step.ask)+'</div>'
+    + '<div class="row" style="margin-top:10px;gap:6px">'
+    + '<input type="text" id="suIn" placeholder="'+esc(step.place||'')+'" style="flex:1" '
+    + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();standUpAnswer();}">'
+    + '<button class="btn" onclick="standUpAnswer()">Next</button></div>'
+    + '<div class="meta" style="margin-top:8px;opacity:.8">One question at a time, and you can leave any of them blank. '
+    + 'Nothing here needs an AI connection, and nothing is sent anywhere.</div>';
+}
 /* ----- THE DAY (2026-07-28) — one door, and something behind it.
 
    The whole of WHY-OPEN-IT-TODAY-PLAN.md in one panel. It computes on
@@ -4184,6 +4320,7 @@ function renderTheDay(){
     + '<div class="meta" style="margin-top:14px;opacity:.85">Five at most, on purpose. A list of everything '
     + 'outstanding is a guilt inventory, and that is the opposite of a habit. The rest is where it always was.</div>'
     + '<div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap">'
+    + '<button class="btn" onclick="openStandUp()">🤵 Walk it through with Sebastian</button>'
     + '<button class="btn ghost" onclick="openPlanner()">✍ The Writing Desk</button>'
     + '<button class="btn ghost" onclick="openLearningTree()">🌳 The tree</button>'
     + '<button class="btn ghost" onclick="openComputer()">🖥 The index</button>'
@@ -4223,7 +4360,10 @@ function termPrint(lines){
    returning lines of text — the renderer does no thinking, which keeps this
    testable on its own. */
 function termIsPaper(d){
-  return /arxiv|doi|pubmed|semanticscholar|openalex/i.test((d.source_url||'')+' '+(d.attribution||''))
+  // an explicit mark first; the pattern-match is only for things shelved before
+  // the mark existed, or dragged in with no source recorded
+  return d.kind==='paper'
+      || /arxiv|doi|pubmed|semanticscholar|openalex/i.test((d.source_url||'')+' '+(d.attribution||''))
       || /paper|preprint|journal/i.test((d.category||'')+' '+(d.title||''));
 }
 function termRun(raw){
@@ -8644,6 +8784,7 @@ function renderMyLibrary(keepFocus){
             ${sug[b.slug]?`<button class="btn" style="font-size:11px;padding:3px 10px;border-color:#7fa36b" onclick="acceptOneSuggestion('${esc(b.slug)}')" title="${esc((v.suggestWhy||{})[b.slug]||'suggested')}">✨ → ${esc(sug[b.slug])}</button>
               <span class="s" style="opacity:.75;font-size:11px">${esc((v.suggestWhy||{})[b.slug]||'')}</span>`:''}
             <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px${b.kind==='paper'?';border-color:#8fb4d9;color:#a9c7e8':''}" onclick="togglePaper('${esc(b.slug)}')" title="Papers show up under the Computer's 'papers' command, and Today notices when you haven't pulled one apart">${b.kind==='paper'?'📄 paper':'mark as paper'}</button>
             <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:var(--danger);color:var(--danger-soft)" onclick="removePersonalBook('${esc(b.slug)}','mylib')">Remove</button>
           </div>
         </div>`;
@@ -8731,6 +8872,10 @@ export function openBookIntake(){
       <div class="s" style="margin-top:5px">For a chapter you copied, a paper, something you wrote yourself, or
         anything that isn't a file yet. Paste the text, give it a title, choose a shelf.</div>
       <div class="row" style="margin-top:8px"><button class="btn" onclick="newReviewManualForm2()">＋ Add a text by hand</button></div>
+      <div class="s" style="margin-top:8px;opacity:.85"><b>Adding a paper?</b> Add it exactly like a book —
+        drop the file, or paste the text. Then open <b>👤 Your Library</b> and press <b>mark as paper</b> on it.
+        That one press is what makes it show up under the Computer's <code>papers</code> command, and what lets
+        <b>☀ Today</b> notice when you have brought one in and never pulled it apart.</div>
     </div>
 
     <h3 style="margin-top:18px">Where to get books worth having</h3>
@@ -8779,6 +8924,15 @@ export function openBookIntake(){
 /* Kept for the old entry point; the Manage panel is now Your Library. */
 export function openManageLibrary(){ openMyLibrary(); }
 export function newReviewManualForm2(){ state.ui='review'; state.reviewView={mode:'manual'}; hideAllOv(); renderReviewQueue(); showOv('reviewOv'); }
+/* Marking a paper is a judgement only the reader can make — a PDF-converted
+   preprint with no source recorded looks exactly like a book to any heuristic.
+   So it is one press, reversible, and it is what the Computer's `papers` command
+   and Today's "never pulled apart" both read (2026-07-28). */
+export function togglePaper(slug){
+  const b=personalBooks().find(x=>x.slug===slug); if(!b) return;
+  b.kind = b.kind==='paper' ? undefined : 'paper';
+  persist(); renderMyLibrary();
+}
 export function movePersonalBook(slug, tradition){
   const b=data.personalLibrary.find(d=>d.slug===slug); if(!b) return;
   b.tradition=tradition; persist(); logActivity('Moved "'+b.title+'" to the '+tradition+' shelf.'); blip(660,.06);
@@ -9036,8 +9190,10 @@ Object.assign(window, {
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
   checkMyMachine, copyPullCommand,
   openBookIntake, termSubmit, termQuick, openTheDay, currentDayItems,
+  openStandUp, standUpAnswer, standUpItem, endStandUp,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
-  myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder, newReviewManualForm2,
+  myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
+  togglePaper, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
   writePacketFile, triggerImportPacket, setCommonsName,
 });
