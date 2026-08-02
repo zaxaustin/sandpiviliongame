@@ -125,13 +125,23 @@ export function theDayItems(ctx = {}) {
     note: unread.length > 1 ? unread.length + ' books you added and have not opened' : 'you added this and never opened it',
     fn: 'openReader', arg: unread[0].slug });
 
-  /* NEVER EMPTY. If nothing above fired, offer one small good thing —
-     a book to open, or the shelf itself. A caught-up screen is a reason
-     not to return, which is the exact failure this file exists to fix. */
+  /* NEVER EMPTY — and on DAY ONE this is the only thing that fires, so it is
+     the whole first impression. The first version looked only at the personal
+     shelf, which is empty for a new visitor, and so told someone who had just
+     been given 27 books that the Library needed growing. Wrong, and a weak
+     opening: what a newcomer should be offered is a real book they can read
+     immediately, because read-aloud works with nothing installed and that is
+     the fastest way to feel what this place is for. Caught 2026-07-28 by
+     running a genuinely fresh save instead of a loaded one. */
   if (!out.length) {
-    const any = books[0];
-    if (any) push({ key: 'idle-book', icon: '📖', title: any.title,
-      note: 'nothing is waiting — read a page of this instead', fn: 'openReader', arg: any.slug });
+    const readable = (ctx.catalogue || []).filter(d => d && d.doc && d.doc.fullText
+      && d.doc.fullText.text && d.doc.fullText.text.length > 4000 && !read[d.slug]);
+    const own = books.find(b => !read[b.slug]) || books[0];
+    if (own) push({ key: 'idle-book', icon: '📖', title: own.title,
+      note: 'nothing is waiting — read a page of this instead', fn: 'openReader', arg: own.slug });
+    else if (readable.length) push({ key: 'idle-seed', icon: '📖', title: readable[0].title,
+      note: 'complete and ready to read — press 🔊 and it will read aloud to you',
+      fn: 'openReader', arg: readable[0].slug });
     else push({ key: 'idle-empty', icon: '📥', title: 'Bring a book in',
       note: 'the Library grows because you grow it — drag a file onto the window',
       fn: 'openBookIntake' });

@@ -1761,3 +1761,24 @@ calls `Menu.setApplicationMenu(null)`, so Electron's default menu stands and
 opens*, with the Windows near-miss quoted as the reason to bother. Plus the
 Gatekeeper "is damaged" message explained as the lie it is, and the right-click
 → Open / `xattr -dr com.apple.quarantine` fix.
+
+### 29. [x] Day one told a new visitor the Library needed growing
+
+Found by running a **genuinely fresh save** instead of a loaded one — the same
+class of mistake as testing the dev app instead of the installer, and caught the
+same way.
+
+`☀ Today`'s never-empty fallback looked only at the *personal* shelf, which is
+empty for a newcomer. So a tester who had just been handed **27 books** was told
+*"Bring a book in — the Library grows because you grow it."* True in general,
+wrong on arrival, and a weak first impression at the exact moment the app has to
+land.
+
+**Now:** a newcomer is offered *"The Dhammapada — complete and ready to read,
+press 🔊 and it will read aloud to you."* Read-aloud needs nothing installed, so
+it is the fastest possible route to feeling what the place is for. Their own
+unread books still come first when they have any; a bundled text is the day-one
+answer only.
+
+Guarded by a smoke case, because day one happens once per tester and cannot be
+re-run on them.

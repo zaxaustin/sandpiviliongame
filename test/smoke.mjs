@@ -396,6 +396,21 @@ for (const [key, s] of Object.entries(scenes)) {
   const onlyBooks = theDayItems({ today: TODAY, books: [bk('b1', 'Something')], read: { b1: true } });
   if (!onlyBooks.length) fail('the-day: a read-everything Pavilion still needs one good offer');
 
+  // DAY ONE is the whole first impression, and the first version got it wrong:
+  // it told someone who had just been handed 27 books that the Library needed
+  // growing. A newcomer should be offered something to READ.
+  const dayOne = theDayItems({ today: TODAY, catalogue: [
+    { slug: 's1', title: 'The Dhammapada', doc: { fullText: { text: 'x'.repeat(5000) } } },
+    { slug: 's2', title: 'A Summary Only', doc: {} },
+  ] });
+  if (!dayOne.length) fail('the-day: day one produced nothing at all');
+  if (dayOne[0].fn !== 'openReader') fail('the-day: day one should offer something to read, not a chore');
+  if (dayOne[0].title !== 'The Dhammapada') fail('the-day: day one offered a summary rather than a complete text');
+  // …but only when there is genuinely nothing of their own
+  const hasOwn = theDayItems({ today: TODAY, books: [bk('b9', 'Their own book')],
+    catalogue: [{ slug: 's1', title: 'The Dhammapada', doc: { fullText: { text: 'x'.repeat(5000) } } }] });
+  if (!hasOwn.some(i => i.title === 'Their own book')) fail('the-day: a visitor\'s own unread book should come before a seed text');
+
   // NEVER A WALL — five, no matter how much is outstanding
   const many = theDayItems({
     today: TODAY,

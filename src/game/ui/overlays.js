@@ -4296,6 +4296,7 @@ export function currentDayItems(){
     books: personalBooks(),
     read: data.read||{},
     dissections: (data.hall&&data.hall.dissections)||[],
+    catalogue: Store.allDocs(),
   });
 }
 export function openTheDay(){
