@@ -1369,7 +1369,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','computerOv','thedayOv','standupOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','computerOv','thedayOv','standupOv','reportOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 /* Closing a panel used to CANCEL read-aloud outright, with no way back — the
    single most-complained-of thing in real use ("if I try to do anything it
    pauses that voice and I can't even unpause it"). Now: a book you're
@@ -1478,6 +1478,7 @@ function renderMenu(){
       item('openWaypoints()', '🔗 Waypoints'),
       item('openActivity()', '📜 Activity Log'),
       item('openDataPanel()', '📊 Your Data'),
+      item('openReport()', '✍ Tell them what happened'),
     ])}
     ${section('Save & session', [
       item('exportSave()', '⬇ Export save'),
@@ -4139,6 +4140,119 @@ export function runBulkImport(){
    you walk up to. Reuses openChatDialog's exact plumbing — a "resident"
    here is just a plain object with a name/agent/color/lines, and the
    Computer qualifies as well as any NPC does. */
+/* ----- TELL US WHAT HAPPENED (2026-07-28) — the thing that makes beta
+   testing actually work, and the piece that was missing.
+
+   The guides told a tester to "tell whoever gave you this", with no way to do
+   it. So reports arrive as half-remembered sentences in a chat window, without
+   the two facts that would make them actionable: which build, and whether an AI
+   was connected.
+
+   Deliberately NOT telemetry. Nothing is sent, nothing is collected, no server
+   is contacted. It writes a report onto the clipboard or into a file, which the
+   person then chooses to send — or doesn't. The context block is shown in full
+   on screen before anything is copied, the same discipline as the prompt
+   inspector: you can read exactly what leaves, because the answer is only ever
+   "whatever you paste yourself".
+
+   The three questions are the ones from BETA-WATCH-LIST.md, in that order,
+   because they are the ones that return information rather than politeness. */
+function reportContext(){
+  const desktop = !!(window.desktopBridge && window.desktopBridge.isDesktop);
+  const ai = isAIActive();
+  const books = personalBooks().length;
+  const nav = (typeof navigator!=='undefined' && navigator.userAgent) || '';
+  const os = /Windows/.test(nav) ? 'Windows' : /Mac/.test(nav) ? 'macOS' : /Linux/.test(nav) ? 'Linux' : 'unknown';
+  return [
+    'Build:      0.1.0-beta.2',
+    'Running as: ' + (desktop ? 'the installed app' : 'a browser'),
+    'System:     ' + os,
+    'Local AI:   ' + (ai ? 'connected' : 'not connected'),
+    'Own books:  ' + books,
+    'Days used:  ' + Object.keys(data.planner||{}).length,
+  ].join('\n');
+}
+export function openReport(){
+  state.ui='report'; hideAllOv(); renderReport(); showOv('reportOv');
+  setTimeout(function(){ const e=document.getElementById('rpExpected'); if(e) e.focus(); },40);
+}
+/* Exported so the payload itself can be checked, rather than trusting the
+   clipboard — which is exactly the sort of thing that works in a test and not
+   on a stranger's machine. */
+export function reportText(){
+  const g=function(id){ const e=document.getElementById(id); return e?e.value.trim():''; };
+  return [
+    'SAND PAVILION — a note from a beta tester',
+    '',
+    'What I expected to happen that didn\'t:',
+    g('rpExpected') || '(not answered)',
+    '',
+    'What happened instead:',
+    g('rpHappened') || '(not answered)',
+    '',
+    'Where I stopped:',
+    g('rpStopped') || '(not answered)',
+    '',
+    'Would I open it again tomorrow, honestly?',
+    g('rpAgain') || '(not answered)',
+    '',
+    '--- context (so the report is useful; nothing here identifies you) ---',
+    reportContext(),
+  ].join('\n');
+}
+export async function copyReport(){
+  const t=reportText();
+  const msg=document.getElementById('rpMsg');
+  try{ await navigator.clipboard.writeText(t);
+    if(msg) msg.textContent='Copied. Paste it wherever you like — a message, an email, anywhere.';
+    blip(700,.07);
+  }catch(e){ if(msg) msg.textContent='The clipboard refused. Use "Save it as a file" instead.'; }
+}
+export async function saveReport(){
+  const t=reportText();
+  const name='sand-pavilion-note-'+todayKey()+'.txt';
+  const msg=document.getElementById('rpMsg');
+  if(window.desktopBridge && window.desktopBridge.saveFile){
+    const res=await window.desktopBridge.saveFile(name, t);
+    if(res && res.canceled) return;
+    if(msg) msg.textContent=(res&&res.ok)?'Saved. Send it whenever you like.':'Could not save that file.';
+    if(res&&res.ok) blip(700,.07);
+    return;
+  }
+  const blob=new Blob([t],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); },800);
+  if(msg) msg.textContent='Saved to your Downloads folder.';
+}
+function renderReport(){
+  const el=document.getElementById('reportPanel'); if(!el) return;
+  const q=function(id,label,ph){
+    return '<label style="margin-top:12px">'+label+'</label>'
+      + '<textarea id="'+id+'" rows="2" placeholder="'+esc(ph)+'"></textarea>';
+  };
+  el.innerHTML =
+    '<button class="xbtn" onclick="closeUI()">Esc ✕</button>'
+    + '<h2>✍ Tell them what happened</h2>'
+    + '<div class="meta">This is a beta, and the most useful thing you can send back is what went wrong or '
+    + 'felt odd. <b>Nothing is sent from here.</b> It writes a note you copy or save, and you choose whether '
+    + 'to pass it on.</div>'
+    + q('rpExpected','What did you expect to happen that didn\'t?','the most useful question there is — what was in your head?')
+    + q('rpHappened','What happened instead?','')
+    + q('rpStopped','Where did you stop?','not what you thought — where you actually stopped')
+    + q('rpAgain','Would you open it again tomorrow, honestly?','"no" is a genuinely useful answer, and it is fine to give it')
+    + '<div class="card" style="cursor:default;margin-top:14px">'
+    + '<div class="t">What gets included</div>'
+    + '<div class="s" style="margin-top:4px">Your answers above, and this — so the report is worth reading. '
+    + 'No name, no files, no library contents, nothing that identifies you.</div>'
+    + '<pre style="margin-top:8px;background:#0d1117;color:#a9dcf0;border:2px solid #2b4250;border-radius:6px;'
+    + 'padding:10px;font-size:12px;white-space:pre-wrap">'+esc(reportContext())+'</pre></div>'
+    + '<div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap">'
+    + '<button class="btn" onclick="copyReport()">📋 Copy it</button>'
+    + '<button class="btn ghost" onclick="saveReport()">💾 Save it as a file</button>'
+    + '</div><div class="meta" id="rpMsg" style="margin-top:8px"></div>';
+}
 /* ----- SEBASTIAN'S STAND-UP (2026-07-28) — ONE-STEP-AT-A-TIME-PLAN.md, item 1.
 
    The complaint this answers: *"the Sebastian interface, while very good, is
@@ -9192,6 +9306,7 @@ Object.assign(window, {
   checkMyMachine, copyPullCommand,
   openBookIntake, termSubmit, termQuick, openTheDay, currentDayItems,
   openStandUp, standUpAnswer, standUpItem, endStandUp,
+  openReport, copyReport, saveReport, reportText,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
   togglePaper, newReviewManualForm2,

@@ -145,3 +145,39 @@ it and a real ordinary day around it:
 
 If yes, the daily-use problem is solved and the rest is polish. If no, that is
 the most important finding available and everything else should wait for it.
+
+---
+
+## Built 2026-07-28: the tester can now write the report
+
+The guides told a tester to *"tell whoever gave you this"* — with no way to do
+it. So reports would have arrived as half-remembered sentences, missing the two
+facts that make them actionable: **which build, and whether an AI was
+connected.**
+
+**Esc → ✍ Tell them what happened** asks the four questions from this document,
+in this order, and composes the note:
+
+```
+SAND PAVILION — a note from a beta tester
+
+What I expected to happen that didn't:
+I expected E to open the bookshelf
+...
+--- context (so the report is useful; nothing here identifies you) ---
+Build:      0.1.0-beta.2
+Running as: a browser
+Local AI:   not connected
+Own books:  0
+Days used:  0
+```
+
+**Deliberately not telemetry.** Nothing is sent, nothing is collected, no server
+is contacted. It copies the note or saves it as a file and the person chooses
+whether to pass it on. The context block is shown **in full, on screen, before
+anything is copied** — the same discipline as the prompt inspector: you can read
+exactly what leaves, because the answer is only ever "whatever you paste
+yourself."
+
+Unanswered questions are marked `(not answered)` rather than dropped, so a
+half-finished note is still honest about what it is.

@@ -17,7 +17,7 @@ because anything is wrong. If you'd like to check the download:
 
 ```powershell
 Get-FileHash "Sand Pavilion Setup 0.1.0-beta.2.exe" -Algorithm SHA256
-# 4046AB54B3CAFA660F3ADEDDCDDDBDD70A9C0566B78A817B6964CB67D526CDA0
+# 2576ACA371A182DD7A2B7B2263B97079D315A56311CB976F78FE8EC24EBB3619
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -92,6 +92,16 @@ Residents*, on the Practice shelf.
   appear the first time.
 
 ---
+
+### Telling me what happened
+
+Press **Esc → ✍ Tell them what happened.** It asks the four questions worth
+answering and writes the note for you, with the build number and whether an AI
+was connected attached so it is actually useful.
+
+**Nothing is sent from it.** It copies the note or saves it as a file, and you
+decide whether to pass it on. You can read exactly what it includes before you
+copy anything.
 
 ### What would help most
 
