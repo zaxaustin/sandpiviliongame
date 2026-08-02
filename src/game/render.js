@@ -97,6 +97,28 @@ function drawTile(ch,x,y,sx,sy){
       break;
     case 'B': ctx.fillStyle='#6f5a43'; ctx.fillRect(sx,sy,S,S); break;
     case 'f': ctx.fillStyle=((x+y)%2===0)?PAL.floor:PAL.floorD; ctx.fillRect(sx,sy,S,S); break;
+    case 'U': case 'D': { // stairs — walkable, and VISIBLE.
+      /* Added 2026-08-02, from a screenshot the steward was right to ask for:
+         "there's no stairs either." The Workshop's warp tile was drawn as plain
+         floor, so the only sign a staircase existed was a literal sign saying
+         so. A door you cannot see is not a door. 'U' goes up, 'D' goes down —
+         the treads are drawn in opposite order so which is which is readable at
+         a glance rather than needing the label. */
+      ctx.fillStyle=((x+y)%2===0)?PAL.floor:PAL.floorD; ctx.fillRect(sx,sy,S,S);
+      const up = ch==='U';
+      ctx.fillStyle='#4a3c2c'; ctx.fillRect(sx+S*.06,sy+S*.06,S*.88,S*.88);
+      for(let i=0;i<4;i++){
+        const t = up ? i : 3-i;                       // tread depth, reversed for down
+        const w = S*(.82 - t*.14);
+        ctx.fillStyle = i%2 ? '#8a6f4e' : '#9b7f5a';
+        ctx.fillRect(sx+S*.09, sy+S*(.10+i*.20), w, S*.17);
+        ctx.fillStyle='rgba(0,0,0,.22)';              // the shadow under each tread
+        ctx.fillRect(sx+S*.09, sy+S*(.10+i*.20)+S*.15, w, S*.03);
+      }
+      ctx.fillStyle = up ? 'rgba(255,235,190,.16)' : 'rgba(0,0,0,.20)';
+      ctx.fillRect(sx+S*.06, sy+S*.06, S*.88, S*.88); // light from above / dark below
+      break;
+    }
     case 'c':
       ctx.fillStyle=((x+y)%2===0)?PAL.carpet:PAL.carpetD; ctx.fillRect(sx,sy,S,S);
       ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.strokeRect(sx+S*.08,sy+S*.08,S*.84,S*.84);

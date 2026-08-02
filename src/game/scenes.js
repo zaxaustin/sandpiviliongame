@@ -14,6 +14,10 @@
    g a Ganesha statue — added 2026-07-09, mirrored across the Keep's
    aisle from the Buddha shrine ('s') on purpose: same devotional
    weight, same "bleed above the tile" technique, distinct iconography.
+   U stairs going UP, D stairs going DOWN — walkable, and drawn, so a
+   staircase is something you can see rather than a sign claiming one.
+   Added 2026-08-02 after a screenshot showed the Workshop's only stair
+   was an unmarked floor tile.
    N the same bench as 'n', standing on sand instead of grass — the
    Inheritance Hall's court is bare sand, and 'n' paints its own patch
    of grass underneath, which left a green square in the middle of a
@@ -314,6 +318,7 @@ function buildWorkshop(){
   t[H-1][6]='f'; t[H-1][7]='f'; // south door back to the Grounds
   for(let y=2;y<=4;y++) for(let x=4;x<=9;x++) t[y][x]='c';
   [[2,2],[11,2],[2,7],[11,7]].forEach(([x,y])=>t[y][x]='p');
+  t[3][12]='U';                                        // the narrow staircase, now visible
   scenes.workshop = {
     name:'The Workshop', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:6,y:9,to:'overworld',sx:31,sy:16},{x:7,y:9,to:'overworld',sx:32,sy:16},
@@ -353,6 +358,7 @@ function buildWorkshopFloor2(){
   for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
   for(let y=2;y<=5;y++) for(let x=2;x<=7;x++) t[y][x]='c';
   [[2,2],[7,2]].forEach(([x,y])=>t[y][x]='p');
+  t[1][2]='D'; t[1][8]='U';                            // down to the desks, up to the Lab
   scenes.workshopfloor2 = {
     name:'The Workshop — Records Hall', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:2,y:1,to:'workshop',sx:12,sy:4},
@@ -377,6 +383,7 @@ function buildWorkshopFloor3(){
   const W=16,H=9, t=grid(W,H,'f');
   for(let x=0;x<W;x++){ t[0][x]='w'; t[H-1][x]='w'; }
   for(let y=0;y<H;y++){ t[y][0]='w'; t[y][W-1]='w'; }
+  t[7][2]='D';                                         // back down to the Records Hall
   scenes.workshopfloor3 = {
     name:'The Workshop — the Unfinished Floor', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:2,y:7,to:'workshopfloor2',sx:7,sy:1}],

@@ -1424,7 +1424,18 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','computerOv','thedayOv','standupOv','reportOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+/* Hide every overlay. This USED to be a hand-maintained list of 48 ids, and on
+   2026-08-02 it was missing all three panels added that day — the Lab, the
+   bundle importer and the lift. The symptom was reported as "I like the lift
+   but I can't get into the room and it won't let me exit": the panel opened,
+   nothing ever removed its .open class, so it sat over the world forever.
+
+   Same failure as the window-export list caught the same day: a list that must
+   be edited in lockstep with another file, with nothing checking. So it derives
+   now. A new overlay is hidden correctly because it exists, not because someone
+   remembered. (#chatOv and the phone cards are not .overlay and are handled on
+   their own paths — deliberately outside this sweep.) */
+function hideAllOv(){ document.querySelectorAll('.overlay').forEach(el=>el.classList.remove('open')); }
 /* Closing a panel used to CANCEL read-aloud outright, with no way back — the
    single most-complained-of thing in real use ("if I try to do anything it
    pauses that voice and I can't even unpause it"). Now: a book you're
