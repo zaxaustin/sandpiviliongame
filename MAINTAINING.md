@@ -61,7 +61,9 @@ a tradition → certified + personal side by side).
 
 Also: the serif Reader with read-aloud, the Index and the Stacks, bulk import,
 drag-and-drop `.txt`/`.epub` intake, and the eight Caravan connectors in
-`tools/caravan/`. 24 texts in the shipped seed (6 readable in full); ~51 on the
+`tools/caravan/`. **27 texts in the shipped seed** — 6 complete source texts, 11
+written for the Pavilion (including three guides), 10 classics carried as
+summaries that say so and invite the real text; ~51 on the
 dev machine's full setup.
 
 **Standing instructions + the prompt inspector.** `data.standing[agentKey]` is
@@ -135,11 +137,18 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one** (~7k lines). Every panel, the chat
+- **`ui/overlays.js`** — **the big one** (~9.4k lines). Every panel, the chat
   stack, `CHAT_AGENTS`.
 - **`render.js`** — owns the canvas; reads state, never mutates it.
 - **`data/`** — `seed.js` (library), `store.js` (persistence + library
   adapter), `charter.js`, `visibility.js` (yours/shared/commons + `DATA_MAP`),
+  and five pure-logic modules added 2026-07-28, each covered by `npm test`
+  precisely because they hold rules that erode quietly: `the-day.js` (what is
+  waiting for you, and the four rules that keep it from becoming a nag),
+  `shelf-rules.js` (file the obvious books with no model at all),
+  `machine-advice.js` (can this computer run a model, and the honest "no"),
+  `draft-parse.js` (what a small model actually returns, not what it was asked
+  for), `copyright.js` (rules decide, the AI only gathers evidence),
   `bequests.js` (Inheritance Hall gate gifts), `commons-packets.js` (starter
   shared work), `supabase.js`/`auth.js`/`exchange.js`/`agentNotes.js` (the
   optional, currently-dormant server layer).
