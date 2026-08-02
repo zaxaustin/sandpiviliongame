@@ -9,6 +9,7 @@ import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-pa
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine } from '../data/the-day.js';
+import { rememberInto } from '../data/memory.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -290,12 +291,24 @@ const MEMORY_CAP=20; // keep this a short, readable list, not a growing transcri
 const CHAT_HISTORY_SENT=24; // how many recent turns get sent to the model (BETA-FEEDBACK #21) — generous on purpose; the on-screen transcript keeps everything
 const TIMEOUT_LINE="…still with you — the thought just took longer than the clock allowed (a larger model can). Nothing was cut short on purpose. Ask again, pocket the chat and keep walking while it thinks, or pick a lighter model in ⚙ Manage AI connections.";
 function agentMemory(agent){ return data.agentMemory[agent]||(data.agentMemory[agent]=[]); }
-function remember(agent,text){
-  const mem=agentMemory(agent);
-  mem.push({ts:todayKey(),text});
-  while(mem.length>MEMORY_CAP) mem.shift();
+/* WHAT A RESIDENT ACTUALLY REMEMBERS — rewritten 2026-08-02.
+
+   It used to store the question alone. Twenty questions pasted into a prompt
+   is a TAG LIST: "they have asked about electronics before." True, and worth
+   almost nothing. What makes someone feel known is the OUTCOME — "you decided
+   to build the remote from scratch rather than buy one, and you were stuck on
+   IR timing." Same mechanism, richer payload.
+
+   So an entry keeps both halves: what was raised, and where the two of you got
+   to. The gist is extracted by code, not by a second model call — that would
+   double the cost and latency of every message in the game to improve one line
+   of context. The logic lives in data/memory.js so npm test can hold it to real
+   cases. Old entries have no `gist` and render fine without one. */
+function remember(agent,text,reply){
+  data.agentMemory[agent]=rememberInto(agentMemory(agent),{ts:todayKey(),text,reply,cap:MEMORY_CAP});
   persist();
 }
+
 // LOCAL-AI-MONITORING-PLAN.md step 2 — "Quill replied in 2.3s" sitting
 // next to the activity it's already logging, built from AI.lastElapsedMs
 // (the timing side-channel provider.js's withTiming() already sets on
@@ -330,8 +343,12 @@ function sessionAISummary(){
 function pastAsksBlock(agent){
   const mem=agentMemory(agent);
   if(!mem.length) return '';
-  return '\n\nThings this visitor has asked you about on past visits (for continuity — mention it naturally if relevant, don\'t force it):\n'
-    +mem.slice(-8).map(m=>`- (${m.ts}) ${m.text}`).join('\n');
+  return "\n\nWhat you already know about this visitor from past conversations. This is "
+    +"continuity, not a script — draw on it when it is genuinely relevant and never recite it "
+    +"back at them. Each entry is what they raised and where the two of you got to:\n"
+    +mem.slice(-8).map(m=>
+        `- (${m.ts}) they raised: ${m.text}`+(m.gist?`\n    where you got to: ${m.gist}`:'')
+      ).join('\n');
 }
 /* What the visitor has to hand that the Pavilion CANNOT read — books on a real
    shelf across the room — plus the datasheets they keep. Added 2026-08-02 with
@@ -949,7 +966,7 @@ async function sendChatMessage(q){
     const thinking=AI.lastThinking||(d.streaming&&d.streaming.thinking)||null;
     d.history.push({role:'assistant',content:reply});
     d.transcript.push({from:'npc',text:reply,thinking});
-    remember(d.agent,q);
+    remember(d.agent,q,reply);
     logActivity('Asked '+agent.label+': "'+(q.length>60?q.slice(0,60)+'…':q)+'"'+elapsedTag());
   }catch(err){
     // Tell a timeout apart from a real connection failure (BETA-FEEDBACK #22).
@@ -1612,7 +1629,7 @@ function residentMemoryHtml(){
       <div class="t">${AGENT_AVATAR[k]||'💬'} ${esc(label)} <span class="badge">${items.length}</span></div>
       <div style="margin-top:6px">${items.map((m,i)=>`
         <div class="row" style="align-items:center;gap:8px;margin-top:3px">
-          <span class="s" style="flex:1;margin:0">${esc(m.ts)} — ${esc(m.text)}</span>
+          <span class="s" style="flex:1;margin:0">${esc(m.ts)} — ${esc(m.text)}${m.gist?`<br><span style="opacity:.75">↳ ${esc(m.gist)}</span>`:''}</span>
           <button class="btn ghost" style="font-size:11px;padding:2px 9px" onclick="forgetMemoryItem('${k}',${i})">Forget</button>
         </div>`).join('')}</div>
       <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:#b56f6f;color:#e0a0a0" onclick="forgetAllMemory('${k}')">Forget all from ${esc(label)}</button></div>
@@ -5950,13 +5967,47 @@ const CURRICULUM = [
       {title:'Test it in the Lab', body:"Now use the Science & Research Hall as your lab: open a self-experiment or an investigation like 'does doubling the resistor roughly halve the brightness?' Predict first, then check in the simulator or with a meter. Letting the evidence settle it IS the lab working.", action:{label:'Open the Science & Research Hall', fn:'openScienceHall'}},
       {title:'Keep your notes and a datasheet', body:"Every component has a datasheet. Find your LED's, paste it into the Research Desk, and summarize it into notes you keep. Your growing electronics notes and ideas live there — private until you choose to share a build.", action:{label:'Open the Research Desk', fn:'openResearchDesk'}},
     ]},
-  { id:'electronics-201', track:'Electronics', level:201, prereqs:['electronics-101'], status:'planned',
-    title:'Electronics 201 — read a schematic, measure for real',
-    summary:"The next rung — reading schematics, using a multimeter, and more parts (transistors, capacitors). Planned; here so the track's shape is visible and you can tell me what it should cover.",
+  { id:'electronics-201', track:'Electronics', level:201, prereqs:['electronics-101'],
+    title:'Electronics 201 — measure for real, and read the drawing',
+    summary:"101 was one glowing LED. This rung is about stopping guessing: a meter in your hand, a schematic you can actually read, and the two parts that turn a circuit from a light into a machine. Everything here is checkable against a number.",
     steps:[
-      {title:'Read a schematic', body:"(planned) The shorthand every circuit is drawn in."},
-      {title:'Use a multimeter', body:"(planned) Measure voltage, current, and resistance for real."},
-      {title:'Beyond the LED', body:"(planned) Transistors and capacitors — switches and timing."},
+      {title:'Buy the one tool that matters',
+       body:"A multimeter, £15-40. Not the most exciting purchase you will ever make and easily the most useful: it is the difference between \"I think there's power there\" and knowing. Get one with a continuity beeper — you will use that more than any other setting, because most of debugging is asking \"is this actually connected to that?\" and hearing the answer without looking up."},
+      {title:'Measure the three quantities you already know the names of',
+       body:"Voltage is measured ACROSS a component — probes on either side, circuit running. Current is measured THROUGH it — you break the circuit and let the meter complete it, which feels wrong the first time and is correct. Resistance is measured with the power OFF and the part out of circuit, or you are measuring the whole board. Do all three on the LED circuit from 101. Write the numbers down."},
+      {title:'Predict, then measure — this is the actual lesson',
+       body:"Before you touch the probes: work out from Ohm's law what the current SHOULD be, and write the number down. Then measure it. It will be close but not equal, and the gap is the real lesson — resistors are typically ±5%, your battery is not exactly 9V, and the LED's forward voltage is a range not a value. A circuit that behaves exactly as calculated usually means you calculated what you measured. Log this one at the Bench.",
+       action:{label:'Open the Bench and predict it first', fn:'openScienceHall'}},
+      {title:'Read a schematic, and then draw one',
+       body:"A schematic is a sentence about connection, not a picture of a board — the layout means nothing, only what touches what. Learn six symbols and you can read most beginner circuits: battery, resistor, capacitor, diode/LED, switch, ground. Then do the harder half: draw YOUR breadboard circuit as a schematic. Anything you cannot draw, you have not understood yet, and that is worth finding out on paper rather than at 2am with a meter."},
+      {title:'The transistor: a switch with no moving parts',
+       body:"A small current into the base lets a much larger current flow collector-to-emitter. That is the whole idea, and it is the single most important sentence in electronics — every computer is this trick, repeated. Wire a 2N3904 so a microcontroller pin can switch an LED far brighter than the pin could ever drive directly. Base resistor around 1k. Note that you have just built the exact circuit the remote needs."},
+      {title:'The capacitor: a bucket for charge',
+       body:"It resists CHANGE in voltage, which makes it two things at once: a small local reservoir that steadies a supply when something suddenly draws current (a \"decoupling cap\", why boards are covered in them), and half of every timing circuit, because charging through a resistor takes a predictable amount of time. Both uses are the same property seen from different sides."},
+      {title:'Break something on purpose',
+       body:"Take an LED, leave out the resistor, and connect it straight across the battery. It will flare and die, and you will never again wonder why the resistor is there. Do it once, deliberately, with a component you can afford to lose — a lesson you paid a few pence for is one you keep. Then log what you predicted and what actually happened.",
+       action:{label:'Log it at the Bench', fn:'openScienceHall'}},
+    ]},
+  { id:'electronics-301', track:'Electronics', level:301, prereqs:['electronics-201'],
+    title:'Electronics 301 — build a universal remote from scratch',
+    summary:"A real project with a real ending: a thing on your table that changes the channel. Six stages, each finishing in something that works. This is where the meter, the transistor and the datasheet stop being exercises. Full reading list, parts and the protocol reference are in plans/UNIVERSAL-REMOTE-PROJECT.md.",
+    steps:[
+      {title:'Understand why the beam is chopped',
+       body:"A remote does not send plain infrared. It chops the beam roughly 38,000 times a second. The reason is the best idea in the whole project: sunlight, bulbs and fluorescent tubes all pour out infrared, so a plain flash is a whisper in a shouting room — but chop it at a known frequency and band-pass filter for exactly that frequency at the far end, and everything that is not your signal falls away. That is amplitude modulation and noise rejection, the spine of radio, on a breadboard for eight dollars."},
+      {title:'Stage 1 — see the signal',
+       body:"A TSOP38238 receiver (three pins: ground, Vs, out) and an Arduino. Print the raw pulse timings from your own TV remote to the serial monitor. Nothing is decoded yet — you are just looking at the numbers coming off a real remote. This is your first genuine measurement of something you did not build."},
+      {title:'Stage 2 — decode one frame BY HAND',
+       body:"Take a capture from stage 1 and work out the bits on paper before letting any library do it. NEC format: a 9ms burst and 4.5ms space to open, then 32 bits — a 560us burst every time, followed by a 560us space for 0 or a 1690us space for 1. The 32 bits are address, address inverted, command, command inverted. Check that the inverted copies really are complements: if they are not, you misread the frame. This is the stage everyone skips and the only one that teaches you anything."},
+      {title:'Stage 3 — send one command',
+       body:"An IR LED (TSAL6200) driven through a 2N3904 — the exact transistor circuit from 201, and now you know why the pin alone will not do: a pin gives about 20mA and the LED is rated for far more, and range depends on it. Transmit the power code. The TV responds. That is the moment it stops being an exercise.",
+       action:{label:'Predict the range before you try it', fn:'openScienceHall'}},
+      {title:'Stage 4 — capture and replay anything',
+       body:"Store the raw timings, play them back. This alone is a working LEARNING remote — the same thing sold in shops — and it works on devices whose protocol you never identified, because you are replaying the waveform rather than understanding it."},
+      {title:'Stage 5 — make it universal',
+       body:"Decode to protocol plus address plus command rather than raw timings, keep a table of device codes, and add a keypad. The difference between stage 4 and stage 5 is the difference between a recording and a language: now you can send a command you never captured."},
+      {title:'Stage 6 — make it an object',
+       body:"An enclosure off the 3D printer, a battery, real buttons. Something that sits on the table and belongs there. Then write the whole thing up at the Bench — what you predicted at each stage and what actually happened — because a build log someone else could follow and reproduce is worth more than the remote.",
+       action:{label:'Read your build log with the Investigator', fn:'openLab'}},
     ]},
   // ---- Cybersecurity (planned — CYBERSECURITY-PLAN.md; defensive/educational, authorized practice only) ----
   { id:'security-101', track:'Cybersecurity', level:101, prereqs:[], status:'planned',
@@ -5987,7 +6038,14 @@ function lessonCompletedCount(node){ const p=data.curriculum[node.id]; return p 
 export function openLearningTree(){ state.ui='tree'; hideAllOv(); state.treeView={mode:'list'}; renderLearningTree(); showOv('treeOv'); }
 export function openLesson(id){
   const node=curriculumNode(id); if(!node) return;
-  if(node.status==='planned' || !lessonAvailable(node)){ state.treeView={mode:'list'}; renderLearningTree(); return; } // locked/planned nodes don't open
+  /* A locked lesson OPENS — changed 2026-08-02, and it is the change the whole
+     progression principle turns on. The gate is on the CLAIM, never on the
+     learning: nothing here is ever withheld from anyone, and a tree that hides
+     its own text from you is a wall rather than a ladder. What "locked" costs
+     you is the tick, not the reading. See COURSE-PROGRESSION-PLAN.md, "What the
+     ladder is actually for." A node still being written is a different case —
+     there is genuinely nothing to show yet. */
+  if(node.status==='planned'){ state.treeView={mode:'list'}; renderLearningTree(); return; }
   state.treeView={mode:'lesson',id}; renderLearningTree();
 }
 export function backToTree(){ state.treeView={mode:'list'}; renderLearningTree(); }
@@ -6165,6 +6223,32 @@ function renderLearningTree(){
         <button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="publishFrom('lesson','${esc(node.id)}')" title="Hand it on — it joins the collective tree">🤝 Publish it</button>
       </div>`:''}
       <div class="meta" style="margin-top:8px">${esc(node.summary)}</div>
+      ${(function(){
+        /* An out-of-order lesson is READ IN FULL, and told plainly where it sits.
+           A fact, not a refusal — and it always names the way round, because a
+           curriculum confident in itself can say "learn it elsewhere and come
+           back" out loud. COURSE-PROGRESSION-PLAN.md, "What the ladder is
+           actually for." */
+        if(lessonAvailable(node)) return '';
+        const missing=(node.prereqs||[]).filter(pid=>!lessonDone(curriculumNode(pid)))
+          .map(pid=>curriculumNode(pid)).filter(Boolean);
+        return `<div class="card" style="cursor:default;margin-top:10px;border-color:#8fb4d9">
+          <div class="t" style="color:#8fb4d9">This one comes after ${missing.map(m=>esc(m.title)).join(' and ')}</div>
+          <div class="s" style="margin-top:6px">Read it anyway — all of it. Nothing here is ever withheld from
+            anyone, and this is not a refusal. It is just where the rung sits: it assumes what the earlier one
+            teaches, so it will make more sense afterwards.</div>
+          <div class="s" style="margin-top:6px">What waiting protects is only the <b>tick</b> — the claim that
+            you climbed the ladder, which is worth something precisely because the order was real. If you
+            already know this material, don't tick it: <b>produce what it asks for.</b> The measurements, the
+            drawing, the thing that works. An artifact settles it; a checkbox never did.</div>
+          <div class="s" style="margin-top:6px">And if the ladder doesn't suit you, that is a fine answer too —
+            get the book, use the Library, use another platform entirely. This is one way up, not the only one.</div>
+          <div class="row" style="margin-top:9px;flex-wrap:wrap">
+            ${missing.map(m=>`<button class="btn ghost" style="font-size:11.5px" onclick="openLesson('${esc(m.id)}')">↑ ${esc(m.title)}</button>`).join('')}
+            <button class="btn ghost" style="font-size:11.5px" onclick="openIndex()">📚 Find the reading yourself</button>
+          </div>
+        </div>`;
+      })()}
       <div style="margin-top:14px">${node.steps.map((s,i)=>{
         const on=!!p.steps[i];
         return `<div class="card" style="cursor:pointer" onclick="toggleLessonStep('${node.id}',${i})">
@@ -6196,7 +6280,7 @@ function renderLearningTree(){
     let badge, style='', click=`onclick="openLesson('${n.id}')" style="cursor:pointer"`;
     if(planned){ badge='<span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">✎ being written</span>'; click='style="cursor:default;opacity:.7"'; }
     else if(done){ badge='<span class="badge lic">✓ complete</span>'; }
-    else if(locked){ const missing=(n.prereqs||[]).filter(pid=>!lessonDone(curriculumNode(pid))).map(pid=>(curriculumNode(pid)||{}).title||pid); badge='<span class="badge">🔒 finish '+esc(missing.join(', '))+'</span>'; click='style="cursor:default;opacity:.6"'; }
+    else if(locked){ const missing=(n.prereqs||[]).filter(pid=>!lessonDone(curriculumNode(pid))).map(pid=>(curriculumNode(pid)||{}).title||pid); badge='<span class="badge">comes after '+esc(missing.join(', '))+'</span>'; }
     else { const c=lessonCompletedCount(n); badge=`<span class="badge">${c}/${n.steps.length} steps</span>`; }
     return `<div class="card" ${click}>
       <div class="t">${esc(n.title)} ${badge}</div>

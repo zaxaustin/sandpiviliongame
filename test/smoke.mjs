@@ -272,6 +272,74 @@ for (const [key, s] of Object.entries(scenes)) {
 }
 
 
+/* ---------- resident memory ----------
+   What a resident carries between visits. The bar this has to clear is the one
+   the gap was described by: a tag list ("you've asked about electronics") is
+   worthless; the outcome ("you decided to build it from scratch and were stuck
+   on IR timing") is the whole value. So the tests are about whether the SECOND
+   kind of sentence survives, and whether one stuck afternoon can evict
+   everything else. See src/game/data/memory.js. */
+{
+  const { gistOf, sameAsk, rememberInto } = await import('../src/game/data/memory.js');
+
+  // The gist must be the substance, not the greeting.
+  const g1 = gistOf("Sure! Happy to help. You'll want a 38 kHz carrier because ambient infrared from sunlight and fluorescent lamps would otherwise swamp the receiver.");
+  if (/^sure/i.test(g1)) fail(`memory.js: gistOf kept the pleasantry — got "${g1}"`);
+  if (!/38 kHz/.test(g1)) fail(`memory.js: gistOf dropped the substance — got "${g1}"`);
+
+  if (gistOf('') !== '') fail('memory.js: gistOf on an empty reply must be empty, not a stray character');
+  if (gistOf('```js\nconst x=1;\n```') !== '') fail('memory.js: a reply that is only code has no gist worth keeping');
+  const long = gistOf('x'.repeat(400));
+  if (long.length > 181) fail(`memory.js: gistOf did not cap a runaway sentence (${long.length} chars)`);
+
+  // Repeats must not evict everything else.
+  let mem = [];
+  mem = rememberInto(mem, { ts: '2026-08-01', text: 'How do I pick a resistor for an LED?', reply: 'Ohm\'s law: subtract the LED forward voltage, then divide by the current you want.' });
+  mem = rememberInto(mem, { ts: '2026-08-02', text: 'What carrier frequency does my TV remote use?', reply: 'Most use 38 kHz. Sony is 40, Philips RC-5 is 36.' });
+  if (mem.length !== 2) fail(`memory.js: two different questions should be two entries, got ${mem.length}`);
+
+  for (let i = 0; i < 6; i++) {
+    mem = rememberInto(mem, { ts: '2026-08-02', text: 'what carrier frequency does my remote use', reply: 'Still 38 kHz.' });
+  }
+  if (mem.length !== 2) fail(`memory.js: THE SAME QUESTION ASKED SEVEN TIMES FILLED ${mem.length} SLOTS — one stuck afternoon must not evict what a resident knew about you`);
+  if (mem[0].text !== 'How do I pick a resistor for an LED?') fail('memory.js: repeating one question evicted an unrelated earlier one');
+  if (mem[1].gist !== 'Still 38 kHz.') fail('memory.js: a repeat should keep the NEWEST answer, not the first');
+
+  // Both halves are actually stored.
+  const e = mem[0];
+  if (!e.text || !e.gist) fail('memory.js: an entry must carry both what was raised AND where it got to');
+  if (!/Ohm/.test(e.gist)) fail(`memory.js: the outcome half was lost — got "${e.gist}"`);
+
+  // The cap holds, on genuinely distinct subjects.
+  const SUBJECTS = ['soldering irons', 'breadboard rails', 'oscilloscope probes', 'pull-up resistors',
+    'crystal oscillators', 'voltage dividers', 'schmitt triggers', 'flyback diodes', 'decoupling caps',
+    'ground loops', 'PWM duty cycles', 'shift registers', 'logic levels', 'heat sinks', 'ferrite beads',
+    'switch bounce', 'ADC sampling', 'I2C addresses', 'SPI clock modes', 'UART baud rates',
+    'zener clamping', 'darlington pairs', 'RC filters', 'crimp terminals', 'wire gauge'];
+  let big = [];
+  for (const subj of SUBJECTS) big = rememberInto(big, { ts: '2026-08-02', text: `tell me about ${subj}`, reply: `Here is how ${subj} work in practice, at some length.`, cap: 20 });
+  if (big.length !== 20) fail(`memory.js: cap not enforced on ${SUBJECTS.length} distinct subjects — ${big.length} entries`);
+
+  // Different subjects must NOT be merged.
+  if (sameAsk('how do I solder a header pin', 'what is the dhammapada about')) {
+    fail('memory.js: sameAsk merged two unrelated questions — a resident would lose real context');
+  }
+  /* The one that made the threshold 3 instead of 4: the distinguishing token is
+     short. At 4 characters these two collapse into one memory and the resident
+     forgets you ever asked about the other. */
+  if (sameAsk('what resistor for a red LED', 'what resistor for a blue LED')) {
+    fail('memory.js: sameAsk merged two questions that differ only by a SHORT word — short tokens are exactly the ones that distinguish electronics questions');
+  }
+  if (sameAsk('is 38 kHz the right carrier', 'is 56 kHz the right carrier')) {
+    fail('memory.js: sameAsk merged two questions differing only by a number');
+  }
+  // But a genuine rephrasing still merges.
+  if (!sameAsk('what carrier frequency does my TV remote use?', 'which carrier frequency do TV remotes use')) {
+    fail('memory.js: sameAsk failed to merge an obvious rephrasing — repeats will eat the memory');
+  }
+}
+
+
 /* ---------- sourcing: how was it GATHERED ----------
    The second axis, beside copyright.js. Its safety property is the mirror of
    that file's: nothing unrecognised is ever waved through as freely given, and

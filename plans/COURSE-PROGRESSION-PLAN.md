@@ -169,10 +169,9 @@ shared tree. The commons goes multi-student.
 
 ## The honest risks (named so they're designed around)
 
-- **Prereq rigidity vs. real learners.** People arrive mid-way, or want to skip.
-  Locked ≠ forbidden: allow "I already know this, mark it done / test out of it"
-  (a tutor-graded challenge is the honest version) so the tree guides without
-  jailing.
+- **Prereq rigidity vs. real learners. SETTLED 2026-08-02** — see "What the
+  ladder is actually for" below, which resolves this and should be read before
+  building any part of the gating.
 - **A tree that's mostly gaps feels broken.** Seed at least one subject with
   *real, shelved* reading (Phase 0) before exposing the tree, so a newcomer's
   first climb isn't all Request-Board IOUs.
@@ -182,6 +181,66 @@ shared tree. The commons goes multi-student.
   (evidence over volume) applied to teaching.
 - **Effectiveness before cleverness / local-first / no background work** — the
   standing rules hold, same as the Academy and the Hall.
+
+---
+
+## What the ladder is actually for — settled 2026-08-02
+
+The open question was how a curriculum can be demanding without becoming a gate
+people resent. A tree that only unlocks because you ticked boxes is a checklist
+with ceremony; a tree that refuses you is a school — but a school nobody asked
+to be enrolled in is just a wall. The steward settled it:
+
+> *"There needs to be a clear ladder of progression. If they're not satisfied
+> they can get the book themselves, or study in the library, or on another
+> platform. The progression track is a way of enforcing legitimacy — but not
+> limited to anyone, just the prerequisites."*
+
+**The gate is on the claim, not on the learning.** That one distinction resolves
+the whole tension, and everything below follows from it.
+
+- **Nothing is ever withheld.** Every lesson's text, every reading, every book
+  on the shelves is open to anybody at any time. You may read 301 on your first
+  day. You may ignore the tree entirely. The Library does not check what rung
+  you are on and never will.
+- **What the ladder protects is the attestation** — the claim that you climbed
+  it. That claim is only worth something because the prerequisites were really
+  met, and it stops being worth anything the moment they can be waved through.
+- **So the prerequisite is the only gate, and it is impersonal.** Not
+  permission, not approval, not anybody's judgement of you: a stated condition
+  that anyone can read in advance and satisfy in their own time. Nobody is
+  excluded; some things simply come after other things.
+- **And the exit is always open and always named.** If the ladder does not suit
+  you, the honest answer is *go and learn it another way* — get the book, use
+  the Library, use another platform, come back or don't. A curriculum confident
+  in itself can say that out loud. One that has to trap you was never worth
+  climbing.
+
+**This is the Science Hall's creed, pointed at education.** There, no one is the
+gatekeeper of truth — but a seat at the table costs evidence. Here, no one is
+the gatekeeper of learning — but a credential costs the prerequisites. Same
+shape, same reason: the openness is what makes the standard credible, and the
+standard is what makes the openness worth anything.
+
+It also settles what a "test out of it" should be. Not a button that marks a
+node done, and not the Tutor's opinion of you — **an artifact.** You skip 201 by
+producing what 201 asks for: the measurements, the drawn schematic, the working
+transistor switch. That is `CREDIT-AND-COMMONS-FRAMEWORK.md`'s rule already
+("skill is attested by an artifact, never claimed") applied one level down, and
+it is why the Bench matters more to this plan than anything in it: a build log
+with a prediction and a measurement per step *is* the evidence.
+
+**What this means for building it, in order:**
+
+1. Locked nodes must show their full text and reading, always. Locking may
+   affect the *tick*, never the *content*. (Today `openLesson()` refuses to open
+   a locked node at all — that is the one thing here that contradicts the
+   principle and should be the first change.)
+2. Every locked node names its prerequisite plainly, as a fact rather than a
+   refusal, and links straight to it.
+3. Every locked node also names the way round: the reading, the shelf, the
+   outside resource. "Not yet, and here is how to be ready" beats "no."
+4. Testing out is by artifact, reviewed once, not by assertion.
 
 ---
 
