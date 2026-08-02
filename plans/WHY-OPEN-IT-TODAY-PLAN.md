@@ -150,6 +150,37 @@ tree currently asks *"what would you like to learn?"* when the useful question i
 
 ---
 
+## Item 1 is BUILT — 2026-07-28, the same day
+
+**☀ Today** is live: first item in the pause menu, with a plain sentence rather
+than a count ("one thing is overdue", "carry on where you left off"). Computed
+on open from data already saved — nothing in the background, no AI, no network.
+
+A real save produced exactly the intended shape:
+
+```
+⏳ Meditation daily            was due 6 days ago
+🌱 Install Ollama              A Beating Heart · step 2 of 5
+🔁 Finish the shelf            carried for 8 days — still want it?
+📄 Attention Is All You Need   brought in, never pulled apart
+📚 Tartine Bread               2 books you added and have not opened
+```
+
+The four rules are `npm test` cases now, not intentions, because they are
+exactly the kind that erode under later improvements:
+
+- **never empty** — tested against a completely bare Pavilion, and against one
+  where everything has been read
+- **never a wall** — twenty overdue things and twenty unread books still yield
+  five
+- **one press per item** — every item must carry a function, a title and a note
+- **notices, never nags** — a spark one day old is invisible; four days old it
+  asks *"still want it?"*; a lesson never started is never pushed, because
+  choosing is not continuing
+
+`data/the-day.js` is pure logic with no DOM and no game imports, so those rules
+are held by machine rather than by care.
+
 ## What to build, in order
 
 Each useful alone, each small, none needing a server or a bigger model.

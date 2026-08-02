@@ -376,6 +376,85 @@ for (const [key, s] of Object.entries(scenes)) {
   if (big.filed.length < 4) fail(`shelf-rules: only ${big.filed.length} of 8 obvious books filed by rule — the rules have gone quiet`);
 }
 
+/* ---------- The Day ----------
+   WHY-OPEN-IT-TODAY-PLAN.md states four rules this screen has to keep, and
+   they are the kind that erode quietly under later "improvements". So they are
+   tests rather than intentions: never empty, never a wall, one press per item,
+   and it notices rather than nags. */
+{
+  const { theDayItems, theDayLine, daysBetween } = await import('../src/game/data/the-day.js');
+  const TODAY = '2026-07-28';
+  const bk = (slug, title, extra = {}) => ({ slug, title, ...extra });
+
+  if (daysBetween('2026-07-25', TODAY) !== 3) fail('the-day: daysBetween is wrong');
+  if (daysBetween(TODAY, TODAY) !== 0) fail('the-day: same day should be 0');
+
+  // NEVER EMPTY — the rule that matters most, in the emptiest possible world
+  const bare = theDayItems({ today: TODAY });
+  if (!bare.length) fail('the-day: an empty Pavilion produced nothing to do — "all caught up" is a reason not to return');
+  if (!/Bring a book in/.test(bare[0].title)) fail('the-day: the empty-world fallback should invite a first book');
+  const onlyBooks = theDayItems({ today: TODAY, books: [bk('b1', 'Something')], read: { b1: true } });
+  if (!onlyBooks.length) fail('the-day: a read-everything Pavilion still needs one good offer');
+
+  // NEVER A WALL — five, no matter how much is outstanding
+  const many = theDayItems({
+    today: TODAY,
+    upcoming: Array.from({ length: 20 }, (_, i) => ({ kind: 'course', id: 'c' + i, title: 'Course ' + i, due: '2026-07-20' })),
+    books: Array.from({ length: 20 }, (_, i) => bk('x' + i, 'Book ' + i)),
+  });
+  if (many.length > 5) fail(`the-day: returned ${many.length} items — the cap is 5, and a wall is a guilt inventory`);
+
+  // EVERY ITEM IS ONE PRESS
+  for (const it of many) {
+    if (!it.fn) fail(`the-day: item "${it.title}" has nothing to press`);
+    if (!it.title || !it.note) fail(`the-day: item "${it.key}" is missing its title or its note`);
+  }
+
+  // overdue outranks everything, and says how late in plain words
+  const late = theDayItems({ today: TODAY, upcoming: [{ kind: 'course', id: 'c1', title: 'Late thing', due: '2026-07-26' }] });
+  if (late[0].icon !== '⏳') fail('the-day: an overdue thing should come first');
+  if (!/2 days ago/.test(late[0].note)) fail(`the-day: overdue note read "${late[0].note}" — it should say how late`);
+  const dueToday = theDayItems({ today: TODAY, upcoming: [{ kind: 'course', id: 'c2', title: 'Today thing', due: TODAY }] });
+  if (!/due today/.test(dueToday[0].note)) fail('the-day: a thing due today should say so');
+
+  // the half-walked lesson is offered as its NEXT STEP, not as a lesson to choose
+  const lessons = [{ id: 'l1', title: 'Coding 101', steps: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }] }];
+  const mid = theDayItems({ today: TODAY, lessons, curriculum: { l1: { steps: { 0: true } } } });
+  const step = mid.find(i => i.fn === 'openLesson');
+  if (!step) fail('the-day: a half-finished lesson did not offer its next step');
+  else {
+    if (step.title !== 'Two') fail(`the-day: offered "${step.title}" instead of the next unticked step`);
+    if (!/step 2 of 3/.test(step.note)) fail('the-day: the step should say where you are in the lesson');
+  }
+  // an untouched lesson is NOT nagged about — choosing is not continuing
+  const untouched = theDayItems({ today: TODAY, lessons, curriculum: {} });
+  if (untouched.some(i => i.fn === 'openLesson')) fail('the-day: it pushed a lesson never started — that is choosing, not continuing');
+  // nor is a finished one
+  const finished = theDayItems({ today: TODAY, lessons, curriculum: { l1: { steps: { 0: true, 1: true, 2: true } } } });
+  if (finished.some(i => i.fn === 'openLesson')) fail('the-day: it offered a step of a completed lesson');
+
+  // IT NOTICES, IT DOES NOT NAG — only past three days, and phrased as a question
+  const fresh = theDayItems({ today: TODAY, sparks: [{ dayKey: '2026-07-27', text: 'yesterday thing' }] });
+  if (fresh.some(i => i.icon === '🔁')) fail('the-day: it nagged about something one day old');
+  const carried = theDayItems({ today: TODAY, sparks: [{ dayKey: '2026-07-24', text: 'old thing' }] });
+  const nag = carried.find(i => i.icon === '🔁');
+  if (!nag) fail('the-day: something carried four days went unnoticed');
+  else if (!/still want it/.test(nag.note)) fail('the-day: the carried note should ask, not scold');
+
+  // an un-dissected paper surfaces; one already analysed does not
+  const paper = bk('p1', 'Attention Is All You Need', { source_url: 'https://arxiv.org/abs/1706' });
+  const loose = theDayItems({ today: TODAY, books: [paper], read: { p1: true } });
+  if (!loose.some(i => i.fn === 'openScienceHall')) fail('the-day: an un-dissected paper did not surface');
+  const done = theDayItems({ today: TODAY, books: [paper], read: { p1: true },
+    dissections: [{ title: 'Attention Is All You Need' }] });
+  if (done.some(i => i.fn === 'openScienceHall')) fail('the-day: it re-offered a paper already pulled apart');
+
+  // the door's sentence is a sentence, not a count
+  if (theDayLine(late) !== 'one thing is overdue') fail(`the-day: theDayLine gave "${theDayLine(late)}"`);
+  if (theDayLine(mid) !== 'carry on where you left off') fail(`the-day: theDayLine for a half-lesson gave "${theDayLine(mid)}"`);
+  if (theDayLine([]) !== '') fail('the-day: an empty list should give no sentence at all');
+}
+
 /* ---------- library ---------- */
 const seenSlugs = new Set();
 for (const d of SEED_LIBRARY) {

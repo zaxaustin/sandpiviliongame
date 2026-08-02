@@ -7,6 +7,7 @@ import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.
 import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-parse.js';
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
+import { theDayItems, theDayLine } from '../data/the-day.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -1368,7 +1369,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','computerOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','computerOv','thedayOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 /* Closing a panel used to CANCEL read-aloud outright, with no way back — the
    single most-complained-of thing in real use ("if I try to do anything it
    pauses that voice and I can't even unpause it"). Now: a book you're
@@ -1454,6 +1455,7 @@ function renderMenu(){
       this one from the open world.</div>
     <button class="btn menuResume" onclick="closeUI()">▸ Resume</button>
     ${section('Your day', [
+      item('openTheDay()', `☀ Today${(function(){const l=theDayLine(currentDayItems());return l?' · '+l:'';})()}`),
       item('openIdeaCapture()', `📓 The Log${data.ideas.length?' · '+data.ideas.length:''}`),
       item('openStillOpen()', `📋 Still Open${openSparks().length?' · '+openSparks().length:''}`),
       item('openPaths()', `🧭 Paths${(data.paths||[]).filter(p=>!p.walked).length?' · '+(data.paths||[]).filter(p=>!p.walked).length:''}`),
@@ -4137,6 +4139,56 @@ export function runBulkImport(){
    you walk up to. Reuses openChatDialog's exact plumbing — a "resident"
    here is just a plain object with a name/agent/color/lines, and the
    Computer qualifies as well as any NPC does. */
+/* ----- THE DAY (2026-07-28) — one door, and something behind it.
+
+   The whole of WHY-OPEN-IT-TODAY-PLAN.md in one panel. It computes on
+   open, from data already saved: nothing runs in the background, nothing
+   is stored, and no AI is involved at any point. It is a set of questions
+   nobody was asking on the visitor's behalf.
+
+   Deliberately NOT a dashboard. Five items maximum, each one press from
+   the thing itself, never empty, and phrased as observation rather than
+   demand — "carried for four days, still want it?" instead of a red
+   badge. See data/the-day.js for the rules and their reasons. */
+export function currentDayItems(){
+  return theDayItems({
+    today: todayKey(),
+    sparks: openSparks(),
+    upcoming: upcomingItems(),
+    lessons: allNodes(),
+    curriculum: data.curriculum||{},
+    books: personalBooks(),
+    read: data.read||{},
+    dissections: (data.hall&&data.hall.dissections)||[],
+  });
+}
+export function openTheDay(){
+  state.ui='theday'; hideAllOv(); renderTheDay(); showOv('thedayOv');
+}
+function renderTheDay(){
+  const el=document.getElementById('thedayPanel'); if(!el) return;
+  const items=currentDayItems();
+  el.innerHTML =
+    '<button class="xbtn" onclick="closeUI()">Esc ✕</button>'
+    + '<h2>☀ Today</h2>'
+    + '<div class="meta">What is actually waiting for you — worked out just now from what is already '
+    + 'saved here. Nothing ran in the background, and no AI was involved.</div>'
+    + items.map(function(it){
+        var act = it.arg!==undefined
+          ? it.fn+'(\''+esc(String(it.arg)).replace(/'/g,'')+'\')'
+          : it.fn+'()';
+        return '<div class="card" style="cursor:pointer" onclick="'+act+'">'
+          + '<div class="t">'+it.icon+' '+esc(it.title)+'</div>'
+          + '<div class="s" style="margin-top:4px">'+esc(it.note)+'</div></div>';
+      }).join('')
+    + '<div class="meta" style="margin-top:14px;opacity:.85">Five at most, on purpose. A list of everything '
+    + 'outstanding is a guilt inventory, and that is the opposite of a habit. The rest is where it always was.</div>'
+    + '<div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap">'
+    + '<button class="btn ghost" onclick="openPlanner()">✍ The Writing Desk</button>'
+    + '<button class="btn ghost" onclick="openLearningTree()">🌳 The tree</button>'
+    + '<button class="btn ghost" onclick="openComputer()">🖥 The index</button>'
+    + '</div>';
+}
 /* ----- THE COMPUTER, rebuilt 2026-07-28 as a real terminal index.
 
    Asked for directly: "change the computer to be a useful index for the library
@@ -8983,7 +9035,7 @@ Object.assign(window, {
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
   checkMyMachine, copyPullCommand,
-  openBookIntake, termSubmit, termQuick,
+  openBookIntake, termSubmit, termQuick, openTheDay, currentDayItems,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
