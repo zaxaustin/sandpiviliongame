@@ -14,9 +14,6 @@ import { blip, setHud } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
-import { listApprovedQuestions, submitQuestion, listPendingQuestions, moderateQuestion } from '../data/exchange.js';
-import { listApprovedNotes, submitNote, listPendingNotes, moderateNote } from '../data/agentNotes.js';
-import { isLoggedIn, isSteward, userEmail, sendMagicLink, signOut, onAuthChange } from '../data/auth.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
 import { epubToText } from '../epub.js';
 
@@ -389,10 +386,6 @@ const CHAT_AGENTS = {
   steward:{
     label:'the Steward',
     async systemPrompt(){
-      const { posts }=await listApprovedQuestions(5);
-      const board=(posts&&posts.length)
-        ? posts.map(p=>`- "${p.title}" by ${p.author||'a visitor'}: ${p.body}`).join('\n')
-        : '(nothing posted yet — the board is empty right now)';
       return CHARTER
         +"\n\nYou are the Steward of the café — a meeting place that looks outward instead of down at a "
         +"shelf. You moderate the Notice Board: nothing goes onto it unmoderated, but the bar is liberal "
@@ -406,7 +399,12 @@ const CHAT_AGENTS = {
         +"just deflecting: the Request Board (in the Study, past the Library's east door) is where anyone "
         +"leaves a title they'd like to see shelved; from there it's reviewed by hand before anything is "
         +"added. Point people there for real when they ask, the same way you'd point someone lost toward "
-        +"the Library itself.\n\nWhat's currently on the Notice Board:\n"+board
+        +"the Library itself.\n\nThe Notice Board on your wall is not open yet: it needs a shared Commons "
+        +"where posts from different Pavilions could meet, and that does not exist. Say so plainly and "
+        +"without embarrassment if a visitor asks — it is not broken and there is nothing for them to set "
+        +"up. Point them at the Commons Table in your own room instead, which needs no server at all: work "
+        +"gets there because a person wrote a file and handed it over. Your other hat, in the Science & "
+        +"Research Hall, is very much open."
         +pastAsksBlock('steward');
     },
     errorLine:"The Steward's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -1017,7 +1015,7 @@ function renderBadges(){
    archive files live — the backend connection is real future work, not
    this pass. ----- */
 const PAVILION_TIMELINE=[
-  {date:'2026-07-06', text:'The original module split — a real Store adapter contract, and the first Phase 3 Supabase sketch.'},
+  {date:'2026-07-06', text:'The original module split — a real Store adapter contract, and the first sketch of a hosted backend (removed again 2026-08-02).'},
   {date:'2026-07-07', text:'The Workshop and the first AI agents, through git and GitHub — the Cafe, real accounts, steward auth, an AI-backed Steward, the agent-notes commons, the Research Desk, the first Vercel deploy.'},
   {date:'2026-07-08', text:'Reading notes in the Reader, local object storage (Docker and MinIO), the Classics and Science shelves, the arXiv/Semantic Scholar/SuttaCentral connectors, live SuttaCentral search from inside the game.'},
   {date:'2026-07-09', text:"The Keep's Ganesha statue, the Native American shelf, the reading-to-doing sparks system closing out, the Monk and Quill's roles split for real, the Writing Desk rebuilt around a real page instead of a stacked panel."},
@@ -1043,10 +1041,10 @@ function renderRecordsHall(){
 /* ----- Local Library storage status — same passive-status-line pattern
    as refreshAIStatus() below, for MinIO instead of Ollama. Waits on
    Store.libraryReady first (an existing hook, unused until now) since
-   the Supabase mirror — the only place a fullText.storage pointer can
+   the shipped seed — the only place a fullText.storage pointer can
    come from — hasn't necessarily resolved yet at page load. Only shown
    when it's actually relevant: if nothing in the mirrored Library uses
-   MinIO storage at all (the zero-setup seed.js fallback, or Supabase
+   MinIO storage at all (the zero-setup seed.js path, or a catalogue
    simply not configured), there's nothing to warn about, so the line
    stays hidden rather than alarming a visitor about a thing that
    doesn't apply to them. */
@@ -1436,50 +1434,11 @@ export function closeUI(){
   state.audioReturnSlug=null; state.notesLogEdit=null; persist();
 }
 
-/* ----- Account (Phase 3, optional) — magic-link sign-in. Local play
-   works identically with no account at all; logging in adds cross-
-   device save sync and, for whoever's been granted it by hand in the
-   Supabase dashboard, real steward powers (see the café's Notice Board
-   moderation view below). Re-renders itself on auth changes so a magic
-   link finishing in another tab, or a manual sign-out, updates live. */
-export function openAccount(){
-  state.ui='account'; hideAllOv(); renderAccount(); showOv('accountOv');
-}
-onAuthChange(()=>{ if(state.ui==='account') renderAccount(); });
-function renderAccount(){
-  const panel=document.getElementById('accountPanel');
-  if(isLoggedIn()){
-    panel.innerHTML = `
-      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>Account</h2>
-      <div class="meta">Signed in as <b>${esc(userEmail()||'')}</b>${isSteward()?' · <span class="badge">steward</span>':''}.
-        Your save now backs up to this account (and syncs if you sign in on another device) —
-        this device's save stays the working copy either way, nothing here replaces that.</div>
-      <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="signOutOfAccount()">Sign out</button></div>`;
-    return;
-  }
-  panel.innerHTML = `
-    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>Account</h2>
-    <div class="meta">Optional — the Pavilion works fully without one. Signing in adds save
-      sync across devices. No password: enter your email, we send a one-time link — it'll open
-      the Pavilion in a new tab, already signed in.</div>
-    <label>Email</label><input type="text" id="acctEmail" placeholder="you@example.com">
-    <div id="acctMsg" class="meta"></div>
-    <div class="row" style="margin-top:14px"><button class="btn" onclick="sendAccountLink()">Send magic link</button></div>`;
-}
-export async function sendAccountLink(){
-  const email=document.getElementById('acctEmail').value.trim();
-  const msg=document.getElementById('acctMsg');
-  if(!email){ msg.textContent='An email address is required.'; return; }
-  msg.textContent='Sending…';
-  const { ok, error } = await sendMagicLink(email);
-  msg.textContent = ok
-    ? "Link sent — check your email. Clicking it opens the Pavilion in a new tab, signed in."
-    : (error==='no-backend' ? "Accounts need a Supabase connection — nothing configured on this device."
-      : "Couldn't send that just now — try again in a moment.");
-}
-export function signOutOfAccount(){ signOut(); renderAccount(); }
+/* The Account panel is gone (2026-08-02). It existed to sign in to a hosted
+   backend for cross-device save sync and steward powers; both left with
+   the hosted backend. There is no account and nothing to sign in to — already
+   the standing direction and is now simply true. Export Save / Import Save in
+   the pause menu are how a save moves between machines. */
 
 /* ----- Pause menu — reachable with Esc from the open world, or the ☰ HUD button ----- */
 export function openMenu(){ state.ui='menu'; hideAllOv(); renderMenu(); showOv('menuOv'); awardBadge('first-menu'); }
@@ -1514,7 +1473,6 @@ function renderMenu(){
       item('openVoiceSettings()', '🔊 Voice settings'),
     ])}
     ${section('Account & data', [
-      item('openAccount()', `👤 Account${isLoggedIn()?' · signed in':''}`),
       item('openWaypoints()', '🔗 Waypoints'),
       item('openActivity()', '📜 Activity Log'),
       item('openDataPanel()', '📊 Your Data'),
@@ -2414,7 +2372,7 @@ export function openReader(slug){
 }
 /* A reading journal, not a submission — notes live only in the reader's own
    save (data.bookNotes), the same personal/local shape as data.read, never
-   sent to Supabase or the shared shelves. Kept outside the summary/full-text
+   sent anywhere or added to the shared shelves. Kept outside the summary/full-text
    toggle (rdSummaryView vs rdFullTextView) so it stays visible across both,
    the same note surviving whichever way you're reading the book right now. */
 export function addBookNote(slug){
@@ -2938,7 +2896,7 @@ export function setIndexCategory(id){ state.indexCategory=id; state.indexSearch=
    debounced, since every keystroke firing a network request would be
    wasteful; a "generation" counter drops any response that's been
    superseded by a newer keystroke before it got back. While waiting
-   (or when there's no Supabase to search), the existing local
+   (and there is no server-side search any more), the existing local
    substring match still runs immediately so the box never feels dead —
    real results simply replace it, ranked, once they arrive. */
 let indexSearchTimer=null, indexSearchGen=0;
@@ -2991,11 +2949,13 @@ function renderIndex(){
   if(search){
     if(state.indexSearchResults){
       // Real, ranked results already came back from Postgres — but that search
-      // can only see the CERTIFIED library (what's mirrored in Supabase). Books
-      // that live only on this device — your own Archive Desk writing AND the
-      // personal books on Your Shelf — never reach it, so match those locally
-      // and fold them in. Without this, a book you added yourself is unfindable
-      // by search whenever Supabase is configured.
+      // could only ever see the CERTIFIED library. Books that live only on this
+      // device — your own Archive Desk writing AND the personal books on Your
+      // Shelf — never reached it, so those are matched locally and folded in.
+      // Store.searchDocs() now always returns null (there is no server to ask),
+      // so in practice this local pass IS the search — kept as the same branch
+      // rather than collapsed, so re-adding a real index later changes one
+      // function instead of this whole path.
       const libResults=state.indexSearchResults.map(d=>({kind:'library', slug:d.slug, title:d.title,
         category:d.category, sub:d.tradition, license:d.license, summary:d.doc.summary, added:d.added}));
       const seen=new Set(libResults.map(d=>d.slug));
@@ -4959,7 +4919,7 @@ export function saveResearchReplyAsNote(id){
    own notes) with an instruction to summarize it — not grounded in the
    Library or the project's other notes, since the whole point is "just
    this text, faithfully condensed." The output lands as a project note,
-   the same personal, local-only, never-sent-to-Supabase place every
+   the same personal, local-only, never-sent-anywhere place every
    other Research Desk note lives — this stays a private study aid, not
    a path into the shared Library, on purpose: what you paste here may
    be your own copy of something copyrighted (a textbook chapter you
@@ -6545,147 +6505,33 @@ export function removeRequest(id){
   persist(); renderRequests();
 }
 
-/* ----- The Notice Board (the café) — the shared, steward-moderated
-   counterpart to Waypoints: a post points outward at wherever its real
-   conversation lives, the same shape as a Waypoint, just shared instead
-   of personal. Read is public once approved; posting always lands as
-   'pending' — there's deliberately no "approve" button in the game
-   itself (see data/exchange.js's moderation note). */
+/* ----- The two café wall boards. The hosted-backend implementation behind them was
+   DELETED 2026-08-02 rather than left dormant, and the reasoning is worth
+   keeping: while it sat there, every tester ran the fallback path, which meant
+   the fallback was load-bearing while still being written and tested as a
+   fallback. Nobody could ever reach the real path. "Dormant" was a fiction.
+
+   The rooms stay, as honest placeholders — the same pattern the Workshop's
+   Unfinished Floor uses — because a shared Commons is still genuinely planned,
+   just self-hosted rather than on someone else's service
+   (see plans/COMMONS-BACKEND-PLAN.md). What is gone is a specific dependency,
+   not the intention.
+
+   The Commons Table, in this same room, is the sharing that needs no server at
+   all, and it works today. */
+function comingCommons(title, what){
+  openDialog(title, [
+    what + "\n\nThis needs a shared Commons — somewhere posts from\ndifferent Pavilions can meet. That does not exist yet,\nand nothing here is broken or misconfigured.",
+    "Sharing that needs no server already works: the Commons\nTable, in this room. A piece of work gets there because a\nperson wrote a file and handed it over — which is the\nkind of sharing this place trusts most anyway.",
+  ]);
+}
 export function openNoticeBoard(){
-  state.ui='notice'; hideAllOv();
-  state.noticeView = { mode:'list', posts:null, loading:true, error:null, openPost:null, pending:null };
-  renderNotice(); showOv('noticeOv');
-  loadNoticeBoard();
-  if(isSteward()) loadPendingQuestions();
+  comingCommons('THE NOTICE BOARD',
+    "A place to post a question outward, where the real\nconversation may live somewhere else entirely.");
 }
-async function loadNoticeBoard(){
-  const { posts, error } = await listApprovedQuestions(3);
-  if(state.ui!=='notice') return; // panel was closed before the fetch came back
-  state.noticeView.posts=posts; state.noticeView.loading=false; state.noticeView.error=error;
-  renderNotice();
-}
-async function loadPendingQuestions(){
-  const { posts } = await listPendingQuestions();
-  if(state.ui!=='notice') return;
-  state.noticeView.pending=posts;
-  renderNotice();
-}
-export async function approveNoticePost(id){
-  await moderateQuestion(id, 'approved');
-  loadNoticeBoard(); loadPendingQuestions();
-}
-export async function rejectNoticePost(id){
-  await moderateQuestion(id, 'rejected');
-  loadPendingQuestions();
-}
-export function openNoticePost(id){
-  state.noticeView.openPost = (state.noticeView.posts||[]).find(p=>p.id===id);
-  state.noticeView.mode='post'; renderNotice();
-}
-export function backToNoticeList(){ state.noticeView.mode='list'; state.noticeView.openPost=null; renderNotice(); }
-export function newNoticePostForm(){ state.noticeView.mode='compose'; renderNotice(); }
-export async function submitNoticePost(){
-  const title=document.getElementById('npTitle').value.trim();
-  const body=document.getElementById('npBody').value.trim();
-  const url=safeUrl(document.getElementById('npUrl').value.trim());
-  const author=document.getElementById('npAuthor').value.trim();
-  const msg=document.getElementById('npMsg');
-  if(!title||!body){ msg.textContent='A title and a body are both required.'; return; }
-  msg.textContent='Submitting…';
-  const { ok, error } = await submitQuestion({ title, body, external_url:url||null, author:author||null });
-  if(!ok){
-    msg.textContent = error==='no-backend'
-      ? "There's nowhere for this to go yet — the board waits on a shared server that doesn't exist. Nothing to fix on your end. The Commons Table, in this room, shares work with no server at all."
-      : "Couldn't submit just now — try again in a moment.";
-    return;
-  }
-  logActivity('Posted a question to the café notice board: "'+title+'".');
-  state.noticeView.mode='submitted'; renderNotice();
-}
-function renderNotice(){
-  const v=state.noticeView, panel=document.getElementById('noticePanel');
-  if(v.mode==='compose'){
-    panel.innerHTML = `
-      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>Post a Question</h2>
-      <div class="meta">Goes to a steward for review before it appears on the board — liberal, but never blind.</div>
-      <label>Title</label><input type="text" id="npTitle" maxlength="140" placeholder="What are you asking or sharing?">
-      <label>Body</label><textarea id="npBody" rows="5" placeholder="Say more, in your own words."></textarea>
-      <label>Link (optional)</label><input type="text" id="npUrl" placeholder="https://... if the real conversation lives elsewhere">
-      <label>Your name (optional)</label><input type="text" id="npAuthor" placeholder="How to sign it — defaults to anonymous">
-      <div id="npMsg" class="meta"></div>
-      <div class="row" style="margin-top:14px">
-        <button class="btn" onclick="submitNoticePost()">Submit for review</button>
-        <button class="btn ghost" onclick="backToNoticeList()">← Back</button>
-      </div>`;
-    return;
-  }
-  if(v.mode==='submitted'){
-    panel.innerHTML = `
-      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>Submitted</h2>
-      <div class="meta">Thank you — a steward will look it over. Nothing goes onto the board unmoderated.</div>
-      <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="backToNoticeList()">← Back to the board</button></div>`;
-    return;
-  }
-  if(v.mode==='post' && v.openPost){
-    const p=v.openPost;
-    panel.innerHTML = `
-      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>${esc(p.title)}</h2>
-      <div class="meta">${esc(p.author||'a visitor')} · ${new Date(p.created_at).toLocaleDateString()}</div>
-      <p>${esc(p.body)}</p>
-      ${p.external_url && safeUrl(p.external_url) ? `<p><a class="link" href="${esc(p.external_url)}" target="_blank" rel="noopener noreferrer">→ where the conversation continues</a></p>` : ''}
-      <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="backToNoticeList()">← Back to the board</button></div>`;
-    return;
-  }
-  panel.innerHTML = `
-    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>The Notice Board</h2>
-    <div class="meta">Three most recent, steward-approved. A post here points outward — the real
-      conversation may live elsewhere, or right in the words below.</div>
-    ${v.loading ? '<p>Reading the board…</p>' :
-      // DORMANT, NOT BROKEN (2026-08-02). The old copy said "needs a Supabase
-      // connection — nothing configured on this device," which is accurate and
-      // reads to a beta tester as "you skipped a setup step," naming a service
-      // they have never heard of. They then either try to fix it or file it as
-      // broken. Say what is actually true instead: this waits on a shared
-      // server that does not exist yet, there is nothing to do, and the thing
-      // beside it that DOES work is one press away.
-      v.error==='no-backend' ? `<div class="card" style="cursor:default;border-color:#8fb4d9">
-          <div class="t" style="color:#8fb4d9">Closed until there's a Commons to connect to</div>
-          <div class="s" style="margin-top:6px">This board is one of the two things in the Pavilion that genuinely
-            needs a <b>shared server</b> — somewhere posts from different people can meet. That server doesn't exist
-            yet, so the board is <b>deliberately dormant</b>. <b>Nothing is broken and there is nothing to configure
-            on your end.</b></div>
-          <div class="s" style="margin-top:6px">Sharing that needs no server at all already works: the
-            <b>Commons Table</b>, in this same room. A piece of work gets there because a person wrote a file and
-            handed it over.</div>
-          <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11.5px" onclick="openCommonsTable()">🤝 The Commons Table</button></div>
-        </div>` :
-      v.error ? "<p>Couldn't reach the board just now. Try again in a moment.</p>" :
-      (v.posts && v.posts.length ? v.posts.map(p=>`
-        <div class="card" onclick="openNoticePost('${p.id}')">
-          <div class="t">${esc(p.title)}</div>
-          <div class="s">${esc(p.author||'a visitor')} · ${new Date(p.created_at).toLocaleDateString()}</div>
-        </div>`).join('') : '<p>Nothing posted yet.</p>')}
-    <div class="row" style="margin-top:14px"><button class="btn" onclick="newNoticePostForm()">+ Post a question</button></div>
-    ${isSteward() ? `
-      <h3 style="margin-top:22px">🛡 Pending review</h3>
-      <div class="meta">Only you can see this — steward-only, enforced by the database itself, not just this screen.</div>
-      ${v.pending===null ? '<p>Reading the queue…</p>' :
-        v.pending.length ? v.pending.map(p=>`
-          <div class="card" style="cursor:default">
-            <div class="t">${esc(p.title)}</div>
-            <div class="s">${esc(p.author||'a visitor')} · ${new Date(p.created_at).toLocaleDateString()}</div>
-            <div class="s">${esc(p.body)}</div>
-            ${p.external_url && safeUrl(p.external_url) ? `<div class="s"><a class="link" href="${esc(p.external_url)}" target="_blank" rel="noopener noreferrer">${esc(p.external_url)}</a></div>` : ''}
-            <div class="row" style="margin-top:8px">
-              <button class="btn ghost" onclick="approveNoticePost('${p.id}')">✓ Approve</button>
-              <button class="btn ghost" style="border-color:#b56f6f;color:#e0a0a0" onclick="rejectNoticePost('${p.id}')">✕ Reject</button>
-            </div>
-          </div>`).join('') : '<p>Nothing waiting.</p>'}
-    ` : ''}`;
+export function openResidentsBoard(){
+  comingCommons("THE RESIDENTS' BOARD",
+    "Notes the residents of different Pavilions leave for each\nother — overheard, more than addressed to you.");
 }
 
 /* ----- Hearth Corner (the café) — deliberately just scripted dialog,
@@ -8014,104 +7860,6 @@ export function sendLogEntryToToday(id){
   renderIdeaJar();
 }
 
-/* ----- The Residents' Board (the café) — the agent-notes commons: the
-   same "no gate" instinct as the Library, applied to the residents
-   themselves. Deliberately a separate table/station from the human
-   Notice Board — "notes from people" and "notes from agents" stay
-   legible as two different things. A note is a real AI generation
-   (grounded in the same charter + context CHAT_AGENTS already builds
-   for live chat), not a canned line — needs a local AI connection to
-   write one, same as any other AI feature here. Same steward-moderated
-   shape as the Notice Board: nothing appears unreviewed. */
-function agentLabel(key){ return CHAT_AGENTS[key]?.label || key; }
-export function openResidentsBoard(){
-  state.ui='residents'; hideAllOv();
-  state.residentsView={ notes:null, loading:true, error:null, pending:null };
-  renderResidents(); showOv('residentsOv');
-  loadResidentsBoard();
-  if(isSteward()) loadPendingNotes();
-}
-async function loadResidentsBoard(){
-  const { notes, error }=await listApprovedNotes(5);
-  if(state.ui!=='residents') return;
-  state.residentsView.notes=notes; state.residentsView.loading=false; state.residentsView.error=error;
-  renderResidents();
-}
-async function loadPendingNotes(){
-  const { notes }=await listPendingNotes();
-  if(state.ui!=='residents') return;
-  state.residentsView.pending=notes;
-  renderResidents();
-}
-export async function approveNote(id){ await moderateNote(id,'approved'); loadResidentsBoard(); loadPendingNotes(); }
-export async function rejectNote(id){ await moderateNote(id,'rejected'); loadPendingNotes(); }
-export async function askAgentForNote(agentKey){
-  if(!isAIActive()) return;
-  const msg=document.getElementById('resNoteMsg');
-  const label=agentLabel(agentKey);
-  msg.textContent=label+' is thinking…';
-  const agent=CHAT_AGENTS[agentKey]||CHAT_AGENTS.quill;
-  try{
-    const systemPrompt=withStanding(agentKey, await agent.systemPrompt());
-    const note=await AI.chat([
-      {role:'system',content:systemPrompt},
-      {role:'user',content:'In one or two sentences, in your own voice, leave a short note for the other residents of the Pavilion — something you noticed, not a summary of this prompt or a greeting. Return only the note itself, nothing else.'},
-    ]);
-    const { ok, error }=await submitNote({ agent:agentKey, note:note.trim() });
-    msg.textContent = ok
-      ? 'Left for review — a steward will look it over before it joins the board.'
-      : "Couldn't submit that just now — try again in a moment.";
-    if(isSteward()) loadPendingNotes();
-  }catch(err){
-    msg.textContent=label+"'s connection flickered — the local AI didn't answer. (Check that Ollama is still running.)";
-  }
-}
-function renderResidents(){
-  const v=state.residentsView, panel=document.getElementById('residentsPanel');
-  panel.innerHTML = `
-    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>The Residents' Board</h2>
-    <div class="meta">Notes the residents leave for each other — overheard more than addressed to
-      you. Steward-approved, same discipline as the Notice Board.</div>
-    ${v.loading ? '<p>Reading the board…</p>' :
-      // Same fix as the Notice Board above — dormant by design, not misconfigured.
-      v.error==='no-backend' ? `<div class="card" style="cursor:default;border-color:#8fb4d9">
-          <div class="t" style="color:#8fb4d9">Closed until there's a Commons to connect to</div>
-          <div class="s" style="margin-top:6px">Notes left between residents travel between <i>Pavilions</i>, so this board
-            needs a <b>shared server</b> — and there isn't one yet. <b>Deliberately dormant; nothing is broken and
-            there's nothing for you to set up.</b> Your own residents talk to you perfectly well without it.</div>
-        </div>` :
-      v.error ? "<p>Couldn't reach the board just now. Try again in a moment.</p>" :
-      (v.notes && v.notes.length ? v.notes.map(n=>`
-        <div class="card" style="cursor:default">
-          <div class="t">${esc(agentLabel(n.agent))}</div>
-          <div class="s">${esc(n.note)}</div>
-        </div>`).join('') : '<p>No notes yet.</p>')}
-    <h3 style="margin-top:18px">Ask a resident to leave a note</h3>
-    <div class="meta">${isAIActive()
-      ? "A real generation, grounded in the same charter they already follow — not a scripted line."
-      : "Needs a local AI connection (⚙ Manage AI connections) — these are genuinely generated, never canned."}</div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn ghost" ${isAIActive()?'':'disabled'} onclick="askAgentForNote('quill')">📝 Ask Quill</button>
-      <button class="btn ghost" ${isAIActive()?'':'disabled'} onclick="askAgentForNote('steward')">📝 Ask the Steward</button>
-    </div>
-    <div id="resNoteMsg" class="meta"></div>
-    ${isSteward() ? `
-      <h3 style="margin-top:22px">🛡 Pending review</h3>
-      <div class="meta">Only you can see this — enforced by the database, not just this screen.</div>
-      ${v.pending===null ? '<p>Reading the queue…</p>' :
-        v.pending.length ? v.pending.map(n=>`
-          <div class="card" style="cursor:default">
-            <div class="t">${esc(agentLabel(n.agent))}</div>
-            <div class="s">${esc(n.note)}</div>
-            <div class="row" style="margin-top:8px">
-              <button class="btn ghost" onclick="approveNote('${n.id}')">✓ Approve</button>
-              <button class="btn ghost" style="border-color:#b56f6f;color:#e0a0a0" onclick="rejectNote('${n.id}')">✕ Reject</button>
-            </div>
-          </div>`).join('') : '<p>Nothing waiting.</p>'}
-    ` : ''}`;
-}
-
 /* ----- Steward Review Queue — the real "pull request" workflow, built
    single-steward-first since only one user exists today. Anything
    headed for the shared Library — a submitted Archive Desk piece, or a
@@ -8535,7 +8283,7 @@ export function rejectReviewItem(id){
 /* ----- Your Shelf — the personal half of the provenance split
    (BETA-BUILD-PLAN.md): a text you brought in yourself gets shelved
    under YOU, plainly marked, never mixed into the certified commons
-   shelves. This is the whole local path — no Supabase row, no MinIO
+   shelves. This is the whole local path — no catalogue row, no MinIO
    object, no terminal batch: the catalog card lives in your save, and
    the full text lives as a plain file in the desktop app's own data
    folder (falling back to inline-in-save in a browser, where big books
@@ -8876,7 +8624,7 @@ export async function runCopyrightCheck(){
    lets me edit the library and move things around").
 
    The real constraint, stated rather than worked around: a certified
-   entry lives in seed.js (source code) or Supabase. A running browser
+   entry lives in seed.js, which is source code. A running browser
    cannot rewrite either. So edits are kept as an OVERRIDE LAYER in the
    save (data.catalogEdits, applied by store.js on every read) — which
    means corrections take effect immediately, are yours, travel with
@@ -9929,15 +9677,13 @@ Object.assign(window, {
   toggleEventReminder, dismissButlerPing, butlerPingGo,
   searchSuttaCentral, fetchSuttaCentralText,
   submitArchiveDocForReview, approveReviewItem, rejectReviewItem, draftSummaryForReviewItem, generateApprovedBatch, markBatchExported,
-  openNoticeBoard, openNoticePost, backToNoticeList, newNoticePostForm, submitNoticePost,
-  approveNoticePost, rejectNoticePost,
+  openNoticeBoard,
   openHearth, openGrantDesk, openCoffee,
   newGrantForm, backToGrantList, createGrantProject, openGrantProject, deleteGrantProject,
   addGrantDocument, removeGrantDocument, fillGrantPrompt, sendGrantMessage, sendGrantDocToToday,
   saveGrantReplyAsDraft, removeGrantDraft, promoteGrantToArchive, setGrantDue,
   openUpcoming,
-  openAccount, sendAccountLink, signOutOfAccount,
-  openResidentsBoard, askAgentForNote, approveNote, rejectNote,
+  openResidentsBoard,
   openResearchDesk, newResearchForm, backToResearchList, createResearchProject,
   openResearchProject, deleteResearchProject, addResearchNote, sendResearchNoteToToday, fillResearchPrompt,
   sendResearchMessage, saveResearchReplyAsNote, promoteResearchToArchive,

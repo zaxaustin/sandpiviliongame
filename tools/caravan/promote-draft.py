@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
 """
+RETIRED 2026-08-02 — the push step no longer goes anywhere.
+
+This wrote a row into a hosted database that the game read as its
+catalog. That backend was deleted outright rather than left dormant
+(CLAUDE.md, 2026-07-12 standing decision), so there is nothing at the
+far end of this any more and no key is needed by anybody.
+
+What is still useful: the draft PARSER below, and its refusal to accept
+a draft whose license or tradition still says TODO. Run it as a check,
+then add the entry to src/game/data/seed.js by hand and rebuild — see
+PROTOCOLS.md, Protocol 1, Pathway B. The catalog is source code now, so
+a shelf change is a reviewable commit.
+
 tools/caravan/promote-draft.py — the last mile of the Caravan pipeline.
 
 Takes a completed library-drafts/*.md file (see library-drafts/README.md

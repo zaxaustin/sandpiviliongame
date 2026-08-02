@@ -133,27 +133,19 @@ B (or the `pdf-to-text.py` / `epub-to-text.py` converters) for those.*
 >
 > This pathway does **not** add a book to *your* Pavilion — Pathway A above does
 > that, completely, and it is the real pathway for anyone running their own
-> Pavilion. Pathway B writes into the **shared certified catalog** that ships
-> with the app, which is a thing only the person maintaining that catalog needs
-> to do.
+> Pavilion. Pathway B is how a book gets into the **catalog that ships with the
+> app**, which only the person maintaining that catalog ever needs to do.
 >
-> **It currently requires a Supabase project and a `SUPABASE_SERVICE_ROLE_KEY`,
-> and that is a leftover, not the direction.** As of 2026-07-12 this project's
-> standing decision is local and self-hosted — local Postgres and local MinIO,
-> no cloud account required for anything
-> (see [`plans/SELF-HOSTED-STACK-PLAN.md`](plans/SELF-HOSTED-STACK-PLAN.md)).
-> `promote-draft.py` has not been ported to the local stack yet. Until it is,
-> these steps are documented as they actually work rather than as we would like
-> them to, which is the same honesty rule as everything else in this file.
+> **Changed 2026-08-02, and simplified by it.** This used to end with
+> `promote-draft.py` pushing a row into a hosted database, which needed a cloud
+> project and a `SERVICE_ROLE`-class key. That backend was **deleted**, not left
+> dormant — the app now reads exactly one catalog, `src/game/data/seed.js`, plus
+> whatever you added yourself.
 >
-> **On the service-role key specifically, since it is named below.** A
-> service-role key bypasses every row-level security rule in a Supabase project
-> — it is the highest-privilege credential that project has, and it is a
-> *different class of thing* from the publishable key the game itself uses.
-> Never commit one, never put it in `.env.local`, never paste it into the game,
-> a browser, or a chat. Set it as an environment variable in the one terminal
-> session you need it in and let it die with the window. **And if you are
-> filling your own Pavilion, you do not need one at all** — you need Pathway A.
+> So the last step is now **a code change**: you add the entry to `seed.js` and
+> rebuild. That is slower, and it is honest — the shipped catalog is source
+> code, so changing it is a commit someone can read, review and revert. **No
+> account, no key, and no secret is involved anywhere in this project any more.**
 
 The full pipeline, the same one the Caravan connectors feed into. Exact
 commands live in [`library-drafts/README.md`](library-drafts/README.md); this
@@ -177,14 +169,16 @@ is the shape:
    in your own words. See [`library-drafts/_TEMPLATE.md`](library-drafts/_TEMPLATE.md).
    This is the provenance-first rule made concrete — the script refuses to
    promote a draft that still says `TODO`.
-4. **Promote it onto the shelves.**
-   `python tools/caravan/promote-draft.py library-drafts/<slug>.md`
-   — parses the draft, refuses if license/tradition are still `TODO`, and
-   inserts it into Supabase's `library_documents`. **Live in the game
-   immediately, no code deploy.** (Needs `SUPABASE_URL` and
-   `SUPABASE_SERVICE_ROLE_KEY` set — `--help` explains. Maintainer-only, and
-   **not needed to fill your own Pavilion**; the key is environment-variable
-   only — **never commit** it and never put it in `.env.local`.)
+4. **Add the entry to the catalog** — `src/game/data/seed.js`. Copy the shape
+   of any neighbouring entry: `slug`, `tradition`, `title`, `license`,
+   `source_url`, `attribution`, and a `doc` with a `summary` and `sections`.
+   The filled-in draft from step 3 has every field you need; this step is
+   mostly transcription.
+
+   `python tools/caravan/promote-draft.py` still parses a draft and refuses one
+   that says `TODO`, which is a useful check to run first — but **its push step
+   is retired** and writes nowhere the app reads. See its own header.
+
 5. **Optional — attach the full text** so the Reader's "📖 Read the full text"
    button works:
    `python tools/caravan/push-fulltext.py <slug> library-sources/<file>.txt --translator "..." --source-url "..." --license "..."`
@@ -192,15 +186,20 @@ is the shape:
    `sand-pavilion-minio` running). Until this step, the book is readable as
    its summary card only.
 
-### Two honest facts about "live"
+6. **Rebuild** — `npm run build:beta`, and `npm test` to be sure. The catalog
+   is source code now, so a shelf change is a commit: reviewable, revertable,
+   and visible in `git log`. That is a feature.
 
-- **The catalog card lives in Supabase; the full text lives in local MinIO.**
-  A book can be shelved (card visible, searchable) before its full text is
-  pushed — that's the catalog-only state.
-- **Supabase rows replace the seed, they don't merge.** If Supabase is
-  configured, editing `seed.js` alone won't show up live — the promote step is
-  what makes a change appear. (Both `seed.js` and Supabase should be kept in
-  step for a change meant to be permanent.)
+### Two honest facts about the catalog
+
+- **The card lives in `seed.js`; the full text lives in local MinIO.** A book
+  can be shelved — card visible, searchable — before its full text is pushed.
+  That's the catalog-only state, and ten of the shipped classics sit in it
+  deliberately, each saying so in the Reader.
+- **There is exactly one catalog, and it is in the repo.** Until 2026-08-02 a
+  hosted database could silently replace the seed, which meant editing
+  `seed.js` might change nothing you could see. That whole class of confusion
+  is gone: what is in the file is what is on the shelf.
 
 ---
 
@@ -299,16 +298,13 @@ Caravan Desk in-game).
 | `python tools/caravan/openalex.py "<query>"` | Find the open-access copy of a paper |
 | `python tools/caravan/semanticscholar.py "<query>"` | Search Semantic Scholar |
 
-### Shelving a book into the SHARED catalog (maintainer only)
+### Shelving a book into the SHIPPED catalog (maintainer only)
 
 **Not needed to fill your own Pavilion** — drag a file onto the window and
-you're done (Protocol 1, Pathway A). These write into the shared certified
-catalog, and the last two still need `SUPABASE_URL` and
-`SUPABASE_SERVICE_ROLE_KEY` — a leftover from before this project's move to a
-local, self-hosted stack, kept documented honestly until `promote-draft.py` is
-ported. The service-role key bypasses all row-level security: environment
-variable only, never committed, never in `.env.local`, never in the game. See
-the box at Protocol 1, Pathway B.
+you are done (Protocol 1, Pathway A). These prepare an entry for
+`src/game/data/seed.js`, which is source code, so the last step is a commit
+rather than a command. **No key, no account and no secret is involved anywhere**
+— the hosted backend that once needed one was deleted 2026-08-02.
 
 | Command | What it does |
 | --- | --- |
@@ -348,18 +344,17 @@ Beta testers never need this; it's for your own machine's certified library.
 | `git tag v0.1.0` | Name a milestone |
 | `git checkout -b my-branch` | Work on a branch without touching `main` |
 
-> **The one habit worth keeping:** when a command asks for a secret (a
-> `SERVICE_ROLE_KEY`, an API key), set it as an environment variable for that
-> terminal session — **never commit** it, and never paste it into a file that
-> git tracks, including `.env.local`. Every script here reads its secrets that
-> way on purpose.
+> **There are no secrets in this project any more.** Nothing in the Pavilion
+> asks for an account, a key, a token or a cloud service — not to run it, not
+> to fill it, and not to maintain the shipped catalog. The last thing that did
+> was the hosted backend, deleted 2026-08-02. `.env.local` is optional and
+> currently empty of anything meaningful; see `.env.example`.
 >
-> Worth saying plainly: **filling your own Pavilion needs no secret of any
-> kind.** Nothing in the app requires an account, a key, or a cloud service —
-> drag a file onto the window and you are done. The only thing that ever wants
-> a `SERVICE_ROLE_KEY` is the maintainer-only path into the *shared* catalog
-> (Protocol 1, Pathway B), which is not needed by anyone running their own
-> Pavilion and is on its way out anyway.
+> **The habit is still worth keeping for everything else you do.** If some
+> future command wants a credential, set it as an environment variable in that
+> one terminal session and let it die with the window. Never commit it, and
+> never put it in a file git tracks. A key in a repo is forever, even after you
+> delete it — the history keeps it.
 
 ---
 

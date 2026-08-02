@@ -20,10 +20,10 @@
     "verify:release": "node scripts/verify-release-docs.mjs"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.110.1",
     "concurrently": "^10.0.3",
     "electron": "^43.1.0",
     "electron-builder": "^26.15.3",
+    "puppeteer-core": "^25.4.0",
     "vite": "^8.1.3",
     "wait-on": "^9.0.10"
   },

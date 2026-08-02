@@ -136,6 +136,30 @@ for (const [key, s] of Object.entries(scenes)) {
       fail(`overlays.js: '${fn}()' is called from an inline handler but is not on window — that button silently does nothing`);
     }
   }
+
+  /* THE OTHER DIRECTION, added 2026-08-02 and much worse when it breaks.
+     The check above is handlers -> exports. Nothing checked exports ->
+     definitions, and deleting the Supabase café boards left nine dead names
+     in the Object.assign(window, {...}) list. That is not a dud button: an
+     undefined identifier inside an object literal throws a ReferenceError
+     while the module is still evaluating, which aborts the WHOLE export block
+     — so every function listed after the dead one never reaches window either,
+     and most of the app quietly stops working. It cost one grep to find and
+     would have cost a tester their evening. */
+  const shorthand = block.match(/^\s*([A-Za-z_$][\w$]*)\s*,\s*$/gm) || [];
+  const names = new Set(shorthand.map(l => l.trim().replace(/,$/, '')));
+  for (const m of block.matchAll(/(?:^|[{,]\s*)([A-Za-z_$][\w$]*)\s*(?=[,}])/g)) names.add(m[1]);
+  const defined = new Set();
+  for (const m of src.matchAll(/(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)) defined.add(m[1]);
+  for (const m of src.matchAll(/(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) defined.add(m[1]);
+  for (const m of src.matchAll(/^import\s+\{([^}]*)\}/gm)) {
+    for (const part of m[1].split(',')) defined.add(part.trim().split(/\s+as\s+/).pop().trim());
+  }
+  for (const m of src.matchAll(/^import\s+\{?\s*([A-Za-z_$][\w$]*)\s*\}?\s+from/gm)) defined.add(m[1]);
+  for (const n of names) {
+    if (n === 'window' || n === 'Object' || n === 'assign' || defined.has(n)) continue;
+    fail(`overlays.js: the window export list names '${n}', which is not defined anywhere — that ReferenceError aborts the entire export block at load time, so nothing listed after it reaches window either`);
+  }
 }
 
 /* ---------- copyright triage ----------
@@ -185,21 +209,34 @@ for (const [key, s] of Object.entries(scenes)) {
 {
   const fs = await import('node:fs');
   const USER_FACING = ['PROTOCOLS.md', 'MANUAL.md', 'README.md', 'plans/BETA-RELEASE-NOTES.md'];
-  // PROXIMITY, not presence. A first cut checked the whole file and passed
-  // happily with the disclaimer three sections away from the key — which is
-  // how a reader misses it. Each MENTION must carry its own warning nearby.
+  /* UPDATED 2026-08-02, the second time that day, because the ground moved
+     under it. The first version demanded that every SERVICE_ROLE mention carry
+     a "maintainer-only, never commit" note nearby. Then the hosted backend was
+     deleted outright and NO key is needed by anybody for anything — so the rule
+     gets stricter and simpler:
+
+       a user-facing doc may mention a service-role key ONLY to say it is gone.
+
+     Anything still reading like an instruction fails. Kept as proximity rather
+     than presence for the same reason as before: a disclaimer three sections
+     away from the instruction is one the reader never sees. */
   const NEAR = 1200; // characters either side — about a screen
+  const RETIRED = /deleted|retired|no longer|is gone|no key|no secret|not needed|no account/i;
+  const INSTRUCTION = /\bexport\s+SUPABASE|\$env:SUPABASE|--help explains|you (?:will )?need (?:a |an )?(?:cloud |supabase )/i;
   for (const f of USER_FACING) {
     if (!fs.existsSync(f)) continue;
     const text = fs.readFileSync(f, 'utf8');
     for (const m of text.matchAll(/SERVICE_ROLE/gi)) {
       const around = text.slice(Math.max(0, m.index - NEAR), m.index + NEAR);
-      if (!/maintainer|not for you|not needed to fill|only needed by/i.test(around)) {
-        fail(`${f}: the SERVICE_ROLE mention at character ${m.index} has no "maintainer-only / not needed for your own Pavilion" note within ${NEAR} characters — a beta tester reading just that passage would go and make a Supabase project`);
+      if (!RETIRED.test(around)) {
+        fail(`${f}: the SERVICE_ROLE mention at character ${m.index} does not say, within ${NEAR} characters, that no such key is needed any more — nothing in this project asks for one, and a doc implying otherwise sends a tester to make a cloud account for nothing`);
       }
-      if (!/never commit/i.test(around)) {
-        fail(`${f}: the SERVICE_ROLE mention at character ${m.index} has no "never commit it" warning within ${NEAR} characters`);
+      if (INSTRUCTION.test(around)) {
+        fail(`${f}: the SERVICE_ROLE mention at character ${m.index} still reads as an INSTRUCTION to obtain or set one. The backend it belonged to was deleted; the only acceptable mention now is historical`);
       }
+    }
+    if (/Get (?:both|them|these|the keys?) from your \w+ project/i.test(text)) {
+      fail(`${f} still tells a reader to fetch keys from a cloud project — there is no backend to fetch them from`);
     }
   }
   // And no user-facing doc may present a cloud account as REQUIRED to use the app.

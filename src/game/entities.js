@@ -3,7 +3,6 @@ import { scenes, SOLID } from './scenes.js';
 import { openDialog, showBadgeToast } from './ui/overlays.js';
 import { jingleCatch, jingleMiss, blip, setHud } from './main.js';
 import { BADGES } from './data/badges.js';
-import { onAuthChange, isLoggedIn, getAuthState } from './data/auth.js';
 import { setTTSSettings } from './tts.js';
 
 /* ================================================================
@@ -59,42 +58,7 @@ export function persist(){
     window.alert("Your browser couldn't save just now — storage may be full or blocked. "
       +"Progress from here on may not persist; Export Save from the pause menu is a good backup right now.");
   }
-  queueAccountPush();
 }
-
-/* ----- Account save sync (Phase 3, optional) — localStorage stays the
-   one always-on save; a logged-in account is a backup/sync target on
-   top of it, never a replacement. Every persist() (debounced, since
-   persist() itself fires on nearly every micro-action) pushes a copy up
-   if a session exists. The one moment that needs a real decision — this
-   account already has a save from another device — asks plainly and
-   explicitly, the same way Import Save already does, rather than
-   silently picking a winner. */
-const ACCOUNT_PUSH_DEBOUNCE_MS = 2000;
-let pushTimer=null;
-function queueAccountPush(){
-  if(!isLoggedIn()) return;
-  clearTimeout(pushTimer);
-  pushTimer=setTimeout(()=>{
-    const { session } = getAuthState();
-    if(session) Store.pushAccountSave(session.user.id, data);
-  }, ACCOUNT_PUSH_DEBOUNCE_MS);
-}
-let reconciledUserId=null;
-onAuthChange(async (authState)=>{
-  const uid = authState.session?.user?.id;
-  if(!uid || reconciledUserId===uid) return;
-  reconciledUserId=uid;
-  const remote = await Store.pullAccountSave(uid);
-  if(!remote){ Store.pushAccountSave(uid, data); return; } // nothing to lose — first sync
-  const useRemote = window.confirm(
-    "This account already has a saved Pavilion from another device.\n\n"
-    +"OK — load that save here (replaces what's on this device).\n"
-    +"Cancel — keep this device's save (this overwrites the account's saved copy instead)."
-  );
-  if(useRemote){ Store.save(remote.data); location.reload(); }
-  else Store.pushAccountSave(uid, data);
-});
 
 /* ----- Activity Log — a short, readable record of what actually
    happened in a visit (not a raw event stream), same "distill, don't
