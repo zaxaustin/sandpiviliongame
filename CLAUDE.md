@@ -56,7 +56,7 @@ not aspirational.
 
 **The desktop app is the main focus going forward.** This project runs
 mainly as a real Electron app on the user's own machine now, not a
-browser tab — see `plans/DESKTOP-APP-PLAN.md`. When a fix or a feature
+browser tab — see `plans/done/DESKTOP-APP-PLAN.md`. When a fix or a feature
 has a browser-only version and a real desktop-native version (a save
 dialog, spell-check, filesystem access), build for the desktop app
 first and treat the web build (`sandpiviliongame.vercel.app`) as the

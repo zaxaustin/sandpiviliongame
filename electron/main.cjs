@@ -1,5 +1,5 @@
 /* ================================================================
-   Electron main process — the native backend plans/DESKTOP-APP-PLAN.md calls
+   Electron main process — the native backend plans/done/DESKTOP-APP-PLAN.md calls
    for. Its one real job: proxy requests to local Ollama through Node
    instead of the renderer's own fetch(), so they're never subject to
    the browser CORS check that requires OLLAMA_ORIGINS to be configured

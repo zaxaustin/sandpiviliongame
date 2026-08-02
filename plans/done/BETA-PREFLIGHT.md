@@ -1,3 +1,20 @@
+> ## CLOSED 2026-08-02 — moved to `plans/done/`
+>
+> This was the pre-launch checklist, and it is spent. Its three headline risks
+> were closed 2026-07-28 (the packaged app that never booted, keys in a plain
+> build, the website phoning Supabase), and the four things it listed as
+> "genuinely un-automatable, still yours to do" have since been done — including
+> the clean-machine install.
+>
+> Two numbers in the body below are stale and left as written, since the whole
+> document is now history: the preflight suite is **39 checks, not 37**, and the
+> clean-machine install is **done**.
+>
+> The living equivalents are `SHIPPING-THE-BETA.md` (how to hand it over) and
+> `test/live/` (the checks themselves, which are the part that actually runs).
+
+---
+
 # Beta pre-flight — what to actually test before asking anyone for feedback
 
 Written **2026-07-27**, from the direct question: *"Where are we overall for

@@ -264,7 +264,7 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 **Read `plans/SHIPPING-THE-BETA.md` first** — one file, how to hand it over,
 and "the first ten minutes" (the path the beta is actually built around and
-held to). `plans/BETA-PREFLIGHT.md` is the older checklist; its three headline
+held to). `plans/done/BETA-PREFLIGHT.md` is the older checklist; its three headline
 risks were closed on 2026-07-28 and it says so at the bottom.
 
 **Where things stand, end of 2026-07-28:** beta.2 is cut, verified, **installed

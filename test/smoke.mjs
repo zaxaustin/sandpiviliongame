@@ -79,7 +79,7 @@ for (const [key, s] of Object.entries(scenes)) {
    Every store in the save has to appear in DATA_MAP, or Your Data quietly
    stops telling the whole truth about what can leave this machine. That's a
    promise to a visitor, so it gets a test rather than a good intention.
-   See plans/COMMONS-AND-PRIVATE-PLAN.md. */
+   See plans/done/COMMONS-AND-PRIVATE-PLAN.md. */
 {
   const { DATA_MAP } = await import('../src/game/data/visibility.js');
   const mapped = new Set(DATA_MAP.map(d => d.key));

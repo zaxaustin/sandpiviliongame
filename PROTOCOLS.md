@@ -374,4 +374,4 @@ Written down so they aren't lost, not yet promised as finished:
   `plans/BETA-TESTING-FEEDBACK.md` #34): earn a collection by learning, not by
   paying.
 - **Standing up your own Pavilion** — clone, run, and make it yours (see
-  `plans/DESKTOP-APP-PLAN.md`).
+  `plans/done/DESKTOP-APP-PLAN.md`).

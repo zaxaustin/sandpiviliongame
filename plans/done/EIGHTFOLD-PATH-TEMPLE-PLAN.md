@@ -1,3 +1,14 @@
+> ## CLOSED 2026-08-02 — moved to `plans/done/`
+>
+> Both halves are built. The eight fold-signs went into the Keep with their own
+> visuals 2026-07-10, and the interactive layer this plan flagged as open — the
+> per-fold reflection ladder, where you keep an honest ongoing note against each
+> fold — is live as `openFoldReflection()` (`data.temple.folds`).
+>
+> Nothing here is directing work any more.
+
+---
+
 # Eightfold Path Temple Plan
 
 **Visuals built and verified live, 2026-07-10 — see the "Status" note at

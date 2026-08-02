@@ -1,3 +1,19 @@
+> ## CLOSED 2026-08-02 — moved to `plans/done/`
+>
+> Steps 1-3 built and verified live 2026-07-10: the 🧠 Local AI panel over
+> Ollama's `/api/ps`, per-action elapsed-time logging, and the "Today's session"
+> summary card.
+>
+> **Step 4 (real CPU/GPU percentages) is deliberately not being built.** It is
+> desktop-only, needs a new native package in Electron's main process, and would
+> add a background sampler to an app whose standing rule is that nothing runs
+> when you are not looking at it. The Ollama panel already answers the question
+> that was actually asked — *is a model loaded and how long did that take* —
+> without any of that. If it is ever wanted, reopen this file; it is not a
+> forgotten task.
+
+---
+
 # Local AI Monitoring Plan
 
 **Steps 1-3 built and verified live, 2026-07-10** — the "🧠 Local AI" panel

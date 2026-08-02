@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer-core';
 const CHROME='C:/Program Files/Google/Chrome/Application/chrome.exe';
 const OUT=process.env.TEMP ? process.env.TEMP.replace(/\\/g,'/')+'/' : './'; // screenshot lands in temp, not the repo
 /* ================================================================
-   [LIVE PRE-FLIGHT] — the automatable half of plans/BETA-PREFLIGHT.md.
+   [LIVE PRE-FLIGHT] — the automatable half of plans/done/BETA-PREFLIGHT.md.
 
    Tests the two things that checklist called unverified, against the
    BETA bundle (no Supabase, no MinIO) with NO local AI reachable —

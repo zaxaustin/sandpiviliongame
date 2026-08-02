@@ -1,3 +1,17 @@
+> ## CLOSED 2026-08-02 — moved to `plans/done/`
+>
+> Built the day it was written (2026-07-27). `src/game/data/visibility.js` draws
+> the line, `npm test` enforces it, every panel carries its visibility badge, and
+> the Commons Table is the room where the sharing actually happens.
+>
+> The *doctrine* this plan started has since grown its own document —
+> `CREDIT-AND-COMMONS-FRAMEWORK.md` (2026-08-02) — which carries the two-axis
+> provenance rule, the record-not-score reputation design, and where money is
+> allowed. New thinking about the commons belongs there. This one is the
+> receipt for the private/public split itself.
+
+---
+
 # Common vs private — the distinction, and where sharing happens
 
 Written **2026-07-27**, at direct request, and built the same day. The user's

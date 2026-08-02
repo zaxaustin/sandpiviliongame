@@ -1233,7 +1233,7 @@ continues *mid-text* rather than restarting the page.
 
 **The lesson worth keeping:** none of this was findable by testing. It needed
 someone to sit and listen to a book for a while. Everything in
-`plans/BETA-PREFLIGHT.md` Tier 4 exists for this reason.
+`plans/done/BETA-PREFLIGHT.md` Tier 4 exists for this reason.
 
 ## Round — 2026-07-27 (second pass, still from real use)
 

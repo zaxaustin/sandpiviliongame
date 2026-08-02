@@ -1,3 +1,20 @@
+> ## CLOSED 2026-08-02 — moved to `plans/done/`
+>
+> Everything this plan set out to do is built and in a shipped installer.
+> Phases 1-4 were done and proven live 2026-07-08; the bridge grew since
+> (streaming fetch, native save dialog, spell-check, personal-library file
+> storage); `npm run electron:build:beta` produces a local-only installer.
+>
+> **The one gap this plan kept flagging — "a clean install on hardware that
+> never built it" — closed 2026-07-28**, when the steward installed
+> `0.1.0-beta.2` on a machine and used it. That was the last unverified thing.
+>
+> Live desktop work now lives in `MAINTAINING.md` and `SHIPPING-THE-BETA.md`.
+> The only genuinely open platform item is **macOS**, which is tracked in
+> `SHIPPING-THE-BETA.md` and `MAC-BUILD.md`, not here.
+
+---
+
 # Desktop App Plan
 
 > **STATUS (2026-07-11):** Phases 1-4 all done and proven live (2026-07-08,

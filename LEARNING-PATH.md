@@ -900,7 +900,7 @@ because you understand what each one is actually for.
 **Why this stage exists:** you asked, directly, whether it's possible to
 see CPU usage from the local AI models and how many can run at once —
 both as a beta-testing tool and as a real feature (see
-`plans/LOCAL-AI-MONITORING-PLAN.md` for the actual build plan, not built yet
+`plans/done/LOCAL-AI-MONITORING-PLAN.md` for the actual build plan, not built yet
 on purpose). Before that gets built, the underlying concepts are worth
 having, the same way Stage 8 built the vocabulary before the Monk/report
 work leaned on it.
@@ -941,7 +941,7 @@ another with less GPU memory, even at the same clock speed.
 curl http://localhost:11434/api/ps
 ```
 This is the real, live answer to "what's actually loaded right now" —
-the exact endpoint `plans/LOCAL-AI-MONITORING-PLAN.md` plans to build a real
+the exact endpoint `plans/done/LOCAL-AI-MONITORING-PLAN.md` plans to build a real
 panel around. Read the JSON it prints: `size` is the model's total
 memory footprint, `size_vram` is how much of that is actually sitting on
 your GPU right now (if that number is `0`, that model is running on CPU

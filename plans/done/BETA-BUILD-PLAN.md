@@ -1,3 +1,20 @@
+> ## CLOSED 2026-08-02 — moved to `plans/done/`
+>
+> The build happened. `Sand Pavilion Setup 0.1.0-beta.2.exe` was cut, verified
+> as an *artifact* rather than as source (`test/live/packaged-boot.cjs`),
+> installed on a real machine, and used — 2026-07-28.
+>
+> The three gates this plan named are all closed: the welcome-packet decision
+> (27 texts, honest about which are summaries), the installer itself, and the
+> local-only guarantee (`scripts/verify-beta-build.mjs` fails the build if a
+> key or a cloud host survives into the bundle).
+>
+> **Handing it to people is now `SHIPPING-THE-BETA.md`'s job**, and what a
+> tester reads is `BETA-RELEASE-NOTES.md`. Findings from real use go to
+> `BETA-TESTING-FEEDBACK.md`.
+
+---
+
 # The Beta Build — what ships, how it's packaged, and what to iron out first
 
 > **STATUS (2026-07-27) — the code is beta-ready at `0.1.0-beta.2`; three gates

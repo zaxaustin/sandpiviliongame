@@ -89,7 +89,8 @@ Residents*, on the Practice shelf.
   The Republic, the Tao Te Ching and so on. Each of those ten says outright that
   it's a summary, names where the real text lives, and invites you to drag it in;
   the page then becomes the book. Filling it is the point, not a chore before it.
-- **Three lessons are marked "being written"** because they are.
+- **Two lessons are marked "being written"** because they are — Electronics 201
+  and Security 101. Everything else in the Learning Tree is real.
 - **The Course Board starts bare.** It's yours to pin.
 - **The café boards are closed** — they wait on a shared server that doesn't
   exist yet.
