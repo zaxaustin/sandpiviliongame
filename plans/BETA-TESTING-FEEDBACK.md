@@ -1890,3 +1890,36 @@ untouched, and undo restores perfectly.
 
 `test/live/librarian-safety.mjs` is the standing guard, because these are
 **properties**, not features, and properties erode quietly.
+
+---
+
+### #33 — "drop it anywhere on the Pavilion" is not true (found 2026-08-02, by writing a test)
+
+`MANUAL.md` and `plans/BETA-RELEASE-NOTES.md` both promise a file can be
+"dragged from your Downloads folder and dropped **anywhere on the Pavilion** —
+you do not need to be on this screen, or in the Library, or anywhere in
+particular."
+
+There is **no document-level drop handler.** The only `ondrop` in the codebase
+is on the drop zone inside one panel (`overlays.js`, the intake/Caravan drop
+zone). Drop a book on the world, the Library, or the pause menu and nothing at
+all happens — no error, no hint, nothing. Found while writing
+`test/live/bundle.mjs`, which could not simulate the documented gesture because
+the gesture does not exist.
+
+**Severity: high for a beta.** It is the single most-promoted way to get a book
+in, it is in the release notes a tester reads first, and its failure mode is
+silence — the worst kind, because nobody reports it. They conclude the app
+ignored their file and stop trying.
+
+**Two honest fixes, and the first is small:**
+1. Add a `document`-level `dragover`/`drop` handler that routes to
+   `intakeBookFiles()`, making the documentation true. Needs a visible "drop to
+   shelve" state so the gesture is discoverable rather than merely functional.
+2. Or correct both documents to say where the drop zone actually is.
+
+**(1) is right.** The promise is a good one and the code is nearly there —
+`intakeBookFiles()` already handles single files, piles, and now bundles; it
+just needs a door on the outside. Bundles were built with this in mind and no
+longer require a panel to be open.
+

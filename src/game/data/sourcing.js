@@ -100,6 +100,8 @@ const KNOWN = [
   [/github\.com|gitlab\.com/i,     'given', 'a public code host — check the repository\'s licence file'],
   [/openstax\.org|oercommons\.org|merlot\.org/i, 'given', 'an open educational resources publisher'],
   [/loc\.gov|archive\.org\/details\/(?!.*lending)/i, 'given', 'a public archive'],
+  [/sacred-texts\.com/i,           'given', 'the Internet Sacred Text Archive — public-domain scripture and philosophy'],
+  [/perseus\.tufts\.edu|ccel\.org/i, 'given', 'a scholarly public-domain archive'],
 
   // --- the line -----------------------------------------------------------
   [/lib(gen|rary)\s*gen|libgen|gen\.lib|sci-?hub|z-?lib|zlibrary|b-ok\.|annas?-?archive/i,

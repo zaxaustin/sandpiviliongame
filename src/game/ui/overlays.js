@@ -8042,9 +8042,116 @@ export function handleBookFilePick(event){
 }
 async function intakeBookFiles(fileList, msg){
   const files=[...(fileList||[])];
-  if(!files.length || !msg) return;
+  if(!files.length) return;
+  /* A bundle is checked FIRST and needs no status element, because it opens its
+     own panel to report into. The .txt/.epub paths write into #dropMsg and so
+     genuinely require it; a bundle does not, and making it wait for one would
+     tie it to whichever panel happens to be open. */
+  if(files.length===1 && /\.json$/i.test(files[0].name)) return openDroppedBundle(files[0], msg);
+  if(!msg) return;
   if(files.length>1) return bulkShelveDroppedFiles(files, msg);
   return fillFromSingleFile(files[0], msg);
+}
+
+/* ================================================================
+   [BUNDLES] — a set of books with their provenance, in one file.
+   Built 2026-08-02. See plans/BOOK-BUNDLES-AND-THE-POOL.md.
+
+   Nothing is added until you have seen the manifest and pressed the
+   button. That is the same discipline the Commons Table already uses,
+   and it matters more here because a bundle can carry fifty books at
+   once: a silent bulk import is how a shelf you curated becomes a
+   shelf you inherited.
+
+   Every book carries a sha256, checked on arrival. A book already on
+   your shelf with the same hash is skipped rather than duplicated —
+   so re-importing the same packet twice does nothing, which is the
+   behaviour anyone would expect and almost no importer has.
+   ================================================================ */
+async function sha256Hex(text){
+  const buf=new TextEncoder().encode(text);
+  const d=await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function openDroppedBundle(file, msg){
+  const say=t=>{ if(msg) msg.textContent=t; };
+  let b;
+  try{ b=JSON.parse(await file.text()); }
+  catch(e){ say("That .json isn't readable as a bundle."); return; }
+  if(!b || !b.sandPavilionBundle || !Array.isArray(b.books)){
+    say("That .json isn't a Pavilion bundle. (A save file? Use Import Save in the pause menu instead.)");
+    return;
+  }
+  say('');
+  const mine=new Set(personalBooks().map(x=>x.slug));
+  const haveHash=new Set();
+  for(const x of personalBooks()){
+    const t=x.doc && x.doc.fullText && x.doc.fullText.text;
+    if(t) haveHash.add(await sha256Hex(t));
+  }
+  const rows=[];
+  for(const bk of (b.books||[])){
+    const real=bk.text ? await sha256Hex(bk.text) : null;
+    const intact = !bk.sha256 || !real || real===bk.sha256;
+    rows.push({ ...bk, intact, already: mine.has(bk.slug) || (real && haveHash.has(real)) });
+  }
+  state.bundleView={ bundle:b, rows };
+  state.ui='bundle'; hideAllOv(); renderBundle(); showOv('bundleOv');
+}
+function renderBundle(){
+  const v=state.bundleView; if(!v) return;
+  const b=v.bundle, rows=v.rows;
+  const fresh=rows.filter(r=>!r.already && r.intact);
+  const dupes=rows.filter(r=>r.already);
+  const broken=rows.filter(r=>!r.intact);
+  const kb=n=>n>1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';
+  document.getElementById('bundlePanel').innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>📦 ${esc(b.title||'A bundle of books')}</h2>
+    <div class="meta">${b.by?`From <b>${esc(b.by)}</b>. `:''}${b.made?`Made ${esc(b.made)}. `:''}
+      ${b.private?'<b style="color:#e0a43c">Marked a private archive</b> — whoever made it did not intend it to be handed on.':''}</div>
+    ${b.message?`<div class="card" style="cursor:default;margin-top:10px"><div class="s" style="white-space:pre-wrap">${esc(b.message)}</div></div>`:''}
+    <div class="meta" style="margin-top:12px"><b>Nothing is added until you press the button.</b>
+      ${fresh.length} new, ${dupes.length} already on your shelf${broken.length?`, ${broken.length} failed their checksum`:''}.</div>
+    ${broken.length?`<div class="card" style="cursor:default;border-color:#c8574a;margin-top:8px">
+      <div class="t" style="color:#c8574a">${broken.length} book${broken.length===1?'':'s'} did not match the hash recorded for ${broken.length===1?'it':'them'}</div>
+      <div class="s" style="margin-top:5px">The text is not the text the bundle says it is — altered in transit, or the bundle was
+        built wrong. These will not be added. ${broken.map(r=>esc(r.title)).join(', ')}</div></div>`:''}
+    <div style="margin-top:10px">${rows.map(r=>`
+      <div class="card" style="cursor:default${r.already?';opacity:.55':r.intact?'':';border-color:#c8574a'}">
+        <div class="t">${r.already?'✓ ':''}${esc(r.title||r.slug)} ${r.bytes?`<span class="badge lic">${kb(r.bytes)}</span>`:''}</div>
+        ${r.attribution?`<div class="s" style="margin-top:3px">${esc(r.attribution)}</div>`:''}
+        <div class="s" style="margin-top:4px;opacity:.85">
+          ${esc(r.license||'licence not stated')}${r.source_url?` · <span style="opacity:.8">${esc(r.source_url)}</span>`:''}</div>
+        ${r.already?'<div class="s" style="margin-top:3px;color:#7fa36b">already on your shelf — will be skipped</div>':''}
+      </div>`).join('')}</div>
+    <div class="row" style="margin-top:14px">
+      ${fresh.length?`<button class="btn" onclick="acceptBundle()">Add ${fresh.length} book${fresh.length===1?'':'s'} to my shelf</button>`:''}
+      <button class="btn ghost" onclick="closeUI()">${fresh.length?'Not now':'Close'}</button>
+    </div>`;
+}
+export function acceptBundle(){
+  const v=state.bundleView; if(!v) return;
+  const add=v.rows.filter(r=>!r.already && r.intact && r.text);
+  if(!add.length) return;
+  for(const r of add){
+    let slug=r.slug||('bundle-'+Date.now());
+    let n=1; while(personalBooks().some(x=>x.slug===slug)) slug=(r.slug||'book')+'-'+(++n);
+    data.personalLibrary.unshift({
+      slug, title:r.title||slug, tradition:r.tradition||'Personal', personal:true,
+      license:r.license||'', source_url:r.source_url||'', attribution:r.attribution||'',
+      added:todayKey(), category:'personal',
+      // provenance travels with the book, permanently — so it can be honestly
+      // re-shared, or correctly refused, by someone who was never here
+      sharing:r.sharing||'', gathered:r.gathered||'',
+      doc:{ summary:r.summary||'', sections:[], fullText:{ text:r.text } },
+    });
+  }
+  persist();
+  logActivity('Took '+add.length+' book'+(add.length===1?'':'s')+' from the bundle "'+(v.bundle.title||'untitled')+'".');
+  blip(784,.09);
+  state.bundleView=null; closeUI();
+  openMyLibrary();
 }
 // Parse one .txt/.epub into {title, body, author}. Throws with a short reason so
 // the bulk loop can record which files failed without stopping the rest.
@@ -9802,7 +9909,7 @@ Object.assign(window, {
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   setNotesLogSort,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
-  setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
+  acceptBundle, setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
   writePacketFile, triggerImportPacket, setCommonsName,
 });
