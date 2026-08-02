@@ -17,7 +17,7 @@ because anything is wrong. If you'd like to check the download:
 
 ```powershell
 Get-FileHash "Sand Pavilion Setup 0.1.0-beta.2.exe" -Algorithm SHA256
-# D3B883A14627A769AD5EC564563EBC458585FC5FD01FCF9A3FF7DBF3111EA0B0
+# C5A8A8B2AFCE31010A7EF6A39E2314674F5155F9F6BA9EE6626C807AC92ABCCF
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -56,6 +56,25 @@ There's a guide inside the app that explains all of it plainly — *Waking the
 Residents*, on the Practice shelf.
 
 ---
+
+### What's new since the first build
+
+- **☀ Today** — a door in the pause menu that says what is actually waiting for
+  you: what is overdue, the next step of something you started, a thing you have
+  carried for days, a book you added and never opened. Five at most, each one
+  press from the thing itself. Computed when you open it; nothing runs in the
+  background and no AI is involved.
+- **Sebastian's stand-up** — one question at a time instead of a form, then he
+  brings you what is waiting rather than asking you to remember it.
+- **🖥 The Computer** is now a real terminal index over your own library —
+  `ls`, `find`, `papers`, `unread`, `analyses`, `open 3`. **No AI needed.**
+- **📥 Bring a Book In** — a table beside Your Shelf that explains the whole
+  thing: drag a file onto the window, where to get free books, and which folder
+  on your disk the text lands in.
+- **Sorting is mostly automatic now** — rules file the obvious books with no AI
+  at all, and only genuinely ambiguous ones are ever sent to a model.
+- **Coding 101** is written for real: six steps to your first change to the app
+  itself.
 
 ### Known and deliberate
 
