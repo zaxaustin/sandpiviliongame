@@ -52,6 +52,108 @@ yet) and update `MAINTAINING.md`'s "What's next" section to match reality —
 future sessions (yours or anyone else's) depend on both staying honest,
 not aspirational.
 
+---
+
+## LOOK AT IT. The single most useful habit here.
+
+Added 2026-08-02, after a day where every serious bug was found by looking and
+none were found by reasoning. **You can see the running game. Do it.**
+
+```bash
+npm run build:beta                       # or: npm run dev
+npm run preview                          # serves dist/ on :4173
+```
+
+Then drive a real browser at it — `puppeteer-core` is a devDependency, and
+system Chrome is already on this machine:
+
+```js
+import puppeteer from 'puppeteer-core';
+const CHROME='C:/Program Files/Google/Chrome/Application/chrome.exe';
+const b=await puppeteer.launch({executablePath:CHROME,headless:'new',
+                                defaultViewport:{width:1000,height:760}});
+const p=await b.newPage();
+p.on('pageerror',e=>console.log('PAGEERR',e.message));   // ALWAYS. Silent breakage is the norm here.
+// seed a save BEFORE the first load, or you get the welcome screen
+await p.evaluateOnNewDocument(s=>localStorage.setItem('sandPavilionSave.v2',s),
+  JSON.stringify({seenWelcome:true, aiConnections:[]}));
+await p.goto('http://localhost:4173',{waitUntil:'networkidle2'});
+await p.click('#startBtn'); await new Promise(r=>setTimeout(r,1300));
+
+await p.evaluate(()=>window.openLab());        // every panel fn is on window
+await p.screenshot({path:'<scratchpad>/shot.png'});
+```
+
+Then **Read the .png**. You can see it. Working examples live in `test/live/`.
+
+**Things this catches that nothing else does**, all real, all from one day:
+- a packaged app that never booted (`base:'./'` missing) — the title screen
+  rendered fine and the button did nothing
+- three panels that could never be dismissed, because `hideAllOv()` was a
+  hand-maintained list missing the newest ids
+- a staircase that was only a *sign* — the warp tile drew as blank floor
+- the word "undefined" printed under every hand-added book
+- the café boards saying "needs a Supabase connection" to people who had never
+  heard of Supabase
+
+### Getting around inside a screenshot session
+- `window.takeLift('workshop'|'workshopfloor2'|'workshopfloor3')` — jump floors
+- every overlay opener is on `window`: `openLab`, `openScienceHall`, `openComputer`,
+  `openMyLibrary`, `openCatalog`, `openIndex`, `openLearningTree`, `openMenu`…
+- the terminal: set `#termIn`'s value then `window.termSubmit()` — and
+  **re-query the input between commands**, the panel re-renders and the old
+  node is detached
+- reader/overlay open state is the class **`open`**, not `show`
+
+---
+
+## Hard-won rules, so they are not re-learned
+
+1. **Test the artifact you ship, not the one you develop in.** Learned three
+   times in one day. `npm run build:beta` then
+   `env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs`
+   before any installer goes anywhere. `npm run verify:release` checks the docs
+   AND that the .exe is not older than the source.
+2. **A guard that cannot fail is worse than no guard.** After writing a check,
+   deliberately break the thing and watch it fail. Two checks written this week
+   passed happily against the exact bug they were written for.
+3. **Any hand-maintained list that must match another file WILL drift.** Derive
+   it instead. `hideAllOv()` and the window-export block both bit on the same
+   day, the same way. `npm test` now checks the export list in both directions.
+4. **Silent failure is the house failure mode.** A button that does nothing, a
+   panel that will not close, a drop that is ignored — nobody reports these,
+   they just stop using the feature. Prefer a loud wrong thing.
+5. **localStorage is per-origin.** `http://localhost:5173` (dev),
+   `http://localhost:4173` (preview) and `file://` (packaged) are three separate
+   saves. "My books vanished" is almost always this.
+6. **`puppeteer.evaluateOnNewDocument` re-fires on reload** — it will overwrite
+   the save you were about to verify. Carry the written save to a second page
+   instead.
+7. **Keep live tests small.** One passing 5 MB payload through puppeteer's
+   serializer hung past 100 s. A test slow enough to skip is one you skip.
+8. **Writing files:** bash heredocs mangle `\n` and backticks in JS. Write a
+   Python patch script with the Write tool, run it, delete it. Commit messages
+   go through `git commit -F <file>`.
+9. **electron-builder EPERM on `release/`:** an editor is watching the folder.
+   Build to `$TEMP/sp-build` via `--config.directories.output` and copy back.
+
+---
+
+## The test suite, and what each part is for
+
+```
+npm test                                   # pure logic + config drift, ~1s, run always
+node test/live/preflight.mjs               # 39 checks: old saves migrate, 33 panels open, ZERO network
+node test/live/lab.mjs                     # the Lab, datasheets, the paper shelf
+node test/live/bench.mjs                   # predict-before-you-look, and it cannot be edited after
+node test/live/librarian-safety.mjs        # the data-loss bug that reached a real user
+node test/live/bundle.mjs                  # a bundle is reviewed before anything lands
+env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
+```
+
+The `live/` ones need `npm run preview` running. `ELECTRON_RUN_AS_NODE` must be
+unset or `require('electron')` returns a path string instead of the module.
+
 ## Five standing decisions, stated plainly so they don't have to be re-derived
 
 **The desktop app is the main focus going forward.** This project runs

@@ -3056,11 +3056,29 @@ const LIBRARY_TAXONOMY = {
   'Fiction':        {section:'Fiction', sub:'Fiction'},
   'Non-fiction':    {section:'Non-fiction', sub:'Non-fiction'},
 };
-const SECTION_ORDER=['Religion & Spirituality','Philosophy & Classics','Science','Non-fiction','Fiction','Other'];
+const SECTION_ORDER=['Your shelves','Religion & Spirituality','Philosophy & Classics','Science','Non-fiction','Fiction','Other'];
 function bookSection(d){
+  /* YOUR OWN SHELVES COME FIRST — fixed 2026-08-02, reported as "it's a bit
+     weird to see all the different sections not being there."
+
+     The taxonomy below maps the eleven LINEAGE shelves the Library ships with,
+     and it was written before a visitor could name their own. So after a real
+     sorting session — 111 books filed onto shelves like Electronics, Work,
+     Recipes — every one of them fell through to {section:'Other'} and the
+     Stacks showed the shelves you had just spent an evening making as a single
+     grey heap called Other. The Index did the same thing one bucket over,
+     lumping them all under "Personal".
+
+     A book on a shelf you named goes in a section called what you named it.
+     The lineage taxonomy still governs the certified Library; it simply no
+     longer gets the first word about a book that was never part of it. */
+  if(d.personal && d.tradition && d.tradition!=='Personal'){
+    return {section:'Your shelves', sub:d.tradition};
+  }
   const t=LIBRARY_TAXONOMY[d.tradition];
   if(t) return t;
   const c=d.category;
+  if(d.personal) return {section:'Your shelves', sub:'Still to sort'};
   if(c==='fiction') return {section:'Fiction', sub:'Fiction'};
   if(c==='non-fiction') return {section:'Non-fiction', sub:'Non-fiction'};
   if(c==='research') return {section:'Science', sub:'Research papers'};
@@ -3078,13 +3096,21 @@ function renderCatalog(){
   const v=state.catalogView||{section:null,sub:null};
   const tree={};
   Store.allDocs().forEach(d=>{ const {section,sub}=bookSection(d); (tree[section]=tree[section]||{}); (tree[section][sub]=tree[section][sub]||[]).push(d); });
+  /* A shelf you made but have not filled yet still exists, and a catalogue that
+     omits it is telling you it forgot. Same reason the Index shows empty
+     categories: the shape should be there before the content is. */
+  (data.myShelves||[]).forEach(name=>{
+    tree['Your shelves']=tree['Your shelves']||{};
+    tree['Your shelves'][name]=tree['Your shelves'][name]||[];
+  });
   const sections=SECTION_ORDER.filter(s=>tree[s]).concat(Object.keys(tree).filter(s=>!SECTION_ORDER.includes(s)));
   const panel=document.getElementById('catalogPanel');
   const header=`<button class="xbtn" onclick="closeUI()">Esc ✕</button><h2>🗂 The Stacks</h2>`;
   if(!v.section){
     panel.innerHTML = header
       +`<div class="meta">The whole Library, by section — built to hold a lot of books. The physical
-        shelves are a curated handful; this is <i>everything</i>, sorted. Pick a section to drill in.</div>`
+        shelves are a curated handful; this is <i>everything</i>, sorted, including the shelves you
+        named yourself. Pick a section to drill in.</div>`
       +`<div style="margin-top:12px">${sections.map(s=>{
         const subs=tree[s], n=Object.values(subs).reduce((a,arr)=>a+arr.length,0);
         return `<div class="card" onclick="catalogOpen('${encTok(s)}')"><div class="t">${esc(s)} <span class="badge">${n}</span></div>
