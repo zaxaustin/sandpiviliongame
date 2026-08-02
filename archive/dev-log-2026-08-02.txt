@@ -120,3 +120,130 @@ sitting there when Stage 1 arrives.
 One line to hold onto: every stage of this project ends in a number you
 predicted and a number you measured, and the gap between them is the only
 thing the Hall has ever cared about.
+
+
+================================================================
+SAME DAY, SECOND PASS — DATASHEETS, PAPER BOOKS, AND THE LAB
+================================================================
+
+The ask: "lets put data sheets in the computer as well if we can, i have
+the invertors guide to electronics book which is good, but its a real book
+not somthing i can scan, i want a way to use this as a platfor for fun work
+and real learning, if we dont need another room thats fine but it would be
+nice to have somthing like a science lab to do all these things."
+
+Three things, and the middle one was the interesting one.
+
+1. DATASHEETS — a `kind` on a shelf entry
+------------------------------------------
+A datasheet is genuinely not a book and not a paper. You never read one
+start to finish. It belongs to a PART rather than an author. You come back
+to it fifty times for one number. So it does not get a browse; it gets a
+LOOKUP. At the Computer:
+
+    ds              list them by part number
+    ds tsop         open TSOP38238 immediately
+
+`ls` grew a three-character kind column (ds / pap / own / blank), because a
+terminal should tell you what a thing IS without you opening it.
+
+2. BOOKS YOU OWN ON PAPER — the one worth thinking about
+---------------------------------------------------------
+The steward owns Practical Electronics for Inventors as a physical book.
+Can't scan it, and shouldn't — it's in copyright and this project doesn't
+launder provenance.
+
+The tempting answer is "so it can't be part of the Pavilion." That's wrong,
+and seeing why took a minute. A `physical` entry has NO TEXT and never
+will — that's the honest part, stated on the card. What it can still do:
+
+  - stay findable in `ls`, `find`, `owned`
+  - hold page-referenced notes
+  - be cited as evidence in an investigation or a bench step
+  - and the load-bearing one: THE RESIDENTS ARE TOLD YOU OWN IT
+
+That last one is the whole feature. referenceShelfBlock() feeds the
+Computer, the Tutor and the Investigator a list of what's on the shelf
+across the room, with an explicit instruction: when one of these genuinely
+covers the question, SAY SO and send them to it by name — never pretend to
+quote it, never invent a page number. So the answer becomes "you own
+Scherz & Monk, chapter 4 covers exactly this, go and look" instead of a
+thinner explanation from memory.
+
+That is a real bookshelf becoming part of the platform with no scanner and
+no copyright problem, and it is a better answer than scanning would have
+been. Pointing is the service.
+
+3. THE ROOM — and it cost nothing
+----------------------------------
+"if we dont need another room thats fine but it would be nice to have
+somthing like a science lab."
+
+Went looking for where to put it and found the Pavilion had already
+promised it. The Workshop's Unfinished Floor has carried a MAKER'S BENCH
+placeholder since that floor was built, and its sign reads, verbatim:
+
+    "A home for real-world physical projects — a build, a repair, a
+     garden. Distinct from the Grant Desk's funding focus and the
+     Research Desk's thinking-through focus. Not open yet."
+
+That is exactly what got built this week. So the placeholder OPENED rather
+than a new room appearing beside it. A promise kept beats a promise added,
+and that floor is one room less unfinished. Sprite key stays `makersbench`
+(it was always drawn as a workbench); only the visible name changed.
+
+Worth noting this quietly overrules the Hall plan's basement instinct. The
+REASONING there survives — a lab is where you're allowed to break things,
+and that belongs apart from where claims get appraised carefully — it just
+turned out to be one floor up instead of one down.
+
+What the Lab actually IS: the gathering view. RESEARCH-ROOM-PLAN.md Phase 1
+asked for a "My Research" home and said to build it from what real use
+showed was needed rather than guessing in advance. Real use had now shown:
+builds, datasheets, the paper shelf, investigations, experiments. So it is
+that, wearing a lab coat. It OWNS NOTHING — every count is read live from
+where the thing already lives and every button walks you there, so there's
+no second copy to drift out of sync. The one thing it surfaces on its own
+is predictions still waiting on a result, because that's the only half of a
+bench entry that goes stale.
+
+FOUND IN PASSING
+----------------
+The reader printed the literal word "undefined" under the title of every
+book added by hand — esc(d.source_url) on an entry that has no source_url,
+which is EVERY dragged-in book. Cosmetic, but it's on the most-used screen
+in the app and it had been there a while. Now says nothing instead of
+saying that, and there's a check for it.
+
+Also: main.js was calling openBookIntake() and openNotesLog() without
+importing them. Not a bug — they resolve off `window`, because everything
+in overlays.js is exported there for the onclick handlers — but it worked
+by accident rather than on purpose. Imported explicitly now.
+
+TESTING
+-------
+test/live/lab.mjs, 16 checks. Three test bugs found on the way, all mine
+and all the same family — asserting against the wrong thing:
+
+  - the terminal keeps SCROLLBACK, so "X is absent from this output" was
+    reading the previous command's output and passing wrongly. Each command
+    clears first now.
+  - termSubmit() re-renders the panel, so a captured #termIn reference goes
+    stale between commands and setting .value on it does nothing silently.
+    Re-query between commands.
+  - the reader overlay's class is `open`, not `show`. Asserted the wrong
+    one and concluded the feature was broken when it wasn't. Checked what
+    the DOM actually said before touching the code — which is the only
+    reason the "undefined" bug got noticed at all, since it was sitting
+    right there in the debug output.
+
+npm test clean, preflight 39/39 with zero external requests, bench 12/12,
+librarian-safety green.
+
+STILL OPEN
+----------
+One gap left from the audit: the Electronics track. 201 is three (planned)
+stubs and there is no 301; the six-stage ladder in the project file should
+BE that track. That's the next obvious build. The fifth item — a hard,
+measured exemplar investigation in the Hall — is better written after the
+steward has actually run one, not invented now.

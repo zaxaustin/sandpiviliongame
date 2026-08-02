@@ -289,10 +289,38 @@ then is the result half reachable. There is no path to edit a guess after the
 fact. Guarded by `test/live/bench.mjs` (12 checks) because that property could
 rot into one all-at-once form and still look perfectly fine.
 
-**Four gaps remain from that audit**, listed at the end of the project file —
-next up is the Electronics track (201 is three `(planned)` stubs and there's no
-301; the six-stage ladder should *be* that track), then the "My Research" home
-(`RESEARCH-ROOM-PLAN.md` Phase 1).
+**Then, same day, three more of that audit's gaps closed** — datasheets, paper
+books, and the room:
+
+- **A shelf entry now has a `kind`**: a book, 📄 a paper, ⚙ **a datasheet**
+  (carrying a `part` number), or 📕 **owned on paper**. Set from a dropdown in
+  Your Library; `setBookKind()`.
+- **Datasheets get a lookup, not a browse**, because nobody browses one: `ds` at
+  the Computer lists them by part, `ds <part>` opens the thing. `ls` gained a
+  three-character kind column.
+- **Books you own on PAPER** — no text here and never will be, which is the
+  honest part. They stay findable and citable, and **`referenceShelfBlock()`
+  tells the Computer, the Tutor and the Investigator that you own them**, so the
+  answer can be *"you have that one, chapter 4, go and look"* instead of a worse
+  explanation from memory. That is the whole reason the kind exists.
+- **🔬 The Lab** (`openLab()`) — the gathering view: builds, datasheets, the
+  paper shelf, investigations, experiments. It **owns nothing**; every count is
+  read live from where the thing lives. This is `RESEARCH-ROOM-PLAN.md` Phase 1
+  ("My Research") and the Hall plan's L1 room, both at once.
+- **It cost no new building.** The Workshop's Unfinished Floor already carried a
+  MAKER'S BENCH placeholder promising *"a home for real-world physical projects
+  — a build, a repair."* That is what got built, so the placeholder **opened**
+  rather than a room appearing beside it. `scenes.js` keeps the sprite key
+  `makersbench`; only the visible name changed to THE LAB.
+- Fixed in passing: the reader printed the literal word **"undefined"** under the
+  title of every book added by hand (no `source_url`). Guarded, and tested.
+
+**Guards:** `test/live/lab.mjs` (16 checks) and `test/live/bench.mjs` (12).
+
+**One gap left from that audit:** the **Electronics track** — 201 is three
+`(planned)` stubs and there is no 301. The six-stage ladder in the project file
+should *be* that track. (The fifth item — a hard, measured exemplar investigation
+in the Hall — is best written once the steward has actually run one.)
 
 **The one open platform gap: macOS.** Most of the first testers are on Macs and
 the `.exe` is Windows-only. A macOS app cannot be built on Windows, so there are

@@ -114,9 +114,24 @@ exactly as you were for the Academy.
 (real, self-directed, hardware-optional), pointing you to use the Hall to test
 and the Research Desk to keep notes. The beta test starts here.
 
-**Phase 1 — The "My Research" home.** One view gathering investigations + kept
-papers + research projects + ideas, with private/released state shown. Built from
-what the electronics run shows is actually needed.
+**Phase 1 — The "My Research" home. ✅ BUILT 2026-08-02, as *the Lab*.** Exactly
+as this plan asked: built from what the electronics run actually showed was
+needed (builds, datasheets, the paper shelf, investigations, experiments), rather
+than from a guess made in advance. `openLab()`. It **owns nothing** — every count
+is read live from where the thing already lives and every button walks you there,
+so there is no second copy to drift.
+
+**And Phase 3 answered itself, cheaper than either option.** This plan said the
+room should be decided from real use, between "the Hall as a real room" and "a
+Library papers floor." Real use picked a third door nobody had listed: the
+Workshop's Unfinished Floor has carried a **MAKER'S BENCH** placeholder since it
+was built, whose sign read *"a home for real-world physical projects — a build, a
+repair. Not open yet."* That is precisely what got built. So the placeholder
+**opened** instead of a new room appearing beside it — a promise kept beats a
+promise added, and the floor is one room less unfinished. Note this supersedes
+`SCIENCE-RESEARCH-HALL-PLAN.md`'s basement instinct; the reasoning there (a lab
+is where you're allowed to break things, kept apart from where claims are
+appraised carefully) survives intact, just one floor up instead of one down.
 
 **Phase 2 — The private→release path, made explicit.** A clear "keep private" vs
 "release to the commons" action on research items, backed by the review queue and

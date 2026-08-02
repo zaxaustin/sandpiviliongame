@@ -243,11 +243,25 @@ Assessed 2026-08-02 against the actual code, not the plans.
    to close first.**
 2. **The Electronics track stops at 101.** 201 is three `(planned)` stubs and
    there is no 301. The ladder above should *be* that track.
-3. **Datasheets have nowhere to live as datasheets.** Not a book, not a
-   paper — a reference you return to fifty times. `category:'research'`
-   exists in `seed.js` and nothing routes to it.
-4. **No "My Research" home** — Research Room Phase 1, still unbuilt. Papers,
-   investigations, projects and ideas remain scattered across four rooms.
+3. ~~**Datasheets have nowhere to live as datasheets.**~~ **CLOSED 2026-08-02.**
+   A shelf entry now carries a `kind` — a book, a paper, **a datasheet** (with a
+   part number), or **owned on paper**. Datasheets get a *lookup* rather than a
+   browse, because nobody browses one: `ds` lists them by part at the Computer
+   and `ds <part>` opens the thing.
+4. ~~**No "My Research" home.**~~ **CLOSED 2026-08-02 — the Lab.** Reached from
+   the Workshop's Unfinished Floor, where the MAKER'S BENCH placeholder already
+   promised exactly this. Gathers builds, datasheets, the paper shelf,
+   investigations and experiments; owns none of them.
+
+   **Also built, and not on this list because it hadn't been noticed yet:
+   books you own on PAPER.** The steward owns *Practical Electronics for
+   Inventors* as a real book, unscannable (and rightly so). A `physical` entry
+   has no text and never will — but it stays findable, it holds page-referenced
+   notes, it can be cited in an investigation, and **the residents are told you
+   own it**, so the answer becomes *"you have Scherz & Monk — chapter 4 covers
+   this, go and look"* rather than a thinner explanation from memory. That last
+   part is the entire reason to record one, and it's what makes a real bookshelf
+   part of the platform without a scanner or a copyright problem.
 5. **Every seed investigation is soft science.** Nothing in the Hall shows
    what a hard, measured, one-evening investigation looks like. The carrier-
    frequency question would be the best exemplar card in the Hall.

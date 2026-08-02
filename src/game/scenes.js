@@ -373,10 +373,14 @@ function buildWorkshopFloor3(){
     name:'The Workshop — the Unfinished Floor', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:2,y:7,to:'workshopfloor2',sx:7,sy:1}],
     signs:[{x:2,y:1,name:'ROUGH TIMBER SIGN',
-      text:"THE UNFINISHED FLOOR\nFraming and good intentions, same as the sign outside\nalways said — just a real floor now instead of a line.\nFive rooms, none open yet. Face one and press E."}],
+      text:"THE UNFINISHED FLOOR\nFraming and good intentions, same as the sign outside\nalways said — just a real floor now instead of a line.\nFive rooms. The Lab is open; the other four aren't.\nFace one and press E."}],
     stations:[
       {x:5,y:2,kind:'ledger',name:'THE LEDGER'},
-      {x:10,y:2,kind:'makersbench',name:"THE MAKER'S BENCH"},
+      // Opened 2026-08-02. Was THE MAKER'S BENCH, whose placeholder promised
+      // "a home for real-world physical projects — a build, a repair" — which is
+      // exactly what got built, so the promise was kept rather than a new room
+      // added beside it. Sprite key unchanged; it was always a workbench.
+      {x:10,y:2,kind:'makersbench',name:'THE LAB'},
       {x:5,y:5,kind:'greenhouse',name:'THE GREENHOUSE'},
       {x:10,y:5,kind:'roundtable',name:'THE ROUND TABLE'},
       {x:13,y:4,kind:'mailroom',name:'THE MAILROOM'},

@@ -335,6 +335,29 @@ function pastAsksBlock(agent){
   return '\n\nThings this visitor has asked you about on past visits (for continuity — mention it naturally if relevant, don\'t force it):\n'
     +mem.slice(-8).map(m=>`- (${m.ts}) ${m.text}`).join('\n');
 }
+/* What the visitor has to hand that the Pavilion CANNOT read — books on a real
+   shelf across the room — plus the datasheets they keep. Added 2026-08-02 with
+   the physical shelf, and it is the entire reason recording a paper book is
+   worth doing: "you own Scherz & Monk, chapter 4 covers exactly this, go and
+   look at it" is a better answer than a thinner explanation from memory, and it
+   is only possible if the resident knows what is on the shelf behind you.
+   Given to the three residents who answer practical questions. */
+function referenceShelfBlock(){
+  const mine=personalBooks();
+  const own=mine.filter(b=>b.kind==='physical');
+  const ds=mine.filter(b=>b.kind==='datasheet');
+  if(!own.length&&!ds.length) return '';
+  let s='';
+  if(own.length) s+="\n\nBooks the visitor owns ON PAPER. You cannot read these and neither can the "
+    +"Pavilion — but they are on a real shelf within arm's reach. When one of them genuinely covers "
+    +"what is being asked, SAY SO and send them to it by name, with a chapter or a topic if you know "
+    +"the book, rather than giving a thinner explanation from memory. Never pretend to quote from one "
+    +"and never invent a page number — pointing them at it is the whole service here:\n"
+    +own.map(b=>`- "${b.title}"${b.attribution?' — '+b.attribution:''}`).join('\n');
+  if(ds.length) s+="\n\nDatasheets they keep (reachable at the Computer with  ds <part>):\n"
+    +ds.map(b=>`- ${b.part||'—'} · "${b.title}"`).join('\n');
+  return s;
+}
 const CHAT_AGENTS = {
   quill:{
     label:'Quill',
@@ -456,6 +479,7 @@ const CHAT_AGENTS = {
           : '')
         +"\n\nThe Hall's investigations so far:\n"+investigationsForPrompt()
         +"\n\nThe most relevant shelves, if useful (cite a text by name rather than inventing one):\n"+hallShelfSummary()
+        +referenceShelfBlock()
         +pastAsksBlock('investigator');
     },
     errorLine:"The Investigator's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -543,6 +567,7 @@ const CHAT_AGENTS = {
         +"request would genuinely be better as a structured course (the Course Board) or a grounded "
         +"project workspace (the Research Desk, the Grant Desk), say so plainly and point there — "
         +"you're one tool among several here, not the only one."
+        +referenceShelfBlock()
         +pastAsksBlock('computer');
     },
     errorLine:"…connection lost. (Check that your AI connection is still running.)",
@@ -575,6 +600,7 @@ const CHAT_AGENTS = {
         +"bluffing; you are a patient study aid, not an accredited teacher. Encourage; never condescend."
         +(lesson?("\n\nThe visitor is studying this lesson — stay grounded in it; teach and quiz from it, "
           +"and if they are stuck, help with THIS specifically:\n"+lesson):"")
+        +referenceShelfBlock()
         +pastAsksBlock('tutor');
     },
     errorLine:"…the Tutor's connection flickered. (Check that your local AI is still running.)",
@@ -2327,7 +2353,13 @@ export function openReader(slug){
   state.ui='reader'; state.currentDoc=slug; state.fullTextView=null; state.bookNotesShowAll=false; hideAllOv();
   document.getElementById('rdTitle').textContent=d.title;
   document.getElementById('rdMeta').innerHTML =
-    `<b>${esc(d.tradition)}</b> · License: <b>${esc(d.license)}</b> · Source: <b>${esc(d.attribution||'')}</b><br>${esc(d.source_url)}`
+    // A book you added yourself usually has no license and no source_url, and that
+    // is fine — but esc(undefined) rendered the literal word "undefined" under the
+    // title of every dragged-in book. Say nothing rather than say that. (2026-08-02)
+    `<b>${esc(d.tradition||'Personal')}</b>`
+    + (d.license?` · License: <b>${esc(d.license)}</b>`:'')
+    + (d.attribution?` · Source: <b>${esc(d.attribution)}</b>`:'')
+    + (d.source_url?`<br>${esc(d.source_url)}`:'')
     + (d.personal ? `<br><span class="badge">👤 personal — Your Shelf, not the certified commons</span>
         <button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px" onclick="removePersonalBook('${esc(d.slug)}')">Remove from Your Shelf</button>` : '');
   /* SAY SO WHEN THE TEXT ISN'T HERE (2026-07-28). Ten of the seed books are
@@ -4596,7 +4628,10 @@ function termRun(raw){
   const arg=parts.slice(1).join(' ').trim();
   const mine=personalBooks();
   const all=Store.allDocs();
-  const fmt=(d,i)=>'  '+String(i+1).padStart(3)+'  '+(d.title||'untitled').slice(0,52).padEnd(52)+'  '+String(shelfOf(d)||'').slice(0,14);
+  // three-character kind column: a terminal should show you what a thing IS
+  // without you having to open it. Blank for an ordinary book.
+  const mark=d=>d.kind==='datasheet'?'ds ':d.kind==='paper'?'pap':d.kind==='physical'?'own':'   ';
+  const fmt=(d,i)=>'  '+String(i+1).padStart(3)+'  '+mark(d)+'  '+(d.title||'untitled').slice(0,46).padEnd(46)+'  '+String(shelfOf(d)||'').slice(0,14);
   const listing=(docs,what)=>{
     state.termLast=docs.slice(0,40).map(d=>d.slug);
     if(!docs.length) return ['No '+what+'.'];
@@ -4611,6 +4646,8 @@ function termRun(raw){
     '  ls                 everything on your own shelves',
     '  find <word>        search titles, shelves and summaries',
     '  papers             just the papers',
+    '  ds [part]          datasheets — or jump straight to one',
+    '  owned              books you own on PAPER, off the shelf behind you',
     '  analyses           paper dissections you have kept',
     '  shelf [name]       list your shelves, or open one',
     '  unread             what you brought in and never opened',
@@ -4621,6 +4658,47 @@ function termRun(raw){
 
   if(c==='ls'||c==='books') return listing(mine,'books on your shelves');
   if(c==='papers') return listing(mine.filter(termIsPaper),'papers');
+
+  /* Datasheets — added 2026-08-02, asked for directly. A datasheet is genuinely
+     not a book and not a paper: you never read one start to finish, it belongs
+     to a PART rather than an author, and you come back to it fifty times for one
+     number. So it gets a lookup, not a browse — `ds tsop` should land you on the
+     thing, which is the only interaction a datasheet ever really has. */
+  if(c==='ds'||c==='datasheet'||c==='datasheets'){
+    const sheets=mine.filter(d=>d.kind==='datasheet');
+    if(!sheets.length) return ['No datasheets yet.','',
+      'Add the PDF as text (tools/caravan/pdf-to-text.py converts one),',
+      'then open  👤 Your Library  and set its kind to  datasheet.',
+      'Give it the part number and  ds <part>  will find it from here.'];
+    const pick=arg?sheets.filter(d=>((d.part||'')+' '+(d.title||'')).toLowerCase().includes(arg.toLowerCase())):sheets;
+    if(arg&&!pick.length) return ['No datasheet matching "'+arg+'".',
+      'You have: '+sheets.map(d=>d.part||d.title).join(', ')];
+    if(arg&&pick.length===1){
+      const d=pick[0];
+      setTimeout(()=>{ closeUI(); openReader(d.slug); },60);
+      return [(d.part?d.part+'  —  ':'')+(d.title||''),'opening…'];
+    }
+    state.termLast=pick.map(d=>d.slug);
+    return [pick.length+' datasheet'+(pick.length===1?'':'s')+':']
+      .concat(pick.map((d,i)=>'  '+String(i+1).padStart(3)+'  '+String(d.part||'—').slice(0,16).padEnd(16)+'  '+(d.title||'untitled').slice(0,44)))
+      .concat(['','  ds <part>      jump straight to one','  open <number>  open it in the reader']);
+  }
+
+  /* Books you own on PAPER. They have no text here and never will — that's the
+     honest part. What they can still do is be findable, hold page-referenced
+     notes, be cited in an investigation, and be KNOWN to the residents, so the
+     answer to a question can be "you own Scherz & Monk — chapter 4, go and look"
+     instead of a worse explanation from memory. A real shelf across the room is
+     part of your library; it just isn't part of your files. */
+  if(c==='owned'||c==='physical'){
+    const own=mine.filter(d=>d.kind==='physical');
+    if(!own.length) return ['No paper books recorded yet.','',
+      'Own one that matters? Add it by hand (title and author are enough —',
+      'leave the text empty), then set its kind to  physical  in Your Library.',
+      'It stays findable and citable here, and the residents will know you',
+      'have it — which is the whole point of recording it.'];
+    return listing(own,'book'+(own.length===1?'':'s')+' you own on paper');
+  }
   if(c==='find'){
     if(!arg) return ['find what? e.g.  find electronics'];
     const q=arg.toLowerCase();
@@ -4660,6 +4738,9 @@ function termRun(raw){
   if(c==='stats') return [
     '  '+mine.length+' books of your own',
     '  '+mine.filter(termIsPaper).length+' of them papers',
+    '  '+mine.filter(d=>d.kind==='datasheet').length+' datasheets',
+    '  '+mine.filter(d=>d.kind==='physical').length+' owned on paper (no text here)',
+    '  '+(((data.hall&&data.hall.builds)||[]).length)+' builds on the Bench',
     '  '+all.length+' in the catalogue altogether',
     '  '+Object.keys(data.read||{}).length+' opened at least once',
     '  '+(((data.hall&&data.hall.dissections)||[]).length)+' kept paper analyses',
@@ -4699,7 +4780,7 @@ function renderComputer(){
     + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();termSubmit();}">'
     + '<button class="btn" onclick="termSubmit()">Run</button></div>'
     + '<div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">'
-    + ['ls','papers','unread','analyses','shelf','stats','help'].map(function(c){
+    + ['ls','papers','ds','owned','unread','analyses','shelf','stats','help'].map(function(c){
         return '<button class="btn ghost" style="font-size:11px;padding:2px 8px;font-family:var(--font-mono)" '
              + 'onclick="termQuick(\''+c+'\')">'+c+'</button>'; }).join('')
     + '</div>';
@@ -5381,6 +5462,102 @@ export function readBuildWithInvestigator(id){
     lines:['Let’s read the bench log. I’m less interested in whether it works yet than in where your predictions and your measurements keep disagreeing — that gap is where the learning actually is.'],
   });
   if(state.dialog) state.dialog.buildContext=ctx;
+}
+/* ================================================================
+   THE LAB — the room, at last. Asked for 2026-08-02: "it would be nice
+   to have something like a science lab to do all these things."
+
+   It cost no new building, because the Pavilion had already promised
+   it. The Workshop's Unfinished Floor has carried a MAKER'S BENCH
+   placeholder whose sign read, verbatim: "A home for real-world
+   physical projects — a build, a repair, a garden. Not open yet."
+   That is precisely what got built this week. So the placeholder
+   opens rather than a new room appearing beside it — a promise kept
+   is worth more than a promise added, and the floor is one room less
+   unfinished.
+
+   What the Lab actually IS: the gathering view. `RESEARCH-ROOM-PLAN.md`
+   Phase 1 asked for a "My Research" home — one place showing the
+   scattered research material together — and said to build it from
+   what real use showed was needed rather than guessing. Real use has
+   now shown: builds, datasheets, the paper shelf, investigations,
+   experiments. So this is that home, wearing a lab coat. It OWNS
+   nothing and duplicates nothing; every count here is read live from
+   where the thing already lives, and every button walks you there.
+   ================================================================ */
+export function openLab(){ state.ui='lab'; hideAllOv(); renderLab(); showOv('labOv'); }
+function renderLab(){
+  const el=document.getElementById('labPanel'); if(!el) return;
+  const mine=personalBooks();
+  const ds=mine.filter(b=>b.kind==='datasheet');
+  const own=mine.filter(b=>b.kind==='physical');
+  const builds=(data.hall&&data.hall.builds)||[];
+  const invs=(data.hall&&data.hall.investigations)||[];
+  const exps=(data.hall&&data.hall.experiments)||[];
+  const diss=(data.hall&&data.hall.dissections)||[];
+  const openSteps=builds.reduce((n,b)=>n+(b.entries||[]).filter(e=>!e.closed).length,0);
+  const bench=(n,label,note,btn,fn)=>`
+    <div class="card" style="cursor:default">
+      <div class="t">${label} <span class="badge lic">${n}</span></div>
+      <div class="s" style="margin-top:5px">${note}</div>
+      <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11.5px" onclick="${fn}">${btn}</button></div>
+    </div>`;
+  el.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>🔬 The Lab ${visBadge('private')}</h2>
+    <div class="meta">The bench where the making happens, and the one place your research material is
+      gathered rather than scattered. Nothing lives <i>here</i> — every count below is read live from
+      wherever the thing actually is, and every button walks you to it. Upstairs is where a claim gets
+      appraised carefully; down here is where you are allowed to break things.</div>
+
+    ${openSteps?`<div class="card" style="cursor:default;margin-top:12px;border-color:#e0a43c;background:rgba(224,164,60,.06)">
+      <div class="t" style="color:#e0a43c">${openSteps} prediction${openSteps===1?'':'s'} waiting on a result</div>
+      <div class="s" style="margin-top:5px">You wrote down what you expected and haven't recorded what happened yet.
+        That's the only thing this room ever nags about, because it's the only half that goes stale.</div>
+      <div class="row" style="margin-top:8px"><button class="btn" style="font-size:11.5px" onclick="openScienceHall()">Record what happened →</button></div>
+    </div>`:''}
+
+    <h3 style="margin-top:20px">Making</h3>
+    ${bench(builds.length,'🔧 The Bench','Things you are building — a circuit, a print, a repair. Every step predicted before you try it, recorded after.','Open the Bench','openScienceHall()')}
+    ${bench(exps.length,'🧪 Self-experiments','Things you are testing on yourself, logged day by day.','Open the Hall','openScienceHall()')}
+
+    <h3 style="margin-top:20px">Reference — what you can reach for</h3>
+    <div class="card" style="cursor:default">
+      <div class="t">⚙ Datasheets <span class="badge lic">${ds.length}</span></div>
+      <div class="s" style="margin-top:5px">The documents you look one number up in, over and over. At the Computer,
+        <code>ds</code> lists them and <code>ds &lt;part&gt;</code> goes straight to one.</div>
+      ${ds.length?`<div style="margin-top:7px">${ds.slice(0,8).map(b=>
+        `<div class="s"><b>${esc(b.part||'—')}</b> · <span style="cursor:pointer;text-decoration:underline" onclick="closeUI();openReader('${esc(b.slug)}')">${esc(b.title||'untitled')}</span></div>`
+        ).join('')}${ds.length>8?`<div class="s" style="opacity:.8">…and ${ds.length-8} more</div>`:''}</div>`
+        :`<div class="s" style="margin-top:6px;opacity:.85">None yet. Datasheets are PDFs — <code>tools/caravan/pdf-to-text.py</code>
+          turns one into text you can drop in, then set its kind to <b>a datasheet</b> in Your Library and give it the part number.</div>`}
+      <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11.5px" onclick="openComputer()">🖥 Open the Computer</button></div>
+    </div>
+    <div class="card" style="cursor:default">
+      <div class="t">📕 Owned on paper <span class="badge lic">${own.length}</span></div>
+      <div class="s" style="margin-top:5px">Real books on a real shelf. There is no text here and there never will be —
+        but they stay findable, they hold your page notes, you can cite them in an investigation, and
+        <b>the residents know you have them</b>, so the answer can be "you own that one, chapter 4, go and look"
+        instead of a worse explanation from memory. That is the point of recording one.</div>
+      ${own.length?`<div style="margin-top:7px">${own.slice(0,8).map(b=>
+        `<div class="s">• ${esc(b.title||'untitled')}${b.attribution?` <span style="opacity:.8">— ${esc(b.attribution)}</span>`:''}</div>`
+        ).join('')}${own.length>8?`<div class="s" style="opacity:.8">…and ${own.length-8} more</div>`:''}</div>`
+        :`<div class="s" style="margin-top:6px;opacity:.85">None recorded. Add one by hand with just its title and author — leave the
+          text empty, that's expected — then set its kind to <b>owned on paper</b> in Your Library.</div>`}
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" style="font-size:11.5px" onclick="openBookIntake()">📥 Record one</button>
+        <button class="btn ghost" style="font-size:11.5px" onclick="openMyLibrary()">👤 Your Library</button>
+      </div>
+    </div>
+
+    <h3 style="margin-top:20px">Asking</h3>
+    ${bench(invs.length,'🔬 Your investigations','Claims you have put a question, evidence and a falsifier to.','Open the Hall','openScienceHall()')}
+    ${bench(diss.length,'📄 Kept analyses','Papers you have pulled apart with the Investigator.','Open the Hall','openScienceHall()')}
+
+    <div class="row" style="margin-top:18px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="openResearchDesk()">🗂 The Research Desk</button>
+      <button class="btn ghost" onclick="openLearningTree()">🌳 The Learning Tree</button>
+    </div>`;
 }
 function renderScienceHall(){
   const v=state.hallView||{mode:'list'};
@@ -9289,7 +9466,11 @@ function renderMyLibrary(keepFocus){
             ${sug[b.slug]?`<button class="btn" style="font-size:11px;padding:3px 10px;border-color:#7fa36b" onclick="acceptOneSuggestion('${esc(b.slug)}')" title="${esc((v.suggestWhy||{})[b.slug]||'suggested')}">✨ → ${esc(sug[b.slug])}</button>
               <span class="s" style="opacity:.75;font-size:11px">${esc((v.suggestWhy||{})[b.slug]||'')}</span>`:''}
             <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openReader('${esc(b.slug)}')">Open</button>
-            <button class="btn ghost" style="font-size:11px;padding:3px 10px${b.kind==='paper'?';border-color:#8fb4d9;color:#a9c7e8':''}" onclick="togglePaper('${esc(b.slug)}')" title="Papers show up under the Computer's 'papers' command, and Today notices when you haven't pulled one apart">${b.kind==='paper'?'📄 paper':'mark as paper'}</button>
+            <select onchange="setBookKind('${esc(b.slug)}', this.value)" style="width:auto;font-size:11px" title="What KIND of thing this is. Papers show up under the Computer's 'papers' command and Today notices an undissected one; datasheets get 'ds <part>'; a paper book you own has no text here but stays findable, citable, and known to the residents.">
+              ${[['','a book'],['paper','📄 a paper'],['datasheet','⚙ a datasheet'],['physical','📕 owned on paper']]
+                .map(([k,l])=>`<option value="${k}"${(b.kind||'')===k?' selected':''}>${l}</option>`).join('')}
+            </select>
+            ${b.kind==='datasheet'&&b.part?`<span class="badge lic" style="font-size:10.5px">${esc(b.part)}</span>`:''}
             <button class="btn ghost" style="font-size:11px;padding:3px 10px;border-color:var(--danger);color:var(--danger-soft)" onclick="removePersonalBook('${esc(b.slug)}','mylib')">Remove</button>
           </div>
         </div>`;
@@ -9378,9 +9559,24 @@ export function openBookIntake(){
         anything that isn't a file yet. Paste the text, give it a title, choose a shelf.</div>
       <div class="row" style="margin-top:8px"><button class="btn" onclick="newReviewManualForm2()">＋ Add a text by hand</button></div>
       <div class="s" style="margin-top:8px;opacity:.85"><b>Adding a paper?</b> Add it exactly like a book —
-        drop the file, or paste the text. Then open <b>👤 Your Library</b> and press <b>mark as paper</b> on it.
-        That one press is what makes it show up under the Computer's <code>papers</code> command, and what lets
+        drop the file, or paste the text. Then open <b>👤 Your Library</b> and set its kind to <b>a paper</b>.
+        That one setting is what makes it show up under the Computer's <code>papers</code> command, and what lets
         <b>☀ Today</b> notice when you have brought one in and never pulled it apart.</div>
+    </div>
+
+    <div class="card" style="cursor:default;margin-top:10px;border-color:#8fb4d9">
+      <div class="t" style="color:#8fb4d9">3 · A datasheet, or a book you own on paper</div>
+      <div class="s" style="margin-top:5px">Both go in the same way, and both get set in <b>👤 Your Library</b> under
+        <i>what kind of thing this is</i>.</div>
+      <div class="s" style="margin-top:6px"><b>⚙ A datasheet</b> — the PDF a part comes with.
+        <code>tools/caravan/pdf-to-text.py</code> turns one into text you can drop in. Give it the part number and
+        the Computer will reach it with <code>ds&nbsp;&lt;part&gt;</code> — which is the only way anyone ever
+        actually wants to open a datasheet.</div>
+      <div class="s" style="margin-top:6px"><b>📕 A book you own on paper</b> — a real book, on a real shelf, that
+        you cannot scan and shouldn't. Add it with <b>just the title and author</b> and leave the text empty; that
+        is expected, not a failure. It stays findable, holds your page notes, can be cited in an investigation, and
+        <b>the residents will know you own it</b> — so the answer becomes "you have that one, chapter 4, go and
+        look" instead of a thinner explanation from memory. That last part is the whole reason to bother.</div>
     </div>
 
     <h3 style="margin-top:18px">Where to get books worth having</h3>
@@ -9438,9 +9634,22 @@ export function toggleRefileFiled(){
   state.myLibView.suggested=null; state.myLibView.suggestWhy={};
   renderMyLibrary();
 }
-export function togglePaper(slug){
+/* What KIND of thing a shelf entry is (2026-08-02 — was a paper-only toggle).
+   Four kinds now, because the electronics work made the distinctions real:
+   a book you read, a paper you dissect, a datasheet you LOOK UP, and a book
+   that exists on a real shelf across the room and has no text here at all.
+   A datasheet is asked for its part number once, because `ds tsop38238` is
+   the only way anyone ever actually wants to reach one. */
+export function setBookKind(slug, kind){
   const b=personalBooks().find(x=>x.slug===slug); if(!b) return;
-  b.kind = b.kind==='paper' ? undefined : 'paper';
+  b.kind = kind || undefined;
+  if(kind==='datasheet' && !b.part){
+    // guess the part from the title — the token with digits in it usually is one
+    const guess=(b.title||'').split(/[\s,/]+/).find(w=>/\d/.test(w)&&w.length>=4)||'';
+    const p=window.prompt('Part number, so you can reach it with  ds <part>  at the Computer:\n(e.g. TSOP38238 — leave blank to skip)', guess);
+    if(p && p.trim()) b.part=p.trim();
+  }
+  if(kind!=='datasheet') delete b.part;
   persist(); renderMyLibrary();
 }
 export function movePersonalBook(slug, tradition){
@@ -9709,7 +9918,7 @@ Object.assign(window, {
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   setNotesLogSort,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
-  togglePaper, undoLastFiling, toggleRefileFiled, newReviewManualForm2,
+  setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
   writePacketFile, triggerImportPacket, setCommonsName,
 });

@@ -225,6 +225,22 @@ your own standing instructions, so you can watch them take effect.
   Renaming a shelf carries its books with it. Removing a shelf returns its books
   to Unfiled — **nothing is ever deleted by tidying**.
 
+  **What kind of thing is it?** Beside each book is a small dropdown, and it
+  changes what the rest of the Pavilion does with the entry:
+    - **a book** — the ordinary case, nothing special.
+    - **📄 a paper** — shows up under the Computer's `papers`, and **☀ Today**
+      will notice if you brought one in and never pulled it apart.
+    - **⚙ a datasheet** — you'll be asked for the part number once, and from
+      then on `ds <part>` at the Computer opens it instantly. (A datasheet is
+      never read start to finish; it's looked up. So it gets a lookup.)
+    - **📕 owned on paper** — a real book on a real shelf across the room, one
+      you can't scan and shouldn't. Add it with **just the title and author and
+      no text at all** — that's expected. It stays findable and citable, it holds
+      your page notes, and **the residents will know you own it**, so the answer
+      to a hard question can be *"you have that one — chapter 4, go and look"*
+      instead of a thinner explanation from memory. That last part is the whole
+      reason to record one.
+
 - **⚖ Which of these can I pass on?** Checks every book you've added, all at
   once, and sorts them into: carries an open licence · looks public domain ·
   looks to be in copyright · can't be established. It then offers to move the
@@ -266,8 +282,20 @@ your own standing instructions, so you can watch them take effect.
       plan. So the flow is: lesson → Notes → a plan you can actually follow.
     - If the AI can't manage it (no model connected, an empty reply, a dropped
       connection), it says so plainly — and 📓 Save to my Notes never needs one.
-- **The Computer** — a JARVIS-style terminal for practical planning with
-  your AI; it can save a plan straight to the Archive Desk.
+- **🖥 The Computer** — a real terminal index over everything on this machine,
+  and **it needs no AI at all**. Type `help` to see the lot. The ones worth
+  knowing:
+    - `ls` everything on your own shelves · `find <word>` search them
+    - `papers` just the papers · `analyses` the dissections you've kept
+    - `ds` your **datasheets**, listed by part number — and **`ds <part>`
+      opens one straight away**, which is the only thing anyone ever wants
+      from a datasheet
+    - `owned` the books you own **on paper**, which have no text here and
+      aren't supposed to
+    - `unread` what you brought in and never opened · `shelf` · `stats`
+    - `open <number>` after any listing, to read one
+    - `ask <question>` is the only command that needs a connection — it hands
+      you to the resident for the things code can't answer.
 - **The Request Board** — where a book you *want* but can't fetch in-game
   is tracked until it's brought in by hand (a real browser limit, kept
   honest — see the Caravan, §6).
@@ -329,6 +357,21 @@ of the day, not three.
   read your own data back to you — including all the ways a study of one can
   fool you. Nothing runs when you're not there; a day only counts when you log
   it.
+  And **🔧 the Bench**, for things you are *making* rather than claims you are
+  weighing — a circuit, a print, a repair. Every step goes down in two halves:
+  **what you expect, saved before you try it**, and what actually happened,
+  after. You can't go back and improve the guess; that's the point of the room.
+  When a few steps have piled up, the Investigator will read the log with you —
+  he's looking for the pattern across steps you're too close to see, like the
+  same wrong assumption showing up three times.
+- **🔬 The Lab** (the Workshop, up the narrow staircase twice — it used to be
+  the Maker's Bench) — the one place your research material is gathered instead
+  of scattered: your builds, your datasheets, the books you own on paper, your
+  investigations and experiments. It holds nothing itself; every number is read
+  live from wherever the thing actually lives, and every button walks you there.
+  If you have a prediction still waiting on a result, this is where it nags you
+  — the only thing this room ever nags about, because it's the only half that
+  goes stale.
 - **The Caravan Desk** — where texts from outside enter (Protocol 1 lives
   here): drag-and-drop intake for **`.epub` and `.txt`** files (an EPUB —
   the format most free-book sites give you — is unpacked right in the game,

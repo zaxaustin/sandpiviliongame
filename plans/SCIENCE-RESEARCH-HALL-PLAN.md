@@ -460,9 +460,17 @@ The most *immediately* useful strand, because there's a real printer in the room
   The Investigator reads a build log under a `buildContext` branch, aimed at the
   one thing he's uniquely good for: the pattern across steps you're too close to
   see — the same wrong assumption showing up three times.
-- **L1 — the basement room.** Stairs, workbench, the stations as honest
-  "not open yet" until each is filled — the pattern the Workshop's third floor
-  already uses.
+- **L1 — the room. ✅ BUILT 2026-08-02, and NOT in a basement.** The instinct
+  below was right about *why* (a lab is where you're allowed to break things, and
+  that belongs apart from where claims get appraised carefully) and wrong about
+  *where*. The Workshop's Unfinished Floor already carried a **MAKER'S BENCH**
+  placeholder whose sign read *"a home for real-world physical projects — a build,
+  a repair. Not open yet"* — which is exactly what the Bench turned out to be. So
+  the placeholder **opened** rather than a basement being dug beside it: a promise
+  kept beats a promise added, and that floor is one room less unfinished.
+  `openLab()`, and it doubles as `RESEARCH-ROOM-PLAN.md`'s Phase 1 "My Research"
+  home — the gathering view for builds, datasheets, the paper shelf,
+  investigations and experiments. It owns nothing; every count is read live.
 - **L2 — the DC circuit sandbox**, predict-first, with exact maths.
 - **L3 — the physics benches**, each wired into a self-experiment.
 - **L4 — G-code parsing and the calibration progression.**
