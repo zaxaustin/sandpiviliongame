@@ -1368,7 +1368,7 @@ export function recheckConnections(){ renderConnections(); refreshAIStatus(); re
    [UI] overlays — shelf browser, reader, planner, courses
    ================================================================ */
 function showOv(id){ document.getElementById(id).classList.add('open'); }
-function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
+function hideAllOv(){ ['shelfOv','readerOv','planOv','courseOv','connOv','voiceOv','archiveOv','menuOv','pastDayOv','waypointsOv','activityOv','stillOpenOv','dataPanelOv','badgesOv','recordsOv','calendarOv','notesLogOv','localaiOv','indexOv','requestsOv','inventoryOv','reviewOv','noticeOv','accountOv','residentsOv','researchOv','hallOv','foldOv','treeOv','catalogOv','manageLibOv','grantOv','upcomingOv','ideaOv','pathsOv','groveOv','commonsOv','myLibOv','intakeOv','computerOv','stewardIdxOv','standingOv','promptOv','alexandriaOv','welcomeOv'].forEach(i=>document.getElementById(i).classList.remove('open')); }
 /* Closing a panel used to CANCEL read-aloud outright, with no way back — the
    single most-complained-of thing in real use ("if I try to do anything it
    pauses that voice and I can't even unpause it"). Now: a book you're
@@ -4137,15 +4137,159 @@ export function runBulkImport(){
    you walk up to. Reuses openChatDialog's exact plumbing — a "resident"
    here is just a plain object with a name/agent/color/lines, and the
    Computer qualifies as well as any NPC does. */
+/* ----- THE COMPUTER, rebuilt 2026-07-28 as a real terminal index.
+
+   Asked for directly: "change the computer to be a useful index for the library
+   and then also for the papers, in a more digitized and terminal view way lol."
+
+   It used to be a chat agent that REFUSED TO OPEN without an AI connection —
+   absurd on inspection: a terminal that cannot list your own books unless a
+   language model is running. Everything below is a query over data already on
+   this machine, so it works with nothing installed. That is the token-thrift
+   ladder applied to a whole room: deterministic commands first, the model only
+   for what code cannot answer (`ask …`).
+
+   It also gives papers the front door they were missing. Papers had a real home
+   — dissection and kept analyses in the Science Hall — and no visible way in,
+   the same bug the Caravan Desk had. Now they are two words at a prompt. */
 export function openComputer(){
-  if(!isAIActive()){
-    openDialog('THE COMPUTER', ["No local AI connected right now (⚙ Manage AI connections) — this terminal needs a live connection to actually answer. Scripted planning still works fine at the Writing Desk."]);
-    return;
+  state.ui='computer';
+  state.termLines = state.termLines || [
+    'SAND PAVILION TERMINAL  ·  local index  ·  v1',
+    'No connection required. Everything here is read from this machine.',
+    '',
+    'Type  help  for commands, or  ls  to see what you have.',
+  ];
+  hideAllOv(); renderComputer(); showOv('computerOv');
+  setTimeout(()=>{ const i=document.getElementById('termIn'); if(i) i.focus(); }, 40);
+}
+function termPrint(lines){
+  state.termLines=(state.termLines||[]).concat(lines);
+  if(state.termLines.length>400) state.termLines=state.termLines.slice(-400);
+}
+/* Everything the terminal answers without a model. Pure logic over saved data,
+   returning lines of text — the renderer does no thinking, which keeps this
+   testable on its own. */
+function termIsPaper(d){
+  return /arxiv|doi|pubmed|semanticscholar|openalex/i.test((d.source_url||'')+' '+(d.attribution||''))
+      || /paper|preprint|journal/i.test((d.category||'')+' '+(d.title||''));
+}
+function termRun(raw){
+  const line=String(raw||'').trim();
+  if(!line) return [];
+  const parts=line.split(/\s+/);
+  const c=parts[0].toLowerCase();
+  const arg=parts.slice(1).join(' ').trim();
+  const mine=personalBooks();
+  const all=Store.allDocs();
+  const fmt=(d,i)=>'  '+String(i+1).padStart(3)+'  '+(d.title||'untitled').slice(0,52).padEnd(52)+'  '+String(shelfOf(d)||'').slice(0,14);
+  const listing=(docs,what)=>{
+    state.termLast=docs.slice(0,40).map(d=>d.slug);
+    if(!docs.length) return ['No '+what+'.'];
+    const head=[docs.length+' '+what+':'];
+    const rows=docs.slice(0,40).map(fmt);
+    const tail=docs.length>40?['  … and '+(docs.length-40)+' more. Narrow it with  find <word>']:[];
+    return head.concat(rows, tail, ['', 'Then:  open <number>']);
+  };
+
+  if(c==='help') return [
+    'COMMANDS','',
+    '  ls                 everything on your own shelves',
+    '  find <word>        search titles, shelves and summaries',
+    '  papers             just the papers',
+    '  analyses           paper dissections you have kept',
+    '  shelf [name]       list your shelves, or open one',
+    '  unread             what you brought in and never opened',
+    '  open <number>      open one in the reader',
+    '  stats              what is actually in here',
+    '  ask <question>     hand it to your local AI (needs a connection)',
+    '  clear              wipe the screen',''];
+
+  if(c==='ls'||c==='books') return listing(mine,'books on your shelves');
+  if(c==='papers') return listing(mine.filter(termIsPaper),'papers');
+  if(c==='find'){
+    if(!arg) return ['find what? e.g.  find electronics'];
+    const q=arg.toLowerCase();
+    const hits=all.filter(d=>((d.title||'')+' '+shelfOf(d)+' '+((d.doc&&d.doc.summary)||'')).toLowerCase().includes(q));
+    return listing(hits,'matches for "'+arg+'"');
   }
-  openChatDialog({
-    name:'THE COMPUTER', color:'#7ec4de', glow:'#a9dcf0', aiAgent:'computer',
-    lines:["Online. Ask me to help plan your day, draft a lesson plan from an idea, or just think something through out loud."],
-  });
+  if(c==='unread'){
+    const unread=mine.filter(d=>!(data.read||{})[d.slug]);
+    return unread.length?listing(unread,'brought in and never opened')
+      :['Nothing unread. Every book you brought in has been opened at least once.'];
+  }
+  if(c==='shelf'){
+    if(!arg){
+      const counts={}; mine.forEach(b=>{ const k=shelfOf(b); counts[k]=(counts[k]||0)+1; });
+      const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+      return rows.length?['Your shelves:'].concat(rows.map(r=>'  '+String(r[1]).padStart(4)+'  '+r[0]))
+        :['No shelves yet.'];
+    }
+    return listing(mine.filter(b=>shelfOf(b).toLowerCase()===arg.toLowerCase()),'on "'+arg+'"');
+  }
+  if(c==='analyses'||c==='dissections'){
+    const d=(data.hall&&data.hall.dissections)||[];
+    if(!d.length) return ['No kept analyses yet.',
+      'Dissect a paper at the Science & Research Hall and press Keep, and it lands here.'];
+    return [d.length+' kept analys'+(d.length===1?'is':'es')+':']
+      .concat(d.map((x,i)=>'  '+String(i+1).padStart(3)+'  '+x.ts+'  '+x.title))
+      .concat(['','Open them at the Science & Research Hall.']);
+  }
+  if(c==='open'){
+    const n=parseInt(arg,10);
+    const last=state.termLast||[];
+    if(!n||!last[n-1]) return ['open which? run  ls  or  find <word>  first, then  open <number>'];
+    const slug=last[n-1];
+    setTimeout(()=>{ closeUI(); openReader(slug); },60);
+    return ['opening…'];
+  }
+  if(c==='stats') return [
+    '  '+mine.length+' books of your own',
+    '  '+mine.filter(termIsPaper).length+' of them papers',
+    '  '+all.length+' in the catalogue altogether',
+    '  '+Object.keys(data.read||{}).length+' opened at least once',
+    '  '+(((data.hall&&data.hall.dissections)||[]).length)+' kept paper analyses',
+    '  '+((data.notes||[]).length)+' notes'];
+  if(c==='clear'){ state.termLines=[]; return []; }
+  if(c==='ask'){
+    if(!isAIActive()) return ['No AI connection, so there is nothing to ask.',
+      'Everything else in this terminal works without one — try  help.'];
+    setTimeout(()=>{ closeUI(); openChatDialog({ name:'THE COMPUTER', color:'#7ec4de', glow:'#a9dcf0',
+      aiAgent:'computer', lines:['Online. '+(arg||'What would you like to think through?')] }); },60);
+    return ['handing you to the resident…'];
+  }
+  return [c+': no such command. Type  help.'];
+}
+export function termSubmit(){
+  const i=document.getElementById('termIn'); if(!i) return;
+  const line=i.value; i.value='';
+  termPrint(['> '+line]);
+  termPrint(termRun(line).concat(['']));
+  renderComputer();
+}
+export function termQuick(c){ const i=document.getElementById('termIn'); if(i) i.value=c; termSubmit(); }
+function renderComputer(){
+  const el=document.getElementById('computerPanel'); if(!el) return;
+  el.innerHTML =
+    '<button class="xbtn" onclick="closeUI()">Esc ✕</button>'
+    + '<h2>🖥 The Computer <span class="badge lic">local index</span></h2>'
+    + '<div class="meta">A terminal over everything on this machine — your books, your papers, your kept '
+    + 'analyses. <b>No AI connection needed for any of it.</b></div>'
+    + '<pre id="termOut" style="margin-top:12px;background:#0d1117;color:#a9dcf0;border:2px solid #2b4250;'
+    + 'border-radius:6px;padding:12px;max-height:46vh;overflow:auto;font-size:12.5px;line-height:1.5;'
+    + 'white-space:pre-wrap;word-break:break-word">'+esc((state.termLines||[]).join('\n'))+'</pre>'
+    + '<div class="row" style="margin-top:8px;gap:6px;align-items:center">'
+    + '<span style="color:#7ec4de;font-family:var(--font-mono)">&gt;</span>'
+    + '<input type="text" id="termIn" placeholder="help" autocomplete="off" spellcheck="false" '
+    + 'style="flex:1;font-family:var(--font-mono)" '
+    + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();termSubmit();}">'
+    + '<button class="btn" onclick="termSubmit()">Run</button></div>'
+    + '<div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">'
+    + ['ls','papers','unread','analyses','shelf','stats','help'].map(function(c){
+        return '<button class="btn ghost" style="font-size:11px;padding:2px 8px;font-family:var(--font-mono)" '
+             + 'onclick="termQuick(\''+c+'\')">'+c+'</button>'; }).join('')
+    + '</div>';
+  const out=document.getElementById('termOut'); if(out) out.scrollTop=out.scrollHeight;
 }
 export function saveLastChatReplyToArchive(){
   const d=state.dialog; if(!d||!d.chat) return;
@@ -8839,7 +8983,7 @@ Object.assign(window, {
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
   checkMyMachine, copyPullCommand,
-  openBookIntake,
+  openBookIntake, termSubmit, termQuick,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
