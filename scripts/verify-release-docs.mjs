@@ -28,8 +28,9 @@
    NOT mean the release is published — only a human can do that, and
    SHIPPING-THE-BETA.md has the command.
    ================================================================ */
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { execSync } from 'node:child_process';
 
 const problems = [];
 const bad = m => problems.push(m);
@@ -76,6 +77,34 @@ if (!existsSync(installer)) {
     }
   }
   if (!sawOne) bad(`neither shipping doc prints a SHA-256 — testers are told to verify and given nothing to verify against`);
+
+  /* 3 — IS THE INSTALLER OLDER THAN THE CODE?
+     Added hours after the rest, because the rest was not enough. This script
+     already proved the docs matched the .exe — and the .exe was an hour stale,
+     missing two whole commits, one click away from being published. Hash
+     agreement is not freshness: docs and binary can agree perfectly with each
+     other and both be wrong about the source.
+
+     So: no tracked file under src/ or electron/ may be newer than the
+     installer. Uses git's own list rather than a directory walk, so an
+     untracked scratch file cannot trip it. */
+  try {
+    const built = statSync(installer).mtimeMs;
+    const tracked = execSync('git ls-files src electron index.html package.json', { encoding: 'utf8' })
+      .split('\n').map(f => f.trim()).filter(Boolean);
+    const newer = tracked
+      .filter(f => existsSync(f) && statSync(f).mtimeMs > built + 1000)
+      .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
+    if (newer.length) {
+      const when = new Date(built).toISOString().slice(0, 16).replace('T', ' ');
+      bad(`the installer was built ${when} but ${newer.length} source file(s) have changed since — `
+        + `${newer.slice(0, 3).join(', ')}${newer.length > 3 ? ', …' : ''}. `
+        + `Publishing this ships code that is not the code in the repo, which is the exact fault that put a `
+        + `data-loss bug in front of testers on 2026-07-28. Rebuild.`);
+    }
+  } catch (e) {
+    bad(`could not compare the installer's age against the source (${e.message}) — check by hand before publishing`);
+  }
 }
 
 if (problems.length) {
