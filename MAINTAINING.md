@@ -331,6 +331,16 @@ customization; the visual polish tail.
 (above), and the seam between this personal instance and a lean shareable one
 (`TOOL-COMMONS-PLAN.md`).
 
+**Built late 2026-07-28, and the reason the rest matters:** `☀ Today`
+(`data/the-day.js` + the pause menu) answers *"why open this today?"* — at most
+five things actually waiting, each one press away, computed on open from saved
+data with no AI and no network. **Sebastian's stand-up** delivers them one at a
+time instead of presenting a form. `plans/WHY-OPEN-IT-TODAY-PLAN.md` holds the
+diagnosis they came from — three complaints that turned out to be one problem:
+everything here was a place you *could* go and nothing was *waiting for you*.
+**The next move is not more building — it is using it for a real day**, because
+every remaining item is better designed after that than before it.
+
 **The positioning decision, 2026-07-28** (`plans/TRUST-LEVELS-AND-GATEWAYS-PLAN.md`):
 **the website is the commons, the installed app is your Pavilion.** Different
 things, different jobs — the site is a library you visit, the app is a house you

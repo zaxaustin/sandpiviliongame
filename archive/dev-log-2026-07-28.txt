@@ -418,3 +418,134 @@ TOMORROW, OR WHENEVER
 
 Good day. The thing that would have wasted his friends' evening was
 invisible to every test we had, and we found it with a day to spare.
+
+
+=======================================================================
+ SAME DAY, FIFTH SESSION - the daily-use problem, and building the fix
+=======================================================================
+
+The most useful thing said about this project so far:
+
+  "What I am missing is using the Pavilion daily, and why. The lesson
+   planning isn't intuitive enough, Sebastian isn't enough for me to use
+   daily, and I don't know where to mess around with papers."
+
+Three complaints. They were ONE problem, and finding that was worth more
+than fixing them separately.
+
+THE DIAGNOSIS
+-------------
+There is no TODAY in the Pavilion. Everything is a place you COULD go;
+nothing is a thing that is WAITING for you. The Writing Desk plans a day
+after you fill it in, the tree holds lessons after you choose one, the
+Hall dissects papers after you decide which. Every one puts the burden
+of STARTING on the person. Fine for a tool you visit with an errand;
+fatal for a place you inhabit, because on a tired evening "what should I
+do here?" has no answer and the honest response is to close it.
+
+Worth noting what was NOT the problem: the Library "already feels like a
+precious collection." That is the hardest thing to build and it is done.
+More rooms would have been more choosing.
+
+BUILT: TODAY
+------------
+A door in the pause menu that says something true before you open it
+("one thing is overdue", "carry on where you left off"), and behind it
+at most five things, each one press from the thing itself, computed on
+open from data already saved. On a real save:
+
+  (late)     Meditation daily          was due 6 days ago
+  (step)     Install Ollama            A Beating Heart, step 2 of 5
+  (carried)  Finish the shelf          carried for 8 days - still want it?
+  (paper)    Attention Is All You Need brought in, never pulled apart
+  (unread)   Tartine Bread             2 books added and not opened
+
+The four rules are npm test cases rather than intentions, because they
+are exactly the kind that erode under later improvements: never empty
+(checked against a bare Pavilion AND a fully-read one), never a wall
+(twenty overdue things still yield five), one press per item, and it
+notices rather than nags - a spark one day old is invisible, four days
+old it asks "still want it?", and a lesson never started is never
+pushed, because choosing is not continuing.
+
+BUILT: SEBASTIAN BRINGS
+-----------------------
+The complaint was that he ASKS and does not BRING. So: one question -
+what has to be true by tonight - and then he stops asking and carries
+things in one at a time, each with a real choice. "This one is late,
+sir." Do it now / keep it / let it go. The one line becomes the day's
+intention; letting go genuinely clears the spark, because an observation
+you cannot act on is a reminder with extra steps.
+
+No AI anywhere in it. Fixed questions, computed items, zero network
+requests - which is what makes it work for the laptop user.
+
+BUILT: THE COMPUTER AS A TERMINAL INDEX
+---------------------------------------
+His idea, better than my plan. I had proposed a papers station in the
+Library; he pointed at a terminal that already exists, that people
+already find, and that was AI-GATED FOR NO REASON - it refused to open
+without a connection, which is absurd: a terminal that cannot list your
+own books unless a language model is running.
+
+Now ls / find / papers / analyses / shelf / unread / open <n> / stats,
+all over local data, plus ask which hands off to the resident and
+degrades honestly. It also gave papers the front door they were missing
+- the same bug the Caravan Desk had.
+
+BUILT: RULES BEFORE THE MODEL
+-----------------------------
+From his own budget rule: only ask a model for what Python cannot do.
+The librarian sent every book to a model in batches of eight - sixteen
+calls for a 128-book import, most about books that were never ambiguous.
+Now rules file first. Measured: 14 of 18 filed with NO AI and zero
+network requests, and whatever nothing can place becomes a pasteable
+work order for a bigger model in another window.
+
+The tests forced a good decision: "The Tao of Physics" files to Science,
+arguable but defensible, and that is fine ON PURPOSE, because nothing is
+auto-applied. The safety comes from the accept step, not from any rule
+being infallible.
+
+ALSO BUILT
+----------
+  * Bring a Book In - the intake table beside Your Shelf, because the
+    single most important action in the Pavilion was explained only at
+    the Caravan Desk, three rooms away, under a name that says nothing.
+  * kind:'paper' - an explicit mark, because detection was guessing from
+    arxiv/doi in a source URL and a converted PDF looks like a book to
+    any heuristic.
+  * Coding 101, written for real - five "(planned)" steps became six
+    real ones, deliberately reordered so "change one line" is step 2
+    rather than a reward at the end.
+
+THE HONEST READ ON HIS LEARNING
+-------------------------------
+He said his lack of full-stack skills is holding him back. Half true. In
+one day he made the extraction-is-not-an-AI-job call, corrected my
+trust-badge design by picking a better axis, diagnosed the Caravan Desk
+as placement AND naming, settled the website/app positioning, and caught
+the README sending people to a webpage instead of a download. None of
+that is a full-stack skill; it is product and architecture judgement,
+the rarer half.
+
+What is actually missing is narrower: the fluency to make a small change
+and verify it himself, so ideas stop having to become requests. Stages 5
+and 6, and nothing else for now.
+
+WHERE IT STANDS
+---------------
+  npm test                      clean
+  preflight.mjs                 39/39, zero external requests
+  packaged-boot.cjs             6/6
+  installer                     0.1.0-beta.2, rebuilt to match the code
+  repo                          all pushed; still private by choice
+
+TOMORROW
+--------
+  1. USE IT. Open Today on an ordinary tired evening and see whether
+     there is something worth ten minutes without having to decide what.
+     That is the only test that matters now, and nothing else on the
+     list should be built before the answer is known.
+  2. Coding 101, steps 1-2. Fifteen minutes.
+  3. If the repo goes public: cut the Release, send the link.
