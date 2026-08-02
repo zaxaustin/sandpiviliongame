@@ -1844,3 +1844,49 @@ pages will not hold them.
 
 All three are offered whether or not an AI is connected — discoverable first,
 honest when pressed.
+
+### 32. [x] THE WORST BUG YET — the librarian undid hand-filed work, and did nothing useful
+
+*"The AI undoes all the work I did when sorting the books, and does nothing
+after sorting like 20 books... it ignores what's there and undoes all the work I
+had made to commit over 100 books."*
+
+**Three faults, all mine, all inside five lines of `suggestShelvesWithAI()`,
+introduced the same day the pre-sort was added.**
+
+**1 — "Select all" put already-filed books in the pool.** On a big library
+"Select all" is the natural gesture. Every already-placed book then got a
+"suggestion", and Accept All wrote it back — so wherever a rule disagreed with a
+deliberate human choice, **the human lost, silently, with no undo.** This is the
+worst class of bug this project can have: it destroys the exact thing the app
+exists to help someone build.
+
+**2 — a hard `slice(0, 60)` silently dropped the rest.** Reproduced: 105 books,
+60 hand-filed first in the array → the entire sixty-book budget was spent
+re-confirming books that needed nothing, and **the 45 genuinely unfiled books
+were never looked at at all.** The panel cheerfully reported *"Filed 60 of 60"*.
+That is precisely *"does nothing after sorting like 20 books"*.
+
+**3 — no-op suggestions counted as work**, so the report showed a big number
+while nothing had changed.
+
+**Fixed, with the rule stated plainly: the librarian's job is the unfiled pile.**
+
+- **It never touches a book you placed yourself.** Re-filing those is a separate
+  **opt-in checkbox, off by default** — because moving something a person put
+  somewhere on purpose needs *asking*, not assuming. Still possible; no longer
+  automatic.
+- **The cap is gone.** Sixty was arbitrary and lost the rest without saying so.
+  Everything is considered; the model still only ever sees the ambiguous ones.
+- **Suggestions that restate a book's current shelf are dropped**, so the count
+  means something.
+- **Bulk filing is now undoable.** Every accept records where each book came
+  from; one press puts all of them back exactly. An action that moves a hundred
+  books should never have depended on the suggestion being right.
+
+Measured on the reported shape (105 books, 60 hand-filed): before — *"Filed 60
+of 60"*, 45 unfiled untouched. After — *"Filed 45 of 45"*, the hand-filed 60
+untouched, and undo restores perfectly.
+
+`test/live/librarian-safety.mjs` is the standing guard, because these are
+**properties**, not features, and properties erode quietly.

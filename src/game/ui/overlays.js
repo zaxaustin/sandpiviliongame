@@ -8745,17 +8745,39 @@ export function myLibShow(name){
    setting a <select>'s value from code never fires its onchange — so they were
    inert. Reported from real use 2026-07-27 ("I saw the AI gave a suggestion and
    I couldn't approve his decision"). */
+/* Filing a hundred books in one press is the most destructive single action in
+   the app, and until 2026-07-28 it could not be taken back. Now every bulk
+   accept records where each book came from, so one press returns all of it.
+   An operation that large should never depend on the suggestion being right. */
 export function acceptAllSuggestions(){
   const sug=state.myLibView.suggested||{}; const slugs=Object.keys(sug);
   if(!slugs.length) return;
-  let n=0;
-  personalBooks().forEach(b=>{ if(sug[b.slug]){ b.tradition=sug[b.slug]; n++; } });
-  state.myLibView.suggested=null; persist();
+  const undo={}; let n=0;
+  personalBooks().forEach(b=>{
+    if(sug[b.slug] && shelfOf(b)!==sug[b.slug]){ undo[b.slug]=b.tradition; b.tradition=sug[b.slug]; n++; }
+  });
+  state.myLibView.suggested=null;
+  state.myLibView.lastFiling = n ? { at:todayKey(), undo } : null;
+  persist();
   logActivity('Accepted the librarian’s filing for '+n+' book(s).');
   blip(660,.07); setTimeout(()=>blip(825,.08),80);
   renderMyLibrary();
   const out=document.getElementById('myLibAiOut');
-  if(out) out.textContent=`Filed ${n} book${n===1?'':'s'}. Nothing was deleted — every one is still on your shelves, just in a better place.`;
+  if(out) out.textContent = n
+    ? `Moved ${n} book${n===1?'':'s'}. Nothing was deleted, and you can undo this in one press.`
+    : 'Nothing moved — every one of those was already where the librarian would have put it.';
+}
+export function undoLastFiling(){
+  const last=state.myLibView.lastFiling; if(!last||!last.undo) return;
+  let n=0;
+  personalBooks().forEach(b=>{
+    if(Object.prototype.hasOwnProperty.call(last.undo,b.slug)){ b.tradition=last.undo[b.slug]; n++; }
+  });
+  state.myLibView.lastFiling=null; persist();
+  logActivity('Undid the librarian’s last filing — '+n+' book(s) put back.');
+  blip(440,.07); renderMyLibrary();
+  const out=document.getElementById('myLibAiOut');
+  if(out) out.textContent=`Put ${n} book${n===1?'':'s'} back exactly where they were.`;
 }
 /* The work order is the "list the problems or request out" idea (2026-07-28):
    whatever neither rules nor the local model could place is handed back as a
@@ -8798,13 +8820,50 @@ export async function suggestShelvesWithAI(){
   // unfiled pile. Misfiling a whole import onto one shelf is the normal
   // accident (128 books onto Theravada, in the case that prompted this), and
   // "only unfiled" would have been useless for exactly that.
-  const sel=Object.keys(state.myLibView.sel||{});
-  const showing=(state.myLibView.show||'all')!=='all';
-  const pool = sel.length ? personalBooks().filter(b=>state.myLibView.sel[b.slug])
-    : ((state.myLibView.q||'').trim() || showing) ? myLibFiltered()
-    : personalBooks().filter(b=>shelfOf(b)==='Personal');
-  const unfiled=pool.slice(0,60);
-  if(!unfiled.length) return say('Nothing to sort — select some books, search for a shelf, or leave some unfiled.');
+  /* THE LIBRARIAN NEVER TOUCHES A BOOK YOU HAVE ALREADY PLACED (fixed
+     2026-07-28, from real use: "the AI undoes all the work I did when sorting,
+     and does nothing after sorting like 20 books").
+
+     Three separate faults, all mine, all in these five lines:
+
+     1. The pool included ALREADY-FILED books whenever anything was selected —
+        and "Select all" is the natural gesture on a big library. Every one of
+        them got a "suggestion", and Accept All wrote it back. Where a rule
+        disagreed with a deliberate human choice, the human choice lost
+        silently. That is the "undoes all the work I did", and it is the worst
+        kind of bug this project can have: it destroys the exact thing the app
+        exists to help you build.
+
+     2. A hard `slice(0,60)` silently dropped everything past sixty. With 105
+        books, forty-five were never even looked at — and if the first sixty
+        were already filed, the entire budget was spent re-confirming books
+        that needed nothing. That is the "does nothing after sorting like 20
+        books": it reports a big number and changes nothing that mattered.
+
+     3. Suggestions that merely restated a book's current shelf were counted
+        and displayed as if they were work.
+
+     The rule now: **the librarian's job is the unfiled pile.** Re-filing books
+     you have already placed is a separate, explicit, opt-in act — because
+     moving something a person put somewhere on purpose needs asking, not
+     assuming. */
+  const v=state.myLibView;
+  const refile=!!v.refileFiled;
+  const sel=Object.keys(v.sel||{});
+  const showing=(v.show||'all')!=='all';
+  let pool = sel.length ? personalBooks().filter(b=>v.sel[b.slug])
+    : ((v.q||'').trim() || showing) ? myLibFiltered()
+    : personalBooks();
+  const filedInPool = pool.filter(b=>shelfOf(b)!=='Personal').length;
+  if(!refile) pool = pool.filter(b=>shelfOf(b)==='Personal');
+  // no cap: sixty was arbitrary and silently lost the rest. Everything gets
+  // looked at; the model still only ever sees the genuinely ambiguous ones.
+  const unfiled=pool;
+  if(!unfiled.length){
+    return say(filedInPool
+      ? `Those ${filedInPool} are already on shelves, so there is nothing to sort. Ticking “also re-file books I have already placed” below would let the librarian second-guess them — off by default, because you put them there on purpose.`
+      : 'Nothing to sort — select some books, search for a shelf, or leave some unfiled.');
+  }
   const shelves=allShelfChoices().filter(s=>s!=='Personal');
 
   /* RULES FIRST, MODEL SECOND (2026-07-28) — the standing budget rule: only ask
@@ -8817,8 +8876,11 @@ export async function suggestShelvesWithAI(){
   const alreadyFiled=personalBooks().filter(b=>shelfOf(b)!=='Personal');
   const { filed:byRule, unsure } = preSortShelves(unfiled, shelves, alreadyFiled);
   const picks={}; const why={};
-  byRule.forEach(f=>{ picks[f.slug]=f.shelf; why[f.slug]=f.why; });
-  const ruled=byRule.length;
+  // a "suggestion" that puts a book back where it already is is not work, and
+  // counting it as work is how the report came to say 60 while nothing changed
+  const shelfNow={}; personalBooks().forEach(b=>{ shelfNow[b.slug]=shelfOf(b); });
+  byRule.forEach(f=>{ if(shelfNow[f.slug]===f.shelf) return; picks[f.slug]=f.shelf; why[f.slug]=f.why; });
+  const ruled=Object.keys(picks).length;
 
   if(!isAIActive()){
     // No model? The rules still did real work — show it rather than refusing.
@@ -8862,6 +8924,7 @@ export async function suggestShelvesWithAI(){
         if(!shelf) continue;
         const b=group.find(x=>(x.title||'').trim().toLowerCase()===title);
         if(!b) continue;
+        if(shelfNow[b.slug]===shelf) continue;   // already there; not a change
         picks[b.slug]=shelf; why[b.slug]='the AI read the title'; n++;
       }
     }catch(e){ flickered=true; } // keep what earlier batches earned
@@ -8937,9 +9000,18 @@ function renderMyLibrary(keepFocus){
     </div>
     <div class="row" style="gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
       <button class="btn ghost" onclick="suggestShelvesWithAI()">✨ Have the librarian sort these</button>
+      <label class="s" style="display:flex;align-items:center;gap:5px;opacity:.85;cursor:pointer" title="Off by default: a book you filed yourself was filed on purpose">
+        <input type="checkbox" ${v.refileFiled?'checked':''} onchange="toggleRefileFiled()" style="width:auto;margin:0">
+        also re-file books I've already placed
+      </label>
       <button class="btn ghost" onclick="runLibraryTriage()" title="Check every book's licence — nothing is ever deleted">⚖ Which of these can I pass on?</button>
     </div>
     <div class="meta" id="myLibAiOut" style="margin-top:6px"></div>
+    ${v.lastFiling?`<div class="card" style="cursor:default;margin-top:8px;border-color:#8a6a3a">
+        <div class="t">↩ The last filing moved ${Object.keys(v.lastFiling.undo||{}).length} book(s)</div>
+        <div class="s" style="margin-top:4px">Not what you wanted? Put every one of them back exactly where it was.</div>
+        <div class="row" style="margin-top:8px"><button class="btn" onclick="undoLastFiling()">↩ Undo that filing</button></div>
+      </div>`:''}
     ${v.workOrder?`<div class="card" style="cursor:default;margin-top:10px;border-color:#8a6a3a">
         <div class="t">📋 ${v.workOrder.split(String.fromCharCode(10)).filter(l=>l.startsWith('- ')).length} nothing could place</div>
         <div class="s" style="margin-top:4px">Not a failure — a list. Being unable to finish is worth saying out loud;
@@ -9137,6 +9209,11 @@ export function newReviewManualForm2(){ state.ui='review'; state.reviewView={mod
    preprint with no source recorded looks exactly like a book to any heuristic.
    So it is one press, reversible, and it is what the Computer's `papers` command
    and Today's "never pulled apart" both read (2026-07-28). */
+export function toggleRefileFiled(){
+  state.myLibView.refileFiled=!state.myLibView.refileFiled;
+  state.myLibView.suggested=null; state.myLibView.suggestWhy={};
+  renderMyLibrary();
+}
 export function togglePaper(slug){
   const b=personalBooks().find(x=>x.slug===slug); if(!b) return;
   b.kind = b.kind==='paper' ? undefined : 'paper';
@@ -9406,7 +9483,7 @@ Object.assign(window, {
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   setNotesLogSort,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
-  togglePaper, newReviewManualForm2,
+  togglePaper, undoLastFiling, toggleRefileFiled, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
   writePacketFile, triggerImportPacket, setCommonsName,
 });

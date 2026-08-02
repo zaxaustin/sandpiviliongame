@@ -13,7 +13,7 @@ follow a link.
 
 ```
 release/Sand Pavilion Setup 0.1.0-beta.2.exe        95.0 MB
-SHA256  D44A5BD87872183BCF3767CCF30FEDD1C81B5102509D89C7B1550F1847474096
+SHA256  E995D76854CCD0DC48454BF0A50D3C4C6A2B4250DB77007E74549C64533B8DBF
 ```
 
 One file. It's a one-click NSIS installer: no options, installs per-user
