@@ -1889,6 +1889,15 @@ const NOTE_SOURCES=[
 // a content hash (source + a djb2 of ts|text) so the key survives another
 // note being deleted or reordered — an index would not.
 function noteHash(s){ let h=5381; for(let i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))|0; } return (h>>>0).toString(36); }
+/* A note counts as revisited only when it is opened — being in a list is not
+   reading. Recorded so Today can tell the difference between a note you keep
+   coming back to and one you wrote once and forgot. */
+export function markNoteSeen(key){
+  if(!key) return;
+  if(!data.noteMeta[key]) data.noteMeta[key]={};
+  data.noteMeta[key].seen=todayKey();
+  persist();
+}
 function noteFolderOf(key){ return (data.noteMeta[key]&&data.noteMeta[key].folder)||''; }
 function noteTagsOf(key){ return (data.noteMeta[key]&&data.noteMeta[key].tags)||[]; }
 function allFolders(){ return [...new Set(Object.values(data.noteMeta||{}).map(m=>m&&m.folder).filter(Boolean))].sort(); }
@@ -1921,9 +1930,17 @@ function gatherNotes(){
       out.push({source:'grant', icon:'📝', where:'Grant · '+p.title, title:n.label||p.title, text:n.text||'', date:n.ts||'', key:'grant:'+p.id+':'+noteHash((n.ts||'')+'|'+(n.label||'')+'|'+(n.text||''))}));
   return out.sort((a,b)=>(b.date||'').localeCompare(a.date||'')); // newest first; undated (chat) sink to the bottom
 }
-export function openNotesLog(){
+export function openNotesLog(focusKey){
   state.notesLogView=state.notesLogView||{source:'all',folder:'all',q:'',expanded:null};
   if(!state.notesLogView.folder) state.notesLogView.folder='all';
+  /* Arriving from Today's "worth another look?" — clear the filters so the note
+     is definitely visible, open it, and mark it seen, since it has now actually
+     been read rather than merely listed. */
+  if(focusKey){
+    state.notesLogView.source='all'; state.notesLogView.folder='all'; state.notesLogView.q='';
+    state.notesLogView.expanded=focusKey;
+    markNoteSeen(focusKey);
+  }
   state.notesLogEdit=null; // always land on the list, never a stale editor
   state.ui='notesLog'; hideAllOv(); renderNotesLog(); showOv('notesLogOv');
 }
@@ -2073,7 +2090,12 @@ function renderNotesLogList(){
 export function setNotesLogSource(id){ state.notesLogView.source=id; state.notesLogView.expanded=null; renderNotesLog(); }
 export function setNotesLogFolder(id){ state.notesLogView.folder=id; state.notesLogView.expanded=null; renderNotesLog(); }
 export function setNotesLogSearch(val){ state.notesLogView.q=val; state.notesLogView.expanded=null; renderNotesLogList(); }
-export function toggleNotesLogItem(key){ const v=state.notesLogView; v.expanded=v.expanded===key?null:key; renderNotesLogList(); }
+export function toggleNotesLogItem(key){
+  const v=state.notesLogView;
+  v.expanded = v.expanded===key ? null : key;
+  if(v.expanded===key) markNoteSeen(key);   // opened, therefore actually read
+  renderNotesLogList();
+}
 export function assignNoteFolder(key, val){
   if(val==='__new'){
     let name=window.prompt('New folder name:'); if(name==null){ renderNotesLogList(); return; }
@@ -4411,6 +4433,10 @@ export function currentDayItems(){
     read: data.read||{},
     dissections: (data.hall&&data.hall.dissections)||[],
     catalogue: Store.allDocs(),
+    notes: gatherNotes().map(function(n){
+      return { key:n.key, title:n.title, text:n.text, date:n.date,
+               seen:(data.noteMeta[n.key]&&data.noteMeta[n.key].seen)||'' };
+    }),
   });
 }
 export function openTheDay(){
@@ -9307,6 +9333,7 @@ Object.assign(window, {
   openBookIntake, termSubmit, termQuick, openTheDay, currentDayItems,
   openStandUp, standUpAnswer, standUpItem, endStandUp,
   openReport, copyReport, saveReport, reportText,
+  markNoteSeen,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
   togglePaper, newReviewManualForm2,

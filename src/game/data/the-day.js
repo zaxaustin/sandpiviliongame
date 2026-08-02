@@ -118,7 +118,26 @@ export function theDayItems(ctx = {}) {
     note: looseP.length > 1 ? looseP.length + ' papers you have not pulled apart yet' : 'brought in, never pulled apart',
     fn: 'openScienceHall' });
 
-  /* 5 — brought in and never opened. The commonest quiet regret in any
+  /* 5 — a note you wrote and have not looked at since. The note system is
+        well organised — six sources, folders, tags, search — but organisation
+        only helps someone who is already LOOKING. Nothing ever brought a note
+        back, so writing one was the end of its life rather than the start.
+        This is the only thing in the app that can close that loop.
+
+        One at a time, and only past a fortnight, so it stays a rediscovery
+        rather than a review queue. `seen` is set when a note is actually
+        opened, not merely listed. */
+  const notes = ctx.notes || [];
+  const forgotten = notes
+    .map(n => ({ n, age: daysBetween(n.seen || n.date, today) }))
+    .filter(x => x.n.date && x.age >= 14 && String(x.n.text || '').trim().length > 20)
+    .sort((a, b) => b.age - a.age)[0];
+  if (forgotten) push({ key: 'note-' + forgotten.n.key, icon: '🗒',
+    title: forgotten.n.title || 'A note you wrote',
+    note: 'written ' + forgotten.age + ' days ago and not opened since — worth another look?',
+    fn: 'openNotesLog', arg: forgotten.n.key });
+
+  /* 6 — brought in and never opened. The commonest quiet regret in any
         library, and the app is the only thing that can notice. */
   const unread = books.filter(b => !read[b.slug]);
   if (unread.length) push({ key: 'unread', icon: '📚', title: unread[0].title,

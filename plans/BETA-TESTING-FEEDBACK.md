@@ -1782,3 +1782,34 @@ answer only.
 
 Guarded by a smoke case, because day one happens once per tester and cannot be
 re-run on them.
+
+### 30. [x] Notes were well organised and never came back
+
+*"How is the note organisation? I want to be able to review things I see."*
+
+**The organisation was not the problem, and that is worth saying.** `Your Notes`
+already gathers six sources into one place — your own notes, notes taken on a
+book page, conversation notes, Research Desk notes, Grant documents — with
+source filters and counts, folders, tags, full-text search and newest-first
+dates. Sebastian can already review a whole folder.
+
+**The gap was revisiting.** Organisation only helps someone who is already
+*looking*. Nothing in the app ever brought a note *back*, so writing one was the
+end of its life rather than the start of it — which is the exact failure that
+makes note-taking feel pointless over time.
+
+**Now:** `☀ Today` resurfaces a note you wrote and have not opened since —
+
+```
+🗒 On attention
+   written 32 days ago and not opened since — worth another look?
+```
+
+One at a time, and only past a fortnight, so it stays a **rediscovery rather
+than a review queue**. Pressing it clears the filters, opens that note, and
+marks it seen — and having actually been read, it stops being offered. `seen` is
+recorded on *opening* a note, never on merely listing it, because being in a
+list is not reading.
+
+Scraps are left alone: a note under twenty characters is not resurfaced, since
+"todo" coming back a month later is noise rather than rediscovery.

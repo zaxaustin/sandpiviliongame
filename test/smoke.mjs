@@ -456,6 +456,21 @@ for (const [key, s] of Object.entries(scenes)) {
   if (!nag) fail('the-day: something carried four days went unnoticed');
   else if (!/still want it/.test(nag.note)) fail('the-day: the carried note should ask, not scold');
 
+  // a forgotten note comes back — the loop the notes system never closed
+  const oldNote = { key:'n1', title:'On attention', text:'The thing about focus is that it compounds over weeks.', date:'2026-07-01' };
+  const back = theDayItems({ today: TODAY, notes: [oldNote] });
+  const rev = back.find(i => i.fn === 'openNotesLog');
+  if (!rev) fail('the-day: a note written 27 days ago and never reopened did not come back');
+  else if (!/worth another look/.test(rev.note)) fail('the-day: the resurfaced note should invite, not instruct');
+  // …but a recent one is left alone, and so is one you have revisited
+  const recent = theDayItems({ today: TODAY, notes: [{ ...oldNote, date: '2026-07-26' }] });
+  if (recent.some(i => i.fn === 'openNotesLog')) fail('the-day: it resurfaced a note written two days ago');
+  const revisited = theDayItems({ today: TODAY, notes: [{ ...oldNote, seen: '2026-07-27' }] });
+  if (revisited.some(i => i.fn === 'openNotesLog')) fail('the-day: it resurfaced a note that was read yesterday');
+  // a one-word note is not worth resurfacing
+  const thin = theDayItems({ today: TODAY, notes: [{ ...oldNote, text: 'todo' }] });
+  if (thin.some(i => i.fn === 'openNotesLog')) fail('the-day: it resurfaced a scrap with nothing in it');
+
   // an un-dissected paper surfaces; one already analysed does not
   const paper = bk('p1', 'Attention Is All You Need', { source_url: 'https://arxiv.org/abs/1706' });
   const loose = theDayItems({ today: TODAY, books: [paper], read: { p1: true } });
