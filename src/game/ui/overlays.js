@@ -4,6 +4,7 @@ import { GATE_BEQUESTS } from '../data/bequests.js';
 import { COMMONS_PACKETS, PACKET_KINDS } from '../data/commons-packets.js';
 import { VIS, visBadge, visLine, DATA_MAP } from '../data/visibility.js';
 import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.js';
+import { LEVELS as SOURCE_LEVELS, LEVEL_ORDER, assess as assessSource, mayEnterCommons } from '../data/sourcing.js';
 import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-parse.js';
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
@@ -9577,6 +9578,30 @@ export function openBookIntake(){
         is expected, not a failure. It stays findable, holds your page notes, can be cited in an investigation, and
         <b>the residents will know you own it</b> — so the answer becomes "you have that one, chapter 4, go and
         look" instead of a thinner explanation from memory. That last part is the whole reason to bother.</div>
+    </div>
+
+    <h3 style="margin-top:18px">Where it came from — the four kinds</h3>
+    <div class="meta">Two different questions get muddled together everywhere else, so they're kept
+      apart here. <b>What a text's licence lets you do</b> is one thing — the Pavilion already works
+      that out for you when you add one. <b>Where you got it</b> is a separate question with a separate
+      answer, and no amount of reading the file will tell you which happened. The same book is fine to
+      hold if you bought it and not fine to take from a shadow library; the bytes are identical.</div>
+    <div class="card" style="cursor:default;margin-top:8px">
+      ${LEVEL_ORDER.map(k=>{ const L=SOURCE_LEVELS[k]; return `
+        <div class="s" style="margin-top:8px;padding-left:6px;border-left:2px solid ${L.tone}">
+          <b style="color:${L.tone}">${L.mark} ${esc(L.label)}</b> — <i>${esc(L.short)}</i>
+          <div style="margin-top:3px;opacity:.9">${esc(L.advice)}</div>
+        </div>`; }).join('')}
+      <div class="s" style="margin-top:12px;opacity:.9"><b>What this actually does:</b> the Pavilion won't
+        help you fetch from the last one — there's no connector for it and there won't be — and nothing from
+        the last two is ever certified onto a shared shelf. It does <b>not</b> scan your disk, refuse to open
+        anything you drag in, or lecture you about your own library. You're an adult in your own house; this
+        is a doorman for the commons, not a warden for your shelves.</div>
+      <div class="s" style="margin-top:8px;opacity:.9">And the clean path is the strong one, not the timid
+        one: a commons anyone can check cannot be dismissed, while one stolen shelf becomes the whole story
+        and buries every honest thing beside it. There's more free material than anyone has organised —
+        public domain, open-access science, government publications — and organising it well is the actual
+        scarce thing.</div>
     </div>
 
     <h3 style="margin-top:18px">Where to get books worth having</h3>

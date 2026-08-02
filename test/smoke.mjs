@@ -171,6 +171,74 @@ for (const [key, s] of Object.entries(scenes)) {
 }
 
 
+/* ---------- sourcing: how was it GATHERED ----------
+   The second axis, beside copyright.js. Its safety property is the mirror of
+   that file's: nothing unrecognised is ever waved through as freely given, and
+   BOTH axes must agree before anything may enter the commons — because a text
+   can be genuinely public domain and still have been taken from somewhere it
+   had no business being taken from. See plans/CREDIT-AND-COMMONS-FRAMEWORK.md. */
+{
+  const { assess, classifySource, mayEnterCommons, LEVELS } =
+    await import('../src/game/data/sourcing.js');
+
+  const cases = [
+    ['Gutenberg',            'https://www.gutenberg.org/ebooks/1228',        'given'],
+    ['arXiv',                'https://arxiv.org/abs/2401.00001',             'given'],
+    ['a Vishay datasheet',   'https://www.vishay.com/docs/82491/tsop382.pdf', 'given'],
+    ['Kuphaldt, DSL',        'https://www.allaboutcircuits.com/textbook/',   'given'],
+    ['a US government doc',  'https://www.nasa.gov/whatever.pdf',            'given'],
+    ['"I bought it"',        'bought it from the shop last year',            'held'],
+    ['"my own copy"',        'my own copy, off my shelf',                    'held'],
+    ['something you wrote',  'I wrote this myself',                          'given'],
+    ['a YouTube transcript', 'https://youtube.com/watch?v=abc',              'ask'],
+    ['a lending library',    'https://archive.org/details/foo/lending',      'ask'],
+    ['a .edu with no terms', 'https://mit.edu/course/notes.pdf',             'ask'],
+    ['a re-upload site',     'https://scribd.com/doc/12345',                 'ask'],
+    ['"a friend sent it"',   'a friend emailed it to me',                    'ask'],
+    ['"found it online"',    'found it online somewhere, not sure',          'ask'],
+    ['a shadow library',     'libgen.rs/book/index.php?md5=x',               'no'],
+    ['Sci-Hub',              'sci-hub.se/10.1000/xyz',                       'no'],
+    ["Anna's Archive",       'annas-archive.org/md5/abc',                    'no'],
+    ['a torrent',            'magnet:?xt=urn:btih:abc',                      'no'],
+    ['DRM stripping',        'used deDRM to remove the DRM',                 'no'],
+  ];
+  for (const [name, source, want] of cases) {
+    const got = assess({ source }).id;
+    if (got !== want) fail(`sourcing.js: ${name} → '${got}', expected '${want}'`);
+  }
+
+  // THE safety property, mirroring copyright.js: unrecognised is never 'given'.
+  for (const junk of ['', 'qqq', 'http://example.com/thing.pdf', 'somewhere', '???']) {
+    const v = assess({ source: junk });
+    if (v.id === 'given') fail(`sourcing.js: unrecognised source ${JSON.stringify(junk)} was waved through as freely given`);
+  }
+  if (classifySource('') !== null) fail('sourcing.js: an empty source must return null so the UI knows to ASK');
+
+  // BOTH axes must agree. This is the case the whole file exists for: a clean
+  // licence does not excuse where it came from, and vice versa.
+  const gate = [
+    [{ sharing: 'pd',        gathered: 'given' }, true,  'public domain, freely given'],
+    [{ sharing: 'open',      gathered: 'given' }, true,  'open licence, freely given'],
+    [{ sharing: 'pd',        gathered: 'no'    }, false, 'PUBLIC DOMAIN but taken from a shadow library'],
+    [{ sharing: 'pd',        gathered: 'ask'   }, false, 'public domain but an unrecorded origin'],
+    [{ sharing: 'copyright', gathered: 'given' }, false, 'freely given but still in copyright'],
+    [{ sharing: 'unknown',   gathered: 'held'  }, false, 'nothing established either way'],
+  ];
+  for (const [input, want, name] of gate) {
+    const got = mayEnterCommons(input).ok;
+    if (got !== want) fail(`sourcing.js: mayEnterCommons(${name}) → ${got}, expected ${want}`);
+  }
+
+  // Every level must carry advice a person can act on, not just a colour.
+  for (const k of Object.keys(LEVELS)) {
+    const L = LEVELS[k];
+    if (!L.mark || !L.label || !L.short || !L.advice || L.advice.length < 40) {
+      fail(`sourcing.js: level '${k}' is missing the guidance that makes it useful`);
+    }
+  }
+}
+
+
 /* ---------- drafted-step parsing ----------
    Checked against what the REAL local model on this machine returns, which is
    not what the prompt asks for: every step on one line, "action | why."

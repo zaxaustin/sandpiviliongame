@@ -247,3 +247,133 @@ stubs and there is no 301; the six-stage ladder in the project file should
 BE that track. That's the next obvious build. The fifth item — a hard,
 measured exemplar investigation in the Hall — is better written after the
 steward has actually run one, not invented now.
+
+
+================================================================
+THIRD PASS — VERCEL, AND THE SECOND AXIS OF PROVENANCE
+================================================================
+
+THE VERCEL FAILURE (interrupted the session; worth the interruption)
+--------------------------------------------------------------------
+"i keep geting notifications from vercel saying that this is failing to
+launch what is up with that?"
+
+Reproduced from a clean clone rather than guessed, which is the only
+reason the diagnosis is trustworthy:
+
+    git clone . /tmp/vtest
+    NODE_ENV=production npm ci     ->  "audited 1 package"   (nothing)
+    npm run build:beta             ->  'vite' is not recognized
+
+Cause: this project has ZERO runtime `dependencies`. Everything is a
+devDependency, on purpose — electron-builder packs `dependencies` into
+the desktop installer, so vite in there would put the entire build
+toolchain inside the .exe. But Vercel builds with NODE_ENV=production,
+and npm skips devDependencies when that is set. So Vercel's install step
+installed literally nothing and the build died immediately.
+
+Fix: vercel.json installCommand `npm install --include=dev`, plus
+ELECTRON_SKIP_BINARY_DOWNLOAD=1 since the website has no use for a 150MB
+Electron binary.
+
+Guard: .github/workflows/web-build.yml reproduces Vercel's environment
+exactly (NODE_ENV=production, same install, same build) on every push.
+This broke SILENTLY and the only symptom was a failure email the user
+could not act on — now it fails somewhere with the reason written above
+the job.
+
+The follow-up was the right question — "i hope we are not letting local
+data leack" — so it got six real checks rather than an assurance:
+.env.local never in any commit; only .env.beta and .env.example tracked;
+.env.beta deliberately empty; no library files in the repo beyond two
+READMEs; the verifier finds no host or key in the bundle; preflight
+confirms zero external requests at runtime. Vercel only ever sees the
+GitHub repo — it never touches the machine — so there is no path for a
+save file or a personal library to reach it even in principle.
+
+THE SECOND AXIS — sourcing.js
+------------------------------
+Asked: distinguish freely-tradeable / study-only / grey / strict-no-no,
+"i do intend to fight the ngos for big education, but i dont have to
+stoop to there level and i will do things properly."
+
+Checked what existed first. copyright.js already answers THREE of the
+four (open+pd = shareable, copyright = personal, unknown = personal).
+The fourth was missing, and the reason it was missing is the interesting
+part: IT IS A DIFFERENT AXIS.
+
+    copyright.js  — given that I have this text, what may I DO with it?
+    sourcing.js   — should I have GOT it, and from where?
+
+Independent. The proof: Practical Electronics for Inventors is in
+copyright no matter what. Bought -> fine to hold. A friend's PDF -> grey.
+A shadow library -> the line. IDENTICAL BYTES in all three; the act is
+what differs, and no amount of examining the file reveals which. So one
+field cannot carry both, and the second one cannot be inferred from the
+text the way copyright.js infers from a licence header — only from the
+source, and otherwise it must be ASKED.
+
+Four levels: freely given / yours to hold / ask first (the grey) / not
+from here. Recognition is a HAND-WRITTEN list, deliberately the same
+discipline as the Caravan's hand-picked connectors rather than a general
+matcher. Unrecognised always means `ask`, never `given` — the failure
+direction is toward caution, mirroring copyright.js's own property.
+
+mayEnterCommons() requires BOTH axes to agree, which is the case the
+whole file exists for: a genuinely public-domain text taken from a shadow
+library still may not enter the commons. There is a test for exactly
+that, named in capitals so it is not quietly deleted.
+
+What it deliberately does NOT do: scan your disk, refuse to open anything
+you drag in, or lecture you. A tool that searched your files and withheld
+them would be doing to you precisely what the gatekeepers do, in the name
+of opposing them. Doorman for the commons; not warden for your shelves.
+
+One real bug caught by the smoke test on first run: /magnet:\b/ can never
+match, because a word boundary after a colon requires a word character
+next and "magnet:?xt=" has "?". Torrents were classifying as grey instead
+of the line. That is exactly why the test enumerates real strings rather
+than trusting the patterns to look right.
+
+THE FRAMEWORK DOCUMENT
+----------------------
+plans/CREDIT-AND-COMMONS-FRAMEWORK.md — the answer to "credit, reputation
+and skill rather than money."
+
+The founding move: REPUTATION IS A RECORD, NOT A SCORE. Every score gets
+farmed, then optimised, then traded — at which point it has quietly become
+money, the thing it was meant to avoid. A record cannot be farmed because
+the record IS the work, and every line links to a checkable artifact.
+
+Three things kept separate: CREDIT (who made it — automatic, permanent,
+the keypair in COMMONS-BACKEND-PLAN.md already provides it, and it cannot
+be sold or transferred); REPUTATION (what OTHERS did with your work —
+taken / built on / reproduced / corrected); SKILL (attested by an artifact
+that works, never by a badge for reading).
+
+Two ideas in there worth keeping:
+
+  - "reproduced" is the strongest reputation signal and THIS PROJECT CAN
+    ACTUALLY DO IT, because the Bench already records a prediction and a
+    measurement per step. Someone else running your steps and getting your
+    numbers is about as good as evidence gets, and almost nowhere else can
+    even represent it.
+
+  - CORRECTION MUST RAISE STANDING, NOT LOWER IT. The Hall's creed applied
+    to people: the investigation form already makes you state what would
+    change your mind, and actually changing it when that arrives is the
+    highest-integrity act available. A system that punishes visible error
+    breeds people who never admit one — which is the exact failure mode of
+    the institutions this is meant to stand against.
+
+Money: "money follows the work; the work never follows money." Allowed for
+thanks after the fact, openly-named real costs, and commissioning where the
+result lands in the commons free. Never for placement, ranking, reputation,
+a verdict, or gating. The one hard rule if all else is forgotten: NOTHING
+IN THE COMMONS MAY COST MONEY TO READ.
+
+STILL OPEN
+----------
+The Electronics courses (201 real, 301 = the six-stage remote ladder).
+Asked for two messages ago and twice deferred by more urgent things —
+that is the next build, before anything else here.
