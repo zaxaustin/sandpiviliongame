@@ -171,6 +171,70 @@ for (const [key, s] of Object.entries(scenes)) {
 }
 
 
+/* ---------- user-facing docs must not send a beta tester to the cloud ----------
+   Added 2026-08-02 from outside review, which caught PROTOCOLS.md presenting a
+   SUPABASE_SERVICE_ROLE_KEY path as "the real pipeline" in a document whose
+   whole premise is a local Pavilion. Three things wrong at once: it contradicts
+   the 2026-07-12 standing decision, it is unusable by a tester who has no
+   Supabase project, and it is the highest-privilege credential class there is.
+
+   The rule this enforces is NOT "never mention it" — promote-draft.py genuinely
+   still needs one and pretending otherwise would be the dishonest fix. The rule
+   is: wherever a user-facing doc names it, the same passage must say plainly
+   that it is maintainer-only and not needed to fill your own Pavilion. */
+{
+  const fs = await import('node:fs');
+  const USER_FACING = ['PROTOCOLS.md', 'MANUAL.md', 'README.md', 'plans/BETA-RELEASE-NOTES.md'];
+  // PROXIMITY, not presence. A first cut checked the whole file and passed
+  // happily with the disclaimer three sections away from the key — which is
+  // how a reader misses it. Each MENTION must carry its own warning nearby.
+  const NEAR = 1200; // characters either side — about a screen
+  for (const f of USER_FACING) {
+    if (!fs.existsSync(f)) continue;
+    const text = fs.readFileSync(f, 'utf8');
+    for (const m of text.matchAll(/SERVICE_ROLE/gi)) {
+      const around = text.slice(Math.max(0, m.index - NEAR), m.index + NEAR);
+      if (!/maintainer|not for you|not needed to fill|only needed by/i.test(around)) {
+        fail(`${f}: the SERVICE_ROLE mention at character ${m.index} has no "maintainer-only / not needed for your own Pavilion" note within ${NEAR} characters — a beta tester reading just that passage would go and make a Supabase project`);
+      }
+      if (!/never commit/i.test(around)) {
+        fail(`${f}: the SERVICE_ROLE mention at character ${m.index} has no "never commit it" warning within ${NEAR} characters`);
+      }
+    }
+  }
+  // And no user-facing doc may present a cloud account as REQUIRED to use the app.
+  const manual = fs.existsSync('MANUAL.md') ? fs.readFileSync('MANUAL.md', 'utf8') : '';
+  if (/you (will )?need (a )?Supabase/i.test(manual)) {
+    fail('MANUAL.md tells a visitor they need Supabase — the app runs with no account at all');
+  }
+}
+
+
+/* ---------- the two café boards must read as DORMANT, not BROKEN ----------
+   A beta tester cannot tell "deliberately waiting on a server that does not
+   exist" from "misconfigured on my machine" — and the old copy ("needs a
+   Supabase connection — nothing configured on this device") actively pushed
+   them toward the second reading, naming a service they have never heard of.
+   They then either try to fix it or file it as a bug. Both are our fault. */
+{
+  const fs = await import('node:fs');
+  const src = fs.readFileSync('src/game/ui/overlays.js', 'utf8');
+  // The exact old strings, so they cannot come back by a careless revert.
+  for (const bad of [
+    'needs a Supabase connection to show the board',
+    'needs a Supabase connection to post',
+  ]) {
+    if (src.includes(bad)) {
+      fail(`overlays.js still tells a visitor "${bad}" — say the board is dormant by design instead, and that there is nothing for them to configure`);
+    }
+  }
+  const manual = fs.readFileSync('MANUAL.md', 'utf8');
+  if (/Notice Board/.test(manual) && !/dormant in this build|not in this build/i.test(manual)) {
+    fail('MANUAL.md lists the café boards without saying they are dormant in this build — a tester will report them as broken');
+  }
+}
+
+
 /* ---------- sourcing: how was it GATHERED ----------
    The second axis, beside copyright.js. Its safety property is the mirror of
    that file's: nothing unrecognised is ever waved through as freely given, and

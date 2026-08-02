@@ -127,7 +127,33 @@ knows them) — the label just always tells the truth about who vouched.
 and writing straight to `library-inbox/` are real browser limits — use Pathway
 B (or the `pdf-to-text.py` / `epub-to-text.py` converters) for those.*
 
-### Pathway B — with a terminal (the real pipeline)
+### Pathway B — the maintainer's path into the *shared* catalog
+
+> **Read this box before the steps. Pathway B is almost certainly not for you.**
+>
+> This pathway does **not** add a book to *your* Pavilion — Pathway A above does
+> that, completely, and it is the real pathway for anyone running their own
+> Pavilion. Pathway B writes into the **shared certified catalog** that ships
+> with the app, which is a thing only the person maintaining that catalog needs
+> to do.
+>
+> **It currently requires a Supabase project and a `SUPABASE_SERVICE_ROLE_KEY`,
+> and that is a leftover, not the direction.** As of 2026-07-12 this project's
+> standing decision is local and self-hosted — local Postgres and local MinIO,
+> no cloud account required for anything
+> (see [`plans/SELF-HOSTED-STACK-PLAN.md`](plans/SELF-HOSTED-STACK-PLAN.md)).
+> `promote-draft.py` has not been ported to the local stack yet. Until it is,
+> these steps are documented as they actually work rather than as we would like
+> them to, which is the same honesty rule as everything else in this file.
+>
+> **On the service-role key specifically, since it is named below.** A
+> service-role key bypasses every row-level security rule in a Supabase project
+> — it is the highest-privilege credential that project has, and it is a
+> *different class of thing* from the publishable key the game itself uses.
+> Never commit one, never put it in `.env.local`, never paste it into the game,
+> a browser, or a chat. Set it as an environment variable in the one terminal
+> session you need it in and let it die with the window. **And if you are
+> filling your own Pavilion, you do not need one at all** — you need Pathway A.
 
 The full pipeline, the same one the Caravan connectors feed into. Exact
 commands live in [`library-drafts/README.md`](library-drafts/README.md); this
@@ -156,7 +182,9 @@ is the shape:
    — parses the draft, refuses if license/tradition are still `TODO`, and
    inserts it into Supabase's `library_documents`. **Live in the game
    immediately, no code deploy.** (Needs `SUPABASE_URL` and
-   `SUPABASE_SERVICE_ROLE_KEY` set — `--help` explains.)
+   `SUPABASE_SERVICE_ROLE_KEY` set — `--help` explains. Maintainer-only, and
+   **not needed to fill your own Pavilion**; the key is environment-variable
+   only — **never commit** it and never put it in `.env.local`.)
 5. **Optional — attach the full text** so the Reader's "📖 Read the full text"
    button works:
    `python tools/caravan/push-fulltext.py <slug> library-sources/<file>.txt --translator "..." --source-url "..." --license "..."`
@@ -271,10 +299,16 @@ Caravan Desk in-game).
 | `python tools/caravan/openalex.py "<query>"` | Find the open-access copy of a paper |
 | `python tools/caravan/semanticscholar.py "<query>"` | Search Semantic Scholar |
 
-### Shelving a book — the certified pipeline (terminal path)
+### Shelving a book into the SHARED catalog (maintainer only)
 
-Needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set for the last two
-(the service-role key, never committed). See Protocol 1, Pathway B.
+**Not needed to fill your own Pavilion** — drag a file onto the window and
+you're done (Protocol 1, Pathway A). These write into the shared certified
+catalog, and the last two still need `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` — a leftover from before this project's move to a
+local, self-hosted stack, kept documented honestly until `promote-draft.py` is
+ported. The service-role key bypasses all row-level security: environment
+variable only, never committed, never in `.env.local`, never in the game. See
+the box at Protocol 1, Pathway B.
 
 | Command | What it does |
 | --- | --- |
@@ -316,8 +350,16 @@ Beta testers never need this; it's for your own machine's certified library.
 
 > **The one habit worth keeping:** when a command asks for a secret (a
 > `SERVICE_ROLE_KEY`, an API key), set it as an environment variable for that
-> terminal session — never paste it into a file that git tracks. Every script
-> here reads its secrets that way on purpose.
+> terminal session — **never commit** it, and never paste it into a file that
+> git tracks, including `.env.local`. Every script here reads its secrets that
+> way on purpose.
+>
+> Worth saying plainly: **filling your own Pavilion needs no secret of any
+> kind.** Nothing in the app requires an account, a key, or a cloud service —
+> drag a file onto the window and you are done. The only thing that ever wants
+> a `SERVICE_ROLE_KEY` is the maintainer-only path into the *shared* catalog
+> (Protocol 1, Pathway B), which is not needed by anyone running their own
+> Pavilion and is on its way out anyway.
 
 ---
 

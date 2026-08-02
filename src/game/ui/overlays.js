@@ -6595,7 +6595,7 @@ export async function submitNoticePost(){
   const { ok, error } = await submitQuestion({ title, body, external_url:url||null, author:author||null });
   if(!ok){
     msg.textContent = error==='no-backend'
-      ? "The café needs a Supabase connection to post — nothing configured on this device."
+      ? "There's nowhere for this to go yet — the board waits on a shared server that doesn't exist. Nothing to fix on your end. The Commons Table, in this room, shares work with no server at all."
       : "Couldn't submit just now — try again in a moment.";
     return;
   }
@@ -6645,7 +6645,24 @@ function renderNotice(){
     <div class="meta">Three most recent, steward-approved. A post here points outward — the real
       conversation may live elsewhere, or right in the words below.</div>
     ${v.loading ? '<p>Reading the board…</p>' :
-      v.error==='no-backend' ? '<p>The café needs a Supabase connection to show the board — nothing configured on this device.</p>' :
+      // DORMANT, NOT BROKEN (2026-08-02). The old copy said "needs a Supabase
+      // connection — nothing configured on this device," which is accurate and
+      // reads to a beta tester as "you skipped a setup step," naming a service
+      // they have never heard of. They then either try to fix it or file it as
+      // broken. Say what is actually true instead: this waits on a shared
+      // server that does not exist yet, there is nothing to do, and the thing
+      // beside it that DOES work is one press away.
+      v.error==='no-backend' ? `<div class="card" style="cursor:default;border-color:#8fb4d9">
+          <div class="t" style="color:#8fb4d9">Closed until there's a Commons to connect to</div>
+          <div class="s" style="margin-top:6px">This board is one of the two things in the Pavilion that genuinely
+            needs a <b>shared server</b> — somewhere posts from different people can meet. That server doesn't exist
+            yet, so the board is <b>deliberately dormant</b>. <b>Nothing is broken and there is nothing to configure
+            on your end.</b></div>
+          <div class="s" style="margin-top:6px">Sharing that needs no server at all already works: the
+            <b>Commons Table</b>, in this same room. A piece of work gets there because a person wrote a file and
+            handed it over.</div>
+          <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11.5px" onclick="openCommonsTable()">🤝 The Commons Table</button></div>
+        </div>` :
       v.error ? "<p>Couldn't reach the board just now. Try again in a moment.</p>" :
       (v.posts && v.posts.length ? v.posts.map(p=>`
         <div class="card" onclick="openNoticePost('${p.id}')">
@@ -8057,7 +8074,13 @@ function renderResidents(){
     <div class="meta">Notes the residents leave for each other — overheard more than addressed to
       you. Steward-approved, same discipline as the Notice Board.</div>
     ${v.loading ? '<p>Reading the board…</p>' :
-      v.error==='no-backend' ? '<p>Needs a Supabase connection to show the board — nothing configured on this device.</p>' :
+      // Same fix as the Notice Board above — dormant by design, not misconfigured.
+      v.error==='no-backend' ? `<div class="card" style="cursor:default;border-color:#8fb4d9">
+          <div class="t" style="color:#8fb4d9">Closed until there's a Commons to connect to</div>
+          <div class="s" style="margin-top:6px">Notes left between residents travel between <i>Pavilions</i>, so this board
+            needs a <b>shared server</b> — and there isn't one yet. <b>Deliberately dormant; nothing is broken and
+            there's nothing for you to set up.</b> Your own residents talk to you perfectly well without it.</div>
+        </div>` :
       v.error ? "<p>Couldn't reach the board just now. Try again in a moment.</p>" :
       (v.notes && v.notes.length ? v.notes.map(n=>`
         <div class="card" style="cursor:default">

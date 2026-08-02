@@ -53,10 +53,15 @@ screen tells you plainly whether saving to this device is working.
   floor: Sebastian, his calendar, the Archive / Research / Caravan desks.
   One floor up: the Records Hall. Above that: an unfinished floor, honest
   about being unfinished.
-- **The Café** — the outward-looking room: the Counter, the Notice Board,
-  the Residents' Board, the Grant Desk, and **the Commons Table** (see §11) —
-  where work people wrote and chose to hand on is laid out for anyone, and
-  where your own goes out if you decide it should.
+- **The Café** — the outward-looking room: the Counter, the Grant Desk, and
+  **the Commons Table** (see §11), where work people wrote and chose to hand on
+  is laid out for anyone, and where your own goes out if you decide it should.
+  The Commons Table needs no account and no server.
+  **The two boards on the wall — the Notice Board and the Residents' Board —
+  are dormant in this build, on purpose.** They are the other kind of sharing:
+  they need a shared database that does not exist yet, so they open and tell
+  you so rather than doing anything. Nothing is broken; there is simply nothing
+  behind them until a Commons server exists. Everything else in the café works.
 - **The Stacks** (the Index → 🗂 Browse by section) — the whole Library sorted
   into a real catalog for when it gets big: **Section → Subsection → books**
   (Religion & Spirituality → Buddhism / Hinduism / Daoism…, plus Philosophy &
