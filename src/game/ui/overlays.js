@@ -4300,7 +4300,7 @@ function reportContext(){
   const nav = (typeof navigator!=='undefined' && navigator.userAgent) || '';
   const os = /Windows/.test(nav) ? 'Windows' : /Mac/.test(nav) ? 'macOS' : /Linux/.test(nav) ? 'Linux' : 'unknown';
   return [
-    'Build:      0.1.0-beta.2',
+    'Build:      0.1.0-beta.3',
     'Running as: ' + (desktop ? 'the installed app' : 'a browser'),
     'System:     ' + os,
     'Local AI:   ' + (ai ? 'connected' : 'not connected'),

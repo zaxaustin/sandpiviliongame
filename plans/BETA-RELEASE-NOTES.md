@@ -1,4 +1,4 @@
-**Sand Pavilion 0.1.0-beta.2** — a small world for reading, thinking, and the
+**Sand Pavilion 0.1.0-beta.3** — a small world for reading, thinking, and the
 quiet work of a day, kept entirely on your own machine.
 
 This is a **beta**. Expect rough edges, and please tell me about them.
@@ -7,7 +7,7 @@ This is a **beta**. Expect rough edges, and please tell me about them.
 
 ### Installing
 
-Download `Sand Pavilion Setup 0.1.0-beta.2.exe` below and run it. It installs
+Download `Sand Pavilion Setup 0.1.0-beta.3.exe` below and run it. It installs
 for you only — no administrator password — and appears in the Start menu.
 
 **Windows will warn you it doesn't recognise the app.** Click **More info**,
@@ -16,8 +16,8 @@ then **Run anyway**. That's because I haven't bought a code-signing certificate
 because anything is wrong. If you'd like to check the download:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.2.exe" -Algorithm SHA256
-# E995D76854CCD0DC48454BF0A50D3C4C6A2B4250DB77007E74549C64533B8DBF
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.3.exe" -Algorithm SHA256
+# 1496983EFFEF3D2D5EF47CE06A5FB55037FA2E2FF55E8A7220EFC7981C4C98CC
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -56,6 +56,37 @@ There's a guide inside the app that explains all of it plainly — *Waking the
 Residents*, on the Practice shelf.
 
 ---
+
+### Please replace beta.2 if you have it
+
+**beta.2 had a bug that could undo your filing work**, found by real use. If you
+had sorted books onto shelves by hand and then used *Suggest shelves*, it could
+overwrite those deliberate choices with no way back, and it silently stopped
+looking after the first sixty books. **That is fixed here**, and it now: only
+touches books you haven't filed yet unless you tick a box, never stops early,
+and always offers an undo. Installing this over beta.2 is safe — your library,
+notes and save carry across untouched.
+
+### New in beta.3
+
+- **🔧 The Bench** (in the Science & Research Hall) — for things you're *making*
+  rather than claims you're weighing: a circuit, a print, a repair. Every step is
+  written in two halves — **what you expect, saved before you try it**, then what
+  actually happened. You can't go back and improve the guess. That's the point.
+- **🔬 The Lab** — a real room at last, up the Workshop's staircase twice, where
+  the Maker's Bench used to be closed. It gathers your builds, datasheets, paper
+  books, investigations and experiments in one place and holds none of them.
+- **Datasheets and books you own on paper.** A shelf entry can now say what kind
+  of thing it is. A datasheet gets a *lookup* — `ds tsop38238` at the Computer
+  opens it. A book you own **on paper** has no text here and isn't supposed to:
+  it stays findable and citable, and **the residents know you own it**, so the
+  answer can be "you have that one, chapter 4, go and look."
+- **Where a book came from** — the intake now explains the four honest kinds
+  plainly (freely given / yours to hold / grey / never spread), and where the
+  line actually is. It does not scan your disk and never will.
+- The reader no longer prints the word "undefined" under books you added
+  yourself, and the café's two closed boards now say they're **dormant by
+  design** instead of asking you to configure a service you've never heard of.
 
 ### What's new since the first build
 

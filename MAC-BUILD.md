@@ -40,8 +40,8 @@ npm run electron:build:beta  # the actual build — 5-10 minutes
 The results land in `release/`:
 
 ```
-Sand Pavilion 0.1.0-beta.2 arm64.dmg     ← Apple Silicon (M1/M2/M3/M4)
-Sand Pavilion 0.1.0-beta.2 x64.dmg       ← Intel Macs
+Sand Pavilion 0.1.0-beta.3 arm64.dmg     ← Apple Silicon (M1/M2/M3/M4)
+Sand Pavilion 0.1.0-beta.3 x64.dmg       ← Intel Macs
 ```
 
 **Use `electron:build:beta`, never the plain `electron:build`.** The `:beta`

@@ -1,8 +1,8 @@
 {
   "name": "sand-pavilion",
   "private": true,
-  "version": "0.1.0-beta.2",
-  "description": "The Sand Pavilion \u2014 a small walkable world for reading, planning, and working, with AI residents that run on your own machine. Local-first; nothing phones home.",
+  "version": "0.1.0-beta.3",
+  "description": "The Sand Pavilion — a small walkable world for reading, planning, and working, with AI residents that run on your own machine. Local-first; nothing phones home.",
   "author": "The Sand Pavilion stewards",
   "type": "module",
   "main": "electron/main.cjs",
@@ -16,7 +16,8 @@
     "build:beta": "vite build --mode beta && node scripts/verify-beta-build.mjs",
     "electron:build:beta": "vite build --mode beta && node scripts/verify-beta-build.mjs && electron-builder",
     "verify:beta": "node scripts/verify-beta-build.mjs",
-    "icon": "node scripts/make-icon.mjs"
+    "icon": "node scripts/make-icon.mjs",
+    "verify:release": "node scripts/verify-release-docs.mjs"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.110.1",
