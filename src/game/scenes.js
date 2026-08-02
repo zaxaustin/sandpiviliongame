@@ -293,6 +293,7 @@ function buildStudy(){
       // for directly after real use: a progression you climb deserves its own
       // door, not a button inside something else.
       {x:10,y:3,kind:'tree',name:'THE LEARNING TREE'},
+      {x:2,y:6,kind:'notes',name:'YOUR NOTES'},
       {x:5,y:6,kind:'computer',name:'THE COMPUTER'},
       {x:9,y:6,kind:'requests',name:'THE REQUEST BOARD'},
     ],

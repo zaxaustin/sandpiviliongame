@@ -570,6 +570,17 @@ function drawStation(st,ox,oy){
     for(const [c,sx] of yourSpines){ ctx.fillStyle=c; ctx.fillRect(x+S*sx,y+S*.2,S*.08,S*.26); }
     ctx.fillStyle='#f3ead2'; ctx.fillRect(x+S*.2,y+S*.62,S*.24,S*.07); // a waiting label card in the empty lower cubby
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.36,y+S*.03,S*.28,S*.05); // a small brass nameplate on top
+  } else if(st.kind==='notes'){ // Your Notes — an open notebook on a small stand, pages catching the light
+    ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.86,S*.34,S*.09,0,0,7); ctx.fill();
+    ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.2,y+S*.7,S*.06,S*.18); ctx.fillRect(x+S*.74,y+S*.7,S*.06,S*.18); // legs
+    ctx.fillStyle='#7a5a34'; ctx.fillRect(x+S*.14,y+S*.62,S*.72,S*.1);                                          // stand
+    // the notebook, open, tilted slightly
+    ctx.fillStyle='#f3ead2'; ctx.fillRect(x+S*.17,y+S*.3,S*.31,S*.32); ctx.fillRect(x+S*.52,y+S*.3,S*.31,S*.32);
+    ctx.fillStyle='#d9cba8'; ctx.fillRect(x+S*.48,y+S*.3,S*.04,S*.32);                                          // the spine
+    ctx.strokeStyle='#8a6d4a'; ctx.lineWidth=Math.max(1,S*.02); ctx.strokeRect(x+S*.17,y+S*.3,S*.66,S*.32);
+    ctx.fillStyle='#b9ab8e';                                                                                     // written lines
+    for(let i=0;i<4;i++){ ctx.fillRect(x+S*.21,y+S*(.36+i*.06),S*.22,S*.02); ctx.fillRect(x+S*.56,y+S*(.36+i*.06),S*.22,S*.02); }
+    ctx.fillStyle='#c8574a'; ctx.fillRect(x+S*.62,y+S*.24,S*.05,S*.2);                                           // a ribbon marker
   } else if(st.kind==='intake'){ // Bring a Book In — a low table with an open book on it and an arrow coming down into it: a drop target, made literal
     ctx.fillStyle='rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(x+S*.5,y+S*.86,S*.38,S*.1,0,0,7); ctx.fill();
     ctx.fillStyle='#4a3520'; ctx.fillRect(x+S*.14,y+S*.7,S*.07,S*.2); ctx.fillRect(x+S*.79,y+S*.7,S*.07,S*.2); // legs

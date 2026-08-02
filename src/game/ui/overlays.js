@@ -1928,8 +1928,22 @@ function gatherNotes(){
   for(const p of (data.grantProjects||[]))
     (p.documents||[]).forEach(n=>
       out.push({source:'grant', icon:'📝', where:'Grant · '+p.title, title:n.label||p.title, text:n.text||'', date:n.ts||'', key:'grant:'+p.id+':'+noteHash((n.ts||'')+'|'+(n.label||'')+'|'+(n.text||''))}));
-  return out.sort((a,b)=>(b.date||'').localeCompare(a.date||'')); // newest first; undated (chat) sink to the bottom
+  return sortNotes(out, (state.notesLogView&&state.notesLogView.sort)||'newest');
 }
+/* Sorting belongs in the interface, not in a settings page — asked for
+   2026-07-28: "I want to be able to go into notes and sort them." Four orders,
+   because those are the four questions people actually have of a pile of notes:
+   what did I just write, what have I been carrying longest, what came from
+   where, and where is the one called X. */
+function sortNotes(list, how){
+  const byDate=(a,b)=>(b.date||'').localeCompare(a.date||'');
+  if(how==='oldest') return list.slice().sort((a,b)=>(a.date||'zzzz').localeCompare(b.date||'zzzz'));
+  if(how==='title') return list.slice().sort((a,b)=>String(a.title||'').localeCompare(String(b.title||'')));
+  if(how==='source') return list.slice().sort((a,b)=>
+    String(a.where||'').localeCompare(String(b.where||'')) || byDate(a,b));
+  return list.slice().sort(byDate); // newest first; undated (chat) sink to the bottom
+}
+export function setNotesLogSort(how){ state.notesLogView.sort=how; state.notesLogView.expanded=null; renderNotesLog(); }
 export function openNotesLog(focusKey){
   state.notesLogView=state.notesLogView||{source:'all',folder:'all',q:'',expanded:null};
   if(!state.notesLogView.folder) state.notesLogView.folder='all';
@@ -2044,6 +2058,11 @@ function renderNotesLog(){
     ${listenBanner}
     <input type="text" id="notesLogSearch" placeholder="Search notes and tags…" value="${esc(v.q)}"
       oninput="setNotesLogSearch(this.value)" style="margin-bottom:10px">
+    <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">
+      <span class="meta" style="margin:0">Sort:</span>
+      ${[['newest','Newest'],['oldest','Oldest'],['source','By where it came from'],['title','A–Z']]
+        .map(([k,label])=>`<button class="btn ${(v.sort||'newest')===k?'':'ghost'}" style="font-size:11px;padding:3px 10px" onclick="setNotesLogSort('${k}')">${label}</button>`).join('')}
+    </div>
     <div style="margin-bottom:6px">${chips}</div>
     ${folderRow}${sebBtn}
     <div id="notesLogList"></div>`;
@@ -2087,6 +2106,7 @@ function renderNotesLogList(){
     </div>`;
   }).join('');
 }
+export { sortNotes };
 export function setNotesLogSource(id){ state.notesLogView.source=id; state.notesLogView.expanded=null; renderNotesLog(); }
 export function setNotesLogFolder(id){ state.notesLogView.folder=id; state.notesLogView.expanded=null; renderNotesLog(); }
 export function setNotesLogSearch(val){ state.notesLogView.q=val; state.notesLogView.expanded=null; renderNotesLogList(); }
@@ -2485,6 +2505,53 @@ export async function aiBookImpression(){
   }catch(e){ if(note) note.textContent="The connection flickered — no impression this time. (Is your local AI still running?)"; }
   if(btn) btn.disabled=false;
 }
+/* A chapter is the unit people actually think in — "what was that chapter
+   about?" is a question a page summary cannot answer and a whole-book
+   impression answers too vaguely. Asked for 2026-07-28: thoughts on "certain
+   chapters or a page, even a whole book to get the TLDR".
+
+   Chapter marks already exist (chapterPages(), built for the skip controls),
+   so this reuses them: everything from the current chapter's first page up to
+   the next mark. Where a book has no chapter marks it falls back to a window
+   of pages around where you are, and says so rather than pretending. */
+export async function aiSummariseChapter(){
+  const v=state.fullTextView; if(!v) return;
+  const slug=v.slug, d=Store.getDoc(slug);
+  const meta=document.getElementById('rdFullTextMeta'); const prev=meta?meta.textContent:'';
+  if(!isAIActive()){ if(meta) meta.textContent='Connect a local AI (⚙ Manage AI connections) to summarise a chapter.'; return; }
+  const marks=chapterPages(v);
+  let from=v.page, to=v.page, label='';
+  if(marks.length){
+    let idx=0; for(let i=0;i<marks.length;i++){ if(marks[i].page<=v.page) idx=i; }
+    from=marks[idx].page;
+    to=(idx+1<marks.length ? marks[idx+1].page-1 : v.pages.length-1);
+    label=marks[idx].label;
+  } else {
+    from=Math.max(0, v.page-3); to=Math.min(v.pages.length-1, v.page+3);
+    label='pages '+(from+1)+'–'+(to+1)+' (this book has no chapter marks)';
+  }
+  /* A chapter can be long. Cap what is sent so a small local model is not
+     handed forty pages and asked to hold them all — the same reason the
+     lesson-drafting was split into small asks. */
+  let text=v.pages.slice(from, to+1).join('\n\n');
+  const CAP=14000, trimmed=text.length>CAP;
+  if(trimmed) text=text.slice(0, CAP);
+  const btn=document.getElementById('rdChapterBtn'); if(btn) btn.disabled=true;
+  if(meta) meta.textContent='Reading '+(label||'this chapter')+'…';
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nSummarise the passage below from "'+(d?d.title:'a book')+'". '
+        +'Give: one sentence of what happens or is argued; then three or four bullet points of the substance; '
+        +'then one line on what is worth carrying away. Plain and useful, not a book-jacket blurb. '
+        +'Stay strictly inside the passage — invent nothing, and if it is cut off mid-thought, say so.'},
+      {role:'user', content:text+(trimmed?'\n\n[the passage was longer than this; it is cut off here]':'')},
+    ], {long:true});
+    if(meta) meta.textContent=prev;
+    if(isEmptyReply(reply)){ if(meta) meta.textContent='The thought slipped away — try again in a moment.'; }
+    else saveAiBookNote(slug, 'Chapter summary · '+(label||('pages '+(from+1)+'–'+(to+1))), reply, from);
+  }catch(e){ if(meta) meta.textContent='The connection flickered — no summary this time.'; }
+  if(btn) btn.disabled=false;
+}
 export async function aiAnalyzePage(){
   const v=state.fullTextView; if(!v) return;
   const slug=v.slug, d=Store.getDoc(slug);
@@ -2596,6 +2663,7 @@ function renderFullTextPage(){
   document.getElementById('rdFullTextBody').scrollTop=0;
   updateFullTextSpeakBtn();
   { const ab=document.getElementById('rdAnalyzeBtn'); if(ab) ab.style.display='inline-block'; } // always shown; nudges to connect an AI if none (see aiAnalyzePage)
+  { const cb=document.getElementById('rdChapterBtn'); if(cb) cb.style.display='inline-block'; } // same: discoverable first, honest about needing an AI when pressed
   renderBookNotes(v.slug); // the per-page note filter follows you as you turn pages
   if(wasReading) speakPage(); // you were listening — keep listening, on this page
 }
@@ -9253,6 +9321,7 @@ export async function generateQuillReport(){
    module-scoped functions aren't visible there, so wire them up. */
 Object.assign(window, {
   closeUI, openReader, markRead, backToShelf, addBookNote, sendNoteToToday, removeSpark, toggleBookNotesFilter,
+  aiSummariseChapter,
   openFullText, backToSummary, fullTextNextPage, fullTextPrevPage, toggleFullTextReadAloud, skipReadAloud,
   aiBookImpression, aiAnalyzePage, askSebastianAboutBook,
   minimizeReader, restoreReader, dismissReaderPocket,
@@ -9335,6 +9404,7 @@ Object.assign(window, {
   openReport, copyReport, saveReport, reportText,
   markNoteSeen,
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
+  setNotesLogSort,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
   togglePaper, newReviewManualForm2,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,

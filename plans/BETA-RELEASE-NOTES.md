@@ -17,7 +17,7 @@ because anything is wrong. If you'd like to check the download:
 
 ```powershell
 Get-FileHash "Sand Pavilion Setup 0.1.0-beta.2.exe" -Algorithm SHA256
-# AF44577DD017783071567ED327E9CC0B23154F12C3FD47B73066E5E3C1B5C9B8
+# D44A5BD87872183BCF3767CCF30FEDD1C81B5102509D89C7B1550F1847474096
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -75,6 +75,11 @@ Residents*, on the Practice shelf.
   at all, and only genuinely ambiguous ones are ever sent to a model.
 - **Coding 101** is written for real: six steps to your first change to the app
   itself.
+- **Your Notes has a desk in the Study** — no longer only in the pause menu —
+  and sorts four ways: newest, oldest, by where it came from, A–Z.
+- **📑 Summarise this chapter** in the reader, beside *Analyze this page* and
+  *Overall impression* — a page, a chapter, or the whole book, whichever you
+  actually want. Summaries land in that book's notes.
 
 ### Known and deliberate
 

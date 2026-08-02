@@ -1813,3 +1813,34 @@ list is not reading.
 
 Scraps are left alone: a note under twenty characters is not resurfaced, since
 "todo" coming back a month later is noise rather than rediscovery.
+
+### 31. [x] Notes lived only in the menu, sorted one way, with no chapter view
+
+*"I want to make sure that in the interface and not just the settings there are
+ways to go into notes and sort them, help and have the AI give their thoughts on
+certain chapters or a page, even a whole book to get the TLDR."*
+
+Three gaps, all real, and the first one is the same bug as the Caravan Desk for
+the third time: **a good feature reachable only from a menu.**
+
+**A desk in the world.** `YOUR NOTES` now stands in the Study, three tiles from
+the Computer so the floating labels cannot collide. Walk up, press E. Notes had
+been reachable only through Esc — which is a settings drawer, not a place.
+
+**Sorting, in the interface.** Four orders, because those are the four questions
+people actually have of a pile of notes: *what did I just write* (newest), *what
+have I been carrying longest* (oldest), *what came from where* (by source), and
+*where is the one called X* (A–Z). Previously fixed at newest-first with no way
+to change it.
+
+**A chapter is the unit people think in.** The reader already had *Analyze this
+page* and *Overall impression* — a page is too small to answer "what was that
+chapter about?" and a whole-book impression is too vague. **📑 Summarise this
+chapter** fills the middle, reusing the chapter marks that already existed for
+the skip controls, and falling back to a window of pages (saying so plainly)
+where a book has no marks. Long chapters are capped before sending, for the same
+reason the lesson-drafting was split into small asks: a local model handed forty
+pages will not hold them.
+
+All three are offered whether or not an AI is connected — discoverable first,
+honest when pressed.
