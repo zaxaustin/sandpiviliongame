@@ -2776,7 +2776,16 @@ function speakPage(){
     if(!state.bookAudio) return;            // stopped while that page was reading
     if(cur && cur.slug===v.slug && cur.page<cur.pages.length-1){
       cur.page++;
-      if(state.ui==='reader') renderFullTextPage(); else speakPage();
+      /* THE POCKET HAS TO LEARN WHERE THE VOICE GOT TO — fixed 2026-08-02.
+         Reported: "I love how the book keeps reading but besides the little
+         icon it goes back to the page I closed the book on." The pocket
+         recorded the page at the moment you pocketed it and then never moved,
+         while the voice read on for twenty minutes. Reopening threw away
+         everything you had just listened to. Two records of "where we are",
+         and while pocketed the VOICE'S is the true one. */
+      state.bookAudio.page=cur.page;
+      if(state.readerPocket && state.readerPocket.slug===v.slug) state.readerPocket.page=cur.page;
+      if(state.ui==='reader') renderFullTextPage(); else { renderBookPhone(); speakPage(); }
       return;
     }
     state.bookAudio=null;
@@ -2871,9 +2880,16 @@ function showBookPocketFor(p){
 }
 export function restoreReader(){
   const p=state.readerPocket; if(!p) return;
+  /* Land where the VOICE is, not where you closed it. If the book has been
+     reading while you walked, state.bookAudio.page is the honest answer and
+     the pocket's own page is a stale snapshot. Falls back to the pocket for a
+     book that was pocketed silently, which is the only case where the page you
+     closed on is still the page you want. */
+  const speaking = state.bookAudio && state.bookAudio.slug===p.slug ? state.bookAudio.page : null;
+  const page = speaking != null ? speaking : p.page;
   state.readerPocket=null; hideBookPhone();
   openReader(p.slug);                             // openReader never stops speech — audio carries straight through
-  if(p.page!=null) openFullText(p.slug, p.page);  // …and back to the very page you left
+  if(page!=null) openFullText(p.slug, page);
   blip(700,.05,'square',.03);
 }
 export function dismissReaderPocket(){
@@ -8111,8 +8127,90 @@ function fillDropForm(title, author, body, msg){
    Shelf as personal copies on the chosen shelf — the bulk path the user asked
    for. Both drag-drop (handleBookDrop) and the file picker (handleBookFilePick)
    funnel through intakeBookFiles so the two behave identically. */
+/* ================================================================
+   DROP A FILE ANYWHERE. Built 2026-08-02 to make true a promise the
+   documentation had been making for weeks.
+
+   MANUAL.md and the release notes both said a book could be "dropped
+   ANYWHERE on the Pavilion — you do not need to be on this screen, or
+   in the Library, or anywhere in particular." There was no
+   document-level drop handler at all. The only target was a zone
+   inside the Caravan Desk, which is a station on the Workshop's ground
+   floor — so the most-promoted way to add a book worked in exactly one
+   place, three rooms from the front door, and failed in SILENCE
+   everywhere else. A tester drops their first book, nothing happens,
+   and they conclude the app ignored them. Nobody reports that.
+
+   Two details that matter more than the wiring:
+     - the drag must SHOW something, or the gesture stays undiscoverable
+       even once it works;
+     - only file drags are intercepted. Dragging selected text inside a
+       textarea carries 'text/plain', not 'Files', and must keep working
+       normally — hijacking that would trade one silent bug for another.
+   ================================================================ */
+function dragHasFiles(e){
+  const t=e.dataTransfer && e.dataTransfer.types;
+  return !!t && Array.prototype.indexOf.call(t,'Files')>=0;
+}
+let dropDepth=0;
+function showDropVeil(on){
+  const v=document.getElementById('dropVeil'); if(!v) return;
+  v.classList.toggle('on', !!on);
+}
+export function initGlobalDrop(){
+  document.addEventListener('dragenter', e=>{
+    if(!dragHasFiles(e)) return;
+    e.preventDefault(); dropDepth++; showDropVeil(true);
+  });
+  document.addEventListener('dragover', e=>{
+    if(!dragHasFiles(e)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect='copy';   // without this the browser opens the file
+  });
+  document.addEventListener('dragleave', e=>{
+    if(!dragHasFiles(e)) return;
+    dropDepth=Math.max(0,dropDepth-1); if(!dropDepth) showDropVeil(false);
+  });
+  document.addEventListener('drop', e=>{
+    if(!dragHasFiles(e)) return;
+    e.preventDefault(); dropDepth=0; showDropVeil(false);
+    acceptDropAnywhere(e.dataTransfer.files);
+  });
+}
+/* What a drop on the open world should actually DO.
+
+   Not open a panel. The documentation's promise is "drop it anywhere and it
+   lands on your shelf", so that is what happens: the book is shelved, unfiled,
+   and a small card says so and gets out of the way. Opening the Caravan Desk
+   because someone dropped a file would be answering a gesture with a chore.
+
+   bulkShelveDroppedFiles() already does exactly this and only needs somewhere
+   to print — it reads #rmTradition for the shelf and falls back to 'Personal'
+   when there is no panel, which puts a dropped book in the "still to sort"
+   pile. That is the right place for something that arrived in one motion.
+
+   A bundle is the exception and brings its own panel, because taking fifty
+   books at once is a decision, not a gesture. */
+async function acceptDropAnywhere(fileList){
+  const files=[...(fileList||[])];
+  if(!files.length) return;
+  if(files.length===1 && /\.json$/i.test(files[0].name)) return openDroppedBundle(files[0], null);
+  const toast=document.getElementById('dropToast');
+  if(!toast) return intakeBookFiles(fileList, document.getElementById('dropMsg'));
+  toast.classList.add('on');
+  toast.innerHTML='Reading…';
+  clearTimeout(dropToastTimer);
+  await bulkShelveDroppedFiles(files, toast);
+  if(state.ui==='mylib') renderMyLibrary();       // if the shelf is open, show it arrive
+  dropToastTimer=setTimeout(()=>toast.classList.remove('on'), 9000);
+}
+let dropToastTimer=null;
+export function dismissDropToast(){
+  clearTimeout(dropToastTimer);
+  document.getElementById('dropToast')?.classList.remove('on');
+}
 export function handleBookDrop(event){
   event.preventDefault();
+  event.stopPropagation();   // the document-level handler must not fire too, or the file imports twice
   document.getElementById('dropZone')?.classList.remove('over');
   intakeBookFiles(event.dataTransfer.files, document.getElementById('dropMsg'));
 }
@@ -9989,7 +10087,7 @@ Object.assign(window, {
   openMyLibrary, createMyShelf, renameMyShelf, deleteMyShelf, myLibSearch, myLibToggle, myLibShow,
   setNotesLogSort,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
-  openLift, takeLift, acceptBundle, setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
+  openLift, takeLift, acceptBundle, initGlobalDrop, dismissDropToast, setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
   writePacketFile, triggerImportPacket, setCommonsName,
 });

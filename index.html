@@ -260,6 +260,15 @@
 <!-- A dropped book bundle: the manifest, reviewed, before anything is added -->
 <div class="overlay" id="bundleOv"><div class="panel" id="bundlePanel"></div></div>
 
+<!-- Shown while a file is dragged over the window, anywhere. A gesture that
+     works but shows nothing stays undiscoverable. -->
+<div id="dropVeil"><div class="dropVeilCard">📥<div>Drop it anywhere</div>
+  <span>a .txt or .epub joins your shelf · a .json bundle opens for review</span></div></div>
+
+<!-- Result of a file dropped on the open world. A small card that says what
+     happened and leaves — not a panel, because a gesture should not become a chore. -->
+<div id="dropToast" onclick="dismissDropToast()" title="Dismiss"></div>
+
 <!-- The Lift — three Workshop floors, named, from any of them -->
 <div class="overlay" id="liftOv"><div class="panel" id="liftPanel"></div></div>
 
