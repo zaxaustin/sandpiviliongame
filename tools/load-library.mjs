@@ -46,6 +46,30 @@ async function listAll() {
 const slugOf = (key) => key.replace(/\.txt$/, '').replace(/^personal\//, '').replace(/^personal-/, '');
 const titleOf = (key) => slugOf(key).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
+/* READ THE TITLE AND AUTHOR OUT OF THE TEXT ITSELF.
+
+   Added 2026-08-03 after the resident bench caught the failure this fixes.
+   Asked "do you have anything by Epictetus?", Quill answered — confidently,
+   because the database lookup had made him confident — "no Enchiridion, no
+   discourses, nothing like it." Both are on the shelf. The rows had been
+   built from MinIO OBJECT NAMES, so every one of 294 books had a guessed
+   title and NO AUTHOR AT ALL, and a search for "epictetus" could not
+   possibly hit.
+
+   A confident wrong answer is worse than the hedging it replaced. The cure
+   is not a softer prompt: it is the data being right.
+
+   Gutenberg texts state both in their header. Deterministic, no model —
+   the standing rule, and this is exactly the kind of job it is for. */
+const AUTHOR_LINE = /^\s*Author:\s*(.+?)\s*$/im;
+const TITLE_LINE = /^\s*Title:\s*(.+?)\s*$/im;
+function headerOf(text) {
+  const head = String(text).slice(0, 3000);
+  const a = AUTHOR_LINE.exec(head), t = TITLE_LINE.exec(head);
+  const clean = (s) => s ? s.replace(/\s+/g, ' ').slice(0, 120).trim() : '';
+  return { author: clean(a && a[1]), title: clean(t && t[1]) };
+}
+
 /* Same rule as tools/library-audit.py: judged on the BODY with the Gutenberg
    wrapper stripped, so a short work is a short work and not a broken file. */
 const GUT_START = /\*\*\*\s*START OF (THIS|THE) PROJECT GUTENBERG/i;
@@ -80,8 +104,15 @@ for (const key of keys) {
   const { marks, how } = findChapters(pages);
   const h = health(text);
 
-  say(`INSERT INTO books (slug, title, text_key, pages) VALUES (${q(slug)}, ${q(titleOf(key))}, ${q(key)}, ${pages.length})`);
-  say(`  ON CONFLICT (slug) DO UPDATE SET text_key = EXCLUDED.text_key, pages = EXCLUDED.pages;`);
+  /* The book's own header beats a filename every time. COALESCE on the way
+     in so a real card already in the table is never overwritten by a guess. */
+  const hdr = headerOf(text);
+  const title = hdr.title || titleOf(key);
+  say(`INSERT INTO books (slug, title, attribution, text_key, pages) VALUES (${q(slug)}, ${q(title)}, ${q(hdr.author || null)}, ${q(key)}, ${pages.length})`);
+  say(`  ON CONFLICT (slug) DO UPDATE SET`);
+  say(`    title = COALESCE(NULLIF(EXCLUDED.title,''), books.title),`);
+  say(`    attribution = COALESCE(books.attribution, NULLIF(EXCLUDED.attribution,'')),`);
+  say(`    text_key = EXCLUDED.text_key, pages = EXCLUDED.pages;`);
 
   say(`INSERT INTO book_health (slug, status, problems, body_chars) VALUES (${q(slug)}, ${q(h.status)}, ARRAY[${h.problems.map(q).join(',')}]::TEXT[], ${h.bodyChars})`);
   say(`  ON CONFLICT (slug) DO UPDATE SET status = EXCLUDED.status, problems = EXCLUDED.problems, body_chars = EXCLUDED.body_chars, checked_at = now();`);

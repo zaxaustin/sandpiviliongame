@@ -16,3 +16,4 @@ __pycache__/
 
 # Personal dev-tool config — names a private project ref, no business in a public repo
 .mcp.json
+tools/bench-runs/

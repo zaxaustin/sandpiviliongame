@@ -1606,10 +1606,84 @@ function modelPickerHTML(i,c,models){
     </select></div>`;
 }
 const CONNECTION_PRESETS = {
+  ollama: { name:'Ollama (local)', kind:'ollama', baseUrl:'http://localhost:11434' },
   claude: { name:'Claude (Anthropic)', kind:'anthropic', baseUrl:'https://api.anthropic.com/v1' },
   openai: { name:'ChatGPT (OpenAI)', kind:'openai-compatible', baseUrl:'https://api.openai.com/v1' },
   grok:   { name:'Grok (xAI)', kind:'openai-compatible', baseUrl:'https://api.x.ai/v1' },
 };
+
+/* ----- THE FRONT DOOR: is Ollama actually there? -----
+   Added 2026-08-03. The panel used to open with three cloud buttons —
+   ☁ Claude, ☁ ChatGPT, ☁ Grok — every one of which needs an API key. So the
+   most prominent thing in "Add a connection" was three dead ends, while the
+   free thing that IS already wired (Ollama is the built-in default) had no
+   setup path at all beyond a placeholder URL in a form.
+
+   The steward's own position, 2026-08-03: free tools first, and he is not
+   getting an API key. So this checks the thing that works, tells you what it
+   found, and hands you the exact line to copy if something is missing. */
+export async function checkOllama(){
+  const out=document.getElementById('ollamaOut'); if(!out) return;
+  out.innerHTML='<div class="meta">Looking for Ollama on this machine…</div>';
+  const base='http://localhost:11434';
+  let models=null;
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),2500);
+    const res=await fetch(base+'/api/tags',{signal:ctrl.signal});
+    clearTimeout(t);
+    if(res.ok){ const j=await res.json(); models=(j.models||[]).map(m=>m.name); }
+  }catch(e){ models=null; }
+
+  if(models===null){
+    out.innerHTML=`<div class="card" style="cursor:default;border-color:#8a6a3a">
+      <div class="t">Ollama isn't answering</div>
+      <div class="s" style="margin-top:4px">That's the free, private way to run an AI here — it lives on
+        your own machine and nothing you say ever leaves it. It's a normal install, then one command
+        to fetch a model.</div>
+      <div class="s" style="margin-top:6px">1 · Install it from <b>ollama.com/download</b><br>
+        2 · Open a terminal and run the line the button below gives you<br>
+        3 · Come back and press <b>Check for Ollama</b> again</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" onclick="checkMyMachine()">Which model fits this computer?</button>
+      </div>
+    </div>`;
+    return;
+  }
+  if(!models.length){
+    out.innerHTML=`<div class="card" style="cursor:default;border-color:#8a6a3a">
+      <div class="t">Ollama is running — but it has no models yet</div>
+      <div class="s" style="margin-top:4px">It's installed and answering; it just needs something to think with.
+        Press below and the Pavilion will read this machine and give you one line to copy.</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" onclick="checkMyMachine()">Which model fits this computer?</button>
+      </div>
+    </div>`;
+    return;
+  }
+  /* NOT EVERY MODEL OLLAMA LISTS IS LOCAL. Ollama now serves hosted models
+     too, tagged `:cloud` — this machine has deepseek-v4-pro:cloud sitting in
+     the same list as the real ones. Saying "nothing leaves this machine"
+     while one of those is installed would be a straightforward lie, and the
+     kind that is hardest to notice because the panel is otherwise telling
+     the truth. Found 2026-08-03 by looking at the actual output. */
+  const cloud=models.filter(m=>/:cloud\b/i.test(m));
+  const local=models.filter(m=>!/:cloud\b/i.test(m));
+  const best=bestLocalModel(local, local[0]||models[0]);
+  const list=(arr)=>arr.map(m=>esc(m)).join(' · ');
+  out.innerHTML=`<div class="card" style="cursor:default;border-color:${local.length?'#7fa36b':'#8a6a3a'}">
+    <div class="t">● Ollama is running${local.length?` — ${local.length} model${local.length===1?'':'s'} on this machine`:''}</div>
+    ${local.length?`<div class="s" style="margin-top:4px">🏠 ${list(local)}</div>`:''}
+    ${cloud.length?`<div class="s" style="margin-top:6px;color:#e0a43c">☁ ${list(cloud)} — these are Ollama's
+      <b>hosted</b> models, not local ones. Using one sends your conversation to Ollama's servers.</div>`:''}
+    ${local.length
+      ? `<div class="s" style="margin-top:6px">A 🏠 model answers entirely on this computer — nothing you say
+          to a resident goes anywhere. The Mountain Monk will claim <b>${esc(best)}</b>, the largest local one,
+          and everyone else runs on the connection's default.</div>`
+      : `<div class="s" style="margin-top:6px">All of these are hosted. For the private, offline Pavilion,
+          pull a local model — press below and you'll get the line to copy.</div>
+         <div class="row" style="margin-top:8px"><button class="btn" onclick="checkMyMachine()">Which model fits this computer?</button></div>`}
+  </div>`;
+}
 export function fillConnectionPreset(id){
   const p=CONNECTION_PRESETS[id]; if(!p) return;
   document.getElementById('ncnName').value=p.name;
@@ -1627,6 +1701,13 @@ function renderConnections(){
       server on your own machine) never sends anything anywhere else; a ☁ cloud connection sends
       your conversation — and whatever it's grounded in — to that provider's servers, same as
       using their own app would. Both are real options here; just know which one you're using.</div>
+    <div class="card" style="cursor:default;margin:10px 0;border-color:#7fa36b">
+      <div class="t">🏠 Start here — the free, private way</div>
+      <div class="s" style="margin-top:4px">Ollama runs an AI on <b>your own machine</b>. No account, no key,
+        no cost, and nothing you say ever leaves this computer. It's the way this Pavilion is meant to be used.</div>
+      <div class="row" style="margin-top:8px"><button class="btn" onclick="checkOllama()">Check for Ollama</button></div>
+      <div id="ollamaOut" style="margin-top:8px"></div>
+    </div>
     <div class="card" style="cursor:default;margin:10px 0;border-color:#8fb4d9">
       <div class="t">🔍 Not sure if your computer can do this?</div>
       <div class="s" style="margin-top:4px">Don't go looking up your specifications — press the button and
@@ -1680,10 +1761,30 @@ function renderConnections(){
       cloud providers always do, kept on this device only, sent straight to that provider and
       nowhere else.</div>
     <div class="row" style="margin-bottom:10px">
-      <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('claude')">☁ Claude</button>
-      <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('openai')">☁ ChatGPT</button>
-      <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('grok')">☁ Grok</button>
+      <button class="btn" style="font-size:11.5px" onclick="fillConnectionPreset('ollama')">🏠 Ollama (free, local)</button>
     </div>
+    <!-- THE SENTENCE NOBODY TELLS YOU. A Claude or ChatGPT subscription is
+         not an API key, and the panel used to lead with three buttons that
+         implied otherwise. Cloud still works for anyone who has a real key —
+         the provider layer speaks all three — it just stops being the front
+         door. Removing it outright would leave the Anthropic provider
+         dormant-but-reachable, which is exactly the state this project
+         deleted the Supabase mirror over. -->
+    <details style="margin:0 0 12px">
+      <summary style="cursor:pointer;color:#9c8b74;font-size:12px">☁ I already have an API key from a cloud provider</summary>
+      <div class="meta" style="margin-top:8px">
+        <b>A subscription is not an API key.</b> Paying for Claude or ChatGPT in their own apps does
+        not give you one — an API key is a separate, pay-per-use developer credential from the same
+        company. If you don't have one, these won't work, and Ollama above is the free way in.<br><br>
+        A ☁ connection sends your conversation, and whatever the resident is grounded in, to that
+        company's servers — the same as using their app would.
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('claude')">☁ Claude</button>
+        <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('openai')">☁ ChatGPT</button>
+        <button class="btn ghost" style="font-size:11.5px" onclick="fillConnectionPreset('grok')">☁ Grok</button>
+      </div>
+    </details>
     <label>Name</label><input type="text" id="ncnName" placeholder="e.g. LM Studio, or a friend's server">
     <label>Kind</label>
     <select id="ncnKind" style="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
@@ -11371,7 +11472,7 @@ Object.assign(window, {
   runCopyrightCheck,
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
-  checkMyMachine, copyPullCommand,
+  checkMyMachine, copyPullCommand, checkOllama,
   openBookIntake, termSubmit, termQuick, openTheDay, currentDayItems,
   openStandUp, standUpAnswer, standUpItem, endStandUp,
   openReport, copyReport, saveReport, reportText,

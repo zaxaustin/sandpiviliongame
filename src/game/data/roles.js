@@ -49,7 +49,14 @@ export const ROLES = {
     title: 'the butler — the hub',
     duty: 'keeps the visitor\'s day: the plan, the calendar, what is due, what is still open. '
         + 'The first person you talk to and the one who knows where everything else is.',
-    sendMe: 'anything about today, the schedule, what to do next, or where in the Pavilion something lives',
+    /* NARROWED 2026-08-03, from the resident bench. "what to do next, or
+       where in the Pavilion something lives" read to a model as a catch-all,
+       and Quill duly sent "teach me thermodynamics from first principles" to
+       Sebastian — describing it as "exactly Sebastian's domain" — while his
+       own prompt said in as many words that breaking a subject down is the
+       Tutor's job. A hub described as handling everything collects
+       everything. His real work is the DAY. */
+    sendMe: 'today, the calendar, what is due, and what is still open',
     where: 'the Workshop, among the working desks',
     open: "talkTo('sebastian')",
     chat: { name:'SEBASTIAN · Butler', color:'#4a6a8a', glow:'#a9c7e8',
@@ -130,7 +137,13 @@ export function rosterBlock(selfKey) {
   const others = ROLE_KEYS.filter(k => k !== selfKey && !(selfKey === 'investigator' && k === 'steward')
     && !(selfKey === 'steward' && k === 'investigator'));
   if (!others.length) return '';
-  const lines = others.map(k => `- ${ROLES[k].label} (${ROLES[k].where}): ${ROLES[k].sendMe}.`);
+  /* THE HUB GOES LAST, and this is not cosmetic. A model reading a list of
+     colleagues top-down takes the first plausible match, so the router
+     standing at the front of the queue caught questions that belonged to a
+     specialist three lines below him. A fallback listed first is not a
+     fallback. Measured on the bench 2026-08-03. */
+  const ordered = [...others.filter(k => !ROLES[k].hub), ...others.filter(k => ROLES[k].hub)];
+  const lines = ordered.map(k => `- ${ROLES[k].label} (${ROLES[k].where}): ${ROLES[k].sendMe}.`);
   return '\n\nWHO ELSE IS HERE, and what to hand over rather than attempt yourself:\n'
     + lines.join('\n')
     + '\nHanding a question to the right person is help, not a refusal — name them, say in one line what to '
