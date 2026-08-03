@@ -1,0 +1,75 @@
+# The Sand Pavilion's local backend — everything on THIS machine, no account
+# anywhere, nothing that costs money.
+#
+#   MinIO     holds the book TEXT      (~296 books, 168 MB today)
+#   Postgres  holds the KNOWLEDGE      (cards, shelves, chapters, health)
+#
+# THE SPLIT IS THE POINT. Text is big, opaque and written once — object
+# storage. Everything the Pavilion knows *about* a book is small, queryable
+# and edited constantly — a database. Today that second half lives in one
+# browser localStorage key, which is why sorting 300 books never feels like
+# it sticks, and why an AI resident cannot ask a question about your library
+# without being handed a pasted list of everything.
+#
+# THE APP MUST STILL RUN WITH ALL OF THIS SWITCHED OFF. That is not an
+# aspiration, it is a rule with a test: the beta ships to people who have
+# never installed Docker, and the seed library plus localStorage is a
+# complete, working Pavilion on its own. Postgres makes YOUR instance
+# better; it must never become the thing a stranger needs.
+#
+#   docker compose up -d postgres     # just the database
+#   docker compose up -d              # both (see the MinIO note below)
+#
+# MINIO IS ALREADY RUNNING on this machine, started by hand with `docker run`
+# and bind-mounted to C:/Users/resto/sand-pavilion-library-data. Compose will
+# NOT adopt a container it did not create, so starting the minio service here
+# would make a SECOND one and the port would clash. Leave the running one
+# alone for now and start only postgres; migrate MinIO to compose later, on a
+# quiet day, by stopping the manual container first.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sand-pavilion-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pavilion}
+      POSTGRES_USER: ${POSTGRES_USER:-pavilion}
+      # No default. A blank password would let anything on this machine in,
+      # and a real one committed here would be a secret in a public repo.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      # Bound to localhost ON PURPOSE. Without 127.0.0.1 Docker publishes to
+      # every interface, and on a laptop that means the coffee shop's wifi.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pavilion-db:/var/lib/postgresql/data
+      # Runs ONCE, only when the volume is empty. Editing this file later
+      # does nothing to a database that already exists — migrations are how
+      # you change an existing one.
+      - ./tools/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pavilion} -d ${POSTGRES_DB:-pavilion}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Here for the day MinIO moves under compose too — see the note above.
+  # Deliberately NOT started by default.
+  minio:
+    image: minio/minio
+    container_name: sand-pavilion-minio-compose
+    profiles: ["full"]
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - ${MINIO_DATA_DIR:-C:/Users/resto/sand-pavilion-library-data}:/data
+
+volumes:
+  pavilion-db:

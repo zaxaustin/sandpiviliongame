@@ -63,5 +63,8 @@
     "dmg": {
       "title": "Sand Pavilion ${version}"
     }
+  },
+  "dependencies": {
+    "pg": "^8.22.0"
   }
 }

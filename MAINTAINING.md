@@ -273,7 +273,113 @@ and used** — the last genuinely unverified thing is closed. Everything is push
 the repo is **still private by choice**. The next action is making it public and
 cutting the Release.
 
-**Where things stand, end of 2026-08-03 (second session) — read this one.**
+**Where things stand, end of 2026-08-03 (FOURTH session) — read this one.**
+
+**THE PAVILION HAS A BACKEND.** Local Postgres in Docker beside MinIO, and
+the split that governs everything from here:
+
+```
+MinIO      the book TEXT        296 texts, 168 MB
+Postgres   the KNOWLEDGE        294 books, 6,361 chapters, notes, records
+localStorage  YOUR day          days, notes, courses, progress
+```
+
+The reason, in the steward's words, and it is sharper than "local-first":
+**Supabase did not allow AI integration on the backend.** A resident should
+ASK a question of the library, not be handed a pasted list and left to guess.
+
+**What went in**
+- `docker-compose.yml` + `tools/schema.sql` (books, chapters, health, scans)
+  and **numbered migrations** — 002 notes (with full-text search), 003 the
+  Records Hall index and `hidden`. Every migration is re-runnable and was
+  applied **twice** to prove it.
+- `electron/db.cjs` — **named queries only** (the renderer asks for
+  `'unshelved'`, never SQL) and **fails soft in 27ms** with the container
+  stopped.
+- `store.js hydrateFromDb()` — pulled ONCE at boot because every
+  `allDocs()` downstream is synchronous and mid-render. **It MERGES UPWARD:**
+  a shelf the visitor assigned always beats a NULL, and the save's real cards
+  are written back up. Guarded by `test/live/backend.mjs` (12 checks),
+  sabotage-verified.
+- `pg` is the project's **first runtime dependency**. `dependencies` was
+  empty; that was a deliberate break, not a shrug.
+- **The chapter finder, rebuilt** against the steward's real 296 books rather
+  than the six in the seed. Across all of them: **0-chapter books 135 → 88,
+  working books 106 → 160**, and Epictetus' *Discourses* — the reported
+  "still the first four chapters" — went **4 → 89**, verified in the app.
+- **Quill looks things up** instead of reciting a catalogue. An empty search
+  is now real information, so "not on these shelves" is a fact he may state.
+
+**Three of this session's own guards were born broken and were caught only by
+deliberately breaking the thing** (rule 2, earning its keep for the fifth and
+sixth time this week). The worst: the prompt-budget guard parsed apostrophes
+in COMMENTS as string quotes, so every token figure it ever printed was wrong
+in both directions. Fixed; the numbers in it now mean what they say.
+
+**THE RULE THAT DID NOT CHANGE, and is tested:** the app runs with every
+container stopped. Seed + localStorage is a complete Pavilion. `CLAUDE.md`
+now states how that coexists with a real database — *a feature that needs it
+is ABSENT without it, never DEGRADED*, because two code paths means the one
+you test is not the one that runs.
+
+**What's next, in order:** the sorter on `v_unshelved` (twenty at a time,
+resumable, allowed to say UNSURE — mostly deletion now); the notes and
+records wired into the rooms that show them; hand-marked chapters for the 88
+books that still find none; the rest of the residents given lookups the way
+Quill has one.
+
+**And still, unchanged and still the most important line here:**
+`0.1.0-beta.3` has **zero downloads**. All of the above makes the steward's
+own Pavilion better, which is a real goal he named. It does not put it in
+front of a second person, and nothing in this repo can.
+
+**Where things stood, end of 2026-08-03 (THIRD session).**
+
+Round 5's list, taken in order, and the day's lesson is in #45 below: **the
+first time a real model was pointed at one of the prompts that had only ever
+run on its no-AI path, it was confidently making things up.**
+
+- **Chapters (#41) — fixed, and the diagnosis was too generous.** The old
+  scan read the first three lines of a 1,400-character page. It did not find
+  "the first four chapters"; it found **zero** of the Dhammapada's 26 and
+  **zero** of the Gita's 18, both of which ship in the welcome packet. Now
+  26 and 18. The written cure (parse the Contents, find each name's second
+  occurrence) had to be **inverted after measuring it**: chapter titles are
+  ordinary words, so name-matching lands on page 1. The **body** is the
+  authority on pages, the **Contents** on names. `data/chapters.js`, pure
+  logic, tested against the real books. Books with no chapters now *say so*.
+- **A note knows its chapter.** `ch. 5 · page 8`, and `ch. 5 of 26` in the
+  reader as you move.
+- **Per-book notes (#42) — built.** From the reader or the Books filter;
+  grouped under real chapter headings, in the book's order.
+- **Prompt weight (#43) — trimmed, and the real weight was elsewhere.** The
+  Investigator's prose came down 1,409 → 1,187 tokens with no rule dropped.
+  But two blocks in the same prompt pasted *everything* every message: every
+  seeded investigation with its full grounding note (~430 tokens before you
+  do anything), and every Science/Hindu book with its full summary, growing
+  without limit. **That is the Quill catalogue bug, still live in the Hall.**
+  Both bounded now — ~533 tokens saved per message, growth gone.
+- **#45 — the pre-notes were lying.** Asked for pre-notes on the Dhammapada,
+  `ornith:9b` wrote *"grouped into five thematic chapters"*. It has 26. On a
+  431-character Tao Te Ching blurb it invented an author, a technical term,
+  and **a quotation** — with "never invent a quotation" in the prompt it had
+  just been given. **A rule the model must notice it is breaking is weaker
+  than a fact it is simply given**, so it is handed the real structure
+  (`bookStructureBlock()`, built on the chapter work above) and told the
+  thinness in numbers. Re-probed: *"51 pages across 26 chapters"*, and *"the
+  text itself is not here."*
+
+Four guards added, each verified by deliberate sabotage — and **one was born
+broken**: the prompt budget called `briefTokens()` (which takes text) with a
+character count, measured the length of the number, and reported 2 tokens for
+every resident. It passed against a prompt padded with 2,000 characters. Rule
+2 caught it. That is the third inert guard this repo has found this week.
+
+**The next real information is still one other person's first ten minutes.**
+Nothing above changes that. The town square is the likeliest thing to produce
+one, and it needs the identity keypair first.
+
+**Where things stood, end of 2026-08-03 (second session).**
 
 A long day, and the shape of it is worth keeping: **the steward found every
 bug by using the thing, and several had passed every automated check.** Two of
@@ -309,7 +415,7 @@ to show — is the likeliest thing to change that, and it is a small build.
 
 ---
 
-**Where things stand, end of 2026-08-03 — read this one.**
+**Where things stood, end of 2026-08-03 (first session) — the study chain.**
 
 **The chain now runs.** `THE-STUDY-CHAIN-PLAN.md`, built in one session from
 real use. The diagnosis is worth keeping in front of you because it is the

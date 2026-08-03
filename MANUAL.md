@@ -162,8 +162,19 @@ your own standing instructions, so you can watch them take effect.
   and waits rather than being lost.
 - **Getting somewhere in a long book:** ±10 seconds for a misheard sentence,
   **±10% of the book** for real distance, **Go to page…** for somewhere exact,
-  and **⏮/⏭ Chapter** when the text has chapter headings the Pavilion can find
-  (if it can't find at least two, the buttons stay hidden rather than pretend).
+  and **⏮/⏭ Chapter** to move a chapter at a time. Beside those buttons the row
+  tells you where you are — **ch. 5 of 26** — and it reads the book's own table of
+  contents where there is one, so a chapter carries its real name rather than a
+  number. Plenty of texts genuinely have no chapters (the short suttas here, or
+  anything converted from a PDF); those say **“no chapter marks in this text”**
+  instead of leaving you wondering where the buttons went.
+- **Every note you take knows where you were.** Jot one while reading and it is
+  filed with its chapter and page — `ch. 5 · page 8` — so a thought you had six
+  weeks ago can be found again by where it happened, not just when.
+- **📖 All my notes on this book** (under the note box) gathers everything you
+  have ever written about the book in front of you, in the *book's* order and
+  grouped under its chapters — your own notes and the AI's together. It is the
+  same Your Notes panel, narrowed; the **📚 Every book** chip takes you back out.
 - **Listen while you jot:** start read-aloud, then use the note box right there
   (the audio keeps going as you type). Want your *whole* notebook while it plays?
   Press **🗒 My notes (keeps playing)** — it opens Your Notes without stopping the

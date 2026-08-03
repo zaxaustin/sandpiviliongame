@@ -7,7 +7,7 @@ import {
   blocked, facingTile, opposite, MOVE_TIME, dueSoon, todayKey,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome, sweepReminders, openFoldReflection, openInheritanceHall, openPlantHere, openPlanting, openCommonsTable, openMyLibrary, openAlexandria, openLearningTree, openLab, openLift, openBookIntake, openNotesLog, initGlobalDrop } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome, sweepReminders, openFoldReflection, openInheritanceHall, openPlantHere, openPlanting, openCommonsTable, openMyLibrary, openAlexandria, openLearningTree, openLab, openLift, openBookIntake, openNotesLog, initGlobalDrop, refreshBackendStatus } from './ui/overlays.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -82,10 +82,34 @@ document.getElementById('saveMode').textContent =
                        : '○ Preview mode — progress lasts this session. Deployed on your site, it persists.';
 refreshAIStatus();
 refreshLibraryStorageStatus();
+refreshBackendStatus();
 document.getElementById('connBtn').addEventListener('click', openConnections);
 document.getElementById('welcomeBtn').addEventListener('click', openWelcome);
 document.getElementById('menuBtn').addEventListener('click', openMenu);
 initGlobalDrop();   // a file dropped anywhere on the window is shelved — see overlays.js
+
+/* ---------- the local database, if this machine has one ----------
+   The desktop app can reach a local Postgres holding the catalogue, the
+   shelves and every book's chapters (see data/store.js). Pulled ONCE, here,
+   because every Store.allDocs() call downstream is synchronous and mid-render.
+
+   Deliberately fire-and-forget: nothing waits on it, nothing breaks without
+   it, and a browser — which cannot speak to Postgres at all — simply never
+   gets past the first line. The hydration MERGES, so a shelf you assigned
+   always beats a NULL in the database (guarded by test/live/backend.mjs).
+
+   `__store` is exposed for that test. It is NOT in overlays.js's window
+   export block on purpose: that block is drift-checked against the inline
+   on*= handlers in both directions, and this is not a click handler. */
+window.__store = Store;
+if(Store.dbAvailable && Store.dbAvailable()){
+  Store.hydrateFromDb().then(r=>{
+    if(r && r.ok){
+      logActivity('Read the catalogue from the local database — '+r.books+' books.');
+      refreshLibraryStorageStatus(); refreshBackendStatus();
+    }
+  }).catch(()=>{ /* the Pavilion is complete without it */ });
+}
 
 /* ---------- HUD ---------- */
 function setLoc(){ document.getElementById('loc').textContent=scene().name; }

@@ -163,6 +163,7 @@
       <button class="btn ghost" onclick="jumpToPageNum()" title="Jump to a page number">⤒ Go to page…</button>
       <button class="btn ghost" onclick="jumpFraction(0.1)" title="Forward 10% of the book">10% ▶▶</button>
       <button class="btn ghost" id="rdChapNext" onclick="jumpChapter(1)" title="Next chapter" style="display:none">Chapter ⏭</button>
+      <span class="meta" id="rdChapNote" style="margin:0 0 0 4px"></span>
     </div>
     <div id="rdFullTextBody" class="fullTextPage"></div>
     <div class="row" style="margin-top:18px;align-items:center">
@@ -177,7 +178,10 @@
     <h3 id="rdNotesHead">📝 Your notes</h3>
     <div class="meta">Personal to your own save — never shared, never sent to the Library.</div>
     <textarea id="rdNoteInput" rows="3" placeholder="Write a note — a thought, a question, a line worth remembering."></textarea>
-    <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="addBookNote(currentDocSlug())">+ Add note</button></div>
+    <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="addBookNote(currentDocSlug())">+ Add note</button>
+      <button class="btn ghost" onclick="openNotesForBook(currentDocSlug())" title="Everything you have written about this book, grouped by chapter">📖 All my notes on this book</button>
+    </div>
     <div id="rdNotesList" style="margin-top:10px"></div>
   </div>
 </div></div>
@@ -367,6 +371,7 @@
       <p id="saveMode"></p>
       <p id="aiMode"></p>
       <p id="libMode"></p>
+      <p id="dbMode"></p>
     </div>
     <div class="titleBtns">
       <button class="btn" id="startBtn">Enter the Grounds</button>

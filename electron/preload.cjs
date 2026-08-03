@@ -50,4 +50,17 @@ contextBridge.exposeInMainWorld('desktopBridge', {
       id, url, method: opts.method || 'POST', headers: opts.headers || {}, body: opts.body, timeoutMs: opts.signalMs,
     }).finally(() => ipcRenderer.removeListener(channel, listener));
   },
+  /* The local Postgres — the KNOWLEDGE half of the backend (MinIO keeps the
+     text). A browser cannot speak Postgres's binary protocol, so the main
+     process holds the connection and the renderer asks by NAME: dbQuery
+     ('unshelved', [20, 0]), never a string of SQL. See electron/db.cjs for
+     every statement that exists.
+
+     ALL FOUR RETURN null WHEN THERE IS NO DATABASE — not an error, not a
+     hang (measured at 27ms to give up). The web build has none of this and
+     must keep working; so must the desktop app with the container stopped. */
+  dbStatus: () => ipcRenderer.invoke('desktop-db-status'),
+  dbQuery: (name, params) => ipcRenderer.invoke('desktop-db-query', { name, params }),
+  dbWrite: (name, params) => ipcRenderer.invoke('desktop-db-write', { name, params }),
+  dbWriteMany: (name, rows) => ipcRenderer.invoke('desktop-db-write-many', { name, rows }),
 });

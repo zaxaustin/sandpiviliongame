@@ -271,6 +271,16 @@ ipcMain.handle('desktop-minio-delete', async (event, { key }) => {
   return mcRun(cfg, `mc rm local/${cfg.bucket}/${key}`);
 });
 
+/* ----- The local Postgres, if there is one (electron/db.cjs).
+   Named queries only — the renderer asks for 'unshelved', never for SQL —
+   and every one of these returns null rather than throwing when the
+   container is stopped, because the app has to be complete without it. */
+const db = require('./db.cjs');
+ipcMain.handle('desktop-db-status', async () => db.status());
+ipcMain.handle('desktop-db-query', async (event, { name, params }) => db.query(name, params));
+ipcMain.handle('desktop-db-write', async (event, { name, params }) => db.write(name, params));
+ipcMain.handle('desktop-db-write-many', async (event, { name, rows }) => db.writeMany(name, rows));
+
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if(process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if(BrowserWindow.getAllWindows().length===0) createWindow(); });

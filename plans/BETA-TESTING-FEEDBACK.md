@@ -2112,3 +2112,167 @@ met a second human, and several have never met a real model.
   has lived.
 - **A clean install**, which the steward has already called for before
   the finished beta.
+
+---
+
+## Round 6 — 2026-08-03 (third session), and the first real-model probe
+
+Round 5's list, taken in order. The headline is the last item: **a real
+model was finally pointed at one of the paths that had only ever run with
+the AI switched off, and it was lying — confidently, in a way a visitor
+would catch within one click.**
+
+### #41 — Chapters. FIXED, and the diagnosis was too generous.
+
+The recorded cause was right: `chapterPages()` read the **first three
+lines** of each page and a page is a 1,400-character slice. The recorded
+*effect* was not. It was not "the first four chapters and then nothing."
+Measured against the shipped seed:
+
+| book | chapters it has | found before | found now |
+|---|---|---|---|
+| The Dhammapada | 26 | **0** | **26** |
+| The Bhagavad Gita | 18 | **0** | **18** |
+
+Both ship in the welcome packet. Both showed no chapter controls at all.
+
+**The plan's own cure needed correcting, and the measurement is why.** The
+idea on the table was: parse the Contents block, then find each chapter
+name's *second* occurrence in the body. Tried, and it lands on the wrong
+page constantly — chapter titles are ordinary words, so "Thought", "Self"
+and "Happiness" all match prose on page 1 long before their own heading.
+Matching the whole Contents line does worse (14 of 26), because a book does
+not quote itself exactly: the Contents says `Chapter 1: The Twin Verses`
+and the body says `Chapter I. The Twin-Verses` — arabic against roman,
+colon against period, and a hyphen.
+
+**So the two sources swapped jobs.** The BODY is the authority on *pages*
+(an anchored whole-line heading scan over the whole page); the CONTENTS is
+the authority on *names* (the Gita's body headings are bare — `CHAPTER IV`
+— and "The Religion of Knowledge" exists only in its Contents block).
+
+Three smaller rules earn their place, each from a real failure seen while
+building it: a heading must carry a **number**, or `Part of the reason...`
+is a chapter break; only the **dominant keyword** survives, which drops the
+Dhammapada's front-matter `Part I` with no special case; and a Contents
+block **counts up**, which is how the body's real `Chapter I` is told apart
+from the Contents entry that looks identical — without that rule the block
+swallowed it and reported 27 chapters for a 26-chapter book.
+
+It falls back honestly: the four suttas in the seed have no chapters and
+now *say so* ("no chapter marks in this text") rather than silently losing
+two buttons. Lives in `src/game/data/chapters.js`, pure logic, with the
+real books as its test.
+
+**And the payoff landed with it:** a note now records `ch. 5 · page 8`, and
+the chapter row reads `ch. 5 of 26` as you move.
+
+### #42 — A per-book view of notes. BUILT.
+
+"Everything I wrote about THIS book", from the reader
+(**📖 All my notes on this book**) or from the Books filter in the hub.
+Narrowed to one book, notes are ordered by the **book's** order and grouped
+under real chapter headings, which is what makes it re-readable rather than
+a pile. Fixed in passing, found by looking at the result: a card printed the
+book's name **three times** and the note's text **twice**.
+
+Also fixed in passing: a book note's page was rendered from a 0-based index
+(`p.7` for the reader's page 8) and hidden entirely for page 1 — a truthiness
+test on a zero.
+
+### #43 — Prompt weight. Trimmed, and the real weight was somewhere else.
+
+The recorded target was the prose, and it was worth doing: the Investigator
+stated the same stance three times, and the always-on role text came down
+**1,409 → 1,187 tokens** with no rule dropped.
+
+**But the prose was not the problem.** Two blocks in the same prompt pasted
+*everything*, on every message:
+
+- every seeded investigation with its full verdict **and** its grounding
+  note — **~430 tokens before the visitor has done anything at all** — plus
+  every investigation they had ever made, forever;
+- every Science and Hindu text with its **full summary**, growing without
+  limit, in a project whose whole point is a Library you build yourself.
+
+That is the bug already found and fixed for Quill — *"the librarian got
+slower and dumber the more books you owned"* — still live in the Hall,
+three weeks later, in a different room. Both are bounded now; the shelf
+degrades through the same `catalogueBrief()` Quill uses, and the visitor's
+own investigations are capped at the recent eight and the remainder
+**counted**, never dropped silently. Net saving **~533 tokens on every
+message**, and the growth is gone.
+
+### #45 — NEW, and the most important thing here: the pre-notes were lying.
+
+The first time any resident prompt has been pointed at a real model
+(`ornith:9b`) rather than exercised on its no-AI path. Asked for pre-notes
+on two seed books:
+
+> **The Dhammapada** — *"grouped into five thematic chapters: the Mind,
+> Heedfulness, Anger, the Self, and the Path."*
+>
+> The book has **twenty-six**. The blurb listed five themes as examples and
+> the model turned them into a structure. The visitor then opens the book
+> and finds Chapter XXVI.
+
+> **The Tao Te Ching**, from a 431-character blurb — invented an author
+> (Laozi), a technical term (*wu wei*), and **a quotation**: *"The soft
+> overcomes the hard."*
+
+The prompt already said *"never invent a chapter title or a quotation"* and
+*"where the material given is too thin to say something useful, say that
+plainly instead of padding."* **The model broke all three rules in the same
+reply.** It never once said the material was thin.
+
+**The lesson, and it generalises past this one prompt: a rule the model has
+to notice it is breaking is weaker than a fact it is simply given.** So:
+
+1. **Answer the question instead of inviting a guess.** "HOW IT IS BUILT"
+   has a real answer we now hold, because of #41. `bookStructureBlock()`
+   hands over the actual page count and the actual chapter list.
+2. **State the thinness in numbers**, deterministically, rather than asking
+   the model to judge it — the same shape as every other rule in this
+   project that was moved out of a prompt and into code.
+
+Re-probed with both in place, same model:
+
+> **Dhammapada** — *"The book runs 51 pages across 26 chapters, each named
+> in its own table of contents (e.g., On Earnestness, Thought, Anger, The
+> Way)."* Correct, and it goes on to name the real closing chapters.
+>
+> **Tao Te Ching** — *"The text itself is not here; this preparation is
+> drawn from the blurb alone, so no chapter structure or author attribution
+> can be confirmed."* Which is what it was asked for all along.
+
+**What this says about the rest.** Everything else in Round 5's "what to
+poke at" is still unprobed, and this one took under an hour to find a
+confident fabrication in. The four dissection lenses and every reworked
+prompt are next, and the expectation should now be that at least one of
+them is doing something like this.
+
+### Guards added, each verified by deliberate sabotage (rule 2)
+
+- chapter counts against the **real books** — 26 and 18, not "some";
+- the Hall's two blocks must stay bounded, and the capped ones counted;
+- a per-resident **prompt budget**, so prose cannot silently re-inflate;
+- the pre-notes must keep handing over the real structure.
+
+**One of these was born broken and is worth recording.** The prompt budget
+passed happily against a prompt it had just been handed 2,000 characters of
+padding: it called `briefTokens()` — which takes *text* — with a character
+*count*, so it measured the length of the number and reported **2 tokens for
+every resident**. It was only caught because rule 2 says to break the thing
+and watch the guard fail. That is now three guards in this repo that would
+have shipped inert.
+
+### Still open
+
+- The four dissection lenses, and every reworked prompt, against a real
+  model. **Assume something is wrong until seen.**
+- `ref <term>`; retrieval's honest miss and its page citations.
+- ☀ Today across several mornings; the whole chain with a real book.
+- The town square (`MAKING-AND-THE-OPEN-HARDWARE-COMMONS.md`) — still the
+  likeliest thing to give the Pavilion a second inhabitant, and it needs
+  the identity keypair first.
+- A clean install.

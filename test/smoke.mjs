@@ -731,6 +731,235 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+/* ---------- what a resident costs before you say a word ----------
+   BETA-TESTING-FEEDBACK.md #43. With num_ctx fixed a fat prompt is no longer
+   WRONG, only slow — and slow is what a visitor notices on a cooling-limited
+   machine (8.5s at 2k evaluated against 23s at 7.3k, measured 2026-08-03).
+
+   TWO DIFFERENT FAILURES, and the second is the one that actually bit:
+
+     PROSE creeps. A paragraph gets added, nothing gets removed, and the
+     role restates its own stance three ways. Budgeted below.
+
+     BLOCKS GROW WITHOUT BOUND. The Investigator pasted every seeded
+     investigation with its full verdict and grounding, plus every one the
+     visitor had ever made, plus every Science/Hindu book with its full
+     summary — on every message. That is the same bug already fixed for
+     Quill, and a Library "built from scratch by its owner" walks straight
+     into it. A cap is structural, so it is checked structurally. */
+{
+  const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const { CHARTER, WORK_CHARTER, BUTLER_CHARTER } = await import('../src/game/data/charter.js');
+  const { rosterBlock } = await import('../src/game/data/roles.js');
+  const { briefTokens } = await import('../src/game/data/catalogue-brief.js');
+
+  /* Budgets are for the ALWAYS-ON role text: the literals in systemPrompt()
+     plus the charter and roster every message carries. Deliberately loose —
+     this catches a doubling, not a sentence. Raise one only when the extra
+     words genuinely change what the model DOES. */
+  /* Measured 2026-08-03, with ~8% headroom each. The Monk is deliberately the
+     largest and stays that way: his bulk is IDENTITY and the canon he can
+     actually draw on, which is the enabling kind of prompt this project wants
+     (see plans/ — prompts enable through identity and grounding, never a
+     fear-based rulebook). The Investigator's bulk was the same stance written
+     three times, which is the wasteful kind, and it came down. */
+  /* RE-MEASURED 2026-08-03 after the comment-stripping fix below, which
+     moved every number — some up, some down, because the old parser both
+     counted commentary as prompt AND swallowed real literals that followed
+     an apostrophe. These are the first figures this guard has printed that
+     mean what they say. ~10% headroom each. */
+  const BUDGET = { quill: 1100, steward: 820, investigator: 1280, monk: 1950,
+                   computer: 810, tutor: 1100, sebastian: 1470 };
+  const STR = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
+
+  for (const [agent, budget] of Object.entries(BUDGET)) {
+    const start = ov.indexOf('\n  ' + agent + ':{');
+    if (start < 0) { fail(`prompt budget: could not find CHAT_AGENTS.${agent} — has it been renamed?`); continue; }
+    const end = ov.indexOf('errorLine', start);
+    const body = ov.slice(start, end < 0 ? start + 8000 : end);
+    /* The role text as the model receives it: every string literal in
+       systemPrompt(), plus the charter and roster carried on every message.
+       briefTokens() takes TEXT — handing it a character count measures the
+       length of the number and reports 2 tokens for everyone, which is how
+       the first version of this guard passed against a prompt it had just
+       been given 2,000 characters of padding. Rule 2, earning its place.
+
+       Situational blocks (`((state.dialog&&state.dialog.x) ? "…" : '')`) are
+       excluded: they are real text but only when that context exists, and
+       counting them would budget the Investigator for two blocks he sends
+       on maybe one visit in twenty. This measures what EVERY message pays. */
+    /* COMMENTS MUST GO FIRST, and this is a bug this guard shipped with.
+       An apostrophe in ordinary prose — "the visitor's question" — opens a
+       fake string literal that swallows everything to the next quote, so the
+       guard was counting its own commentary as prompt text. It exaggerated
+       every number it ever printed, and a comment added on 2026-08-03 pushed
+       Quill 300 tokens "over budget" without a word reaching the model.
+       A guard that measures the wrong thing is the guard-that-cannot-fail
+       problem wearing a different coat. */
+    const code = body
+      .replace(/\/\*[\s\S]*?\*\//g, '')      // block comments
+      .replace(/^[ \t]*\/\/.*$/gm, '');      // whole-line // comments
+    const alwaysOn = code.replace(/\(\(state\.dialog[\s\S]*?:\s*''\)/g, '');
+    const literals = (alwaysOn.match(STR) || []).map(l => l.slice(1, -1)).join('');
+    const charter = /WORK_CHARTER/.test(body) ? WORK_CHARTER
+      : /BUTLER_CHARTER/.test(body) ? BUTLER_CHARTER : CHARTER;
+    const tokens = briefTokens(literals + charter + rosterBlock(agent));
+    if (tokens > budget) {
+      fail(`prompt budget: ${agent} carries ~${tokens} tokens of role before a word of the question `
+        + `(budget ${budget}). Trim it, or raise the budget deliberately.`);
+    }
+  }
+
+  /* The Hall's two blocks must stay bounded. Structural, because the growth
+     only shows up on a machine with a big Library — which is to say, never
+     on a fresh checkout, which is exactly why it survived this long. */
+  const hall = ov.slice(ov.indexOf('function investigationsForPrompt'), ov.indexOf('export function openScienceHall'));
+  if (!/\.slice\(-OWN_INVESTIGATIONS_SHOWN\)/.test(hall)) {
+    fail("prompt budget: investigationsForPrompt() no longer caps the visitor's own investigations — it will grow forever");
+  }
+  if (!/older investigations of theirs/.test(hall)) {
+    fail('prompt budget: the capped investigations are dropped silently — the Investigator will assume a question is new');
+  }
+  if (!/catalogueBrief\(docs/.test(hall)) {
+    fail('prompt budget: hallShelfSummary() pastes the shelf again instead of degrading through catalogueBrief()');
+  }
+  if (/\$\{v\.grounding\}/.test(hall)) {
+    fail('prompt budget: the seeded investigations are reciting their grounding notes again (~890 tokens, every message)');
+  }
+
+  /* ANSWER THE QUESTION RATHER THAN INVITING A GUESS. Probed against a real
+     model 2026-08-03 (Round 6): asked for pre-notes on the Dhammapada from its
+     catalogue blurb, ornith:9b wrote "grouped into five thematic chapters" —
+     the book has TWENTY-SIX, and the visitor finds that out by opening it.
+     Handed the real chapter list it said "51 pages across 26 chapters" and
+     named them. "HOW IT IS BUILT" has a real answer we hold, so we give it. */
+  const pre = ov.slice(ov.indexOf('export async function stewardPreNotes'),
+                       ov.indexOf('export async function stewardPreNotes') + 3000);
+  if (!/bookStructureBlock\(/.test(pre)) {
+    fail("prompt budget: stewardPreNotes() no longer hands over the book's real structure — the model will invent a chapter count");
+  }
+  if (!/only a short catalogue blurb/.test(pre)) {
+    fail('prompt budget: the thin-material warning is gone from stewardPreNotes() — on a blurb the model invents an author and a quotation');
+  }
+  if (!/findChapters\(pages\)/.test(ov.slice(ov.indexOf('async function bookStructureBlock'),
+                                             ov.indexOf('async function bookStructureBlock') + 1200))) {
+    fail('prompt budget: bookStructureBlock() no longer reads real chapters — it would be asserting a shape it did not check');
+  }
+}
+
+/* ---------- chapters: found, or honestly absent ----------
+   BETA-TESTING-FEEDBACK.md #41. The old scan read the first THREE LINES of
+   each page and a page is a 1,400-character slice, so it found ZERO of the
+   Dhammapada's 26 chapters and ZERO of the Gita's 18 — both shipped in the
+   seed, both showing no chapter controls at all.
+
+   THE NUMBERS BELOW ARE REAL GROUND TRUTH, counted from the texts, which is
+   the whole reason this test is worth having: "it found some chapters" would
+   have passed against the bug. See src/game/data/chapters.js. */
+{
+  const { findChapters, chapterAt, numeralValue, readContents } =
+    await import('../src/game/data/chapters.js');
+  const { paginate } = await import('../src/game/data/retrieval.js');
+
+  const textOf = async (file) => {
+    const mod = await import(`../src/game/data/library-texts/${file}.js`);
+    return Object.values(mod).find(v => typeof v === 'string');
+  };
+
+  /* The two long texts in the seed. */
+  for (const [file, want] of [['dhammapada', 26], ['bhagavad-gita', 17]]) {
+    const { marks, how } = findChapters(paginate(await textOf(file)));
+    if (marks.length !== want) fail(`chapters: ${file} resolved ${marks.length} chapters, expected ${want}`);
+    if (how === 'none') fail(`chapters: ${file} resolved no chapters at all`);
+    for (let i = 1; i < marks.length; i++) {
+      if (marks[i].page <= marks[i - 1].page) {
+        fail(`chapters: ${file} mark ${i} goes backwards (page ${marks[i].page} after ${marks[i - 1].page})`);
+        break;
+      }
+    }
+    if (marks.some(m => !m.label || !m.label.trim())) fail(`chapters: ${file} produced an unlabelled chapter`);
+  }
+
+  /* ---- THE REAL LIBRARY, in miniature ----
+     The guard that let #41 through tested the six texts in the seed and said
+     it worked. Measured afterwards against the steward's 296 actual books:
+     135 found ZERO chapters and 41 found "the first four". These fixtures are
+     small excerpts of the REAL books that broke, one per failure mode, so the
+     guard tests what he owns rather than what we ship. */
+  const fixture = (name) =>
+    readFileSync(new URL(`fixtures/chapters/${name}`, import.meta.url), 'utf8');
+
+  for (const [name, minMarks, wantHow, note] of [
+    ['numerals-discourses.txt', 5, 'numerals',
+      "Epictetus: Book I-IV over bare roman numerals. THE reported bug — it showed four."],
+    ['keyword-lectures.txt', 3, 'headings',
+      "'LECTURE' was missing from the keyword list, so a six-lecture book found zero."],
+    ['toc-national-parks.txt', 3, 'toc',
+      'a genuine contents block, which is the only route 109 of the books have.'],
+  ]) {
+    const { marks, how } = findChapters(paginate(fixture(name)));
+    if (marks.length < minMarks) fail(`chapters: ${name} resolved ${marks.length}, expected at least ${minMarks} — ${note}`);
+    if (how !== wantHow) fail(`chapters: ${name} answered via '${how}', expected '${wantHow}' — ${note}`);
+  }
+
+  /* AND THE TWO THAT MUST STAY SILENT. Both were measured returning
+     confident nonsense, which is worse than nothing on a note that cites it. */
+  for (const [name, note] of [
+    ['ocr-scan.txt', 'a scanned book prints its page number on every page; this yielded 230 "chapters"'],
+    ['bare-titles-walden.txt', 'no contents, no keyword, and a cost table printed like a heading ("Boards", "$8.03")'],
+  ]) {
+    const { marks, how } = findChapters(paginate(fixture(name)));
+    if (marks.length || how !== 'none') {
+      fail(`chapters: ${name} invented ${marks.length} chapters via '${how}' — ${note}`);
+    }
+  }
+
+  /* AND IT SAYS SO WHEN THERE ARE NONE. Four of the six seed texts are short
+     suttas with genuinely no chapters; a book converted from a PDF often has
+     no Contents block either. Dead controls are worse than absent ones. */
+  for (const file of ['anapanasati', 'metta', 'satipatthana', 'first-sermon']) {
+    const { marks, how } = findChapters(paginate(await textOf(file)));
+    if (marks.length) fail(`chapters: ${file} has no chapters but invented ${marks.length}`);
+    if (how !== 'none') fail(`chapters: ${file} should report 'none', reported '${how}'`);
+  }
+
+  /* A heading needs a NUMBER. Without that, ordinary prose opening with
+     "Part of the reason…" becomes a chapter break. */
+  {
+    const prose = ['Part of the reason we do this is habit.\n\nAnd so on.',
+                   'Section by section it grew.\n\nMore text.',
+                   'Book after book piled up.\n\nStill more.'];
+    const { marks } = findChapters(prose);
+    if (marks.length) fail(`chapters: prose beginning with a keyword was read as ${marks.length} chapter(s)`);
+  }
+
+  /* The Contents block must not become chapters itself, and must not swallow
+     the body's first real heading — the counting-up rule. */
+  {
+    const toc = ['Contents\n\nChapter 1: The Opening\nChapter 2: The Middle\nChapter 3: The End',
+                 'Chapter I. The Opening\n\nSome words here.',
+                 'Chapter II. The Middle\n\nMore words here.',
+                 'Chapter III. The End\n\nFinal words here.'];
+    const { marks } = findChapters(toc);
+    if (marks.length !== 3) fail(`chapters: a 3-chapter book with a Contents block resolved ${marks.length}`);
+    if (marks.length && marks[0].page !== 1) fail('chapters: the Contents block was counted as a chapter');
+  }
+
+  if (numeralValue('xviii') !== 18) fail('chapters: roman numeral xviii did not read as 18');
+  if (numeralValue('iv') !== 4) fail('chapters: subtractive roman numeral iv did not read as 4');
+  if (numeralValue('7') !== 7) fail('chapters: arabic numeral 7 did not read as 7');
+  if (numeralValue('frog') !== 0) fail('chapters: a non-numeral should read as 0, not throw');
+  if (typeof readContents !== 'function') fail('chapters: readContents is no longer exported');
+
+  /* chapterAt is what puts "ch. 4" on a note — an absent answer, never a
+     guessed one, where the book has no marks. */
+  const marks3 = [{ page: 0, label: 'One' }, { page: 10, label: 'Two' }, { page: 20, label: 'Three' }];
+  if (chapterAt(marks3, 0).number !== 1) fail('chapters: page 0 is not in chapter 1');
+  if (chapterAt(marks3, 15).number !== 2) fail('chapters: page 15 is not in chapter 2');
+  if (chapterAt(marks3, 99).number !== 3) fail('chapters: a page past the last mark is not in the last chapter');
+  if (chapterAt([], 5) !== null) fail('chapters: a book with no marks must give null, not a guess');
+}
+
 /* ---------- retrieval: finding the passage, not pasting the book ----------
    REFERENCE-AND-RETRIEVAL-PLAN Part B. Until 2026-08-03 nothing could look
    INSIDE a book: searchDocs() returned null, Quill got titles and blurbs, and

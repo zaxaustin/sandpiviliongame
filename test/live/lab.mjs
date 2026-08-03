@@ -107,6 +107,18 @@ await p.evaluate(() => { closeUI(); openReader('own-pei'); }); await new Promise
 const meta = await p.evaluate(() => document.getElementById('rdMeta').textContent);
 R.push(['a book with no source never renders the word "undefined"', !/undefined/.test(meta)]);
 
+/* AND THE SAME CHECK ONE LAYER IN, which is where it was still happening.
+   The line above reads rdMeta — the SUMMARY header — on a paper book that has
+   no full text at all, so it never reached the full-text header. That one had
+   `License: <b>${ft.license}</b>` with no fallback, so every hand-added book
+   printed "License: undefined" over its first page. Found 2026-08-03 by
+   screenshotting a real book; the guard for this exact word had been passing
+   happily beside it for a day. Check the header the READER actually shows. */
+await p.evaluate(async () => { closeUI(); openReader('bk-1'); await openFullText('bk-1'); });
+await new Promise(r => setTimeout(r, 500));
+const ftMeta = await p.evaluate(() => document.getElementById('rdFullTextMeta').textContent);
+R.push(['nor does the FULL-TEXT header of a book with no licence', !/undefined/.test(ftMeta)]);
+
 /* 3 — the room is reachable in the world, not just by function call. */
 const wired = await p.evaluate(() => {
   const s = window.__scenes || null;

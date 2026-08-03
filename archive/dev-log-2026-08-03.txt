@@ -363,3 +363,249 @@ on their NO-AI paths. Nobody has seen what a real model returns from
 any of them.
 
 And beta.3 still has zero downloads.
+
+================================================================
+THIRD SESSION - Round 5's list, and the first real-model probe
+================================================================
+
+Took the list in order: chapters, per-book notes, prompt weight. The
+fourth thing was not on the list and is the one worth remembering.
+
+CHAPTERS (#41) - and the diagnosis in the file was too generous.
+
+  The cause was recorded correctly: chapterPages() read the first THREE
+  LINES of each page, and a page is a 1,400-character slice. The effect
+  was not. It was not "the first four chapters and then nothing."
+
+      The Dhammapada   26 chapters   found 0
+      The Bhagavad Gita 18 chapters  found 0
+
+  Both ship in the welcome packet. Neither had ever shown a chapter
+  control to anybody.
+
+  THE WRITTEN CURE WAS WRONG, AND MEASURING IT IS WHAT SHOWED THAT.
+  The plan said: parse the Contents block, then find each chapter name's
+  SECOND occurrence in the body. Tried it. It lands on the wrong page
+  constantly, because chapter titles are ordinary words - "Thought",
+  "Self", "Happiness", "The World" all match prose on page 1 long before
+  they match their own heading. Matching the whole Contents line does
+  worse (14 of 26): the Contents says "Chapter 1: The Twin Verses" and
+  the body says "Chapter I. The Twin-Verses". Arabic against roman,
+  colon against period, and a hyphen.
+
+  So the two sources swapped jobs, and that is the whole design:
+
+      the BODY is the authority on PAGES   (anchored whole-line scan,
+        whole page, every match - 18/18 in the Gita, 26/26 here)
+      the CONTENTS is the authority on NAMES (the Gita's body headings
+        are bare "CHAPTER IV"; the title exists only in its Contents)
+
+  Three smaller rules, each from a real failure while building it:
+
+    - a heading must carry a NUMBER, or "Part of the reason we do this"
+      is a chapter break;
+    - only the DOMINANT KEYWORD survives, which drops the Dhammapada's
+      front-matter "Part I" with no special case for that book;
+    - a Contents block COUNTS UP. Without that the block swallowed the
+      body's real "Chapter I" - which looks identical to a Contents
+      entry - and reported 27 chapters for a 26-chapter book.
+
+  Falls back honestly: the four suttas have no chapters and now say so,
+  rather than silently losing two buttons.
+
+  Payoff, same day: a note records "ch. 5 - page 8", and the reader row
+  reads "ch. 5 of 26" as you move.
+
+PER-BOOK NOTES (#42). "Everything I wrote about THIS book", from the
+  reader or the Books filter. Narrowed to one book it orders by the
+  BOOK's order and groups under real chapter headings. Two things found
+  only by looking at the rendered result: the card printed the book's
+  name three times and the note's text twice; and a book note's page was
+  rendered 0-based ("p.7" for the reader's page 8) and hidden entirely
+  on page 1, a truthiness test on a zero.
+
+PROMPT WEIGHT (#43) - trimmed, and the real weight was somewhere else.
+
+  The prose was worth doing: the Investigator said the same thing three
+  times, and came down 1,409 -> 1,187 always-on tokens with no rule
+  dropped. The Monk was deliberately LEFT ALONE - his bulk is identity
+  and the canon he can draw on, which is the enabling kind of prompt
+  this project wants. The Investigator's bulk was restatement.
+
+  But the prose was not the problem. Two blocks in the same prompt
+  pasted EVERYTHING, on every message:
+
+    - every seeded investigation with its full verdict AND its grounding
+      note (~430 tokens before the visitor has done anything at all),
+      plus every investigation they had ever made, forever;
+    - every Science and Hindu text with its FULL SUMMARY, unbounded.
+
+  That is the Quill catalogue bug - "the librarian got slower and dumber
+  the more books you owned" - alive and well in a different room three
+  weeks after it was fixed in the Library. Both bounded now; the shelf
+  degrades through the same catalogueBrief() Quill uses. ~533 tokens
+  saved per message, and the unbounded growth is gone.
+
+#45 - THE ONE THAT MATTERS: THE PRE-NOTES WERE LYING.
+
+  First time any resident prompt has met a real model (ornith:9b)
+  instead of being exercised on its no-AI path. Asked for pre-notes on
+  two seed books:
+
+    The Dhammapada -> "grouped into five thematic chapters: the Mind,
+      Heedfulness, Anger, the Self, and the Path."
+
+      It has TWENTY-SIX. The blurb listed five themes as examples and
+      the model turned them into a structure. The visitor then opens the
+      book and finds Chapter XXVI.
+
+    The Tao Te Ching, from a 431-character blurb -> invented an author
+      (Laozi), a technical term (wu wei), and a QUOTATION: "The soft
+      overcomes the hard."
+
+  The prompt already said "never invent a chapter title or a quotation"
+  and "where the material given is too thin to say something useful, say
+  that plainly instead of padding." It broke all three rules in one
+  reply and never once said the material was thin.
+
+  THE LESSON, and it generalises well past this prompt:
+
+      A RULE THE MODEL HAS TO NOTICE IT IS BREAKING IS WEAKER THAN A
+      FACT IT IS SIMPLY GIVEN.
+
+  So: answer the question instead of inviting a guess. "HOW IT IS BUILT"
+  has a real answer we now hold, because of the chapter work above.
+  bookStructureBlock() hands over the actual page count and the actual
+  chapter list. And state the thinness in NUMBERS, deterministically,
+  rather than asking the model to judge it.
+
+  Re-probed, same model:
+
+    Dhammapada -> "The book runs 51 pages across 26 chapters, each named
+      in its own table of contents (e.g., On Earnestness, Thought,
+      Anger, The Way)." Correct, and it names the real closing chapters.
+
+    Tao Te Ching -> "The text itself is not here; this preparation is
+      drawn from the blurb alone, so no chapter structure or author
+      attribution can be confirmed."
+
+  Which is what it was asked for all along.
+
+GUARDS - four added, each verified by deliberately breaking the thing
+  and watching it fail. Chapter counts against the REAL books (26 and
+  18, not "some"); the Hall's blocks must stay bounded and the capped
+  ones counted; a per-resident prompt budget; and the pre-notes must
+  keep handing over the real structure.
+
+  ONE OF THEM WAS BORN BROKEN, and that is the part worth keeping. The
+  prompt budget passed happily against a prompt it had just been handed
+  2,000 characters of padding. It called briefTokens() - which takes
+  TEXT - with a character COUNT, so it measured the length of the
+  number and reported 2 tokens for every resident. Only caught because
+  rule 2 says break it and watch the guard fail. Third inert guard this
+  repo has found in a week. The rule keeps paying for itself.
+
+WHAT DID NOT CHANGE. beta.3 still has zero downloads. Everything above
+  is more good work no second human has seen. The town square is still
+  the likeliest thing to change that and still needs the identity
+  keypair first.
+
+================================================================
+FOURTH SESSION - the Pavilion gets a backend
+================================================================
+
+The steward opened a random book and still saw four chapters. He was
+right, and the reason is the whole lesson of the session:
+
+    I FIXED IT AGAINST THE SIX TEXTS IN THE SEED AND CALLED IT DONE.
+    HIS LIBRARY IS 296 BOOKS.
+
+Measured against the real thing, the "fixed" finder was wrong on 62% of
+it: 135 books found ZERO chapters, 41 found "the first four". The seed
+was a sample, not the thing he uses, and testing the sample is how a
+green suite and a broken feature live together.
+
+  Epictetus' Discourses, the reported book: Book I-IV, each holding ~24
+  chapters marked with a bare roman numeral alone on a line. The finder
+  matched the four "Book" lines and stopped - and dominantKeyword()
+  CAUSED it by keeping one level and discarding the other. Not the old
+  bug. A new one wearing the old symptom.
+
+  He was also right about the index and I had it backwards. I concluded
+  "body first, contents only for names" from two seed books. 24 of his
+  39 committed sources have a contents block, and for the 109 whose
+  headings carry no keyword it is the ONLY route.
+
+Rebuilt around four routes - contents, keywords (widened; 'lecture'
+alone was costing a six-lecture book all six), bare numerals, and
+honest silence. Across all 296: 0-chapter books 135 -> 88, working
+books 106 -> 160, Discourses 4 -> 89.
+
+Two things it now refuses to do, both measured:
+  - The Serpent Power is an OCR'd scan whose printed page numbers looked
+    like 230 chapters. Rejected: chapter titles are DISTINCT, and a
+    running header repeats.
+  - Walden has no contents and no keywords. Inferring from "short
+    standalone lines" returns "Boards", "$8.03", "[Illustration: Fig.
+    1.]". It says none, which the steward himself blessed: "i dont know
+    or unable to summerize is fine it leaves the user space to also
+    contribute."
+
+THE BACKEND. He asked whether to put a local SQL database under this. I
+argued against it, from a wrong premise - I assumed leaving Supabase was
+a local-first preference, so "51 rows don't need a database" followed.
+His actual reason:
+
+    "the reason we got off supabase was because it did not allow ai
+     intergration on the backend"
+
+That is a CAPABILITY argument, not a storage one, and it points the
+other way. Postgres in Docker beside MinIO. MinIO keeps the text;
+Postgres keeps what the Pavilion KNOWS - cards, shelves, 6,361
+chapters, notes, records.
+
+Two obstacles, both named rather than pretended away:
+  - Store.allDocs() is SYNCHRONOUS and called mid-render. A query is
+    not. So the catalogue hydrates ONCE at boot into the same in-memory
+    list the seed fills, and no call site changes.
+  - A browser cannot speak Postgres's binary protocol. Ever. The
+    Electron main process can, and does. The web build keeps running on
+    seed + localStorage, so nothing regresses, and it is still the only
+    Mac answer.
+
+THE TRAP, caught before it bit: what got loaded into Postgres came from
+MinIO OBJECT NAMES - guessed titles, no author, no shelf. Wiring the app
+to it would have erased every shelf he had assigned. He said "we can
+place the books again if we have to" - but the merge turned out to be
+about the same amount of code as the replace, so hydration MERGES
+UPWARD: the save wins on every field it has, and his shelves are written
+back up. The long path was again the shorter one.
+
+RESIDENTS. His rule - "if they dont have a refrence let them just say
+that instead of guess" - was an instruction in a prompt and nothing
+more. Quill was handed a list and told sternly not to invent titles,
+which is asking a model to be careful rather than giving it a way to be
+right. He now LOOKS IT UP: the visitor's question is the query, and an
+empty result is real information, so "not on these shelves" is a fact
+rather than a judgement.
+
+GUARDS - three born broken this session, all caught by rule 2:
+  - two of four chapter sabotages proved nothing (one removed the wrong
+    half of a keyword list; the OCR fixture was too small to exercise
+    its own guard);
+  - the licence sabotage set a variable that took the new fallback path;
+  - WORST: the prompt-budget guard parsed apostrophes in COMMENTS as
+    string quotes. It counted its own commentary as prompt text AND
+    swallowed real literals after an apostrophe, so every token number
+    it ever printed - including ones I reported to the steward - was
+    wrong in both directions. Fixed. The figures now mean what they say.
+
+Found by LOOKING, again: a screenshot showed "License: undefined" under
+a book title. Real, on all ~255 personal books, and the identical fault
+had been fixed for source_url and missed one field along. The guard for
+that exact word had been passing beside it, because it checked the
+SUMMARY header on a book with no full text.
+
+WHAT DID NOT CHANGE. beta.3 still has zero downloads. Everything here
+makes his own Pavilion better - which is the goal he named - and none of
+it puts the thing in front of a second person.

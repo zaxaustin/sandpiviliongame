@@ -155,6 +155,7 @@ node test/live/bench.mjs                   # predict-before-you-look, and it can
 node test/live/librarian-safety.mjs        # the data-loss bug that reached a real user
 node test/live/bundle.mjs                  # a bundle is reviewed before anything lands
 node test/live/study-chain.mjs             # the JOINTS: note→lesson→a path you walk→Today, book→dissection
+node test/live/backend.mjs                 # the DB seam: a shelf you assigned is never overwritten
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
 ```
 
@@ -228,6 +229,144 @@ sharpened to a concrete backend direction. The Library is meant to be
 **built from scratch by its owner** — the Caravan tools, `library-inbox/`,
 and the manual/drag-and-drop add paths already make a from-nothing library
 the normal case, not a cloud you download; keep it that way.
+
+**THE GAME IS A FRONT FOR A REAL TOOL. Stated by the steward
+2026-08-03, and it reframes everything above it:**
+
+> *"the game should be like a front for a real user interface that could
+> rival a non-code IDE for a lay user"*
+
+Read that as the standard to build to, not a metaphor. An IDE is not
+impressive because it is pretty; it is **an index over everything you are
+working on, plus fast, obvious ways to act on it.** Strip the code and that
+is exactly what a person doing serious reading and thinking needs, and it is
+what almost no consumer software gives them.
+
+So the pixel-art rooms are the *skin*. Underneath, the parts map onto an
+IDE's parts, and naming the mapping stops us building a toy:
+
+```
+project / workspace   ->  your Pavilion: the library, shelves, days, notes
+file tree             ->  the Library, Your Shelves, the Index
+search across all     ->  retrieval + the catalogue (now queryable)
+go to definition      ->  a note -> its book -> its chapter -> the page
+find all references   ->  "everything I wrote about this book/chapter"
+command palette       ->  the Computer, and the request desk
+extensions            ->  the residents, and the Caravan connectors
+build / run           ->  a dissection, an analysis, a lesson you walk
+version history       ->  the Log, the Bench's two-phase record
+```
+
+**What this makes true, and it is a real bar:**
+- **Nothing may be a dead end.** Every artifact must be reachable *and*
+  actionable from where you are looking at it. This is the "study chain"
+  discipline generalised: everything produced must be able to become the
+  input to the next thing.
+- **One keystroke to anywhere** beats a beautiful room you have to walk to.
+  A room still deserves its place in the world; it must never be the only
+  door (learned the hard way with the Lab — built and unreachable is the
+  same as unbuilt).
+- **It has to flow like water** — the steward's own phrase and the current
+  focus. Latency, modal traps, and buttons that quietly do nothing are the
+  enemy, not missing features.
+- **For a LAY user.** No terminal required, no config file, no jargon. The
+  Computer teaches real commands *because it is fun*, never because it is
+  the only way.
+
+**The current focus follows directly, 2026-08-03: new users and beta
+readiness.** Many books have been added; **notes, quick review of a book, and
+doing your own analysis are the underbuilt half** — and they are precisely
+the "find all references" and "build/run" of this IDE. That is the direction
+of work now, not more rooms.
+
+*(History worth knowing rather than hunting: a large number of books were
+originally loaded by Claude as beta testing, before the epub filter existed.
+That is the origin of the mismatch between the library build and later
+hand-added books.)*
+
+**The backend is real now, and here is what lives where. Stated
+2026-08-03, when Postgres went in.** The reason for leaving Supabase was
+never only "local-first" — the steward's own reason is sharper and it
+governs the design: **Supabase did not allow AI integration on the
+backend.** So the split is:
+
+```
+MinIO (Docker)     the book TEXT          ~296 books, 168 MB today
+Postgres (Docker)  the KNOWLEDGE          cards, shelves, chapters, health
+localStorage       YOUR day                days, notes, courses, progress
+```
+
+**Text is big, opaque and written once — object storage. What the Pavilion
+knows *about* a book is small, queryable and edited constantly — a
+database.** Before this, that second half lived in one browser key, which
+is why sorting 300 books never felt like it stuck, and why a resident had
+to be handed a pasted list of every title instead of asking a question.
+
+`docker-compose.yml` + `tools/schema.sql` + `tools/load-library.mjs`.
+**A chapter is a RECORD, not a recomputation** — it carries `source`
+('toc' / 'headings' / 'numerals' / 'hand') and a `confirmed` flag, so a
+detected list can be corrected by hand and a re-scan will never discard
+what a person marked. That correctability is the entire difference between
+a chapter you can cite and one you cannot.
+
+**HOW THE DATABASE AND THE "RUNS WITH NOTHING" RULE ACTUALLY FIT
+TOGETHER.** Revised 2026-08-03, when the steward asked whether the old
+"no database" rule should go now that one is live. It should — but not
+to "database required". The honest version maps onto **Two Pavilions**,
+which is a decision already made:
+
+- **This machine — the steward's own Pavilion: assume the database.**
+  Docker is part of the setup here. Build features that need it, use it
+  fully, and do **not** write a second implementation for a machine that
+  is not this one.
+- **The shareable beta: still runs with nothing.** Seed + localStorage is
+  a complete Pavilion. That stays a release gate with a test
+  (`test/live/backend.mjs`, plus the suites run with the container
+  stopped), because it ships to people who have never installed a
+  container.
+
+**AND THE RULE THAT KEEPS THOSE TWO FROM ROTTING: a feature that needs
+the database is ABSENT without it, never DEGRADED.** Absent, and it says
+so plainly — like a room not yet built. One code path plus a visibility
+check; never two implementations of the same feature.
+
+That is not a style preference, it is this codebase's own scar. `store.js`
+says why, about the hosted catalogue mirror it deleted outright:
+
+> *"the fallback path was the only path anyone actually ran, which meant
+> it was load-bearing while still being written and tested as a
+> fallback."*
+
+Two paths means the one you test is not the one that runs. Absent-or-
+present has no second path to rot.
+
+**Docker cannot be bundled into the installer** — Docker Desktop is a
+separate multi-gigabyte install with its own business licensing, so "make
+it part of the build" is not available in that form. The real option, if
+the database ever needs to reach everyone, is an **embedded** one (PGlite
+— Postgres compiled to WASM — or SQLite) shipped inside the Electron
+app: no container, no setup, works for a stranger. Weaker than real
+Postgres, and a decision worth making **after** it is clear which
+database-backed features actually earn their place, not before.
+
+**THE OLD RULE, KEPT BECAUSE IT IS STILL TRUE FOR THE SHIPPED BUILD: the
+app must still run with every container stopped.** The beta ships to people who have never installed
+Docker; seed + localStorage is a complete Pavilion. Postgres makes *this*
+instance better and must never become something a stranger needs.
+
+**Say "I don't know" — it is a feature, not a gap.** Stated by the steward
+2026-08-03 about the chapter finder: *"i dont know or unable to summerize
+is fine it leaves the user space to also contribute."* Where detection is
+uncertain the Pavilion says so and offers the person a way to fix it,
+rather than showing a confident wrong answer. A wrong chapter list is
+worse than none, because a note cites it.
+
+**Deterministic code first; the model only for what code cannot do.**
+Already quoted at the top of `data/shelf-rules.js` in the steward's own
+words — *"only having the units do the sorting, or the things we can't do
+with Python."* `tools/library-audit.py` calls no model at all. Counting,
+measuring, matching and de-duplicating are things code does exactly and a
+language model does approximately, slowly, and at a cost in heat.
 
 **Two Pavilions, kept distinct.** This dev machine is *the user's own*
 instance — a personal desktop environment he wants maximum freedom to play

@@ -16,6 +16,7 @@ import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
 import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data/reference.js';
 import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
+import { findChapters, chapterAt } from '../data/chapters.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -459,6 +460,54 @@ function lastAskOf(agent){
   }
   return '';
 }
+/* THE LIBRARIAN LOOKS IT UP, instead of being handed the whole catalogue.
+   Added 2026-08-03, and it is the steward's own rule made enforceable:
+
+     "if they dont have a refrence let them just say that instead of guess"
+
+   Until now that was an instruction in a prompt and nothing more — Quill was
+   pasted a list and told sternly not to invent titles, which is asking a
+   model to be careful rather than giving it a way to be right. Measured, he
+   was spending 815 tokens on identity and 154 on a catalogue that had
+   degraded to shelf counts at 294 books, so he could not answer "do I own a
+   book about X" at all.
+
+   With a database he can. The visitor's own question is the query — the same
+   move `referenceBlock()` already makes at the Reference Desk — and only the
+   matching rows are handed over. An empty result is now REAL INFORMATION
+   rather than a gap in what he happened to be shown, so "no, that is not on
+   these shelves" becomes a fact he may state plainly.
+
+   Returns null when there is no database, and the caller falls back to the
+   catalogue brief exactly as before. */
+const LOOKUP_STOP = new Set(('a an the and or but if of in on at to for from by with is are was were be '
+  + 'do does did have has had i you we they it that this these those what which who whom whose when where '
+  + 'why how can could will would should about any some my your our me us book books read about got here'
+  ).split(' '));
+async function libraryLookupBlock(question){
+  if(!(Store.dbAvailable && Store.dbAvailable())) return null;
+  const q=String(question||'').trim();
+  if(!q) return '';
+  const terms=[...new Set(q.toLowerCase().replace(/[^a-z0-9' ]+/g,' ').split(/\s+/)
+    .filter(w=>w.length>3 && !LOOKUP_STOP.has(w)))].slice(0,4);
+  if(!terms.length) return '';
+  const seen=new Map();
+  for(const t of terms){
+    const rows=await Store.dbQuery('searchBooks',[t,8]);
+    for(const r of (rows||[])) if(!seen.has(r.slug)) seen.set(r.slug,r);
+  }
+  const hits=[...seen.values()].slice(0,12);
+  if(!hits.length){
+    return '\n\nYOU LOOKED THIS UP. Searching every title and author on these shelves for '
+      +terms.map(t=>'"'+t+'"').join(', ')+' returned NOTHING. That is a real answer, not a gap in what you '
+      +'were shown: say plainly that it is not on these shelves, and offer the Request Board in the Study. '
+      +'Do not hedge, and do not guess at a title that might be close.';
+  }
+  return '\n\nYOU LOOKED THIS UP. Searching the shelves for '+terms.map(t=>'"'+t+'"').join(', ')
+    +' found exactly these, and nothing else:\n'
+    +hits.map(h=>`- "${h.title}"${h.attribution?' — '+h.attribution:''}${h.shelf?' ('+h.shelf+')':' (unshelved)'}`).join('\n')
+    +'\nSpeak from this list. If what they want is not in it, it is not on the shelves — say so plainly.';
+}
 function pastAsksBlock(agent){
   const mem=agentMemory(agent);
   if(!mem.length) return '';
@@ -528,8 +577,17 @@ const CHAT_AGENTS = {
          to be built from scratch by its owner (measured at ~4,300 tokens on a
          100-book shelf, ~21,000 at 500). It degrades by size now, and says
          plainly how complete its view is. See data/catalogue-brief.js. */
+      /* A LOOKUP BEATS A RECITATION. With a database, the visitor's question
+         is searched and only the hits are handed over — so an empty result
+         means "not on these shelves" rather than "not in the excerpt you were
+         shown", and Quill can finally answer the question a librarian is for.
+         Without one, nothing changes: the brief is pasted exactly as before. */
+      const lookup=await libraryLookupBlock(lastAskOf('quill'));
       const brief=catalogueBrief(Store.allDocs());
-      const shelf=brief.text+briefCaveat(brief);
+      const shelf = lookup!==null
+        ? 'You do not carry the catalogue in your head — you look things up, and the result of '
+          +'that lookup is below. The Library holds '+Store.allDocs().length+' texts in all.'+lookup
+        : brief.text+briefCaveat(brief);
       // Quill is written light on purpose — a knowledgeable librarian, not a
       // performed character. His real value is the catalogue he can look
       // things up in and the abilities he can offer; neither is ever forced.
@@ -607,41 +665,42 @@ const CHAT_AGENTS = {
   investigator:{
     label:'the Investigator',
     async systemPrompt(){
+      /* TRIMMED 2026-08-03 (#43), and only the SAYING was trimmed — every rule
+         below was in the old version too. It ran to ~2,700 characters of
+         always-on role and stated the same stance three times: "don't
+         overreach" in the rigor paragraph, "evidence is the price of a seat"
+         in the Hall paragraph, and "no thumb on the scale" in the opening.
+         With num_ctx fixed a fat prompt is no longer WRONG, only slow, and
+         slow is what a visitor notices on a cooling-limited machine — 8.5s at
+         2k evaluated against 23s at 7.3k, measured. Brevity also reads better
+         to a small model than the same instruction three ways. */
       return WORK_CHARTER
-        +"\n\nYou are the Investigator of the Sand Pavilion's Science & Research Hall. In the café you are "
-        +"known as the Steward; here you wear a different hat — you keep the Pavilion's laboratory. Your one "
-        +"job is honest inquiry: turning a claim into a question that could actually come out either way, "
-        +"looking at what the real evidence says, and reporting it plainly. This Hall tests things; it does "
-        +"not set out to prove anything true. Most of what you examine is ordinary modern science and "
-        +"everyday claims; some of it, when a visitor asks, is what meditation or the Hindu scriptures put "
-        +"forward — examined the very same honest way, never with a thumb on the scale.\n\n"
-        +"Every finding lands in one of four honest verdicts, and you reach for the humblest one the evidence "
-        +"actually supports: SUPPORTED, UNSUPPORTED / CONTRADICTED, MIXED (the modest version holds, the "
-        +"strong version doesn't), or BEYOND WHAT SCIENCE CAN CURRENTLY SAY. That last one is a real, "
-        +"respectable answer, not a dodge: a claim about first-person lived experience, or a metaphysical "
-        +"claim not framed to be tested, is genuinely outside what a third-person experiment can settle — say "
-        +"so clearly, and treat the experience as real and worth studying even when the metaphysics is out of "
-        +"reach. Scripture and evidence are allowed to simply coexist on the same question without forcing one "
-        +"to defeat the other; never present scripture AS evidence, or evidence as a refutation of a meaning "
-        +"scripture was making. When a question is really about meaning, conduct, or what a practice is FOR, "
-        +"say plainly that the Mountain Monk in the Keep is the one who holds that, and stay on the evidence "
-        +"yourself.\n\n"
-        +"Rigor rules you hold to: prefer \"the evidence here is thin\" over a confident overreach; never "
-        +"invent a study, a statistic, or a citation — if you don't have a real source, say so and suggest the "
-        +"visitor add the paper to the Request Board (in the Study, past the Library's east door) so it can be "
-        +"fetched and shelved for real. Be concrete and brief — a few sentences or a short structured note, "
-        +"not a lecture. When you help shape a new investigation, push the visitor toward a question that's "
-        +"actually falsifiable and toward naming what would change its verdict.\n\n"
-        +"How this Hall is meant to work — say it plainly if a visitor treats you as an oracle: no one "
-        +"here is the gatekeeper of truth, and that includes you. Every claim is open to challenge — even "
-        +"the ones already on these shelves, and even your own verdicts, which are provisional and change "
-        +"when better evidence arrives. This is a marketplace of ideas, not a pulpit. But a place at the "
-        +"table has a price: evidence. When a visitor asserts something, warmly ask them to back it — a "
-        +"paper, a source, a real observation — rather than accept (or argue) volume and conviction; being "
-        +"certain isn't the same as being shown, and the loudest claim isn't the truest. When you disagree, "
-        +"take on the claim, never the person, and put the strongest version of their case before you weigh "
-        +"it. If the honest state of a question is genuine open debate, say that it's contested and lay out "
-        +"the sides fairly instead of forcing a verdict the evidence hasn't earned.\n\n"
+        +"\n\nYou are the Investigator, keeper of the Sand Pavilion's Science & Research Hall (in the café "
+        +"you are known as the Steward; this is your other hat). Your one job is honest inquiry: turn a claim "
+        +"into a question that could come out either way, look at what the evidence actually says, and report "
+        +"it plainly. This Hall tests things; it does not set out to prove them. Ordinary science and everyday "
+        +"claims are most of the work; scripture and meditation get examined the very same way when asked, "
+        +"never with a thumb on the scale.\n\n"
+        +"Four verdicts, and you take the humblest the evidence supports: SUPPORTED; UNSUPPORTED / "
+        +"CONTRADICTED; MIXED (the modest version holds, the strong one doesn't); or BEYOND WHAT SCIENCE CAN "
+        +"CURRENTLY SAY. The last is a real answer, not a dodge — first-person experience and untestable "
+        +"metaphysical claims genuinely sit outside a third-person experiment. Say so, and treat the "
+        +"experience as real and worth studying even where the metaphysics is out of reach. Scripture and "
+        +"evidence may simply coexist: never offer scripture AS evidence, or evidence as a refutation of a "
+        +"meaning scripture was making. Questions of meaning, conduct or what a practice is FOR belong to the "
+        +"Mountain Monk in the Keep — say so and stay on the evidence.\n\n"
+        +"How you work: \"the evidence here is thin\" beats a confident overreach. Never invent a study, a "
+        +"statistic or a citation — say you have no real source and suggest the Request Board (in the Study) "
+        +"so the paper can be fetched and shelved. Be concrete and brief: a few sentences or a short "
+        +"structured note, never a lecture. Shaping an investigation, push toward a falsifiable question and "
+        +"toward naming what would change its verdict.\n\n"
+        +"Nobody here is the gatekeeper of truth, and that includes you — say it plainly if you are treated "
+        +"as an oracle. Every claim is open to challenge, including the ones already shelved and your own "
+        +"verdicts, which are provisional. But a seat at the table costs evidence: when a visitor asserts "
+        +"something, warmly ask them to back it, rather than accepting volume and conviction — certain is not "
+        +"the same as shown. Disagree with the claim, never the person, and put its strongest version before "
+        +"you weigh it. Where a question is genuinely contested, say so and lay out the sides instead of "
+        +"forcing a verdict the evidence has not earned.\n\n"
         +((state.dialog&&state.dialog.experimentContext)
           ? "\n\nThe visitor has come to you to read the data from their OWN self-experiment — the least "
             +"fakeable evidence there is, and also the easiest to be fooled by. Read it honestly WITH them: "
@@ -1312,6 +1371,36 @@ export async function refreshLibraryStorageStatus(){
   }catch(e){
     el.textContent = "○ Local Library storage (MinIO) not running — full texts won't load until it's running (see LIBRARY-SCALING-PLAN.md)";
   }
+}
+
+/* ----- The local database: is it there, and what does it change -----
+   Added 2026-08-03. The Pavilion is COMPLETE without a database — seed plus
+   your own save is a whole working Pavilion, and that is a release gate with
+   a test. The database is an UPGRADE, and until now nothing in the app said
+   so, which made it a secret feature rather than an offer.
+
+   Written for a person who has never installed a container: it says what is
+   on, what it would add, and it never implies anything is broken. */
+export function backendStatusLine(){
+  const on = Store.dbAvailable && Store.dbAvailable();
+  if(!on) return { on:false,
+    text:'○ Running on this device alone — everything works. A local database (Docker + Postgres) '
+        +'is an optional upgrade that adds search across all your notes and faster sorting of a big shelf.' };
+  return { on:true, text:'● Local database connected — your shelves, chapters and notes are indexed.' };
+}
+/* What a database actually adds, in the visitor's terms rather than ours.
+   Kept beside the status so the two can never drift apart. */
+export const BACKEND_UPGRADES = [
+  'Search every note you have ever written, at once.',
+  'See everything you wrote about one book, grouped by its real chapters.',
+  'Sort a big shelf twenty books at a time, and pick up where you left off.',
+  'Chapter marks that you can correct by hand, and that stay corrected.',
+];
+export async function refreshBackendStatus(){
+  const el=document.getElementById('dbMode'); if(!el) return;
+  const s=backendStatusLine();
+  el.textContent=s.text;
+  el.style.color = s.on ? '#8fbf8f' : '#9c8b74';
 }
 
 /* ----- AI status + Connections panel ----- */
@@ -2195,8 +2284,12 @@ function gatherNotes(){
       const body=(n.text||'').trim();
       const first=body.split('\n')[0].trim();
       const title=(first.length>2 ? first : body).slice(0,72) || 'A note';
+      /* `book` stays {slug} only: renderNotesLogList's bookChip shares this
+         field with My Notes, whose page is 1-BASED, and a book note's is
+         0-based. The page is already on the `where` line below. */
       out.push({source:'book', icon:'📖', book:{slug},
-        where:'Book · '+bookTitle+(n.page?' · p.'+n.page:''),
+        slug, bookTitle, ch:n.ch, chLabel:n.chLabel, page:n.page,
+        where:'Book · '+bookTitle+(n.ch!==undefined?' · ch. '+n.ch:'')+(n.page!==undefined?' · p.'+(n.page+1):''),
         title, text:body, date:n.ts||'',
         key:'book:'+slug+':'+noteHash((n.ts||'')+'|'+(n.text||''))});
     });
@@ -2228,9 +2321,25 @@ function sortNotes(list, how){
   return list.slice().sort(byDate); // newest first; undated (chat) sink to the bottom
 }
 export function setNotesLogSort(how){ state.notesLogView.sort=how; state.notesLogView.expanded=null; renderNotesLog(); }
+/* "Show me everything I wrote about THIS book" (#42) — opened from the reader,
+   which is where the question is actually asked. Deliberately NOT the Records
+   Hall: that room is the project's memory, and reading notes are the
+   visitor's. */
+export function openNotesForBook(slug){
+  state.notesLogView=state.notesLogView||{source:'all',folder:'all',q:'',expanded:null};
+  Object.assign(state.notesLogView, {source:'book', book:slug||null, folder:'all', q:'', expanded:null});
+  state.notesLogEdit=null;
+  state.ui='notesLog'; hideAllOv(); renderNotesLog(); showOv('notesLogOv');
+}
+export function setNotesLogBook(slug){
+  state.notesLogView.book = slug||null;
+  state.notesLogView.expanded=null;
+  renderNotesLog();
+}
 export function openNotesLog(focusKey){
   state.notesLogView=state.notesLogView||{source:'all',folder:'all',q:'',expanded:null};
   if(!state.notesLogView.folder) state.notesLogView.folder='all';
+  state.notesLogView.book=null;   // the general door shows everything
   /* Arriving from Today's "worth another look?" — clear the filters so the note
      is definitely visible, open it, and mark it seen, since it has now actually
      been read rather than merely listed. */
@@ -2258,6 +2367,9 @@ function notesLogFiltered(){
   const v=state.notesLogView, q=v.q.trim().toLowerCase();
   return gatherNotes().filter(n=>{
     if(v.source!=='all' && n.source!==v.source) return false;
+    // "everything I wrote about THIS book" (#42) — the one question the hub
+    // could not answer, now that every gathered book note carries its slug.
+    if(v.book && n.slug!==v.book) return false;
     const folder=noteFolderOf(n.key);
     if(v.folder==='__unfiled'){ if(folder) return false; }
     else if(v.folder && v.folder!=='all'){ if(folder!==v.folder) return false; }
@@ -2318,6 +2430,21 @@ function renderNotesLog(){
     [{id:'all',label:'📁 All folders'}, ...folders.map(f=>({id:f,label:'📁 '+f})), {id:'__unfiled',label:'📂 Unfiled'+(unfiled?' · '+unfiled:'')}]
       .map(fc=>{ const active=v.folder===fc.id; return `<button class="btn ghost" onclick="setNotesLogFolder('${fc.id}')" style="margin:0 6px 6px 0;padding:5px 10px;font-size:12px${active?';background:#7fa3c7;color:#2a2118':''}">${esc(fc.label)}</button>`; }).join('')
     +'</div>' : '';
+  /* THE BOOK ROW (#42). Shown only where it is the question being asked —
+     with the Books filter on, or already narrowed to one — so the general
+     view does not grow a fourth row of chips nobody pressed for. */
+  const books=[];
+  all.forEach(n=>{ if(n.source==='book' && n.slug){
+    const hit=books.find(b=>b.slug===n.slug);
+    if(hit) hit.n++; else books.push({slug:n.slug, title:n.bookTitle||n.slug, n:1});
+  }});
+  books.sort((a,b)=>b.n-a.n || String(a.title).localeCompare(b.title));
+  const bookRow = (v.source==='book' || v.book) && books.length
+    ? '<div style="margin-bottom:8px">'+
+      [{slug:'', label:'📚 Every book'}, ...books.map(b=>({slug:b.slug, label:'📖 '+b.title+' · '+b.n}))]
+        .map(bc=>{ const active=(v.book||'')===bc.slug;
+          return `<button class="btn ghost" onclick="setNotesLogBook('${esc(bc.slug)}')" style="margin:0 6px 6px 0;padding:5px 10px;font-size:12px${active?';background:#8fb4d9;color:#2a2118':''}">${esc(bc.label)}</button>`; }).join('')
+      +'</div>' : '';
   // Sebastian only gets handed one folder at a time, on purpose — "there when
   // needed, never swarmed with data he doesn't need."
   const sebBtn = (v.folder && v.folder!=='all' && v.folder!=='__unfiled')
@@ -2348,7 +2475,7 @@ function renderNotesLog(){
         .map(([k,label])=>`<button class="btn ${(v.sort||'newest')===k?'':'ghost'}" style="font-size:11px;padding:3px 10px" onclick="setNotesLogSort('${k}')">${label}</button>`).join('')}
     </div>
     <div style="margin-bottom:6px">${chips}</div>
-    ${folderRow}${sebBtn}
+    ${bookRow}${folderRow}${sebBtn}
     <div id="notesLogList"></div>`;
   renderNotesLogList();
   const inp=document.getElementById('notesLogSearch');
@@ -2357,12 +2484,45 @@ function renderNotesLog(){
 const NOTE_SELECT_STYLE="width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13px;padding:7px 9px";
 function renderNotesLogList(){
   const el=document.getElementById('notesLogList'); if(!el) return;
-  const v=state.notesLogView, list=notesLogFiltered(), folders=allFolders();
+  const v=state.notesLogView, folders=allFolders();
+  let list=notesLogFiltered();
   if(!list.length){ el.innerHTML='<p style="color:#9c8b74">No notes here yet. Anything you write — beside a book, in a conversation, or at a desk — will gather here.</p>'; return; }
+  /* Narrowed to ONE book, the useful order is the BOOK's, not the diary's:
+     notes follow the text, grouped under the chapter they were taken in.
+     That is what makes "everything I wrote about this book" a re-readable
+     thing rather than a pile. Undated position (a note from the summary
+     view) sorts last, since it belongs to no page. */
+  const byBook = !!v.book;
+  const pos=(n,f)=>n[f]===undefined ? 1e9 : n[f];   // no chapter/page: it belongs after the text
+  if(byBook) list=list.slice().sort((a,b)=>
+    pos(a,'ch')-pos(b,'ch') || pos(a,'page')-pos(b,'page') || String(a.date||'').localeCompare(String(b.date||'')));
+  let lastCh;
   el.innerHTML=list.map(n=>{
+    let header='';
+    if(byBook && n.ch!==lastCh){
+      lastCh=n.ch;
+      const name = n.ch===undefined ? 'No page — from the summary' : (n.chLabel || 'Chapter '+n.ch);
+      header=`<div class="meta" style="margin:12px 0 4px;border-bottom:1px solid #55432e;padding-bottom:3px">${esc(name)}</div>`;
+    }
+    return header+notesLogCard(n, v, folders);
+  }).join('');
+}
+function notesLogCard(n, v, folders){
+  {
     const open=v.expanded===n.key, folder=noteFolderOf(n.key), tags=noteTagsOf(n.key);
-    const body=n.text ? (n.text.length>140 && !open ? esc(n.text.slice(0,140))+'…' : esc(n.text)) : '<i>(empty)</i>';
-    const bookChip = n.book ? `<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📖 ${esc((Store.getDoc(n.book.slug)||{}).title||'linked')}${n.book.page?' · p.'+n.book.page:''}</span>` : '';
+    /* A short note's TITLE is its own first line (see gatherNotes), so printing
+       the body underneath repeated the note twice on every card. Say it once. */
+    const dupTitle = n.text && n.text.trim()===String(n.title||'').trim();
+    const body = dupTitle ? ''
+      : n.text ? (n.text.length>140 && !open ? esc(n.text.slice(0,140))+'…' : esc(n.text))
+      : '<i>(empty)</i>';
+    /* Already narrowed to one book: the chip and the "Book · <title>" prefix
+       are both just the heading again, three times on one card. */
+    const narrowed = v.book && n.slug===v.book;
+    const bookChip = (n.book && !narrowed) ? `<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📖 ${esc((Store.getDoc(n.book.slug)||{}).title||'linked')}${n.book.page?' · p.'+n.book.page:''}</span>` : '';
+    const where = narrowed
+      ? (n.page!==undefined ? 'page '+(n.page+1) : 'from the summary')
+      : n.where;
     const badges=`${folder?`<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📁 ${esc(folder)}</span>`:''}${bookChip}${tags.map(t=>`<span class="badge lic">#${esc(t)}</span>`).join('')}`;
     // My Notes are editable right here (title/body/book link); other sources are
     // shown read-only with a jump to where they actually live to edit them.
@@ -2395,12 +2555,12 @@ function renderNotesLogList(){
       </div>` : '';
     return `<div class="card" onclick="toggleNotesLogItem('${n.key}')">
       <div class="t">${n.icon} ${esc(n.title)}${n.date?` <span class="badge lic">${esc(n.date)}</span>`:''}</div>
-      <div class="s" style="color:#9c8b74;font-size:11px">${esc(n.where)}</div>
+      <div class="s" style="color:#9c8b74;font-size:11px">${esc(where)}</div>
       ${badges?`<div style="margin:4px 0">${badges}</div>`:''}
-      <div class="s" style="white-space:pre-wrap${open?'':';max-height:3.6em;overflow:hidden'}">${body}</div>
+      ${body?`<div class="s" style="white-space:pre-wrap${open?'':';max-height:3.6em;overflow:hidden'}">${body}</div>`:''}
       ${controls}
     </div>`;
-  }).join('');
+  }
 }
 export { sortNotes };
 export function setNotesLogSource(id){ state.notesLogView.source=id; state.notesLogView.expanded=null; renderNotesLog(); }
@@ -2682,7 +2842,14 @@ export function addBookNote(slug){
   // view has no page to attach, same as every note taken before this field
   // existed — an absent field, not a migration.
   const note={ts:todayKey(),text};
-  if(state.fullTextView && state.fullTextView.slug===slug) note.page=state.fullTextView.page;
+  if(state.fullTextView && state.fullTextView.slug===slug){
+    note.page=state.fullTextView.page;
+    /* "ch. 4, p. 61" — the unit people actually think in (#41). An ABSENT
+       field where the book has no chapter marks, never a guessed one, the
+       same way `page` was added for notes taken from the summary view. */
+    const ch=currentChapter(state.fullTextView);
+    if(ch){ note.ch=ch.number; note.chLabel=ch.label; }
+  }
   (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift(note);
   persist(); input.value=''; renderBookNotes(slug);
   const d=Store.getDoc(slug);
@@ -2729,7 +2896,8 @@ function renderBookNotes(slug){
     ? notes.map(n=>{
       const i=all.indexOf(n); // the real index into data.bookNotes[slug], not the filtered list's own
       const alreadySent=today.sparks.some(s=>s.text===n.text);
-      const pageTag=n.page!==undefined ? ` · page ${n.page+1}` : '';
+      const pageTag=(n.ch!==undefined ? ` · ch. ${n.ch}` : '')
+        +(n.page!==undefined ? ` · page ${n.page+1}` : '');
       return `<div class="card" style="cursor:default">
         <div class="s">${esc(n.ts)}${pageTag}</div><div>${esc(n.text)}</div>
         <div class="row" style="margin-top:6px">
@@ -2754,6 +2922,13 @@ export function currentDocSlug(){ return state.currentDoc; }
 function saveAiBookNote(slug, label, text, page){
   const note={ ts:todayKey(), text:'✨ '+label+' (AI)\n'+String(text).trim() };
   if(typeof page==='number') note.page=page;
+  /* An AI note files under the chapter it was actually about, so a chapter
+     summary and your own notes on that chapter sit together (#41/#42). */
+  const v=state.fullTextView;
+  if(typeof page==='number' && v && v.slug===slug){
+    const ch=chapterAt(chapterPages(v), page);
+    if(ch){ note.ch=ch.number; note.chLabel=ch.label; }
+  }
   (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift(note);
   persist(); logActivity('The AI wrote a book note — '+label+'.'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
   renderBookNotes(slug);
@@ -2926,8 +3101,17 @@ export async function loadBookText(slug){
 export async function openFullText(slug, landOnPage){
   const d=Store.getDoc(slug); if(!d||!d.doc.fullText) return;
   const ft=d.doc.fullText;
+  /* "License: undefined" — the SAME bug that was fixed for source_url on
+     2026-08-02 and missed here, one field along. A book added by hand has no
+     fullText.license (the licence is optional for your own shelf, on purpose),
+     so every one of the steward's ~255 personal books printed the word
+     "undefined" under its title. Fall back the way the summary view already
+     does, and print nothing at all rather than a broken label. */
+  const licence = ft.license || d.license;
   document.getElementById('rdFullTextMeta').innerHTML =
-    `${esc(ft.translator||'')}${ft.translator?' · ':''}License: <b>${esc(ft.license)}</b><br>${esc(ft.source_url||'')}`;
+    `${esc(ft.translator||'')}${ft.translator?' · ':''}`
+    + (licence ? `License: <b>${esc(licence)}</b>` : `<span class="meta">Your own copy — no licence recorded</span>`)
+    + `<br>${esc(ft.source_url||'')}`;
   document.getElementById('rdSummaryView').style.display='none';
   document.getElementById('rdFullTextView').style.display='block';
   document.getElementById('rdFullTextPageNum').textContent='';
@@ -2986,6 +3170,7 @@ function renderFullTextPage(){
   document.getElementById('rdFullTextPageNum').textContent=`Page ${v.page+1} of ${v.pages.length}`;
   document.getElementById('rdFullTextBody').scrollTop=0;
   updateFullTextSpeakBtn();
+  updateChapterRow();
   { const ab=document.getElementById('rdAnalyzeBtn'); if(ab) ab.style.display='inline-block'; } // always shown; nudges to connect an AI if none (see aiAnalyzePage)
   { const cb=document.getElementById('rdChapterBtn'); if(cb) cb.style.display='inline-block'; } // same: discoverable first, honest about needing an AI when pressed
   renderBookNotes(v.slug); // the per-page note filter follows you as you turn pages
@@ -3017,13 +3202,33 @@ function updateFullTextSpeakBtn(){
     pz.style.display = hasAudio() ? 'inline-block' : 'none';
     pz.textContent = isPaused() ? '▶ Resume' : '⏸ Pause';
   }
+}
+/* The chapter row is NOT part of the speech controls — it lived inside
+   updateFullTextSpeakBtn(), which returns early when the browser has no
+   speech synthesis, so on such a browser the chapter controls silently
+   went with it. Separated 2026-08-03. */
+function updateChapterRow(){
   const v=state.fullTextView;
   const ch=document.getElementById('rdChapterRow');
   if(ch) ch.style.display = v ? 'flex' : 'none';
   const cb=document.getElementById('rdChapPrev'), cf=document.getElementById('rdChapNext');
-  const hasCh = v && chapterPages(v).length ? 'inline-block' : 'none';
+  const info = v ? chapterInfo(v) : {marks:[], how:'none'};
+  const hasCh = info.marks.length ? 'inline-block' : 'none';
   if(cb) cb.style.display=hasCh;
   if(cf) cf.style.display=hasCh;
+  /* SAY IT, rather than leaving two controls quietly absent. Plenty of real
+     books have no chapter marks — the four suttas in the seed, and anything
+     converted from a PDF with no contents block — and "the buttons are gone"
+     reads as breakage. Silent failure is this project's house failure mode. */
+  const note=document.getElementById('rdChapNote');
+  if(note){
+    if(!v) note.textContent='';
+    else if(!info.marks.length) note.textContent='no chapter marks in this text';
+    else {
+      const cur=currentChapter(v);
+      note.textContent = cur ? 'ch. '+cur.number+' of '+info.marks.length : info.marks.length+' chapters';
+    }
+  }
 }
 export function toggleReadingPause(){
   if(isPaused()) resumeSpeaking(); else pauseSpeaking();
@@ -3084,20 +3289,22 @@ export function toggleFullTextReadAloud(){
 /* ----- Getting somewhere in a long book. "It should let me skip to the next
    chapter, or like 10% of the book at the very least." Both, now: chapter
    marks where the text actually has them, and a 10% jump always. */
-function chapterPages(v){
-  if(!v) return [];
-  if(v._chapters) return v._chapters;
-  const marks=[];
-  const head=/^\s*(chapter|book|part|canto|letter|section)\b[\s.:—-]*([ivxlcdm]+|\d+)?/i;
-  v.pages.forEach((text,i)=>{
-    for(const line of text.split('\n').slice(0,3)){
-      const t=line.trim();
-      if(t && t.length<70 && head.test(t)){ marks.push({page:i, label:t.slice(0,40)}); break; }
-    }
-  });
-  v._chapters = marks.length>=2 ? marks : [];
-  return v._chapters;
+/* MOVED to data/chapters.js on 2026-08-03, and it was not a tidy-up. The
+   scan that used to live here read the FIRST THREE LINES of each page, and
+   a page is a 1,400-character slice — so it found 0 of the Dhammapada's 26
+   chapters and 0 of the Gita's 18. Both shipped in the seed; both showed no
+   chapter controls at all. The rule is real enough to erode quietly, so it
+   is pure logic with real books as its test now. */
+function chapterInfo(v){
+  if(!v) return {marks:[], how:'none'};
+  if(!v._chapterInfo) v._chapterInfo = findChapters(v.pages);
+  return v._chapterInfo;
 }
+function chapterPages(v){ return chapterInfo(v).marks; }
+/* Which chapter the reader is actually in — the lookup behind "ch. 4, p. 61"
+   on a note. Null where a book genuinely has none, so a note records an
+   ABSENT field rather than a wrong one. */
+function currentChapter(v){ return v ? chapterAt(chapterPages(v), v.page) : null; }
 export function jumpChapter(dir){
   const v=state.fullTextView; if(!v) return;
   const marks=chapterPages(v); if(!marks.length) return;
@@ -5598,22 +5805,48 @@ const INVESTIGATIONS = [
 // The seed investigations plus the visitor's own, formatted for the
 // Investigator's system prompt. The visitor's own are flagged so he can speak
 // to them as *their* work — and lean on the evidence they actually cited.
+/* BOUNDED, 2026-08-03 (#43) — and THIS, not the role prose, was the real
+   weight. Both blocks below used to paste everything, on every message:
+
+     every seeded investigation with its full verdict AND its grounding note
+     (~890 tokens before the visitor has done anything at all), plus every
+     investigation they have ever made, forever;
+
+     every Science and Hindu text with its full summary, growing without
+     limit in a project whose whole point is a Library you build yourself.
+
+   That is the bug already found and fixed for Quill — "the librarian got
+   slower and dumber the more books you owned" — still live in the Hall.
+   The four exemplars do not need their prose recited every message; he
+   needs to know they exist and what they concluded. The visitor's OWN
+   investigations are the ones that matter, so those keep their evidence
+   line, the recent ones win, and the rest are COUNTED rather than dropped
+   silently — he must never assume a question is new. */
+const OWN_INVESTIGATIONS_SHOWN = 8;
 function investigationsForPrompt(){
   const seed=INVESTIGATIONS.map(v=>
-    `- [${v.track}] "${v.question}" — verdict: ${(VERDICTS[v.verdictKind]||{}).label}. ${v.verdict} (${v.grounding})`
+    `- [${v.track}] "${v.question}" — ${(VERDICTS[v.verdictKind]||{}).label}`
   );
-  const mine=(data.hall.investigations||[]).map(v=>
+  const own=(data.hall.investigations||[]);
+  const recent=own.slice(-OWN_INVESTIGATIONS_SHOWN);
+  const mine=recent.map(v=>
     `- [${v.track||'—'}] (the visitor's own) "${v.question}" — verdict: ${(VERDICTS[v.verdictKind]||{}).label||'unsettled'}.`
     +(v.verdict?` ${v.verdict}`:'')+(v.evidence?` Evidence they cited: ${v.evidence}`:' (no evidence cited yet — worth asking them for a source).')
   );
-  return seed.concat(mine).join('\n');
+  const more = own.length>recent.length
+    ? [`(…and ${own.length-recent.length} older investigations of theirs, not listed here. Ask, or send them to the Hall — never assume a question is new.)`]
+    : [];
+  return seed.concat(mine, more).join('\n');
 }
 // Just the two shelves the Hall leans on most (Science and Hindu), so the
 // Investigator can cite a real shelved text by name instead of inventing one.
+// Degrades by size through the SAME brief Quill uses, so a grown Library
+// makes him better-informed rather than slower.
 function hallShelfSummary(){
   const docs=Store.allDocs().filter(d=>d.tradition==='Science'||d.tradition==='Hindu');
   if(!docs.length) return '(no Science or Hindu texts are shelved right now)';
-  return docs.map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
+  const brief=catalogueBrief(docs, {fullBudget:450, listBudget:800});
+  return brief.text+briefCaveat(brief);
 }
 export function openScienceHall(){ state.ui='hall'; hideAllOv(); state.hallView=state.hallView||{mode:'list'}; renderScienceHall(); showOv('hallOv'); }
 // The Investigator is the café Steward wearing a different hat; opening his
@@ -5911,6 +6144,25 @@ export async function runBookLens(id, lensKey){
   }catch(e){ if(status) status.textContent='The connection flickered — no pass this time (is your local AI still running?).'; }
   document.querySelectorAll('#bdLensRow button').forEach(b=>b.disabled=false);
 }
+/* The book's ACTUAL shape, for any prompt that would otherwise invite a model
+   to invent one. Returns '' when we genuinely do not know — an absent block,
+   never a guessed one, the same rule the notes follow for a missing chapter.
+   Reads the text through loadBookText(), so it works with no reader open. */
+async function bookStructureBlock(slug){
+  try{
+    const text=await loadBookText(slug); if(!text) return '';
+    const pages=paginate(text);
+    const {marks,how}=findChapters(pages);
+    if(!marks.length){
+      return '\n\nTHE BOOK\'S ACTUAL SHAPE (from the text itself): '+pages.length
+        +' pages, with no chapter divisions marked in it. Do not invent chapters for it.';
+    }
+    const list=marks.slice(0,40).map((m,i)=>`  ${i+1}. ${m.label} (from page ${m.page+1})`).join('\n');
+    return '\n\nTHE BOOK\'S ACTUAL SHAPE, read from the text itself — use THESE and never invent a chapter '
+      +'or a count:\n'+pages.length+' pages, '+marks.length+' chapters'+(how==='toc'?' (named by its own table of contents)':'')
+      +':\n'+list+(marks.length>40?'\n  …':'');
+  }catch(e){ return ''; }
+}
 /* THE STEWARD'S PRE-NOTES — his first duty, made real (2026-08-03).
 
      "you come to [the Steward] for the work like doing pre notes on a book"
@@ -5939,6 +6191,26 @@ export async function stewardPreNotes(id){
   const btns=document.querySelectorAll('#bdLensRow button'); btns.forEach(b=>b.disabled=true);
   if(status) status.textContent='📋 The Steward is preparing notes…';
   const src=[d.title, d.doc.summary, ...(d.doc.sections||[]).map(x=>x.heading+': '+x.body)].join('\n\n');
+  /* HAND IT THE REAL STRUCTURE RATHER THAN HOPING (2026-08-03, from a probe
+     against ornith:9b — BETA-TESTING-FEEDBACK.md Round 6). Asked for pre-notes
+     on the Dhammapada from its blurb, the model wrote "grouped into five
+     thematic chapters: the Mind, Heedfulness, Anger, the Self, and the Path."
+     The book has TWENTY-SIX. The blurb listed five themes as examples and the
+     model turned them into a structure — then the visitor opens the book and
+     finds Chapter XXVI. "HOW IT IS BUILT" is a question with a real answer we
+     now hold, so we answer it instead of asking a model to guess. */
+  const struct=await bookStructureBlock(rec.book);
+  /* And say how thin the material IS, in numbers, rather than asking the model
+     to judge that for itself. It does not: on a 431-character blurb of the Tao
+     Te Ching it invented an attribution, a technical term, and a QUOTATION —
+     with "never invent a quotation" in the prompt it had just been given. A
+     rule the model has to notice it is breaking is weaker than a fact. */
+  const thin = src.length<900 && !struct
+    ? '\n\nIMPORTANT — you have been given only a short catalogue blurb ('+src.length+' characters), NOT the book. '
+      +'You do not know its structure, its chapter count, its author, or any of its wording. Say plainly, in HOW IT '
+      +'IS BUILT, that the text itself is not here and this is prepared from the blurb alone. Do not name a number '
+      +'of chapters, do not name an author, and quote nothing.'
+    : '';
   try{
     const reply=await AI.chat([
       {role:'system', content:WORK_CHARTER+'\n\nYou are the Steward of the Sand Pavilion, doing the preparatory work '
@@ -5951,8 +6223,9 @@ export async function stewardPreNotes(id){
         +'elsewhere, never invent a chapter title or a quotation, and where the material given is too thin '
         +'to say something useful, say that plainly instead of padding. This is preparation, not a review: '
         +'do not tell them what to conclude.'
+        +thin
         +(rec.question?'\n\nThey are reading towards this question, so aim the notes at it: '+rec.question:'')},
-      {role:'user', content:src},
+      {role:'user', content:src+struct},
     ], {long:true});
     if(isEmptyReply(reply)){ if(status) status.textContent='The model came back empty — a lighter model may do better.'; }
     else {
@@ -11047,6 +11320,7 @@ Object.assign(window, {
   openCatalog, catalogOpen,
   openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
   openNotesLog, openNotesWhileListening, returnToBook, setNotesLogSource, setNotesLogFolder, setNotesLogSearch, toggleNotesLogItem,
+  openNotesForBook, setNotesLogBook,
   assignNoteFolder, setNoteTags, askSebastianReviewFolder,
   createNoteInLog, editNoteInLog, closeNotesLogEditor, deleteNoteFromLog,
   linkNoteBook, setNoteBookPage, setNoteBookChapter, unlinkNoteBook, openLinkedBook, draftLessonPlanFromNote,
