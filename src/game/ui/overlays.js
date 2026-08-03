@@ -10,6 +10,7 @@ import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine } from '../data/the-day.js';
 import { rememberInto } from '../data/memory.js';
+import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -4798,8 +4799,12 @@ function termRun(raw){
     '  unread             what you brought in and never opened',
     '  open <number>      open one in the reader',
     '  stats              what is actually in here',
+    '  hash <number>      the SHA-256 of a book — how you prove bytes are bytes',
+    '  net                what this Pavilion talks to (spoiler: nothing)',
+    '  man <command>      what a command does, and its real Linux equivalent',
     '  ask <question>     hand it to your local AI (needs a connection)',
-    '  clear              wipe the screen',''];
+    '  clear              wipe the screen','',
+    'Every command here except `ask` runs entirely on this machine.',''];
 
   if(c==='ls'||c==='books') return listing(mine,'books on your shelves');
   if(c==='papers') return listing(mine.filter(termIsPaper),'papers');
@@ -4890,6 +4895,53 @@ function termRun(raw){
     '  '+Object.keys(data.read||{}).length+' opened at least once',
     '  '+(((data.hall&&data.hall.dissections)||[]).length)+' kept paper analyses',
     '  '+((data.notes||[]).length)+' notes'];
+  /* man — the doorway. See data/man-pages.js for why every page names its
+     real-world equivalent: the point is that `ls` here is the same word doing a
+     smaller version of the same job as `ls` on a Linux box, so the vocabulary
+     travels even though this is not a shell. */
+  if(c==='man'){
+    if(!arg) return manIndex();
+    const page=manPage(arg);
+    return page || ['No page for "'+arg+'".', 'Type  man  on its own for the list.'];
+  }
+
+  /* hash — a real security primitive, on your own books. Same operation that
+     verifies an installer download and the same one a bundle uses to prove a
+     book arrived intact. Doing it to something you own makes it concrete. */
+  if(c==='hash'){
+    const n=parseInt(arg,10), last=state.termLast||[];
+    if(!n||!last[n-1]) return ['hash which? run  ls  or  find <word>  first, then  hash <number>'];
+    const d=Store.getDoc(last[n-1]);
+    const text=d && d.doc && d.doc.fullText && d.doc.fullText.text;
+    if(!text) return ['"'+((d&&d.title)||'that')+'" has no full text here, so there are no bytes to hash.',
+      'Summary-only books carry a card, not a book. Drag the real text in and try again.'];
+    termHash(text, d.title);
+    return ['hashing '+text.length.toLocaleString()+' characters…'];
+  }
+
+  /* net — the claim the whole project rests on, made checkable from inside.
+     Not a reassurance: a thing you can go and verify in the browser's own
+     network tab, and the command says so. */
+  if(c==='net'){
+    const conns=(data.aiConnections||[]).filter(x=>x&&x.url);
+    const cloud=conns.filter(x=>!/localhost|127\.0\.0\.1|0\.0\.0\.0/.test(x.url||''));
+    return ['NETWORK','',
+      '  This Pavilion makes NO network requests on its own. Not on startup,',
+      '  not on a timer, not in the background. There is no account, no server,',
+      '  no telemetry and no analytics.','',
+      '  Connections you have configured yourself:',
+      ...(conns.length ? conns.map(x=>'    '+(/localhost|127\.0\.0\.1/.test(x.url)?'🏠 local  ':'☁ cloud  ')+x.url)
+                       : ['    (none — the residents are asleep)']),
+      '',
+      cloud.length ? '  '+cloud.length+' of those reach off this machine. They are used only when you'
+                   : '  Nothing you have configured leaves this machine.',
+      cloud.length ? '  ask a resident something — never on their own.' : '',
+      '',
+      "  Don't take my word for it: F12 → Network, then reload. It should stay",
+      '  empty. `man net` has the real Linux commands for asking the same',
+      '  question of your whole machine.',''];
+  }
+
   if(c==='clear'){ state.termLines=[]; return []; }
   if(c==='ask'){
     if(!isAIActive()) return ['No AI connection, so there is nothing to ask.',
@@ -4899,6 +4951,24 @@ function termRun(raw){
     return ['handing you to the resident…'];
   }
   return [c+': no such command. Type  help.'];
+}
+/* SHA-256 in the browser is async, and termRun() is sync by design (it is a
+   pure function from a line of text to lines of output, which is what makes it
+   readable). So the command prints "hashing…" and this appends the answer when
+   it lands — the same shape the AI commands use. */
+async function termHash(text, title){
+  try{
+    const buf=new TextEncoder().encode(text);
+    const d=await crypto.subtle.digest('SHA-256', buf);
+    const hex=[...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    termPrint(['', '  '+(title||''), '  SHA-256  '+hex, '',
+      '  Change one character of that book and this line changes completely.',
+      '  That is why a hash can prove a download, or a bundle, arrived intact.',
+      '  `man hash` for how to do this to any file on your own machine.','']);
+  }catch(e){
+    termPrint(['  Could not hash that here ('+String(e&&e.message||e)+').','']);
+  }
+  renderComputer();
 }
 export function termSubmit(){
   const i=document.getElementById('termIn'); if(!i) return;
@@ -4925,7 +4995,7 @@ function renderComputer(){
     + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();termSubmit();}">'
     + '<button class="btn" onclick="termSubmit()">Run</button></div>'
     + '<div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">'
-    + ['ls','papers','ds','owned','unread','analyses','shelf','stats','help'].map(function(c){
+    + ['ls','papers','ds','owned','unread','shelf','stats','net','man','help'].map(function(c){
         return '<button class="btn ghost" style="font-size:11px;padding:2px 8px;font-family:var(--font-mono)" '
              + 'onclick="termQuick(\''+c+'\')">'+c+'</button>'; }).join('')
     + '</div>';
@@ -6208,14 +6278,35 @@ const CURRICULUM = [
        action:{label:'Read your build log with the Investigator', fn:'openLab'}},
     ]},
   // ---- Cybersecurity (planned — CYBERSECURITY-PLAN.md; defensive/educational, authorized practice only) ----
-  { id:'security-101', track:'Cybersecurity', level:101, prereqs:[], status:'planned',
+  { id:'security-101', track:'Cybersecurity', level:101, prereqs:[],
     title:'Security 101 — see what your own machine is doing',
-    summary:"Start by SEEING what's going on — what's running on your computer and what's talking to the network — the foundation of both defending and understanding systems. Then safe, authorized practice (Hack The Box). Defensive and educational, never real harm. Planned — see plans/CYBERSECURITY-PLAN.md.",
+    summary:"Security starts with SEEING, not with tools. Six steps, each one a real thing you look at on your own computer — most of them using the Computer in the Study, and every one naming the Linux command that does the same job for real. Defensive and educational throughout: you learn to watch your own machine, and anything adversarial happens on targets that exist to be broken.",
     steps:[
-      {title:'See what is running', body:"(planned) Processes, services, and what's using your network — visibility before anything else."},
-      {title:'Linux & the command line, for real', body:"(planned) The environment nearly all of this happens in."},
-      {title:'Networking basics', body:"(planned) Ports, protocols, how machines actually talk."},
-      {title:'Authorized practice — Hack The Box', body:"(planned) HTB Academy + Starting Point: legal, guided targets you're meant to break, to learn how to defend."},
+      {title:'Learn to ask the machine: man',
+       body:"Open the Computer and type `man`. Then `man ls`, then `man man`. Every page says what the command does HERE and what its equivalent is on a real Linux or macOS box — because these commands were named after real ones on purpose. This first step is the whole method: when a word is unfamiliar, ask the machine instead of guessing. On Linux that habit is `man <thing>`, `apropos <word>` when you don't know the name, and `--help` when you just want the flags.",
+       action:{label:'Open the Computer', fn:'openComputer'}},
+
+      {title:'Know what you are trusting: hash something',
+       body:"In the Computer: `ls`, then `hash 1`. You get a SHA-256 — sixty-four characters that change completely if one character of that book changes. That is the whole idea, and it is the foundation under signed downloads, package managers and git. You have already relied on it: it is how you checked the Pavilion's own installer was the file it claimed to be. Do it to a book you own so it stops being abstract. `man hash` gives you `sha256sum` for real files.",
+       action:{label:'Try it at the Computer', fn:'openComputer'}},
+
+      {title:'Know what is talking: type net',
+       body:"In the Computer: `net`. It tells you, honestly, that this app makes no network requests on its own — and then tells you not to believe it and how to check (F12 → Network → reload; it stays empty). **Verify it.** A claim you tested is worth more than a promise you were given, and being the kind of person who checks is most of security. `man net` gives you the real versions: `ss -tulpn` on Linux to see what is LISTENING on your machine and which program owns each port, `lsof -i` from the other side.",
+       action:{label:'Run net, then check it yourself', fn:'openComputer'}},
+
+      {title:'Look at your own machine, outside the game',
+       body:"Now the real thing, with no Pavilion involved. On Windows: Task Manager → Details for what is running, and `netstat -ano` in a terminal for what is listening. On Linux or macOS: `ps aux`, `ss -tulpn`, `lsof -i`. You will not understand most of it, and that is correct — the skill is noticing what is NORMAL for your machine, so that one day something abnormal stands out. Write down three things you did not recognise and look them up. That is a real evening's work and worth more than any course."},
+
+      {title:'Where the line is, and why we hold it',
+       body:"Two rules this project holds to and you should too. First: only ever probe machines you own or have written permission to test — the difference between a security researcher and a criminal is permission, not skill. Second: the Pavilion will never ship a fake vulnerable box for you to break. A simulated target teaches simulated lessons, and this whole project's ethic is that the checkable thing is the real thing. So the seeing happens here, on your own machine, honestly; the breaking happens somewhere built for it."},
+
+      {title:'Practise where it is legal: Hack The Box',
+       body:"HTB Academy's Starting Point is free, guided, and consists entirely of machines that exist to be broken into. TryHackMe is the gentler sibling and also good. Both give you a legal target, a hint when you are stuck, and a writeup when you are done. This is the honest next rung and it is deliberately OUTSIDE the Pavilion — build the habit of seeing here, and go and practise where the targets are real and permitted.",
+       action:{label:'Add these to your Waypoints', fn:'openWaypoints'}},
+
+      {title:'Then: Linux, and the tools that live there',
+       body:"Nearly all of this work happens on Linux, and the reason is not fashion — it is that the tools are there, they are free, and the system is legible in a way that rewards looking. A cheap old laptop with Ubuntu or Debian on it, or WSL on the Windows machine you already have, is enough to start. Everything you learned in the steps above is the same word: `ls`, `man`, `sha256sum`, `ss`. You will already know how to ask.",
+       action:{label:'Keep this as a Path you are walking', fn:'openPaths'}},
     ]},
 ];
 /* ----- Lessons you wrote yourself (ADMIN-AND-AUTHORING-PLAN #3).
