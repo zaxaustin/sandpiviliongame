@@ -10793,6 +10793,29 @@ export function myLibMoveSelected(){
    it fills the dropdowns and you press the button. Sorting a pile is exactly
    the tedious-but-judgement-y work worth handing to a model that already has
    the titles in front of it. */
+/* "NEEDS A HUMAN" is a real state, not a missing shelf. The steward's own
+   design, 2026-08-03: a book the sorter cannot place should be TAGGED rather
+   than guessed at, so the pile visibly shrinks into two piles — the ones that
+   got an answer and the ones waiting for you — instead of the same unsorted
+   heap being re-asked forever.
+
+   Stored on the book, so it survives a reload; cleared the moment the book
+   gets a shelf by any route. */
+function needsSort(slug){
+  const b=data.personalLibrary.find(x=>x.slug===slug);
+  return !!(b && b.needsSort);
+}
+function setNeedsSort(slug, on){
+  const b=data.personalLibrary.find(x=>x.slug===slug); if(!b) return;
+  if(on) b.needsSort=true; else delete b.needsSort;
+}
+export function clearNeedsSort(){
+  let n=0;
+  data.personalLibrary.forEach(b=>{ if(b.needsSort){ delete b.needsSort; n++; } });
+  persist(); renderMyLibrary();
+  const el=document.getElementById('myLibAiOut');
+  if(el) el.textContent=n?`Cleared the “needs a look” mark from ${n} book${n===1?'':'s'}.`:'Nothing was marked.';
+}
 export async function suggestShelvesWithAI(){
   // look the element up EVERY time: renderMyLibrary() replaces the panel, and a
   // captured reference becomes a detached node whose text nobody ever sees.
@@ -10855,13 +10878,28 @@ export async function suggestShelvesWithAI(){
      and, the part that matters most, it works with NO AI AT ALL, which is the
      whole point for a laptop that can't run one. */
   const alreadyFiled=personalBooks().filter(b=>shelfOf(b)!=='Personal');
-  const { filed:byRule, unsure } = preSortShelves(unfiled, shelves, alreadyFiled);
-  const picks={}; const why={};
+  const { filed:byRule, unsure:allUnsure } = preSortShelves(unfiled, shelves, alreadyFiled);
+  /* SUGGESTIONS ACCUMULATE ACROSS PASSES. `picks` used to start empty every
+     press, so the second bite silently threw away the twenty answers the
+     first one had earned — the visitor pressed again to make progress and
+     went backwards. Caught 2026-08-03 by running two passes and reading the
+     numbers, which is the only way it would ever have shown. */
+  const picks=Object.assign({}, state.myLibView.suggested||{});
+  const why=Object.assign({}, state.myLibView.suggestWhy||{});
+  /* AND A BOOK THAT ALREADY HAS AN ANSWER IS NOT STILL "UNSURE". Without
+     this the next bite re-asked books that were waiting to be accepted, so
+     the pile never went down and the same titles came round again — the
+     "first 7 over and over" wearing new clothes. A book marked `needs a
+     look` is also settled for now; ↺ clears it to try again. */
+  const unsure=allUnsure.filter(b=>!picks[b.slug] && !needsSort(b.slug));
   // a "suggestion" that puts a book back where it already is is not work, and
   // counting it as work is how the report came to say 60 while nothing changed
   const shelfNow={}; personalBooks().forEach(b=>{ shelfNow[b.slug]=shelfOf(b); });
   byRule.forEach(f=>{ if(shelfNow[f.slug]===f.shelf) return; picks[f.slug]=f.shelf; why[f.slug]=f.why; });
-  const ruled=Object.keys(picks).length;
+  /* Only what the RULES placed, not the running total — `picks` now carries
+     earlier passes forward, so counting it here would report "filed 40 by
+     rule" on the second press of a library the rules touched four times. */
+  const ruled=byRule.filter(f=>shelfNow[f.slug]!==f.shelf).length;
 
   if(!isAIActive()){
     // No model? The rules still did real work — show it rather than refusing.
@@ -10885,40 +10923,81 @@ export async function suggestShelvesWithAI(){
      seen in testing. Eight at a time it gets right, and a partial run is still
      worth something, because each batch's picks are kept even if a later one
      fails. It also gives the person a real count instead of a spinner. */
-  const BATCH=8, batches=[];
-  for(let i=0;i<unsure.length;i+=BATCH) batches.push(unsure.slice(i,i+BATCH));
-  let n=0, flickered=false;
-  for(let bi=0; bi<batches.length; bi++){
-    const group=batches[bi];
-    say(`Filed ${ruled} by rule. Asking the AI about the other ${unsure.length}`
-      + (batches.length>1 ? ` — batch ${bi+1} of ${batches.length}…` : '…'));
-    try{
-      const reply=await AI.chat([
-        {role:'system', content:WORK_CHARTER+'\n\nYou file books onto shelves. Answer ONLY with lines of the form '
-          +'`TITLE => SHELF`, one per book, nothing else. SHELF must be copied exactly from the allowed list.'},
-        {role:'user', content:`Allowed shelves: ${shelves.join(' | ')}\n\nFile these ${group.length}:\n${group.map(b=>'- '+b.title).join('\n')}`},
-      ]);
-      if(isEmptyReply(reply)) continue;
+  /* ONE BOUNDED BITE THAT ADVANCES — rebuilt 2026-08-03 to the steward's own
+     design, after he reported the sorter "tries to do everything and
+     highlights like the first 7 over and over again."
+
+     He was right twice. It looped over EVERY batch with no bound and no stop:
+     a hundred unsure books is thirteen sequential model calls and six-plus
+     minutes of frozen panel, so in practice the first batch or two landed and
+     the rest never did — and because the pool is rebuilt from the same pile in
+     the same order, the next press asked about the SAME eight titles again.
+
+     So one press does ONE bite, and then:
+       · books it placed are DESELECTED, so the next press takes new ones;
+       · books it cannot place are TAGGED for a human, not guessed at.
+
+     THE MODEL MAY SAY IT DOES NOT KNOW. Probed 2026-08-03: with no such
+     option it filed Wealth of Nations, Wigwam Evenings, Ten Acres Enough and
+     The Boy Mechanic all onto "Practice" — the shelf it dumps into when
+     stuck. shelf-rules.js's whole discipline is ONLY ACT WHEN CERTAIN, and the
+     AI stage had no way to honour it. */
+  const SORT_BATCH=20;
+  const group=unsure.slice(0, SORT_BATCH);
+  const remaining=unsure.length-group.length;
+  let n=0, flickered=false, unknown=0;
+  say(`Filed ${ruled} by rule. Asking the AI about ${group.length}${remaining?' of '+unsure.length:''}…`);
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nYou file books onto shelves. Answer ONLY with lines of the form '
+        +'`TITLE => SHELF`, one per book, nothing else. SHELF must be copied exactly from the allowed list, '
+        +'or the single word UNKNOWN. Use UNKNOWN whenever a title does not clearly belong to one of these '
+        +'shelves — a wrong shelf is worse than none, because it is a book its owner will never find again. '
+        +'Do not spread uncertain books across shelves to seem helpful.'},
+      {role:'user', content:`Allowed shelves: ${shelves.join(' | ')}\n\nFile these ${group.length}:\n${group.map(b=>'- '+b.title).join('\n')}`},
+    ]);
+    if(!isEmptyReply(reply)){
       for(const line of String(reply).split('\n')){
         const m=line.match(/^\s*[-*]?\s*(.+?)\s*=>\s*(.+?)\s*$/); if(!m) continue;
-        const title=m[1].trim().toLowerCase(), shelf=shelves.find(s=>s.toLowerCase()===m[2].trim().toLowerCase());
-        if(!shelf) continue;
+        const title=m[1].trim().toLowerCase(), raw=m[2].trim();
         const b=group.find(x=>(x.title||'').trim().toLowerCase()===title);
         if(!b) continue;
+        if(/^unknown\b/i.test(raw)){ setNeedsSort(b.slug,true); unknown++; continue; }
+        const shelf=shelves.find(s=>s.toLowerCase()===raw.toLowerCase());
+        if(!shelf) continue;
         if(shelfNow[b.slug]===shelf) continue;   // already there; not a change
         picks[b.slug]=shelf; why[b.slug]='the AI read the title'; n++;
+        setNeedsSort(b.slug,false);              // it has an answer now
       }
-    }catch(e){ flickered=true; } // keep what earlier batches earned
-  }
+    }
+  }catch(e){ flickered=true; }
+
+  /* Silence is not a shelf. Anything in this bite the model said nothing about
+     is also a book a human needs to look at. */
+  for(const b of group){ if(!picks[b.slug] && !needsSort(b.slug)){ setNeedsSort(b.slug,true); unknown++; } }
+  /* DESELECT WHAT WAS HANDLED — the thing that makes the next press advance
+     rather than re-ask the same titles forever. */
+  if(state.myLibView.sel) for(const b of group) delete state.myLibView.sel[b.slug];
+  persist();
+
   const stillStuck=unsure.filter(b=>!picks[b.slug]);
   state.myLibView.suggested=picks; state.myLibView.suggestWhy=why;
   state.myLibView.workOrder=unsortedWorkOrder(stillStuck, shelves);
   renderMyLibrary();
+  /* SAY WHAT JUST HAPPENED AND WHAT IS LEFT. A bounded pass only feels like
+     progress if the number going down is visible; without that it reads as
+     the same button doing the same nothing. */
   const total=Object.keys(picks).length;
-  say(total
-    ? `Filed ${ruled} by rule, asked the AI about ${unsure.length} — ${total} of ${unfiled.length} now have a shelf${flickered?' (the connection dropped part-way — run it again for the rest)':''}. Nothing has moved: accept them all, or change any first. A suggestion is not a decision.`
-    : (flickered?'The connection flickered — nothing suggested.'
-      :'No rule matched, and the AI could not place these safely either. They are listed below to sort by hand.'));
+  const bits=[];
+  if(ruled) bits.push(`Filed ${ruled} by rule alone.`);
+  if(n) bits.push(`The AI placed <b>${n}</b> of the ${group.length} it looked at.`);
+  if(unknown) bits.push(`<b>${unknown}</b> it could not place honestly — those are marked <b>needs a look</b> rather than guessed at.`);
+  if(flickered) bits.push('The connection dropped part-way.');
+  if(remaining>0) bits.push(`<b>${remaining}</b> still to go — press again for the next ${Math.min(remaining,20)}.`);
+  else if(n||unknown) bits.push('That is the whole pile.');
+  bits.push(total ? 'Nothing has moved yet: accept them, or change any first. A suggestion is not a decision.'
+                  : 'Nothing was placed this time.');
+  const el=document.getElementById('myLibAiOut'); if(el) el.innerHTML=bits.join(' ');
 }
 /* Which element actually scrolls behind a panel — `.panel` doesn't, the
    `.overlay` around it does. Filing books means ticking one box after another
@@ -10987,6 +11066,7 @@ function renderMyLibrary(keepFocus){
       </label>
       <button class="btn ghost" onclick="runLibraryTriage()" title="Check every book's licence — nothing is ever deleted">⚖ Which of these can I pass on?</button>
       <button class="btn ghost" onclick="repairBookAuthors()" title="Books added before 2026-08-03 lost their author on the way in — this reads it back out of the book's own text">✎ Recover missing authors</button>
+      <button class="btn ghost" onclick="clearNeedsSort()" title="Clear the “needs a look” marks so the librarian will try those books again">↺ Clear “needs a look” marks</button>
     </div>
     <div class="meta" id="repairOut" style="margin-top:6px"></div>
     <div class="meta" id="myLibAiOut" style="margin-top:6px"></div>
@@ -11064,7 +11144,7 @@ function renderMyLibrary(keepFocus){
         const on=!!(v.sel||{})[b.slug];
         const isUnfiled=shelfOf(b)==='Personal';
         return `<div class="card" style="cursor:default${dupe?';border-color:#e0a43c':on?'':(isUnfiled?';border-color:#8a6a3a':';border-color:#4f6b45')}${on?';box-shadow:inset 0 0 0 2px var(--gold)':''}">
-          <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> <span title="${isUnfiled?'not filed yet':'filed'}">${isUnfiled?'📥':'✓'}</span> ${b.sharing==='copyright'?'🔒 ':b.sharing==='unknown'?'❔ ':(b.sharing==='open'||b.sharing==='pd')?'🤝 ':''}${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}</div>
+          <div class="t"><input type="checkbox" ${on?'checked':''} onchange="myLibToggle('${esc(b.slug)}')" style="width:auto;margin-right:6px"> <span title="${isUnfiled?'not filed yet':'filed'}">${isUnfiled?'📥':'✓'}</span> ${b.sharing==='copyright'?'🔒 ':b.sharing==='unknown'?'❔ ':(b.sharing==='open'||b.sharing==='pd')?'🤝 ':''}${esc(b.title||'Untitled')}${dupe?' <span class="badge" style="background:rgba(224,164,60,.14);color:#e0a43c;border-color:#e0a43c">possible duplicate</span>':''}${b.needsSort?' <span class="badge" style="background:rgba(143,180,217,.14);color:#8fb4d9;border-color:#8fb4d9" title="The librarian would not guess at this one — it is waiting for you">needs a look</span>':''}</div>
           <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
             <select id="myLibShelf_${esc(b.slug)}" onchange="movePersonalBook('${esc(b.slug)}', this.value)" style="width:auto;min-width:150px">${opts(b)}</select>
             ${sug[b.slug]?`<button class="btn" style="font-size:11px;padding:3px 10px;border-color:#7fa36b" onclick="acceptOneSuggestion('${esc(b.slug)}')" title="${esc((v.suggestWhy||{})[b.slug]||'suggested')}">✨ → ${esc(sug[b.slug])}</button>
@@ -11548,7 +11628,7 @@ Object.assign(window, {
   runCopyrightCheck,
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
-  checkMyMachine, copyPullCommand, checkOllama, repairBookAuthors,
+  checkMyMachine, copyPullCommand, checkOllama, repairBookAuthors, clearNeedsSort,
   openBookIntake, termSubmit, termQuick, openTheDay, currentDayItems,
   openStandUp, standUpAnswer, standUpItem, endStandUp,
   openReport, copyReport, saveReport, reportText,
