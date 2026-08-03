@@ -9376,7 +9376,8 @@ function fillDropForm(title, author, body, msg){
     document.getElementById('rmTitle').value=title;
     document.getElementById('rmBody').value=body;
     document.getElementById('rmLicense').value=known.license;
-    document.getElementById('rmSource').value=known.label+(author?' — '+author:'');
+    if(author){ const a=document.getElementById('rmAuthor'); if(a) a.value=author; }
+    document.getElementById('rmSource').value=known.label;
     msg.textContent='Detected "'+title+'"'+(author?' by '+author:'')+' ('+size+' characters). '
       +'License pre-filled for '+known.label+' — review everything below before adding to the '
       +'queue, nothing here is confirmed automatically.';
@@ -9389,7 +9390,7 @@ function fillDropForm(title, author, body, msg){
     // the legitimate "add my own book" case — so it fills the form now instead.
     document.getElementById('rmTitle').value=title;
     document.getElementById('rmBody').value=body;
-    if(author){ const s=document.getElementById('rmSource'); if(s && !s.value) s.value=author; }
+    if(author){ const a=document.getElementById('rmAuthor'); if(a && !a.value) a.value=author; }
     msg.textContent='Detected "'+title+'"'+(author?' by '+author:'')+' ('+size+' characters). '
       +'No listed source — so this is a personal copy: pick a shelf and press "📚 Add to my Library '
       +'now" to put it on Your Shelf. No license or source needed for your own shelf. (Only the shared '
@@ -9680,7 +9681,7 @@ async function bulkShelveDroppedFiles(files, msg){
     msg.textContent=`Adding ${i+1} of ${supported.length}${batch?'':' to the '+tradition+' shelf'}… (${added} shelved so far) — “${f.name}”`;
     try{
       const b=await parseBookFile(f);
-      const res=await shelveAsPersonal({ title:b.title, body:b.body, license:'', source:b.author||'', tradition });
+      const res=await shelveAsPersonal({ title:b.title, body:b.body, author:b.author||'', license:'', source:'', tradition });
       if(res && res.ok) added++; else failed.push(f.name+(res&&res.reason?' — '+res.reason:''));
     }catch(e){ failed.push(f.name+' — '+String(e&&e.message||'unreadable')); }
   }
@@ -9791,6 +9792,11 @@ function renderReviewQueue(){
         ${TRADITIONS.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}
       </select>
       <label style="margin-top:10px">Title</label><input type="text" id="rmTitle" placeholder="e.g. On the Duty of Civil Disobedience">
+      <!-- There was no Author box until 2026-08-03, so the author a dropped
+           file announces ("Author: Epictetus") had nowhere to go and ended up
+           in Source, or was dropped on the floor by a bulk add. It is the
+           field residents search when you ask "do I have anything by X". -->
+      <label>Author</label><input type="text" id="rmAuthor" placeholder="Filled in automatically from a dropped file when it says">
       <label>License <span style="color:#a8926c;font-weight:normal">(optional for Your Shelf — required only for the shared queue)</span></label><input type="text" id="rmLicense" placeholder="Leave blank for your own copy; e.g. Public Domain / CC0 if sharing">
       <label>Source <span style="color:#a8926c;font-weight:normal">(optional for Your Shelf)</span></label><input type="text" id="rmSource" placeholder="Where it came from — not needed for your own shelf">
       <label>Full text</label><textarea id="rmBody" rows="8" placeholder="Paste the whole thing — this is what gets shelved."></textarea>
@@ -10008,7 +10014,19 @@ const INLINE_PERSONAL_MAX = 1500000; // ~1.5MB of text — past this, a browser'
    👤 mark — honest that YOU vouched for it, not a steward. Full text goes to
    a file on desktop, inline in a browser. Returns {ok, slug, shelf} or
    {ok:false, reason}. */
-async function shelveAsPersonal({title, body, license, source, tradition, summary, sections}){
+/* `author` added 2026-08-03, reported by the steward as "the auto fill... misses
+   the formatting" and "it doesn't work when you do a mass dump". Both were one
+   bug with no author field anywhere to land in:
+
+     parseBookFile() reads "Author: Epictetus" out of every Gutenberg text
+     correctly — and then the single-file path put it in the SOURCE box, the
+     bulk path passed it as `source`, and this function threw it away entirely
+     by hardcoding `attribution`. Every book added by hand or in bulk was
+     shelved with no author, and the author it had found sat in a URL field.
+
+   That is also why the database showed 294 books and 118 authors: the loader
+   was recovering from the text what the intake had discarded on the way in. */
+async function shelveAsPersonal({title, body, author, license, source, tradition, summary, sections}){
   body=body||'';
   const bridge=window.desktopBridge;
   if(!(bridge&&bridge.libraryWrite) && body.length>INLINE_PERSONAL_MAX)
@@ -10043,7 +10061,12 @@ async function shelveAsPersonal({title, body, license, source, tradition, summar
   data.personalLibrary.push({
     slug, tradition:shelf, title:title||'Untitled', license:lic,
     source_url:source||'',
-    attribution:'Added by you — your own addition, not the certified commons',
+    /* The real author when the file told us one; the provenance sentence only
+       as a fallback. "This is yours, not certified" is already carried by
+       personal:true and category:'personal' — attribution is where every other
+       surface looks for a NAME (see referenceShelfBlock, the reader header,
+       and the catalogue lookup a resident now searches). */
+    attribution:(author && author.trim()) || 'Added by you — your own addition, not the certified commons',
     added:todayKey(), category:'personal', personal:true,
     doc:{ summary:sum, sections:sections||[], fullText },
   });
@@ -10051,6 +10074,56 @@ async function shelveAsPersonal({title, body, license, source, tradition, summar
   logActivity('Shelved "'+(title||'untitled')+'" in your Library ('+shelf+', personal'+storedWhere+').');
   blip(784,.09);
   return { ok:true, slug, shelf, storedAsFile };
+}
+/* ----- REPAIRING BOOKS THE OLD INTAKE SHELVED WITHOUT THEIR AUTHOR -----
+   Added 2026-08-03 alongside the fix above. Every book added before that fix
+   was shelved with the boilerplate attribution and no real author, which is
+   why a resident could say "no, nothing by Epictetus" with two of his books
+   on the shelf.
+
+   THE ANSWER IS NOT A CLEAN BUILD. Re-adding the library would cost every
+   shelf assignment, every note, every reading position — and the authors are
+   sitting in the text we already have. So this reads them back out: the same
+   DROP_AUTHOR_RE the intake uses, over the stored text, book by book.
+
+   Deterministic, no model — the standing rule, and this is exactly the kind
+   of job it is for. It only ever FILLS IN a missing author; a book whose
+   attribution you set yourself is never touched. */
+const PLACEHOLDER_ATTRIB=/^Added by you\b/i;
+export async function repairBookAuthors(){
+  const out=document.getElementById('repairOut');
+  const books=personalBooks().filter(b=>!b.attribution || PLACEHOLDER_ATTRIB.test(b.attribution));
+  if(!books.length){
+    if(out) out.innerHTML='<div class="meta">Every book on your shelf already has an author. Nothing to repair.</div>';
+    return;
+  }
+  let fixed=0, noAuthor=0, unreadable=0;
+  for(let i=0;i<books.length;i++){
+    const b=books[i];
+    if(out) out.innerHTML=`<div class="meta">Reading ${i+1} of ${books.length}… (${fixed} author${fixed===1?'':'s'} recovered so far)</div>`;
+    let text=null;
+    try{ text=await loadBookText(b.slug); }catch(e){ text=null; }
+    if(!text){ unreadable++; continue; }
+    const m=DROP_AUTHOR_RE.exec(text.slice(0,4000));
+    const author=m && m[1].trim().replace(/\s+/g,' ').slice(0,120);
+    if(!author){ noAuthor++; continue; }
+    const rec=data.personalLibrary.find(x=>x.slug===b.slug);
+    if(rec){ rec.attribution=author; fixed++; }
+  }
+  persist();
+  logActivity('Recovered the author for '+fixed+' book'+(fixed===1?'':'s')+' from their own text.');
+  if(fixed) blip(784,.09);
+  const parts=[`<b>${fixed}</b> author${fixed===1?'':'s'} recovered and saved.`];
+  if(noAuthor) parts.push(`${noAuthor} book${noAuthor===1?" doesn't":"s don't"} say who wrote them — add those by hand if you want them findable.`);
+  if(unreadable) parts.push(`${unreadable} couldn't be read (is local storage running?).`);
+  /* RE-RENDER FIRST, THEN SPEAK. renderMyLibrary() rebuilds the panel and
+     takes #repairOut with it, so writing the result before the re-render
+     meant the button worked perfectly and reported nothing at all — a silent
+     success, which in this project is very nearly as bad as a silent
+     failure. Caught by driving it rather than by reading it. */
+  renderMyLibrary();
+  const el=document.getElementById('repairOut');
+  if(el) el.innerHTML=parts.join(' ');
 }
 export async function shelvePersonalBook(id){
   const item=data.reviewQueue.find(x=>x.id===id); if(!item) return;
@@ -10075,12 +10148,13 @@ export async function shelveManualFormNow(){
   const tradition=document.getElementById('rmTradition').value;
   const license=document.getElementById('rmLicense').value.trim();
   const source=document.getElementById('rmSource').value.trim();
+  const author=(document.getElementById('rmAuthor')?.value||'').trim();
   if(msg) msg.textContent='Shelving…';
-  const res=await shelveAsPersonal({ title, body, license, source, tradition });
+  const res=await shelveAsPersonal({ title, body, author, license, source, tradition });
   if(!res.ok){ if(msg) msg.textContent=res.reason; return; }
   // Clear the book fields so the same text can't be added twice by a stray
   // second click; the shelf stays picked in case you're adding several to it.
-  ['rmTitle','rmBody','rmLicense','rmSource'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['rmTitle','rmAuthor','rmBody','rmLicense','rmSource'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const dm=document.getElementById('dropMsg'); if(dm) dm.textContent='';
   if(msg) msg.innerHTML='“'+esc(title)+'” is in your Library now — on the <b>'+esc(res.shelf)
     +'</b> shelf, marked 👤 as your own. Walk to that shelf in the Library, or find it in the Index search.';
@@ -10912,7 +10986,9 @@ function renderMyLibrary(keepFocus){
         also re-file books I've already placed
       </label>
       <button class="btn ghost" onclick="runLibraryTriage()" title="Check every book's licence — nothing is ever deleted">⚖ Which of these can I pass on?</button>
+      <button class="btn ghost" onclick="repairBookAuthors()" title="Books added before 2026-08-03 lost their author on the way in — this reads it back out of the book's own text">✎ Recover missing authors</button>
     </div>
+    <div class="meta" id="repairOut" style="margin-top:6px"></div>
     <div class="meta" id="myLibAiOut" style="margin-top:6px"></div>
     ${v.lastFiling?`<div class="card" style="cursor:default;margin-top:8px;border-color:#8a6a3a">
         <div class="t">↩ The last filing moved ${Object.keys(v.lastFiling.undo||{}).length} book(s)</div>
@@ -11472,7 +11548,7 @@ Object.assign(window, {
   runCopyrightCheck,
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
-  checkMyMachine, copyPullCommand, checkOllama,
+  checkMyMachine, copyPullCommand, checkOllama, repairBookAuthors,
   openBookIntake, termSubmit, termQuick, openTheDay, currentDayItems,
   openStandUp, standUpAnswer, standUpItem, endStandUp,
   openReport, copyReport, saveReport, reportText,

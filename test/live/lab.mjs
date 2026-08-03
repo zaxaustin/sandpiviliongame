@@ -119,6 +119,36 @@ await new Promise(r => setTimeout(r, 500));
 const ftMeta = await p.evaluate(() => document.getElementById('rdFullTextMeta').textContent);
 R.push(['nor does the FULL-TEXT header of a book with no licence', !/undefined/.test(ftMeta)]);
 
+/* THE AUTHOR MUST SURVIVE BEING ADDED. Reported 2026-08-03 as "the auto fill
+   ... misses the formatting" and "it doesn't work when you do a mass dump" —
+   one bug with two faces. parseBookFile() read "Author: Epictetus" correctly
+   out of every Gutenberg text, and then there was NOWHERE for it to land: the
+   form had no Author box, the single-file path put it in Source, the bulk path
+   passed it as `source`, and shelveAsPersonal() hardcoded `attribution`. Every
+   hand-added book was shelved authorless, which is why a resident asked "do you
+   have anything by Epictetus?" said no while two of his books sat on the shelf. */
+{
+  const form = await p.evaluate(() => {
+    closeUI(); openReviewQueue(); newReviewManualForm();
+    return { hasAuthorField: !!document.getElementById('rmAuthor') };
+  });
+  R.push(['the add-a-book form has an Author field at all', form.hasAuthorField]);
+
+  const shelved = await p.evaluate(async () => {
+    closeUI(); openReviewQueue(); newReviewManualForm();
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    set('rmTitle', 'The Enchiridion');
+    set('rmAuthor', 'Epictetus');
+    set('rmBody', 'A short manual of Stoic practice, repeated here at length. '.repeat(40));
+    await shelveManualFormNow();
+    await new Promise(r => setTimeout(r, 400));
+    const d = (window.__store.allDocs() || []).find(x => /enchiridion/i.test(x.title || ''));
+    return { found: !!d, attribution: d && d.attribution, sourceUrl: d && d.source_url };
+  });
+  R.push(['a book added by hand keeps its author', shelved.attribution === 'Epictetus']);
+  R.push(['and the author is NOT filed as a source URL', !/epictetus/i.test(shelved.sourceUrl || '')]);
+}
+
 /* 3 — the room is reachable in the world, not just by function call. */
 const wired = await p.evaluate(() => {
   const s = window.__scenes || null;
