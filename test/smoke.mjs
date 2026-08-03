@@ -623,6 +623,45 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+/* ---------- the context window, set explicitly ----------
+   The most expensive silent bug this project has had, measured on this machine
+   2026-08-03: Ollama runs every model at num_ctx 4096 unless told otherwise, so
+   a 7,279-token request was evaluated at 2,050 and the model answered "I am
+   Llama, by Meta AI" — having been told in the first line it never saw that it
+   was the Investigator. The resident's identity was being deleted before the
+   model saw it. See src/game/ai/provider.js. */
+{
+  const { contextFor, estimateTokens } = await import('../src/game/ai/provider.js');
+  const msgs = n => [{ role:'system', content:'x'.repeat(n) }];
+
+  // a short chat stays cheap — a bigger window costs KV-cache memory, and this
+  // machine's real constraint is cooling
+  if (contextFor(msgs(200), 450) !== 4096) fail(`provider: a tiny request should stay at the 4096 floor, got ${contextFor(msgs(200), 450)}`);
+
+  /* THE CASE THIS EXISTS FOR: the request that actually failed. ~1550 tokens of
+     role + ~1750 of paper + 1600 of reply budget must NOT come back as 4096. */
+  const real = contextFor(msgs(Math.round(3300 * 3.4)), 1600);
+  if (real <= 4096) fail(`provider: a realistic Investigator-over-a-paper request got num_ctx ${real} — that is the exact silent truncation this guard exists for`);
+  if (real < 3300 + 1600) fail(`provider: num_ctx ${real} is smaller than prompt + reply budget — the front of the prompt will be dropped`);
+
+  // it must always leave room for the reply on top of the prompt
+  for (const [chars, predict] of [[3000, 450], [30000, 1600], [90000, 3000]]) {
+    const got = contextFor(msgs(chars), predict);
+    const need = estimateTokens(msgs(chars)) + predict;
+    if (got < need && got < 32768) fail(`provider: num_ctx ${got} < needed ${need} below the cap — the reply will be cut off`);
+  }
+
+  // and it is capped, so one enormous paste cannot try to allocate the machine
+  const huge = contextFor(msgs(4_000_000), 3000);
+  if (huge !== 32768) fail(`provider: an enormous prompt asked for num_ctx ${huge} — it must cap, or a paste takes the machine down`);
+
+  // powers of two only: an odd size is a reallocation Ollama does not need
+  for (const chars of [1000, 9000, 40000, 200000]) {
+    const n = contextFor(msgs(chars), 450);
+    if ((n & (n - 1)) !== 0) fail(`provider: num_ctx ${n} is not a power of two`);
+  }
+}
+
 /* ---------- machine advice ----------
    'Can my computer run this?' has to be right for the machines the first
    testers actually have — laptops, 8 or 16 GB, integrated graphics. Erring

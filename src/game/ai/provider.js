@@ -120,6 +120,60 @@ async function ollamaStreamChat(chatUrl, payload, timeoutMs, onStream){
 // gets the best available model and real room to actually think,
 // regardless of what's fastest for everything else.
 const REPLY_TOKENS = { short:450, long:1600, deep:3000 };
+
+/* ================================================================
+   THE CONTEXT WINDOW, SET EXPLICITLY — and the reason, measured on
+   this machine 2026-08-03, because it is the most expensive silent
+   bug this project has had.
+
+   OLLAMA RUNS EVERY MODEL AT num_ctx 4096 UNLESS YOU TELL IT
+   OTHERWISE. Not the model's own limit — `ollama ps` on this machine
+   reported context_length 4096 for llama3.2, whose real window is
+   131k, and ornith:9b's is 262k. We were sending num_predict and
+   never num_ctx, so we got 4096 every time.
+
+   What that actually costs, measured, not reasoned about:
+
+     prompt sent 7,279 tokens -> Ollama evaluated 2,050
+     the model answered "I am Llama, a large language model by Meta AI"
+     ...having been told, in the first line it never saw, that it was
+     the Investigator.
+
+   With num_ctx 16384 the same request kept every token and the role
+   held perfectly. So THE RESIDENT'S IDENTITY WAS BEING DELETED BEFORE
+   THE MODEL SAW IT, silently, whenever a conversation or a grounded
+   task got big — which is every Investigator call over a paper, every
+   Monk conversation with real history, every dissection lens. The
+   visitor's report was "I'm worried these different roles will confuse
+   the AI instead of it acting out its role." Exactly right, and the
+   cause was never the number of roles.
+
+   Silent truncation is the house failure mode wearing a new coat: the
+   reply still arrives, still reads fluently, and is simply not the
+   resident you were talking to.
+
+   SIZED TO THE REQUEST, not fixed. A bigger window costs KV-cache
+   memory (and this machine's real constraint is cooling, so nothing
+   here is set larger than the request actually needs). Powers of two
+   from 4096 up to a cap, so short chats stay cheap and a paper gets
+   the room it needs.
+   ================================================================ */
+const CTX_FLOOR = 4096;      // never ask for less than Ollama's own default
+const CTX_CAP   = 32768;     // affordable for a 9B on 16 GB; a paper fits many times over
+const CTX_MARGIN = 256;      // chat-template scaffolding we do not see
+/* ~3.4 chars per token is a fair estimate for English prose and errs LARGE
+   on code and CJK. Erring large is the right direction: over-estimating buys
+   a bigger window, under-estimating silently deletes the system prompt. */
+export function estimateTokens(messages){
+  const chars = (messages||[]).reduce((n,m)=>n+String((m&&m.content)||'').length, 0);
+  return Math.ceil(chars/3.4);
+}
+export function contextFor(messages, replyTokens){
+  const need = estimateTokens(messages) + (replyTokens||0) + CTX_MARGIN;
+  let n = CTX_FLOOR;
+  while(n < need && n < CTX_CAP) n *= 2;
+  return Math.min(n, CTX_CAP);
+}
 // Deliberately generous (bumped 2026-07-12 at the user's ask: "don't cut a
 // convo in the middle"). A local model on modest hardware — or one streaming a
 // long, thoughtful reply — can legitimately take a while, and the pocket/phone
@@ -219,7 +273,13 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
       const model = (opts && opts.model) || p.model;
       const think = (opts && typeof opts.think==='boolean') ? opts.think : false;
       const onStream = (opts && typeof opts.onStream==='function') ? opts.onStream : null;
-      const payload = { model, messages, think, options:{ num_predict:REPLY_TOKENS[size] } };
+      /* num_ctx is set on EVERY request, never left to the default — see the
+         block above REPLY_TOKENS. Without it the front of the system prompt is
+         thrown away without a word and the resident stops being the resident. */
+      const payload = { model, messages, think, options:{
+        num_predict: REPLY_TOKENS[size],
+        num_ctx: contextFor(messages, REPLY_TOKENS[size]),
+      } };
       // Live streaming when a caller actually wants it — the reply, and the
       // Monk's reasoning, reveal as they generate. Any failure here (an older
       // desktop bridge, a proxy that won't stream) falls through to the plain
