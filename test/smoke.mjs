@@ -623,6 +623,123 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+/* ---------- the catalogue Quill is handed ----------
+   Measured 2026-08-03 right after a ~100-book import: every Quill message
+   pasted the whole catalogue with summaries, ~43 tokens a book, so the
+   librarian got slower and dumber the more books you owned. Backwards for a
+   Library meant to be built from scratch by its owner. See
+   src/game/data/catalogue-brief.js. */
+{
+  const { catalogueBrief, briefCaveat, briefTokens } =
+    await import('../src/game/data/catalogue-brief.js');
+  const books = (n, shelf = 'Theravada') => Array.from({ length: n }, (_, i) => ({
+    title: 'A text number ' + i, tradition: shelf, license: 'CC0 1.0',
+    doc: { summary: 'A discourse on mindfulness and the nature of craving, translated from the Pali.' } }));
+
+  // THE PROPERTY: the prompt must not grow without bound as the shelf does
+  for (const n of [10, 60, 130, 400, 1200, 5000]) {
+    const b = catalogueBrief(books(n));
+    const t = briefTokens(b.text);
+    if (t > 2600) fail(`catalogue-brief: ${n} books produced ${t} tokens — a bigger library must not mean a worse librarian`);
+  }
+  // a 5000-book shelf must not cost meaningfully more than a 400-book one
+  const big = briefTokens(catalogueBrief(books(5000)).text);
+  const mid = briefTokens(catalogueBrief(books(400)).text);
+  if (big > mid * 1.6) fail(`catalogue-brief: 5000 books cost ${big} vs ${mid} for 400 — it is still scaling with the shelf`);
+
+  // a small shelf keeps its summaries: that view is genuinely better
+  const small = catalogueBrief(books(8));
+  if (small.mode !== 'full') fail(`catalogue-brief: a shelf of 8 was degraded to '${small.mode}' — summaries are affordable there`);
+  if (!/discourse on mindfulness/.test(small.text)) fail('catalogue-brief: a small shelf lost its summaries');
+
+  /* THE SAFETY PROPERTY. Whenever the view is partial the model must be TOLD,
+     or it will confidently say a book is not shelved when it simply could not
+     see it — a librarian inventing a No. */
+  for (const n of [60, 400, 5000]) {
+    const b = catalogueBrief(books(n));
+    if (b.mode === 'full') continue;
+    const caveat = briefCaveat(b);
+    if (!caveat) fail(`catalogue-brief: ${n} books gave a partial view ('${b.mode}') with NO caveat — the model will invent a "not shelved"`);
+    if (b.mode === 'shape' && !/Never tell the visitor a book is absent/.test(caveat)) {
+      fail('catalogue-brief: the shape view does not forbid claiming a book is absent, which is the one lie it can tell');
+    }
+  }
+  if (briefCaveat(catalogueBrief(books(8)))) fail('catalogue-brief: a COMPLETE view was hedged anyway — that is its own dishonesty');
+
+  // the shape view still has to be useful: real shelf names and counts
+  const mixed = [...books(300, 'Theravada'), ...books(120, 'Zen'), ...books(40, 'Stoic')];
+  const shape = catalogueBrief(mixed);
+  if (shape.mode !== 'shape') fail(`catalogue-brief: 460 books gave '${shape.mode}', expected the shape view`);
+  for (const shelf of ['Theravada', 'Zen', 'Stoic']) {
+    if (!shape.text.includes(shelf)) fail(`catalogue-brief: the shape view never mentions the ${shelf} shelf`);
+  }
+  if (!/460 texts/.test(shape.text)) fail('catalogue-brief: the shape view does not say how big the collection is');
+
+  // an empty shelf says so rather than producing a confusing blank
+  if (catalogueBrief([]).mode !== 'empty') fail('catalogue-brief: an empty Library did not report itself as empty');
+}
+
+/* ---------- the reference desk ----------
+   A reference table with a wrong number in it is WORSE than no table: it
+   launders a mistake into something authoritative. So the exactly-defined
+   values are checked against the SI here rather than trusted.
+   See src/game/data/reference.js. */
+{
+  const { REFERENCE, lookup, referenceFor, referenceBlock, refLine } =
+    await import('../src/game/data/reference.js');
+
+  // the SI-defined values, digit for digit. These have ONE right answer.
+  const exact = {
+    c: '299792458 m/s', e: '1.602176634e-19 C', h: '6.62607015e-34 J·s',
+    k: '1.380649e-23 J/K', na: '6.02214076e23 /mol', g: '9.80665 m/s²',
+  };
+  for (const [id, want] of Object.entries(exact)) {
+    const entry = REFERENCE.find(x => x.id === id);
+    if (!entry) fail(`reference.js: '${id}' is missing`);
+    else if (entry.value !== want) fail(`reference.js: ${id} is "${entry.value}", the SI says "${want}"`);
+    else if (!entry.exact) fail(`reference.js: ${id} is defined exactly by the SI but is not flagged exact`);
+  }
+  // pi and e to the digits given
+  if (!/^3\.14159265358979/.test(REFERENCE.find(x => x.id === 'pi').value)) fail('reference.js: pi is wrong');
+  if (!/^2\.71828182845905/.test(REFERENCE.find(x => x.id === 'euler').value)) fail("reference.js: Euler's number is wrong");
+  // G is measured, not defined — mislabelling that overstates what is known
+  if (REFERENCE.find(x => x.id === 'gconst').exact) fail('reference.js: G is a measured value and must not be flagged exact');
+
+  // every entry has to be usable, not just present
+  for (const e of REFERENCE) {
+    for (const f of ['id', 'kind', 'name', 'value']) if (!e[f]) fail(`reference.js: an entry is missing ${f}: ${JSON.stringify(e).slice(0, 60)}`);
+    if (typeof e.exact !== 'boolean') fail(`reference.js: '${e.id}' does not say whether it is exact or measured`);
+    if (!refLine(e).includes(e.value)) fail(`reference.js: refLine drops the value for '${e.id}'`);
+  }
+  const ids = REFERENCE.map(e => e.id);
+  if (new Set(ids).size !== ids.length) fail('reference.js: duplicate ids');
+
+  // lookup finds things by the names a person would actually type
+  for (const [term, id] of [['ohm', 'ohm'], ['4k7', 'e12'], ['c', 'c'], ['pi', 'pi'],
+                            ['colour code', 'colour-code'], ['voltage divider', 'divider'],
+                            ['38khz', 'ir-carrier'], ['decibel', 'db']]) {
+    if (!lookup(term).some(e => e.id === id)) fail(`reference.js: lookup("${term}") did not find '${id}'`);
+  }
+  if (lookup('the meaning of life').length) fail('reference.js: lookup invented a match for something not in the table');
+  if (lookup('').length) fail('reference.js: an empty lookup returned entries');
+
+  /* THE BUDGET PROPERTY, and the reason it is here: the catalogue bug found
+     the same day was the whole Library being recited on every message. A
+     reference table must cost ~40 tokens in a prompt, never 4,000. */
+  const block = referenceBlock('I want to work out the series resistor for an IR LED at 38kHz using ohms law');
+  if (!block) fail('reference.js: a question full of table terms produced no reference block at all');
+  if (block.length > 1200) fail(`reference.js: the injected block is ${block.length} chars — it must be a fragment, not the corpus`);
+  if (referenceFor('x').length > 6) fail('reference.js: the injection cap is not being applied');
+  // and it stays out of the way when nothing is relevant
+  if (referenceBlock('what did the monk mean about right intention')) {
+    fail('reference.js: it injected constants into a question about meaning — that is the corpus-pasting habit again');
+  }
+  // it must tell the model to prefer the table over its own recollection
+  if (!/do NOT substitute a figure from your own memory/i.test(referenceBlock('ohms law'))) {
+    fail('reference.js: the block does not tell the model to trust the table over itself, which is its entire purpose');
+  }
+}
+
 /* ---------- who does what ----------
    The residents' duties, derived from one table instead of hand-copied into
    seven prompts. They HAD drifted: Sebastian's prompt told the model "Quill is

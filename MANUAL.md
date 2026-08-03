@@ -354,6 +354,14 @@ your own standing instructions, so you can watch them take effect.
   knowing:
     - `ls` everything on your own shelves · `find <word>` search them
     - `papers` just the papers · `analyses` the dissections you've kept
+    - **`ref <term>`** — the **Reference Desk**: constants, units, formulas and
+      component values, **exact and offline, with no AI at all**. `ref ohms law`,
+      `ref 4k7`, `ref c`, `ref colour code`, `ref db`. It holds only things with
+      one right answer — a local model has no database and cannot tell what it
+      half-remembers from what it is inventing, so these are the values it is
+      least reliable about. The work residents are handed the matching entries
+      automatically when you use one of these terms, with instructions to use
+      them rather than their own recollection.
     - `ds` your **datasheets**, listed by part number — and **`ds <part>`
       opens one straight away**, which is the only thing anyone ever wants
       from a datasheet

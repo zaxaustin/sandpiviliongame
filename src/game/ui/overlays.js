@@ -13,6 +13,8 @@ import { theDayItems, theDayLine } from '../data/the-day.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
+import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
+import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data/reference.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -445,6 +447,17 @@ function sessionAISummary(){
    the Steward is the second, grounded in the charter and the *live*
    notice board instead of the shelves. Adding a third resident later
    is just another entry here, not a new code path. */
+/* What the visitor last actually said to this resident — the text the
+   reference lookup matches against. A resident is only handed a constant
+   when a term for it appears in the question, which is what keeps a 400-entry
+   table costing ~40 tokens instead of 4,000. */
+function lastAskOf(agent){
+  const d=state.dialog;
+  if(d && d.agent===agent && Array.isArray(d.history)){
+    for(let i=d.history.length-1;i>=0;i--) if(d.history[i].role==='user') return d.history[i].content||'';
+  }
+  return '';
+}
 function pastAsksBlock(agent){
   const mem=agentMemory(agent);
   if(!mem.length) return '';
@@ -508,7 +521,14 @@ const CHAT_AGENTS = {
   quill:{
     label:'Quill',
     async systemPrompt(){
-      const shelf=Store.allDocs().map(d=>`- "${d.title}" (${d.tradition}, ${d.license}): ${d.doc.summary}`).join('\n');
+      /* The whole catalogue used to be pasted here, summaries and all, on every
+         single message — ~43 tokens a book, so the librarian got slower and
+         dumber the more books you owned. Exactly backwards for a Library meant
+         to be built from scratch by its owner (measured at ~4,300 tokens on a
+         100-book shelf, ~21,000 at 500). It degrades by size now, and says
+         plainly how complete its view is. See data/catalogue-brief.js. */
+      const brief=catalogueBrief(Store.allDocs());
+      const shelf=brief.text+briefCaveat(brief);
       // Quill is written light on purpose — a knowledgeable librarian, not a
       // performed character. His real value is the catalogue he can look
       // things up in and the abilities he can offer; neither is ever forced.
@@ -571,6 +591,7 @@ const CHAT_AGENTS = {
         +"what to ask. That is your most useful move, not a failure of yours.\n"
         +"Plain, direct, unceremonious. You are the one who gets things ready.\n"
         +stewardLadderBlock()
+        +referenceBlock(lastAskOf('steward'))
         +rosterBlock('steward')
         +pastAsksBlock('steward');
     },
@@ -646,6 +667,7 @@ const CHAT_AGENTS = {
         +"\n\nThe Hall's investigations so far:\n"+investigationsForPrompt()
         +"\n\nThe most relevant shelves, if useful (cite a text by name rather than inventing one):\n"+hallShelfSummary()
         +referenceShelfBlock()
+        +referenceBlock(lastAskOf('investigator'))
         +rosterBlock('investigator')
         +pastAsksBlock('investigator');
     },
@@ -736,6 +758,7 @@ const CHAT_AGENTS = {
         +"project workspace (the Research Desk, the Grant Desk), say so plainly and point there — "
         +"you're one tool among several here, not the only one."
         +referenceShelfBlock()
+        +referenceBlock(lastAskOf('computer'))
         +rosterBlock('computer')
         +pastAsksBlock('computer');
     },
@@ -773,6 +796,7 @@ const CHAT_AGENTS = {
         +(lesson?("\n\nThe visitor is studying this lesson — stay grounded in it; teach and quiz from it, "
           +"and if they are stuck, help with THIS specifically:\n"+lesson):"")
         +referenceShelfBlock()
+        +referenceBlock(lastAskOf('tutor'))
         +rosterBlock('tutor')
         +pastAsksBlock('tutor');
     },
@@ -4924,6 +4948,7 @@ function termRun(raw){
     '  ds [part]          datasheets — or jump straight to one',
     '  owned              books you own on PAPER, off the shelf behind you',
     '  analyses           paper dissections you have kept',
+    '  ref <term>         constants, units, formulas — exact, offline, no AI',
     '  shelf [name]       list your shelves, or open one',
     '  unread             what you brought in and never opened',
     '  open <number>      open one in the reader',
@@ -4997,6 +5022,27 @@ function termRun(raw){
         :['No shelves yet.'];
     }
     return listing(mine.filter(b=>shelfOf(b).toLowerCase()===arg.toLowerCase()),'on "'+arg+'"');
+  }
+  /* `ref` — the Reference Desk at the terminal. Needs no AI and never will:
+     a local model cannot look anything up and cannot tell what it half-recalls
+     from what it is inventing, so the values it is least reliable about are
+     exactly the ones with a fixed right answer. See data/reference.js. */
+  if(c==='ref'){
+    const term=arg;
+    if(!term){
+      const byKind={};
+      REFERENCE.forEach(e=>{ (byKind[e.kind]=byKind[e.kind]||[]).push(e.name); });
+      return ['REFERENCE DESK — '+REFERENCE.length+' entries, exact and offline.',
+        '',
+        ...Object.keys(byKind).map(k=>'  '+k.padEnd(10)+byKind[k].join(', ')),
+        '',
+        'Try:  ref ohm · ref 4k7 · ref c · ref divider · ref colour code · ref db'];
+    }
+    const hits=refLookup(term);
+    if(!hits.length) return ['Nothing in the reference table for "'+term+'".',
+      'This table holds only things with ONE right answer — constants, units, formulas, component values.',
+      'For anything that needs a source or an argument, that is the Library: try  find '+term];
+    return hits.map(refLine);
   }
   if(c==='analyses'||c==='dissections'){
     const d=(data.hall&&data.hall.dissections)||[];

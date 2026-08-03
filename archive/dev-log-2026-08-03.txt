@@ -225,3 +225,68 @@ shelf offers one press to send it all back. unfileShelf() also appears
 on any shelf over four books deep in Manage my books.
 
 The steward called it his mistake. It wasn't.
+
+
+================================================================
+THIRD PASS — what the models actually know
+================================================================
+
+"whats the database of these local modles? is it just the library and
+there offline? if so we should build a referance database for them for
+basic science and math"
+
+The honest answer: THEY HAVE NO DATABASE. A local model is a weights
+file. Everything it knows was compressed in at training time and is
+frozen; it cannot look anything up, and — the part that matters — it
+cannot tell what it half-recalls from what it is confabulating. The
+only database it gets is whatever the Pavilion pastes into the prompt,
+fresh, every message. searchDocs() returns null: nothing anywhere can
+look INSIDE a book. Quill is handed titles and blurbs and has never
+read one.
+
+Written up in plans/REFERENCE-AND-RETRIEVAL-PLAN.md, which separates
+the two problems: it cannot look inside the books (retrieval), and it
+cannot check a fact (the reference table). Built the second today.
+
+THE CATALOGUE BUG, found while answering
+----------------------------------------
+Quill's prompt pasted the WHOLE catalogue — title, shelf, licence and
+summary for every book — at ~43 tokens a book. Measured:
+
+    27 shipped   ~1,150 tokens
+   100 books     ~4,300
+   500 books    ~21,400
+
+So the librarian got slower and dumber the more books you owned, which
+is exactly backwards for a Library "meant to be built from scratch by
+its owner", and the steward had just imported a hundred. At 500 the
+catalogue alone would fill the window.
+
+data/catalogue-brief.js degrades in three stages: every book with
+summaries while that is affordable, then titles only, then the SHAPE
+(shelf names, counts, a sample). 130 books went from ~5,600 tokens to
+1,650. The safety property is that a partial view SAYS it is partial —
+otherwise the model confidently reports a book is not shelved when it
+simply could not see it, which is a librarian inventing a No.
+
+THE REFERENCE DESK
+------------------
+data/reference.js. Not "more for the model to read" — a small set of
+values with a fixed right answer that it is NOT ALLOWED to make up.
+Constants (SI-exact ones checked digit-for-digit in npm test), SI
+prefixes, Ohm's law, dividers, RC, LED series resistors, resistor
+colour code, E12, logic levels, the 38 kHz IR carrier, derivatives,
+integrals, dB.
+
+`ref <term>` at the Computer, and it needs no AI, which is the point.
+The work residents get the matching entries injected — matched against
+what the visitor actually asked, capped at six, told to prefer the
+table over their own memory.
+
+The guard caught a real bug on its first run: the symbol N_A normalises
+to "n a", and a substring match hit "what did the monk MEA-N A-bout
+right intention", so a question about right intention arrived carrying
+Avogadro's constant. Matching is on word boundaries now. Funny once;
+the same bug on a bigger table is the corpus-pasting habit wearing a
+false-match costume — which is the exact failure the catalogue bug had
+demonstrated an hour earlier.
