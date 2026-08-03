@@ -1246,7 +1246,8 @@ for (const [key, s] of Object.entries(scenes)) {
    never find again. */
 {
   const { preSortShelves, unsortedWorkOrder } = await import('../src/game/data/shelf-rules.js');
-  const SHELVES = ['Electronics', 'Cooking', 'Theravada', 'Daoism', 'Science', 'Practice'];
+  const SHELVES = ['Electronics', 'Cooking', 'Theravada', 'Daoism', 'Science', 'Practice',
+                   'Christian', 'Chinese'];
   const bk = (slug, title, extra = {}) => ({ slug, title, ...extra });
 
   const filedAlready = [
@@ -1261,6 +1262,14 @@ for (const [key, s] of Object.entries(scenes)) {
     ['a known author files it', bk('b4', 'Some Other Book', { attribution: 'Horowitz' }), 'Electronics'],
     ['the Tao Te Ching is Daoism', bk('b5', 'Tao Te Ching'), 'Daoism'],
     ['meditation goes to Practice', bk('b6', 'A Guide to Meditation'), 'Practice'],
+    /* The two shelves added 2026-08-03, and the reason they exist: sorting the
+       steward's real library kept putting books on visibly wrong shelves, and
+       the cause was that the right shelf was not on the list at all — nine
+       Christian books and eleven Chinese with nowhere to go. */
+    ['a gospel is Christian', bk('b7', 'The Gospel of Mark'), 'Christian'],
+    ['so is the Imitation of Christ', bk('b8', 'The Imitation of Christ'), 'Christian'],
+    ['the Analects are Chinese', bk('b9', 'The Analects of Confucius'), 'Chinese'],
+    ['and so is Sun Tzu', bk('b10', 'The Art of War'), 'Chinese'],
   ];
   for (const [name, book, want] of cases) {
     const r = preSortShelves([book], SHELVES, filedAlready);
@@ -1285,6 +1294,19 @@ for (const [key, s] of Object.entries(scenes)) {
     ['a bare title tells it nothing', bk('c2', 'Tartine Bread')],
     ['a substring is not a word — Automation is not about the Tao', bk('c3', 'Automation and Autonomy')],
     ['an unknown author proves nothing', bk('c4', 'A Book', { attribution: 'Nobody In Particular' })],
+    /* THE WORDS DELIBERATELY LEFT OUT of the two new shelves, pinned here so
+       nobody helpfully adds them back. Every tradition on these shelves has a
+       god, a church, a prayer and a saint; a history of China is not a Chinese
+       classic; and 'grace' is ordinary English. A hint that fires on two
+       shelves has learned nothing. */
+    ['"god" belongs to every shelf here, so it decides nothing', bk('c5', 'The Idea of God')],
+    ['nor does prayer', bk('c6', 'On Prayer and Stillness')],
+    ['a history OF China is not a Chinese classic', bk('c7', 'A Short History of China')],
+    ['and a saint is not a denomination', bk('c8', 'Lives of the Saints and Wonders')],
+    /* A REAL MISFILE, caught by running the rules over the actual library
+       rather than reasoning about them: 'psalms' filed "Sumerian Liturgies and
+       Psalms" as Christian. Psalms are older and wider than one tradition. */
+    ['psalms are older than Christianity', bk('c9', 'Sumerian Liturgies and Psalms')],
   ];
   for (const [name, book] of mustDecline) {
     const r = preSortShelves([book], SHELVES, filedAlready);

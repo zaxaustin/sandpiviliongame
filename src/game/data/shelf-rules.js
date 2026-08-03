@@ -47,6 +47,28 @@ export const SHELF_HINTS = {
   Science:   ['physics', 'chemistry', 'biology', 'astronomy', 'evolution', 'genetics',
               'thermodynamics', 'relativity', 'quantum'],
   Practice:  ['meditation', 'mindfulness', 'breathing', 'contemplation'],
+
+  /* Added 2026-08-03 with the shelves themselves. Every book a rule places is
+     a book no model has to guess at — cheaper, and a rule cannot hallucinate a
+     shelf.
+
+     CHOSEN THE SAME CONSERVATIVE WAY as the six above: only words that are
+     close to unambiguous. Deliberately LEFT OUT — 'god', 'church', 'prayer',
+     'saint', 'faith', 'holy' (every tradition here has all of them);
+     'china', 'chinese' (a history of China is not a Chinese classic);
+     'cross', 'trinity', 'grace' (ordinary English). A hint that fires on two
+     shelves has learned nothing, and over-filing is worse than under-filing
+     because a wrong shelf is a book you never find again. */
+  /* 'psalms' was here for about ten minutes and filed "Sumerian Liturgies and
+     Psalms" as Christian — a text that predates Christianity by millennia.
+     Caught by running the rules over the real 294-book library instead of
+     reasoning about them, which is the only reason it was caught at all. */
+  Christian: ['gospel', 'gospels', 'new testament', 'old testament', 'epistle', 'epistles',
+              'apostle', 'apostles', 'imitation of christ', 'augustine',
+              'aquinas', 'pilgrims progress', 'book of common prayer', 'apocrypha'],
+  Chinese:   ['confucius', 'confucian', 'analects', 'mencius', 'mo tzu', 'mozi',
+              'han fei', 'sun tzu', 'art of war', 'book of songs', 'shih ching',
+              'romance of the three kingdoms', 'journey to the west'],
 };
 
 const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();

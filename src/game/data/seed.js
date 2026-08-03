@@ -10,7 +10,27 @@ import { anapanasatiFullText } from './library-texts/anapanasati.js';
 import { firstSermonFullText } from './library-texts/first-sermon.js';
 import { bhagavadGitaFullText } from './library-texts/bhagavad-gita.js';
 
-export const TRADITIONS = ['Theravada','Mahayana','Daoism','Practice','Science','Classics','Native American','Hindu','Tantra','Fiction','Non-fiction'];
+/* CHRISTIAN and CHINESE added 2026-08-03, at the steward's ask and with the
+   measurement that made it urgent. Sorting his real 294-book library, books
+   kept landing on visibly wrong shelves — and the cause was not the librarian
+   guessing badly. It was that the right shelf did not exist:
+
+     Christian                                    9 books, NO shelf
+     Chinese beyond Daoism (Confucius, Mencius)  11 books, partial
+
+   A model asked to file The Imitation of Christ among Theravada, Mahayana,
+   Daoism, Practice, Science, Classics, Native American, Hindu, Tantra,
+   Fiction and Non-fiction is not being asked a fair question. An empty
+   Christian shelf in a library that claims to hold the world's traditions is
+   far stranger by its absence than by being empty.
+
+   Adding to this array is safe by construction: every existing book keeps
+   whatever shelf it is on. Nothing is re-filed by this change.
+
+   STILL HOMELESS, and both larger than either shelf added here: Myth &
+   Folklore (30 books) and Esoteric & Occult (25). Noted so the next
+   wrong-shelf report is not a surprise. */
+export const TRADITIONS = ['Theravada','Mahayana','Daoism','Chinese','Hindu','Tantra','Christian','Native American','Practice','Science','Classics','Fiction','Non-fiction'];
 /* Categories are a second, orthogonal axis to tradition — "what kind of
    text is this" rather than "which lineage." Every seed text today is
    the same kind (classical, hand-vetted, non-fiction) — the taxonomy is

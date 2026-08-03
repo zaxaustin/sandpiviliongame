@@ -10730,6 +10730,60 @@ export function myLibShow(name){
    the app, and until 2026-07-28 it could not be taken back. Now every bulk
    accept records where each book came from, so one press returns all of it.
    An operation that large should never depend on the suggestion being right. */
+/* ----- REVIEWING THE LIBRARIAN'S WORK, grouped by where each book is GOING.
+   Built 2026-08-03, from the steward: "some books do end up in the wrong shelf
+   — I think there should be a step to see the AI's work and where they would
+   put them."
+
+   The accept step already existed, and that is exactly why it failed. Each
+   suggestion showed as a small green button on its own card, scattered through
+   a list of 294 books, so reviewing meant scrolling and hunting for green.
+
+   WRONGNESS IS A PROPERTY OF THE GROUP, NOT THE ROW. Read one at a time,
+   "Chess Strategy → Nature" looks like any other line. Under a heading it is
+   the one thing that does not belong:
+
+       → Nature   14 books
+         Walden · Our National Parks · Man and Nature · … · Chess Strategy
+
+   And the reason is shown beside each book, because "a rule matched 'sutta'"
+   and "the AI read the title" deserve different amounts of trust.
+
+   NOTHING MOVES WITHOUT A PRESS — not even a rule-based placement. The moment
+   one class of suggestion applies itself, a visitor has to remember which kind
+   is which, and "a suggestion is not a decision" is the sentence this panel
+   exists to keep true. */
+/* One book out of a group — the fine-grained half of the review. */
+export function rejectOneSuggestion(slug){
+  const sug=state.myLibView.suggested||{};
+  delete sug[slug];
+  renderMyLibrary();
+}
+export function acceptShelfGroup(shelf){
+  const sug=state.myLibView.suggested||{};
+  const undo={}; let n=0;
+  personalBooks().forEach(b=>{
+    if(sug[b.slug]===shelf && shelfOf(b)!==shelf){ undo[b.slug]=b.tradition; b.tradition=shelf; n++; }
+  });
+  Object.keys(sug).forEach(s=>{ if(sug[s]===shelf) delete sug[s]; });
+  state.myLibView.lastFiling = n ? { at:todayKey(), undo } : null;
+  persist();
+  logActivity('Filed '+n+' book(s) onto '+shelf+'.');
+  blip(660,.07); setTimeout(()=>blip(825,.08),80);
+  renderMyLibrary();
+  const out=document.getElementById('myLibAiOut');
+  if(out) out.textContent=`Moved ${n} book${n===1?'':'s'} to ${shelf}. Nothing was deleted, and you can undo this in one press.`;
+}
+/* Reject a whole group in one press — the other half of a review. Seeing
+   fourteen books headed somewhere wrong and having to untick them one at a
+   time is not a review, it is a chore. */
+export function rejectShelfGroup(shelf){
+  const sug=state.myLibView.suggested||{}; let n=0;
+  Object.keys(sug).forEach(s=>{ if(sug[s]===shelf){ delete sug[s]; n++; } });
+  renderMyLibrary();
+  const out=document.getElementById('myLibAiOut');
+  if(out) out.textContent=`Dropped the suggestion for ${n} book${n===1?'':'s'}. They stay where they were.`;
+}
 export function acceptAllSuggestions(){
   const sug=state.myLibView.suggested||{}; const slugs=Object.keys(sug);
   if(!slugs.length) return;
@@ -11085,13 +11139,42 @@ function renderMyLibrary(keepFocus){
           <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="dismissWorkOrder()">✕ Hide</button>
         </div></div>`:''}
     <div id="myLibTriageOut"></div>
-    ${sugCount?`<div class="card" style="cursor:default;margin-top:10px;border-color:#7fa36b">
-        <div class="t" style="color:#7fa36b">✨ The librarian suggests a shelf for ${sugCount} book${sugCount===1?'':'s'}</div>
-        <div class="s" style="margin-top:4px">Nothing has moved yet. Each one is shown in green below — change any you disagree with, then accept.</div>
-        <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+    ${sugCount?(()=>{
+      /* Grouped by DESTINATION — see acceptShelfGroup() above for why that is
+         the whole point rather than a layout preference. */
+      const groups={};
+      personalBooks().forEach(b=>{ const s=sug[b.slug]; if(s) (groups[s]=groups[s]||[]).push(b); });
+      const order=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
+      return `<div class="card" style="cursor:default;margin-top:10px;border-color:#7fa36b">
+        <div class="t" style="color:#7fa36b">✨ The librarian's work — ${sugCount} book${sugCount===1?'':'s'} across ${order.length} ${order.length===1?'shelf':'shelves'}</div>
+        <div class="s" style="margin-top:4px"><b>Nothing has moved.</b> Read each shelf as a group — a book that does not
+          belong is far easier to spot beside the others going to the same place than on its own.</div>
+        ${order.map(([shelf,list])=>`
+          <div style="margin-top:12px;border-top:1px solid #55432e;padding-top:8px">
+            <div class="row" style="justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap">
+              <b style="color:var(--gold)">→ ${esc(shelf)} <span style="opacity:.7;font-weight:normal">${list.length} book${list.length===1?'':'s'}</span></b>
+              <span class="row" style="gap:6px">
+                <button class="btn" style="font-size:11px;padding:3px 10px" onclick="acceptShelfGroup('${esc(shelf)}')">✓ File these ${list.length}</button>
+                <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="rejectShelfGroup('${esc(shelf)}')">✕ Not this shelf</button>
+              </span>
+            </div>
+            <div style="margin-top:6px">
+              ${list.map(b=>{
+                const reason=(v.suggestWhy||{})[b.slug]||'';
+                const byRule=!/read the title/i.test(reason);
+                return `<div class="s" style="display:flex;gap:8px;align-items:baseline;padding:2px 0">
+                  <span style="opacity:.55;font-size:10.5px;min-width:74px" title="${esc(reason)}">${byRule?'rule':'the AI'}</span>
+                  <span style="flex:1">${esc(b.title||'Untitled')}</span>
+                  <button class="btn ghost" style="font-size:10.5px;padding:1px 7px" onclick="rejectOneSuggestion('${esc(b.slug)}')" title="Leave this one where it is">✕</button>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`).join('')}
+        <div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap;border-top:1px solid #55432e;padding-top:10px">
           <button class="btn" onclick="acceptAllSuggestions()">✓ Accept all ${sugCount}</button>
-          <button class="btn ghost" onclick="dismissSuggestions()">✕ Ignore them</button>
-        </div></div>`:''}
+          <button class="btn ghost" onclick="dismissSuggestions()">✕ Ignore them all</button>
+        </div></div>`;
+    })():''}
     ${selCount?`<div class="row" style="gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">
         <b style="color:var(--gold)">${selCount} selected →</b>
         <select id="myLibMoveTo" style="width:auto;min-width:150px">
@@ -11623,6 +11706,7 @@ Object.assign(window, {
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openAlexandria, runLibraryTriage, applyTriageMove,
   acceptAllSuggestions, dismissSuggestions, acceptOneSuggestion,
+  acceptShelfGroup, rejectShelfGroup, rejectOneSuggestion,
   openStanding, setStanding, addStandingSuggestion, clearStanding,
   openPromptInspector, openStandingForCurrentChat, openPromptForCurrentChat,
   runCopyrightCheck,
