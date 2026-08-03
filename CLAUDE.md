@@ -134,6 +134,12 @@ Then **Read the .png**. You can see it. Working examples live in `test/live/`.
 8. **Writing files:** bash heredocs mangle `\n` and backticks in JS. Write a
    Python patch script with the Write tool, run it, delete it. Commit messages
    go through `git commit -F <file>`.
+   **Encode before you open for writing.** `open(p,'w').write(s)` truncates the
+   target *first* and encodes second, so one bad character destroys the file and
+   loses the whole session's edits — this ate `overlays.js` on 2026-08-03. Do
+   `blob = s.encode('utf-8')`, then write a temp file, then `os.replace`. And
+   never put an emoji outside the BMP in a Python `\uXXXX` escape (🌳 🗒 📕 are
+   all surrogate pairs): paste the character, or use `\U0001F333`.
 9. **electron-builder EPERM on `release/`:** an editor is watching the folder.
    Build to `$TEMP/sp-build` via `--config.directories.output` and copy back.
 
@@ -148,6 +154,7 @@ node test/live/lab.mjs                     # the Lab, datasheets, the paper shel
 node test/live/bench.mjs                   # predict-before-you-look, and it cannot be edited after
 node test/live/librarian-safety.mjs        # the data-loss bug that reached a real user
 node test/live/bundle.mjs                  # a bundle is reviewed before anything lands
+node test/live/study-chain.mjs             # the JOINTS: note→lesson→a path you walk→Today, book→dissection
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
 ```
 

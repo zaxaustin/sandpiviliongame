@@ -290,6 +290,17 @@ body { font-family:var(--font-mono); touch-action:none; }
 .panel h3 { color:var(--gold); font-size:15px; margin:16px 0 6px; }
 .panel p { line-height:1.7; font-size:14px; margin-bottom:10px; color:var(--ink-soft); }
 .panel .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+/* A labelled band of buttons. The reader had thirteen identical ones in two
+   undifferentiated rows and it read as a wall (THE-STUDY-CHAIN-PLAN.md Stage 4).
+   The label is what does the work: three bands answering three different
+   questions beats one row answering all of them at once. Nothing is hidden —
+   grouping only, because a feature you cannot see is a feature you do not have. */
+.btnGroup { display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  margin:8px 0; padding:8px 10px; border:1px solid var(--edge-faint); border-radius:var(--r-md); }
+.btnGroupLabel { color:var(--muted); font-size:10.5px; letter-spacing:1.2px;
+  text-transform:uppercase; margin-right:2px; flex:0 0 auto; }
+.bookPanel .btnGroup { border-color:#d8c393; }
+.bookPanel .btnGroupLabel { color:#8a7350; }
 .fullTextPage {
   white-space:pre-wrap; line-height:1.75; font-size:14.5px;
   max-height:56vh; overflow-y:auto; padding-right:6px;

@@ -6,6 +6,7 @@ import { VIS, visBadge, visLine, DATA_MAP } from '../data/visibility.js';
 import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.js';
 import { LEVELS as SOURCE_LEVELS, LEVEL_ORDER, assess as assessSource, mayEnterCommons } from '../data/sourcing.js';
 import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-parse.js';
+import { planToLesson } from '../data/plan-to-lesson.js';
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine } from '../data/the-day.js';
@@ -1590,7 +1591,10 @@ function renderMenu(){
       item('openStillOpen()', `📋 Still Open${openSparks().length?' · '+openSparks().length:''}`),
       item('openPaths()', `🧭 Paths${(data.paths||[]).filter(p=>!p.walked).length?' · '+(data.paths||[]).filter(p=>!p.walked).length:''}`),
       item('openNotesLog()', '🗒 Your Notes'),
-      item('openLearningTree()', '🌳 Lesson plans'),
+      item('openLearningTree()', `🌳 Lesson plans${(function(){
+        const cur=currentStudy(); if(!cur) return '';
+        return ' \u00b7 ' + cur.node.title.slice(0,26);
+      })()}`),
       item('openAcademy()', '🎓 The Academy'),
       /* The Lab is four hops away — Grounds, Workshop, up, up — on a floor that
          until 2026-08-02 said "nothing open here", so anyone who explored early
@@ -2223,8 +2227,20 @@ function renderNotesLogList(){
     const badges=`${folder?`<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📁 ${esc(folder)}</span>`:''}${bookChip}${tags.map(t=>`<span class="badge lic">#${esc(t)}</span>`).join('')}`;
     // My Notes are editable right here (title/body/book link); other sources are
     // shown read-only with a jump to where they actually live to edit them.
+    /* The way OUT of a note sits on the card itself, not one level down inside
+       the editor. Caught by looking, 2026-08-03: the tree button was there and
+       correct, and reaching it meant first pressing a button labelled "Open to
+       edit / link a book" — which does not sound like the thing that turns your
+       plan into a path. A door nobody can see is not a door. */
+    const own = data.notes.find(x=>x.id===n.id);
+    const inTree = own && own.lesson && curriculumNode(own.lesson);
     const editRow = (open && n.source==='mynotes')
-      ? `<div onclick="event.stopPropagation()" style="margin-top:10px"><button class="btn" style="font-size:11px" onclick="editNoteInLog('${n.id}')">✏ Open to edit / link a book</button></div>`
+      ? `<div class="row" onclick="event.stopPropagation()" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+          <button class="btn" style="font-size:11px" onclick="editNoteInLog('${n.id}')">✏ Open to edit / link a book</button>
+          ${inTree
+            ? `<button class="btn ghost" style="font-size:11px" onclick="openLessonFromNote('${n.id}')">🌳 It’s in the tree — open it</button>`
+            : `<button class="btn ghost" style="font-size:11px" onclick="lessonFromPlanNote('${n.id}','notesLogMsg')" title="Turn this note into a lesson you can tick off and pick up">🌳 Put this in the tree</button>`}
+        </div><div class="meta" id="notesLogMsg" style="margin:6px 0 0"></div>`
       : '';
     // folder + tag editors live only in the expanded view, and stop their own
     // clicks so fiddling with them doesn't collapse the card.
@@ -3758,7 +3774,17 @@ function noteBookLinkHtml(note){
    plans out of them." Shared by both note editors via noteToolsHtml. Graceful
    throughout — no model, empty reply, or dropped connection each say so plainly. */
 function noteToolsHtml(note){
-  return `<div style="margin-top:12px"><button class="btn ghost" style="font-size:11.5px" onclick="draftLessonPlanFromNote('${note.id}')">✨ Make a lesson plan from this note (AI)</button></div>`;
+  /* Two buttons, and the ORDER is the point: drafting is the optional AI
+     convenience, putting it in the tree is what makes a note into something you
+     can actually walk. The second needs no model connected at all — a note you
+     typed yourself becomes a lesson exactly the same way. */
+  const linked=note.lesson&&curriculumNode(note.lesson);
+  return `<div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap">
+    ${linked
+      ? `<button class="btn ghost" style="font-size:11.5px" onclick="openLessonFromNote('${note.id}')">🌳 It\u2019s in the tree \u2014 open it</button>`
+      : `<button class="btn ghost" style="font-size:11.5px" onclick="lessonFromPlanNote('${note.id}')" title="Turn this note into a lesson you can tick off and pick up">🌳 Put this in the tree</button>`}
+    <button class="btn ghost" style="font-size:11.5px" onclick="draftLessonPlanFromNote('${note.id}')">✨ Make a lesson plan from this note (AI)</button>
+  </div>`;
 }
 export async function draftLessonPlanFromNote(noteId){
   const note=data.notes.find(n=>n.id===noteId); if(!note) return;
@@ -3779,7 +3805,10 @@ export async function draftLessonPlanFromNote(noteId){
       body:'✨ Drafted by your local AI from your note.\n\n'+String(reply).trim(), created:todayKey(), updated:todayKey()};
     data.notes.unshift(plan); persist();
     logActivity('AI drafted a lesson plan from a note.'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
-    if(el) el.textContent='✨ Saved a new "Lesson plan" note — find it at the top of 🗒 Your Notes / My Notes.';
+    /* The plan used to end here, as text, and that WAS the dead end. Offer the
+       next artifact in the same breath rather than filing it and hoping. */
+    if(el) el.innerHTML='✨ Saved a new "Lesson plan" note. '
+      +'<button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="lessonFromPlanNote(\''+plan.id+'\')">🌳 Put it in the tree</button>';
   }catch(e){ if(el) el.textContent='The connection flickered — no plan this time (is your local AI still running?).'; }
 }
 export function linkNoteBook(noteId){
@@ -4687,6 +4716,7 @@ export function currentDayItems(){
     sparks: openSparks(),
     upcoming: upcomingItems(),
     lessons: allNodes(),
+    study: data.study||null,          // the path you picked up beats the one we'd guess
     curriculum: data.curriculum||{},
     books: personalBooks(),
     read: data.read||{},
@@ -5503,12 +5533,188 @@ export function keepDissection(){
 }
 export function reviewDissection(id){
   const d=(data.hall.dissections||[]).find(x=>x.id===id); if(!d) return;
+  if(d.book){ openDissection(id); return; }   // a book dissection has its own room
   state.hallView.lastDissect=d.text; renderScienceHall();
   const el=document.getElementById('hallDissectStatus'); if(el) el.textContent='Showing "'+d.title+'" above.';
 }
 export function deleteDissection(id){
   data.hall.dissections=(data.hall.dissections||[]).filter(x=>x.id!==id); persist(); renderScienceHall();
 }
+/* ================================================================
+   DISSECTING A BOOK — THE-STUDY-CHAIN-PLAN.md Stage 3.
+
+     "one of the things i wana be able to do in the lab is to disect a
+      book, i was able to take a look at a book but it wasent really
+      streamlined, if i wana take notes on a book with ai and then save
+      them for later that would be great."   (2026-08-03)
+
+   Every piece of this already existed and none of it joined up. The
+   reader could ask the AI for an impression, summarise a chapter, and
+   hold your own typed notes. The Hall could pull apart a PASTED paper
+   and keep the result. But a book on your own shelf — the thing you
+   actually read — had no way to become an analysis you keep, so every
+   pass over it evaporated when the panel closed.
+
+   So a dissection GAINS A BOOK rather than a new store getting invented:
+
+     { id, ts, title, text,        ← unchanged: the pasted-paper case
+       book: 'slug',               ← which book, when there is one
+       question: '…',              ← what you are after, written FIRST
+       passes: [{ts, lens, where, text}] }
+
+   A pasted paper keeps working exactly as it did: no book, no passes,
+   one shot. Nothing about that case changes, because it works.
+
+   THE QUESTION COMES FIRST, deliberately — the same discipline as the
+   Bench upstairs, where the prediction is written before the meter is
+   read. A dissection with no question is four AI paragraphs about a
+   book, which is the thing that already evaporated.
+
+   And "pull in my notes" needs no model at all. Every AI feature in
+   this project has to clear that floor. */
+const BOOK_LENSES = {
+  claim: { label:'What is it claiming?', icon:'◉',
+    ask:'State plainly what this passage is actually CLAIMING or arguing — the position itself, stripped of '
+       +'style and hedging. If it is making several claims, separate them. If it is not making a claim at all '
+       +'(it is narrative, or description, or instruction), say so plainly rather than manufacturing one.' },
+  rests: { label:'What is it resting on?', icon:'⚓',
+    ask:'Name what this passage RESTS ON: its assumptions, the evidence it offers, and the things it takes as '
+       +'given without arguing for them. Be specific about which are stated and which are silent. An unstated '
+       +'assumption is the most useful thing you can hand back here.' },
+  weak:  { label:'Where is it weak?', icon:'⚠',
+    ask:'Give the honest reservations about this passage — where the reasoning is thin, where a claim outruns '
+       +'its evidence, what a serious critic would press on. Be fair rather than harsh: if it is strong, say '
+       +'where and why. Never invent a flaw to fill the space.' },
+  use:   { label:'What do I do with it?', icon:'⚙',
+    ask:'What is the PRACTICAL residue of this passage — what could the reader actually do, test, build, or '
+       +'watch for as a result of it? Concrete actions, not "reflect on this". If there is genuinely nothing '
+       +'actionable here, say that plainly; not every good passage is a to-do list.' },
+};
+function dissections(){ if(!data.hall) data.hall={}; if(!data.hall.dissections) data.hall.dissections=[]; return data.hall.dissections; }
+function dissectionFor(slug){ return dissections().find(d=>d.book===slug); }
+export function dissectionRec(id){ return dissections().find(d=>d.id===id); }
+/* Opened from the READER, which is where you are when you want it. The book's
+   position is captured on the way in — the reader closes behind you, and a
+   lens run afterwards must still know it was working on page 212 rather than
+   quietly falling back to the blurb without saying so. */
+export function dissectBook(){
+  const slug=state.currentDoc; const d=slug&&Store.getDoc(slug); if(!d) return;
+  /* readerBookGrounding() is written for a MODEL — it carries no slug (it never
+     needed one) and its `where` is shouty prompt-language. Both matter here: the
+     slug is how the panel knows this grounding belongs to this book rather than
+     silently falling back to the blurb, and the human label is what a person
+     actually reads. Caught by looking, 2026-08-03: the panel said "no page is
+     open" while the reader was open at that very page. */
+  const g=readerBookGrounding();
+  if(g){
+    g.slug=slug;
+    const v=state.fullTextView;
+    g.human=(v&&v.slug===slug)
+      ? 'page '+(v.page+1)+' of '+v.pages.length
+      : 'the book’s summary and sections';
+    g.onPage=!!(v&&v.slug===slug);
+  }
+  state.dissectWhere=g;
+  let rec=dissectionFor(slug);
+  if(!rec){
+    rec={ id:'dis-'+Date.now(), ts:todayKey(), title:d.title, book:slug, question:'', passes:[], text:'' };
+    dissections().unshift(rec); persist();
+    logActivity('Started a dissection of "'+d.title+'".'); blip(700,.08);
+  }
+  state.ui='hall'; hideAllOv(); state.hallView={mode:'book', id:rec.id}; renderScienceHall(); showOv('hallOv');
+}
+/* Reached from the Lab or the Hall list instead, with no reader behind it. The
+   grounding falls back to the book's summary and sections and SAYS SO — an
+   analysis that quietly appraised the blurb while you thought it read the
+   chapter is worse than no analysis. */
+function dissectGrounding(rec){
+  const w=state.dissectWhere;
+  if(w && rec.book && w.slug===rec.book) return w;
+  const d=rec.book&&Store.getDoc(rec.book); if(!d) return null;
+  return { slug:rec.book, title:d.title, summary:d.doc.summary,
+    where:"THE BOOK'S SUMMARY AND SECTIONS (not the full text — no page was open)",
+    text:(d.doc.sections||[]).map(x=>x.heading+': '+x.body).join('\n\n') };
+}
+export function setDissectQuestion(id,val){
+  const rec=dissectionRec(id); if(!rec) return;
+  rec.question=val; rec.ts=todayKey();
+  clearTimeout(dissectQTimer); dissectQTimer=setTimeout(persist,600);
+}
+let dissectQTimer=null;
+export async function runBookLens(id, lensKey){
+  const rec=dissectionRec(id); if(!rec) return;
+  const lens=BOOK_LENSES[lensKey]; if(!lens) return;
+  const status=document.getElementById('bdStatus');
+  const g=dissectGrounding(rec);
+  if(!g){ if(status) status.textContent='That book is no longer on the shelf.'; return; }
+  if(!isAIActive()){
+    if(status) status.textContent='Connect a local AI (⚙ Manage AI connections) for the lenses — '
+      +'“Pull in my notes” below works without one.';
+    return;
+  }
+  const btns=document.querySelectorAll('#bdLensRow button'); btns.forEach(b=>b.disabled=true);
+  if(status) status.textContent=lens.icon+' Reading it that way… (a slower model may take a moment)';
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\n'+lens.ask
+        +'\n\nWork STRICTLY from the passage given. Do not draw on what you may know about this book from '
+        +'elsewhere, and never invent a quotation, a page number or a chapter title. If the passage is too '
+        +'short or too fragmentary to answer honestly, say exactly that. A few short paragraphs, plain prose.'
+        +(rec.question?'\n\nThe reader is working towards this question, so answer with it in view: '+rec.question:'')},
+      {role:'user', content:'BOOK: '+g.title+'\nWORKING FROM: '+g.where+'\n\n'+String(g.text||'').slice(0,7000)},
+    ], {long:true});
+    if(isEmptyReply(reply)){ if(status) status.textContent='The model came back empty — a lighter model may do better.'; }
+    else {
+      rec.passes.unshift({ ts:todayKey(), lens:lensKey, where:g.where, text:String(reply).trim() });
+      rec.ts=todayKey(); persist();
+      logActivity('Added a "'+lens.label+'" pass to "'+rec.title+'".'+elapsedTag());
+      blip(660,.08); setTimeout(()=>blip(825,.09),90);
+      renderScienceHall();
+    }
+  }catch(e){ if(status) status.textContent='The connection flickered — no pass this time (is your local AI still running?).'; }
+  document.querySelectorAll('#bdLensRow button').forEach(b=>b.disabled=false);
+}
+/* The no-AI half, and the one that makes a dissection YOURS rather than the
+   model's: your own typed notes on that book, gathered into the analysis as a
+   pass of their own. Reading notes were already saved per page and already
+   went nowhere. */
+export function pullNotesIntoDissection(id){
+  const rec=dissectionRec(id); if(!rec||!rec.book) return;
+  const status=document.getElementById('bdStatus');
+  const notes=(data.bookNotes[rec.book]||[]).filter(n=>!/^✨ /.test(n.text||''));  // your own, not the AI's
+  if(!notes.length){ if(status) status.textContent='No notes of your own on this book yet — write one beside the text and it lands here.'; return; }
+  const already=new Set(rec.passes.filter(x=>x.lens==='mine').map(x=>x.text));
+  const text=notes.map(n=>'• '+(n.page!==undefined?'p.'+(n.page+1)+' — ':'')+n.text).join('\n');
+  if(already.has(text)){ if(status) status.textContent='Those notes are already in here — nothing new since last time.'; return; }
+  rec.passes.unshift({ ts:todayKey(), lens:'mine', where:'YOUR OWN READING NOTES ('+notes.length+')', text });
+  rec.ts=todayKey(); persist(); blip(700,.08);
+  logActivity('Pulled '+notes.length+' reading note'+(notes.length===1?'':'s')+' into the dissection of "'+rec.title+'".');
+  renderScienceHall();
+}
+export function deleteDissectPass(id, i){
+  const rec=dissectionRec(id); if(!rec) return;
+  rec.passes.splice(i,1); persist(); renderScienceHall();
+}
+export function openDissection(id){
+  const rec=dissectionRec(id); if(!rec) return;
+  state.ui='hall'; hideAllOv(); state.hallView={mode:'book', id}; renderScienceHall(); showOv('hallOv');
+}
+export function readDissectedBook(id){
+  const rec=dissectionRec(id); if(!rec||!rec.book) return;
+  openReader(rec.book);
+}
+/* A book dissection graduates into a filed investigation the same way a paper
+   one does — the passes become the evidence field. Free, because the compose
+   form already takes a prefill. */
+export function investigationFromBook(id){
+  const rec=dissectionRec(id); if(!rec) return;
+  const ev=(rec.question?'Working question: '+rec.question+'\n\n':'')
+    +'From "'+rec.title+'":\n\n'
+    +rec.passes.map(x=>'['+((BOOK_LENSES[x.lens]||{}).label||'My notes')+' — '+x.where+']\n'+x.text).join('\n\n');
+  state.hallView={mode:'compose', prefill:{ evidence:ev }};
+  renderScienceHall();
+}
+
 // Graduate an appraisal into a kept investigation — carries the critique into
 // the compose form's evidence field, so a dissection becomes a real, filed
 // finding (you still supply the question, verdict, and falsifier yourself).
@@ -5798,7 +6004,23 @@ function renderLab(){
 
     <h3 style="margin-top:20px">Asking</h3>
     ${bench(invs.length,'🔬 Your investigations','Claims you have put a question, evidence and a falsifier to.','Open the Hall','openScienceHall()')}
-    ${bench(diss.length,'📄 Kept analyses','Papers you have pulled apart with the Investigator.','Open the Hall','openScienceHall()')}
+    <div class="card" style="cursor:default">
+      <div class="t">🔬 Dissections <span class="badge lic">${diss.length}</span></div>
+      <div class="s" style="margin-top:5px">Things you have pulled apart and <b>kept</b> — a book worked through
+        over several evenings, or a paper appraised in one go. A book dissection holds your question, the
+        passes you have taken at it, and your own reading notes; close the app and it is all still here.</div>
+      ${diss.length?`<div style="margin-top:7px">${diss.slice(0,6).map(d=>
+        `<div class="s">${d.book?'📖':'📄'} <span style="cursor:pointer;text-decoration:underline" onclick="${d.book
+          ?`openDissection('${esc(d.id)}')`:`openScienceHall()`}">${esc(d.title||'untitled')}</span>${
+          d.book&&(d.passes||[]).length?` <span style="opacity:.75">· ${d.passes.length} pass${d.passes.length===1?'':'es'}</span>`:''}</div>`
+        ).join('')}${diss.length>6?`<div class="s" style="opacity:.8">…and ${diss.length-6} more</div>`:''}</div>`
+        :`<div class="s" style="margin-top:6px;opacity:.85">None yet. Open any book and press <b>🔬 Dissect this book</b> —
+          that is the whole way in, and pulling in the notes you already wrote needs no AI at all.</div>`}
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" style="font-size:11.5px" onclick="openIndex()">📚 Find a book to dissect</button>
+        <button class="btn ghost" style="font-size:11.5px" onclick="openScienceHall()">📄 Appraise a pasted paper</button>
+      </div>
+    </div>
 
     <div class="row" style="margin-top:18px;flex-wrap:wrap">
       <button class="btn ghost" onclick="openResearchDesk()">🗂 The Research Desk</button>
@@ -5808,6 +6030,68 @@ function renderLab(){
 function renderScienceHall(){
   const v=state.hallView||{mode:'list'};
   const panel=document.getElementById('hallPanel');
+  /* ----- A BOOK, PULLED APART OVER TIME (THE-STUDY-CHAIN-PLAN.md Stage 3).
+     Deliberately NOT the pasted-paper form below: that one is a single shot at
+     a single passage, and it is right for what it does. This is the other
+     shape — one book, revisited, the passes accumulating across evenings. */
+  if(v.mode==='book'){
+    const rec=dissectionRec(v.id);
+    if(!rec){ state.hallView={mode:'list'}; return renderScienceHall(); }
+    const d=rec.book&&Store.getDoc(rec.book);
+    const g=(function(){ const w=state.dissectWhere; return (w&&w.slug===rec.book)?w:null; })();
+    const lens=k=>(BOOK_LENSES[k]||{label:'Your own reading notes', icon:'🗒'});
+    panel.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <div class="row" style="justify-content:space-between;margin-bottom:8px;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost" onclick="backToHallList()">← The Hall</button>
+        <button class="btn ghost" onclick="openLab()">🔬 The Lab</button>
+      </div>
+      <h2>🔬 ${esc(rec.title)}</h2>
+      <div class="meta">${d?esc((d.tradition||'Personal'))+' · ':''}a dissection you can come back to. Every pass below is
+        kept in your save — close the app, open it next week, it is still here. ${visBadge('private')}</div>
+
+      <div class="card" style="cursor:default;margin-top:12px;border-color:#8fb4d9">
+        <div class="t">What are you actually after?</div>
+        <div class="s" style="margin-top:5px">Write it before you run anything. Same discipline as the Bench
+          upstairs, and for the same reason: a dissection with no question is four paragraphs about a book,
+          which is exactly what used to evaporate when the panel closed. Every lens below answers with this
+          in view.</div>
+        <textarea id="bdQuestion" rows="2" style="margin-top:8px"
+          placeholder="e.g. Is this actually telling me how to pick a resistor, or only why it matters?"
+          oninput="setDissectQuestion('${esc(rec.id)}',this.value)">${esc(rec.question||'')}</textarea>
+      </div>
+
+      <h3 style="margin-top:18px">Take a pass at it</h3>
+      <div class="meta">Working from: <b>${esc(g?g.human:'the book’s summary and sections')}</b>.
+        ${g&&g.onPage?'':'Open the book, turn to the passage you actually mean, and press 🔬 Dissect from here — the lens then works on that page rather than on the blurb.'}</div>
+      <div class="row" id="bdLensRow" style="margin-top:9px;gap:6px;flex-wrap:wrap">
+        ${Object.keys(BOOK_LENSES).map(k=>`<button class="btn ghost" style="font-size:11.5px"
+          onclick="runBookLens('${esc(rec.id)}','${k}')">${BOOK_LENSES[k].icon} ${esc(BOOK_LENSES[k].label)}</button>`).join('')}
+      </div>
+      <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost" style="font-size:11.5px" onclick="pullNotesIntoDissection('${esc(rec.id)}')"
+          title="Your own typed notes on this book — no AI needed">🗒 Pull in my notes</button>
+        ${rec.book?`<button class="btn ghost" style="font-size:11.5px" onclick="readDissectedBook('${esc(rec.id)}')">📖 Open the book</button>`:''}
+      </div>
+      <div class="meta" id="bdStatus" style="margin-top:8px;color:#e0a43c"></div>
+
+      <h3 style="margin-top:20px">The passes${rec.passes.length?` <span class="badge lic">${rec.passes.length}</span>`:''}</h3>
+      ${rec.passes.length ? rec.passes.map((x,i)=>`
+        <div class="card" style="cursor:default">
+          <div class="s" style="color:#8fb4d9">${lens(x.lens).icon} <b>${esc(lens(x.lens).label)}</b> · ${esc(x.ts)}</div>
+          <div class="s" style="opacity:.75;font-size:11px;margin-top:2px">from ${esc(x.where||'—')}</div>
+          <div style="margin-top:7px;white-space:pre-wrap">${esc(x.text)}</div>
+          <div class="row" style="margin-top:7px"><button class="btn ghost" style="font-size:11px;padding:2px 8px"
+            onclick="deleteDissectPass('${esc(rec.id)}',${i})">✕ Remove this pass</button></div>
+        </div>`).join('')
+        : `<p class="meta">Nothing yet. Take a pass above — or press 🗒 Pull in my notes, which needs no AI at
+           all and brings in what you have already written beside the text.</p>`}
+
+      ${rec.passes.length?`<div class="row" style="margin-top:16px;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost" onclick="investigationFromBook('${esc(rec.id)}')">→ Open an investigation from this</button>
+      </div>`:''}`;
+    return;
+  }
   if(v.mode==='compose'){
     const pf=v.prefill||{};
     const opt=(val,label,sel)=>`<option value="${val}"${sel?' selected':''}>${label}</option>`;
@@ -6394,10 +6678,101 @@ export async function draftLessonPlanFromLesson(id){
         body:'✨ Drafted by your local AI from the lesson "'+node.title+'".\n\n'+String(reply).trim(), created:todayKey(), updated:todayKey()};
       data.notes.unshift(note); persist();
       logActivity('AI drafted a lesson plan from "'+node.title+'".'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
-      if(el) el.textContent='✨ A lesson plan is now in 🗒 Your Notes — yours to edit and link to a book.';
+      if(el) el.innerHTML='✨ A lesson plan is now in 🗒 Your Notes, yours to edit. '
+        +'<button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="lessonFromPlanNote(\''+note.id+'\',\'lessonNoteMsg\')">🌳 Put it in the tree too</button>';
     }
   }catch(e){ if(el) el.textContent='The connection flickered — no plan this time (is your local AI still running?). 📓 Save to my Notes always works without one.'; }
   btns.forEach(b=>b.disabled=false);
+}
+/* ================================================================
+   THE JOINT — a drafted plan becomes a lesson you can actually walk.
+   THE-STUDY-CHAIN-PLAN.md Stage 1, and the fault it closes is worth
+   stating plainly because it is the shape of the whole file's next
+   decade of bugs:
+
+     Everything here PRODUCES something. Almost nothing that gets
+     produced can become the INPUT to the next thing.
+
+   draftLessonPlanFromNote and draftLessonPlanFromLesson have both
+   worked since 2026-07-26. Both wrote a real, sequenced study plan
+   into a text note, where it stayed forever. Reported 2026-08-03 as
+   "it's hard to link those to an active learning tree." Nothing was
+   broken. There was simply nowhere for the thing to go.
+
+   So: one button, on any note, that turns it into a real tree node —
+   the same shape saveMyLesson() writes, standing beside the built-in
+   lessons with real prerequisites available to it. The note survives
+   and is linked both ways, because the prose is worth keeping and a
+   parse is never the last word on it.
+
+   The parsing lives in data/plan-to-lesson.js so `npm test` can hold
+   it to what a small local model ACTUALLY writes, which is not what
+   the prompt asked for. That lesson cost a day in July. */
+export function lessonFromPlanNote(noteId, msgEl){
+  const note=data.notes.find(n=>n.id===noteId); if(!note) return;
+  const say=t=>{ const el=document.getElementById(msgEl||'noteSaved'); if(el) el.textContent=t; };
+  const parsed=planToLesson(note.body||'', {title:note.title});
+  if(!parsed.steps.length){ say('There is nothing in this note to walk yet — write a step or two first.'); return; }
+  const node={ id:'mine-'+Date.now().toString(36),
+    track:'Your own lessons', level:101,
+    title:parsed.title||'A plan of your own',
+    summary:parsed.summary||('From your note "'+(note.title||'untitled')+'".'),
+    prereqs:[], steps:parsed.steps, mine:true, written:todayKey(), fromNote:noteId };
+  myLessons().unshift(node);
+  note.lesson=node.id; note.updated=todayKey();
+  persist();
+  logActivity('A plan became a lesson in the tree: "'+node.title+'".');
+  blip(660,.08); setTimeout(()=>blip(825,.09),90);
+  state.notesLogEdit=null; state.plannerNoteView={mode:'list'};
+  state.ui='tree'; hideAllOv(); state.treeView={mode:'lesson',id:node.id}; renderLearningTree(); showOv('treeOv');
+}
+/* The note keeps a pointer at the lesson it became, so the round trip works
+   from either end and neither is the "real" copy. */
+export function openLessonFromNote(noteId){
+  const note=data.notes.find(n=>n.id===noteId); if(!note||!note.lesson) return;
+  if(!curriculumNode(note.lesson)){ delete note.lesson; persist(); return; } // it was deleted from the tree
+  state.notesLogEdit=null; state.plannerNoteView={mode:'list'};
+  state.ui='tree'; hideAllOv(); state.treeView={mode:'lesson',id:note.lesson}; renderLearningTree(); showOv('treeOv');
+}
+
+/* ================================================================
+   PICKING ONE UP — THE-STUDY-CHAIN-PLAN.md Stage 2.
+
+   "i want to be able to go to the tree and pick up a learning path."
+
+   One field, data.study = {id, since}. ONE at a time, deliberately:
+   you walk one path or you walk none. A list of active lessons is a
+   second to-do list, and the standing rule here (the-day.js) is that
+   a list of everything outstanding is a guilt inventory.
+
+   What picking one up actually buys you: it is what THE DAY offers
+   first, it sits at the top of the tree, and the pause menu says its
+   name. Nothing is locked, nothing is scheduled, nothing nags. */
+export function currentStudy(){
+  const st=data.study; if(!st||!st.id) return null;
+  const node=curriculumNode(st.id);
+  if(!node){ data.study=null; return null; }        // the lesson was deleted out from under it
+  return { ...st, node };
+}
+export function pickUpLesson(id){
+  const node=curriculumNode(id); if(!node) return;
+  data.study={ id, since:todayKey() };
+  persist(); logActivity('Picked up a path: "'+node.title+'".'); blip(740,.09); setTimeout(()=>blip(880,.09),100);
+  renderLearningTree();
+}
+export function putDownLesson(){
+  const cur=currentStudy();
+  data.study=null; persist();
+  if(cur) logActivity('Put down the path "'+cur.node.title+'" — it is waiting, not failed.');
+  blip(520,.07); renderLearningTree();
+}
+/* The next thing to actually do on the path you are walking — the same
+   question THE DAY asks, answered here so both agree. */
+export function nextStepOf(node){
+  if(!node||!(node.steps||[]).length) return null;
+  const p=(data.curriculum||{})[node.id]||{steps:{}};
+  const i=node.steps.findIndex((_,k)=>!(p.steps||{})[k]);
+  return i<0 ? null : { i, step:node.steps[i] };
 }
 export function toggleLessonStep(id,i){
   const node=curriculumNode(id); if(!node) return;
@@ -6552,6 +6927,13 @@ function renderLearningTree(){
         <div class="t">Take this lesson with you</div>
         <div class="s" style="margin-top:5px">Pull it into your Notes to keep and edit, or let your local AI draft a personal, scheduled plan from it. Both land in <b>🗒 Your Notes</b>.</div>
         <div class="row" id="lessonPlanRow" style="margin-top:10px;flex-wrap:wrap;gap:8px">
+          ${(function(){
+            /* THE-STUDY-CHAIN-PLAN.md Stage 2 — "I want to be able to go to the
+               tree and pick up a learning path." One at a time, on purpose. */
+            const cur=currentStudy();
+            if(cur && cur.id===node.id) return `<button class="btn ghost" onclick="putDownLesson()" title="It stays exactly where it is \u2014 a path put down is waiting, not failed">🧭 You\u2019re walking this \u00b7 put it down</button>`;
+            return `<button class="btn" onclick="pickUpLesson('${node.id}')" title="Make this the path you\u2019re on \u2014 \u2600 Today will offer its next step">🧭 Pick this up</button>`;
+          })()}
           <button class="btn ghost" onclick="studyLessonWithTutor('${node.id}')">🎓 Study with the Tutor</button>
           <button class="btn ghost" onclick="saveLessonToNotes('${node.id}')">📓 Save to my Notes</button>
           <button class="btn ghost" onclick="draftLessonPlanFromLesson('${node.id}')">✨ Draft a lesson plan (AI)</button>
@@ -6583,6 +6965,20 @@ function renderLearningTree(){
     <div class="meta">Start at a 101 and climb — each course unlocks the next once you've walked it. The
       board confers nothing; the walking is the whole credential. This is the first, small tree — here to
       be poked at, so tell me what's missing before we grow the coding branch for real.</div>
+    ${(function(){
+      /* What you are ON, before everything you COULD do. The tree used to open
+         as a flat catalogue of tracks, which answers "what exists here" and
+         never "where was I" \u2014 so picking something up had nowhere to show. */
+      const cur=currentStudy(); if(!cur) return '';
+      const nx=nextStepOf(cur.node);
+      return `<div class="card" style="margin-top:12px;border-color:#7fb069;background:rgba(127,176,105,.07)" onclick="openLesson('${esc(cur.id)}')">
+        <div class="s" style="color:#7fb069">🧭 The path you\u2019re walking \u00b7 picked up ${esc(cur.since||'')}</div>
+        <div class="t" style="margin-top:3px">${esc(cur.node.title)}</div>
+        <div class="s" style="margin-top:5px">${nx
+          ? '🌱 Next: <b>'+esc(nx.step.title)+'</b> \u00b7 step '+(nx.i+1)+' of '+cur.node.steps.length
+          : '\u2713 Every step ticked \u2014 open it to publish it, or pick up something new.'}</div>
+      </div>`;
+    })()}
     <div class="card" style="cursor:default;margin-top:10px;border-color:#8fb4d9">
       <div class="t">🔒 Your own private sandbox</div>
       <div class="s" style="margin-top:5px">Everything here runs on your own machine. Nothing you do in a
@@ -10288,6 +10684,9 @@ Object.assign(window, {
   closeBenchEntry, reopenBenchEntry, readBuildWithInvestigator,
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
   openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,
+  lessonFromPlanNote, openLessonFromNote, pickUpLesson, putDownLesson, currentStudy, nextStepOf,
+  dissectBook, openDissection, dissectionRec, setDissectQuestion, runBookLens, pullNotesIntoDissection,
+  deleteDissectPass, readDissectedBook, investigationFromBook,
   openAcademy, studyLessonWithTutor,
   openInheritanceHall, openPlantHere, openPlanting, backToHallRecord, backToPlantChoice,
   choosePlantKind, createPlanting, plantSeedFromPouch, gatherSeeds, attemptTrial,

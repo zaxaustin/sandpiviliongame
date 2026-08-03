@@ -535,6 +535,94 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+/* ---------- a drafted plan becoming a walkable lesson ----------
+   THE-STUDY-CHAIN-PLAN.md Stage 1. The plan drafting has worked since
+   2026-07-26 and dead-ended in a text note every time, so this parser is the
+   whole joint. Cases are the shapes a local model actually reaches for when
+   asked for "a short sequence of study sessions." See plan-to-lesson.js. */
+{
+  const { planToLesson } = await import('../src/game/data/plan-to-lesson.js');
+  const NL = String.fromCharCode(10);
+
+  const SESSIONS = [
+    'Goal: Be able to solder a joint that holds.',
+    '',
+    'Session 1 (30 min): Read chapter 2 and name the parts of a joint.',
+    'Hands-on: identify a cold joint in a photo.',
+    '',
+    'Session 2 (45 min): Tin the tip and make three joints on scrap wire.',
+    'Hands-on: tug each one hard.',
+    '',
+    'Session 3 (30 min): Desolder and redo the worst of the three.',
+  ].join(NL);
+
+  const shapes = [
+    ['sessions with a goal line', SESSIONS, 3],
+    ['week headers', ['Week 1 — read the datasheet', 'Week 2 — build the driver', 'Week 3 — measure it'].join(NL), 3],
+    ['day headers', ['Day 1. Sit with it', 'Day 2. Try it', 'Day 3. Write it up'].join(NL), 3],
+    ['markdown step headers', ['**Step 1:** Buy an iron', '**Step 2:** Tin the tip', '**Step 3:** Join two wires'].join(NL), 3],
+    ['hash headers', ['## Part 1', 'Read it.', '## Part 2', 'Try it.'].join(NL), 2],
+    ['a plain numbered list', ['1. Buy an iron', '2. Tin the tip', '3. Join two wires'].join(NL), 3],
+    ['paragraphs, shape ignored entirely',
+      ['First you will read the chapter slowly and take notes as you go.', '',
+       'Then you will try the thing yourself on a piece of scrap.', '',
+       'Finally you will write down what surprised you about it.'].join(NL), 3],
+    ['one lump of prose with no structure at all', 'Just read the book and think about it for a while.', 1],
+    ['nothing at all', '', 0],
+  ];
+  for (const [name, input, want] of shapes) {
+    const got = planToLesson(input).steps.length;
+    if (got !== want) fail(`plan-to-lesson.js: ${name} gave ${got} steps, expected ${want}`);
+  }
+
+  /* The goal line is the lesson's SUMMARY, never its first step — a plan whose
+     first rung is "Goal: ..." is not walkable, it is a label you tick. */
+  const s = planToLesson(SESSIONS);
+  if (!/solder a joint that holds/.test(s.summary)) fail(`plan-to-lesson.js: the goal line did not become the summary — got "${s.summary}"`);
+  if (/^goal/i.test(s.steps[0].title)) fail('plan-to-lesson.js: the goal line was turned into a step');
+  if (!/chapter 2/i.test(s.steps[0].title)) fail(`plan-to-lesson.js: step 1 lost its instruction — got "${s.steps[0].title}"`);
+  /* Found by LOOKING at the tree, 2026-08-03: eating "Session 1" and leaving
+     the parenthetical stranded gave steps titled "(30 min): Read chapter 2".
+     The duration is worth keeping — at the END, where it reads as a note
+     rather than as the instruction. */
+  if (/^\s*[([]/.test(s.steps[0].title)) fail(`plan-to-lesson.js: a step title starts with a stranded parenthetical — "${s.steps[0].title}"`);
+  if (!/^Read chapter 2/.test(s.steps[0].title)) fail(`plan-to-lesson.js: the step should open with the instruction — got "${s.steps[0].title}"`);
+  if (!/30 min/.test(s.steps[0].title)) fail(`plan-to-lesson.js: the duration was thrown away — got "${s.steps[0].title}"`);
+  // a parenthetical that ISN'T a duration is content and stays in place
+  const paren = planToLesson('Session 1 (the hard one): Wire it up.');
+  if (/the hard one/.test(paren.steps[0].title) === false) fail(`plan-to-lesson.js: a non-duration parenthetical was discarded — got "${paren.steps[0].title}"`);
+  // a header with nothing after it still needs a name
+  const bare = planToLesson(['## Part 1', 'Read it.', '## Part 2', 'Try it.'].join(NL));
+  if (!bare.steps[0].title) fail('plan-to-lesson.js: a bare header produced a step with no title at all');
+  if (!/tug each one/i.test(s.steps[1].body)) fail('plan-to-lesson.js: the hands-on line under a session was dropped instead of becoming its body');
+
+  /* A numbered list INSIDE a step is content, not structure. Swallowing it
+     shreds the plan into a parts list, which is the failure mode this guard
+     exists for: the numbers must actually run 1,2,3 from the top. */
+  const inner = planToLesson(['Session 1: Gather the parts.', '1. An IR LED', '2. A resistor', '3. A transistor',
+    'Session 2: Wire them up.'].join(NL));
+  if (inner.steps.length !== 2) fail(`plan-to-lesson.js: a parts list inside a session became ${inner.steps.length} steps — it is content, not structure`);
+  if (!/IR LED/.test(inner.steps[0].body)) fail('plan-to-lesson.js: the parts list was dropped rather than kept as the step body');
+
+  /* Titles sit on one line in the tree. A model writing a whole instruction as
+     its header must not produce a title cut off mid-word. */
+  const longHdr = planToLesson('Session 1: Read the whole of chapter two carefully and then write down every term you did not already know, because the vocabulary is most of the difficulty here.');
+  if (longHdr.steps[0].title.length > 80) fail(`plan-to-lesson.js: a long header was not split — title is ${longHdr.steps[0].title.length} chars`);
+  if (/\s$/.test(longHdr.steps[0].title) || /[a-z]{1,2}$/.test(longHdr.steps[0].title) === false) { /* shape only */ }
+  if (!longHdr.steps[0].body) fail('plan-to-lesson.js: the remainder of a long header was thrown away instead of becoming the body');
+
+  /* The note's own title carries over, minus the prefix the drafting adds,
+     so a lesson does not arrive in the tree called "Lesson plan — Lesson plan". */
+  const t = planToLesson(SESSIONS, { title: 'Lesson plan — Soldering' });
+  if (t.title !== 'Soldering') fail(`plan-to-lesson.js: the title kept its prefix — got "${t.title}"`);
+
+  /* Never an empty lesson from non-empty input: an unparseable plan is one
+     honest step, not a node that looks broken. */
+  for (const junk of ['???', 'x', 'Goal: something', '...']) {
+    if (!planToLesson(junk).steps.length) fail(`plan-to-lesson.js: ${JSON.stringify(junk)} produced a lesson with no steps at all`);
+  }
+}
+
 /* ---------- machine advice ----------
    'Can my computer run this?' has to be right for the machines the first
    testers actually have — laptops, 8 or 16 GB, integrated graphics. Erring
@@ -733,6 +821,33 @@ for (const [key, s] of Object.entries(scenes)) {
   // nor is a finished one
   const finished = theDayItems({ today: TODAY, lessons, curriculum: { l1: { steps: { 0: true, 1: true, 2: true } } } });
   if (finished.some(i => i.fn === 'openLesson')) fail('the-day: it offered a step of a completed lesson');
+
+  /* A PATH YOU PICKED UP beats one inferred from progress (THE-STUDY-CHAIN-PLAN
+     Stage 2). Progress is a guess at what you care about; picking one up is you
+     saying so, and a stated intention must never be outranked by a heuristic. */
+  const two = [
+    { id: 'l1', title: 'Coding 101', steps: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }] },
+    { id: 'l2', title: 'Soldering 101', steps: [{ title: 'Buy an iron' }, { title: 'Tin the tip' }] },
+  ];
+  // l1 is half-walked and would win on progress; l2 is the one actually picked up
+  const chosen = theDayItems({ today: TODAY, lessons: two, study: { id: 'l2' },
+    curriculum: { l1: { steps: { 0: true } } } });
+  const picks = chosen.filter(i => i.fn === 'openLesson');
+  if (picks.length !== 1) fail(`the-day: ${picks.length} lesson steps offered — exactly one, ever, or the day becomes a syllabus`);
+  if (!picks.length || picks[0].arg !== 'l2') fail('the-day: a heuristic outranked the path the visitor actually picked up');
+  if (picks.length && !/picked up/.test(picks[0].note)) fail('the-day: it did not say WHY this step is the one being offered');
+  // and it fires on a path with nothing ticked yet — that is the whole first evening
+  const dayOnePath = theDayItems({ today: TODAY, lessons: two, study: { id: 'l2' }, curriculum: {} });
+  const first = dayOnePath.find(i => i.fn === 'openLesson');
+  if (!first) fail('the-day: a path picked up but not yet started offered nothing — the first evening is the one that matters');
+  else if (first.title !== 'Buy an iron') fail(`the-day: offered "${first.title}" instead of the first step of the picked-up path`);
+  // a finished picked-up path does not keep offering itself
+  const donePath = theDayItems({ today: TODAY, lessons: two, study: { id: 'l2' },
+    curriculum: { l2: { steps: { 0: true, 1: true } } } });
+  if (donePath.some(i => i.fn === 'openLesson')) fail('the-day: it kept offering a picked-up path with every step ticked');
+  // a stale pointer at a deleted lesson must not crash or invent an item
+  const ghost = theDayItems({ today: TODAY, lessons: two, study: { id: 'gone' }, curriculum: {} });
+  if (ghost.some(i => i.arg === 'gone')) fail('the-day: it offered a lesson that no longer exists');
 
   // IT NOTICES, IT DOES NOT NAG — only past three days, and phrased as a question
   const fresh = theDayItems({ today: TODAY, sparks: [{ dayKey: '2026-07-27', text: 'yesterday thing' }] });

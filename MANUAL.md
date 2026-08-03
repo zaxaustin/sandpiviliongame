@@ -171,6 +171,26 @@ your own standing instructions, so you can watch them take effect.
   **→ Bring to today's plan** button — one click and it lands on the
   Writing Desk as a "spark," attributed to the book. Reading becomes doing;
   that button is the whole point of the room.
+- **🔬 Dissect this book — pull one apart over weeks, and keep it.** The
+  Reader's **Work with it** row has **🔬 Dissect this book** (or, in the full
+  text, **🔬 Dissect from here**). It opens a dissection that *belongs to that
+  book* and stays: close the app, come back next month, it's all still there.
+    - **Your question goes first.** "What am I actually after here?" — written
+      before anything runs, the same discipline as the Bench upstairs. Every
+      lens afterwards answers with it in view. A dissection with no question is
+      just four paragraphs about a book.
+    - **Then take passes at it,** one lens at a time: **◉ What is it claiming? ·
+      ⚓ What is it resting on? · ⚠ Where is it weak? · ⚙ What do I do with it?**
+      Each works on *where you actually are* — the page you opened it from, or
+      the summary if no page was open — and the panel says which, always, so an
+      appraisal of the blurb can never pass itself off as a close read.
+    - **🗒 Pull in my notes needs no AI at all.** It gathers the notes you typed
+      beside the text, with their page numbers, into the dissection as a pass of
+      your own. (Notes the AI wrote are deliberately left out — a dissection is
+      meant to be yours.)
+    - It's kept in **🔬 The Lab** under **Dissections**, and **→ Open an
+      investigation from this** carries the whole thing into the Science Hall as
+      real evidence when you're ready to make a claim of it.
 - **Carry a book:** 🎒 takes it with you, readable from anywhere via the
   pause menu's Inventory.
 - **The Index** (📑, from any shelf) — every text in one searchable list.
@@ -285,6 +305,20 @@ your own standing instructions, so you can watch them take effect.
     - **Turn any note into a plan.** In a note's editor, **✨ Make a lesson plan
       from this note (AI)** shapes whatever you've written into the same kind of
       plan. So the flow is: lesson → Notes → a plan you can actually follow.
+    - **🌳 Put this in the tree — and this is the one that closes the loop.** A
+      plan used to end its life as text in a note. Now any note in **🗒 Your
+      Notes** has **🌳 Put this in the tree**: its sessions become real steps you
+      tick off, standing in the tree beside the built-in lessons, with real
+      prerequisites available to it. **It needs no AI** — a note you typed
+      yourself converts exactly the same way. The note and the lesson stay
+      linked, so you can get back to either from the other.
+    - **🧭 Pick this up — the path you're actually on.** Open any lesson and
+      press **🧭 Pick this up**. One at a time, deliberately: you walk one path
+      or you walk none. What it buys you is that the tree opens on *where you
+      are* rather than on a catalogue, the pause menu says its name, and **☀
+      Today offers its next step** — from the very first evening, before you've
+      ticked anything. **Put it down** whenever you like; a path put down is
+      waiting, not failed. Nothing is locked, nothing is scheduled, nothing nags.
     - If the AI can't manage it (no model connected, an empty reply, a dropped
       connection), it says so plainly — and 📓 Save to my Notes never needs one.
 - **🖥 The Computer** — a real terminal index over everything on this machine,

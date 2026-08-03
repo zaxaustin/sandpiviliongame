@@ -109,12 +109,24 @@
   <button class="xbtn" onclick="closeUI()">Esc ✕</button>
   <h2 id="rdTitle"></h2>
   <div class="meta" id="rdMeta"></div>
+  <!-- THE-STUDY-CHAIN-PLAN.md Stage 4. This was thirteen identical buttons in
+       two undifferentiated rows, in the order they were added over four months.
+       Nothing is removed and nothing is hidden behind a menu — a feature you
+       cannot see is a feature you do not have. It is grouped and labelled, so
+       the three different questions ("read it to me" / "get me somewhere" /
+       "do something with it") stop competing for the same eye. -->
   <div id="rdSummaryView">
-    <div class="row" style="margin-top:6px">
+    <div class="btnGroup">
+      <span class="btnGroupLabel">Listen</span>
       <button class="btn ghost" id="rdReadBtn" onclick="toggleReadAloud()">🔊 Read aloud</button>
       <button class="btn ghost" id="rdSummaryBtn" onclick="toggleSpokenSummary()">🔊 Summary aloud</button>
-      <button class="btn ghost" id="rdImpressionBtn" onclick="aiBookImpression()" style="display:none">✨ Overall impression</button>
+    </div>
+    <div class="btnGroup">
+      <span class="btnGroupLabel">Work with it</span>
+      <button class="btn ghost" id="rdDissectBtn" onclick="dissectBook()" title="Pull it apart over time — the passes are kept">🔬 Dissect this book</button>
+      <button class="btn ghost" onclick="openNotesWhileListening()">🗒 My notes (keeps playing)</button>
       <button class="btn ghost" id="rdAskBtn" onclick="askSebastianAboutBook()" title="Ask Sebastian a question about this book">💬 Ask about this book</button>
+      <button class="btn ghost" id="rdImpressionBtn" onclick="aiBookImpression()" style="display:none">✨ Overall impression</button>
     </div>
     <div class="meta" id="rdSpokenNote"></div>
     <div id="rdBody"></div>
@@ -122,25 +134,30 @@
       <button class="btn" id="rdMark" onclick="markRead()">Mark as read</button>
       <button class="btn ghost" id="rdFullTextBtn" onclick="openFullText(currentDocSlug())" style="display:none">📖 Read the full text</button>
       <button class="btn ghost" id="rdCarryBtn" onclick="toggleInventory(currentDocSlug())">🎒 Take with you</button>
-      <button class="btn ghost" onclick="openNotesWhileListening()">🗒 My notes (keeps playing)</button>
       <button class="btn ghost" onclick="minimizeReader()" title="Close the book and walk around — it keeps reading aloud">📕 Pocket &amp; walk</button>
       <button class="btn ghost" onclick="backToShelf()">← Back to shelf</button>
     </div>
   </div>
   <div id="rdFullTextView" style="display:none">
     <div class="meta" id="rdFullTextMeta"></div>
-    <div class="row" style="margin-top:6px;margin-bottom:10px">
+    <div class="btnGroup">
+      <span class="btnGroupLabel">Listen</span>
       <button class="btn ghost" id="rdFullTextReadBtn" onclick="toggleFullTextReadAloud()">🔊 Read this page</button>
-      <button class="btn ghost" id="rdAnalyzeBtn" onclick="aiAnalyzePage()" style="display:none">✨ Analyze this page</button>
-      <button class="btn ghost" id="rdChapterBtn" onclick="aiSummariseChapter()" style="display:none" title="What was this chapter about? Summary lands in your book notes">📑 Summarise this chapter</button>
-      <button class="btn ghost" onclick="askSebastianAboutBook()" title="Ask Sebastian about this page">💬 Ask about this page</button>
       <button class="btn ghost" id="rdPauseBtn" onclick="toggleReadingPause()" title="Pause / resume — your place is kept" style="display:none">⏸ Pause</button>
       <button class="btn ghost" id="rdSkipBack" onclick="skipReadAloud(-10)" title="Back 10 seconds" style="display:none">⏪ 10s</button>
       <button class="btn ghost" id="rdSkipFwd" onclick="skipReadAloud(10)" title="Forward 10 seconds" style="display:none">10s ⏩</button>
     </div>
+    <div class="btnGroup">
+      <span class="btnGroupLabel">Work with this page</span>
+      <button class="btn ghost" id="rdDissectPageBtn" onclick="dissectBook()" title="Pull the book apart from right here — this page becomes the passage">🔬 Dissect from here</button>
+      <button class="btn ghost" onclick="askSebastianAboutBook()" title="Ask Sebastian about this page">💬 Ask about this page</button>
+      <button class="btn ghost" id="rdAnalyzeBtn" onclick="aiAnalyzePage()" style="display:none">✨ Analyze this page</button>
+      <button class="btn ghost" id="rdChapterBtn" onclick="aiSummariseChapter()" style="display:none" title="What was this chapter about? Summary lands in your book notes">📑 Summarise this chapter</button>
+    </div>
     <!-- getting somewhere in a long book: chapters where the text has them,
          and a 10% jump always -->
-    <div class="row" id="rdChapterRow" style="margin-bottom:10px;flex-wrap:wrap;gap:6px;display:none">
+    <div class="btnGroup" id="rdChapterRow" style="display:none">
+      <span class="btnGroupLabel">Move</span>
       <button class="btn ghost" id="rdChapPrev" onclick="jumpChapter(-1)" title="Previous chapter" style="display:none">⏮ Chapter</button>
       <button class="btn ghost" onclick="jumpFraction(-0.1)" title="Back 10% of the book">◀◀ 10%</button>
       <button class="btn ghost" onclick="jumpToPageNum()" title="Jump to a page number">⤒ Go to page…</button>

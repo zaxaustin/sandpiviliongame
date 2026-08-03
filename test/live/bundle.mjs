@@ -53,7 +53,13 @@ const drop = async o => {
   await p.evaluate(j => {
     const dt = new DataTransfer();
     dt.items.add(new File([JSON.stringify(j)], 'packet.json', { type: 'application/json' }));
-    window.handleBookDrop({ preventDefault() {}, dataTransfer: dt });
+    /* A COMPLETE fake event. This had only preventDefault, and on 2026-08-02
+       handleBookDrop started calling stopPropagation() too (so the new
+       document-level drop handler cannot import the same file twice) — at
+       which point this whole file crashed on its first drop and stopped
+       testing anything at all. Faking half an event is how a suite goes
+       quietly dark. */
+    window.handleBookDrop({ preventDefault() {}, stopPropagation() {}, dataTransfer: dt });
   }, o);
   await new Promise(r => setTimeout(r, 900));
 };

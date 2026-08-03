@@ -1,0 +1,153 @@
+================================================================
+2026-08-03 — THE CHAIN. Making the rooms feed each other.
+================================================================
+
+The steward played with what was built yesterday and came back with
+four things, which turned out to be one thing:
+
+  "one of the things i wana be able to do in the lab is to disect a
+   book, i was able to take a look at a book but it wasent really
+   sreamlined... i tried making a lesson plan and that worked to with
+   some fenagling but its hard to link those to an active learning
+   tree where i have other task and things i wana learn there, i want
+   to be able to go to the tree and pick up a learning path. that way
+   we have some streamlining and usfull ness in the sand pavilion, if
+   you wana clean up the buttons in the long overlay we can do that as
+   well. i want to be able to make a plan to have all these things be
+   usefull and serve there goals and reasn there there."
+
+THE DIAGNOSIS, which is the useful part
+---------------------------------------
+Everything in this Pavilion PRODUCES something. Almost nothing that
+gets produced can become the INPUT to the next thing.
+
+The chain the steward described already existed in pieces and broke at
+exactly two joints:
+
+  a book -> notes on it              WORKED (data.bookNotes, per page)
+  notes -> a lesson plan             WORKED (since 2026-07-26)
+  a plan -> a lesson in the tree     NOTHING. Not one line of code.
+  a lesson -> something you're ON    NOTHING. No such concept existed.
+
+Both breaks have the same shape: a thing was made and there was
+nowhere for it to go. The AI writes a real, sequenced study plan and it
+dies as text in a notes list. The tree holds lessons you can tick, but
+nothing in the app knew which one you had picked up — so Today could
+not offer it, the menu could not name it, and the tree could not put it
+where you would find it again.
+
+That is why it took "some finagling." Not a missing feature. A MISSING
+JOIN. Same story in the Lab: reading produced notes, the Hall produced
+dissections of PASTED papers, and neither knew the other existed, so a
+book on your own shelf could not become an analysis you keep.
+
+Written up as plans/THE-STUDY-CHAIN-PLAN.md before any code, because
+the four asks needed to be shown to be one ask.
+
+WHAT GOT BUILT
+--------------
+1. THE JOINT. data/plan-to-lesson.js parses a drafted plan into a
+   walkable lesson — session/week/day/step headers, numbered lists,
+   or bare paragraphs when the model ignored the shape entirely (it
+   does). "🌳 Put this in the tree" sits on any note. Needs NO AI: a
+   note you typed yourself converts identically. The note and the
+   lesson stay linked both ways.
+
+   Out in data/ so npm test can hold it to what a small local model
+   ACTUALLY writes rather than what the prompt asked for — the lesson
+   draft-parse.js cost a day in July.
+
+2. PICKING ONE UP. data.study = {id, since}. One field, ONE path at a
+   time, deliberately: you walk one or you walk none, and a list of
+   active lessons is a second to-do list. What it buys: the tree opens
+   on where you ARE, the pause menu names it, and THE DAY offers its
+   next step FROM THE FIRST EVENING — the old inference needed a step
+   already ticked, which is precisely the evening that decides whether
+   there is a second one.
+
+3. DISSECTING A BOOK. A dissection GAINS a book rather than a new
+   store being invented: data.hall.dissections entries grow `book`,
+   `question` and `passes[]`. The pasted-paper case is untouched
+   because it works.
+
+   The question is written FIRST, before any lens runs — same
+   discipline as the Bench upstairs, and for the same reason: a
+   dissection with no question is four AI paragraphs about a book,
+   which is exactly the thing that used to evaporate.
+
+   Four lenses (what is it claiming / what is it resting on / where is
+   it weak / what do I do with it), each grounded in WHERE YOU
+   ACTUALLY ARE — the page you opened it from, or the summary — and
+   the panel says which, always. An appraisal of the blurb must never
+   be able to pass itself off as a close read.
+
+   "Pull in my notes" needs no model at all, and deliberately EXCLUDES
+   notes the AI wrote: folding the model's own output back in as your
+   evidence is how an analysis becomes a hall of mirrors.
+
+4. THE READER'S BUTTONS. Thirteen identical ones in two
+   undifferentiated rows, in the order they were added over four
+   months. Now three labelled bands — LISTEN / WORK WITH THIS PAGE /
+   MOVE. Nothing removed, nothing hidden behind a menu; a feature you
+   cannot see is a feature you do not have.
+
+FOUND BY LOOKING, AGAIN, TWICE
+------------------------------
+- The tree button was correct and UNREACHABLE: it rendered inside the
+  note EDITOR, one click behind a button labelled "Open to edit / link
+  a book", which does not sound like the thing that turns your plan
+  into a path. Moved onto the card. Yesterday's lesson, immediately.
+- The dissection panel said "no page is open" while the reader was
+  open at that very page. readerBookGrounding() is written for a MODEL
+  and carries no slug, so the belongs-to-this-book check failed and it
+  silently fell back to the summary. Exactly the dishonesty the panel
+  is supposed to prevent, in the panel that prevents it.
+- Step titles came out as "(30 min): Read chapter 2" — the header
+  regex ate "Session 1" and stranded the parenthetical. Seen in a
+  screenshot, not in the parser.
+
+MISTAKES WORTH KEEPING
+----------------------
+- I TRUNCATED overlays.js. A Python patch script did
+  io.open(p,'w').write(s) — which truncates the target FIRST and
+  encodes second, so a lone surrogate (🗒 written as 🗒 in a
+  Python escape) destroyed 10,000 lines. Fully recovered: git for the
+  committed base, the scratchpad patch scripts for the replay, and the
+  three manual edits redone by hand. Now rule 8 in CLAUDE.md: encode
+  first, write a temp file, os.replace.
+- test/live/bundle.mjs had been CRASHING since 2026-08-02 and I only
+  noticed because I ran the whole suite. handleBookDrop started
+  calling stopPropagation() with the global drop handler; the test's
+  fake event had only preventDefault, so it threw on its first drop
+  and tested nothing at all. Faking half an event is how a suite goes
+  quietly dark.
+- Two of my own live checks failed on the first run and BOTH were test
+  bugs, not product bugs: I grabbed document.body.textContent when I
+  guessed a panel id wrong (every other rendered panel came with it),
+  and I clicked an already-expanded note card, which collapses it.
+
+TESTS
+-----
+test/live/study-chain.mjs — 33 checks, and what they check is the
+FAR SIDE of each joint, read back off the save, not that a panel
+opened. On 2026-08-02 I tested that the Lab opened and that the lift
+moved you; both passed and both features were broken, because neither
+test tried to leave the panel.
+
+Both new guards verified by deliberate sabotage (rule 2): removing the
+AI-note filter fails the hall-of-mirrors check; removing the picked-up
+preference fails four checks across smoke and live.
+
+Full suite green: smoke, preflight 39/39, lab, bench, drop, pocket,
+terminal, librarian-safety, bundle (now that it runs again),
+study-chain 33/33.
+
+WHERE IT STANDS
+---------------
+The chain runs: book -> dissection -> investigation, and note ->
+lesson -> a path you are walking -> Today. All four asks are built,
+documented in MANUAL.md, and guarded.
+
+And beta.3 still has ZERO downloads. Everything above is more good
+work that no second human has seen. The next real information does not
+come from this log.

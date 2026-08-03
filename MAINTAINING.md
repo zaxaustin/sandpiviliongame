@@ -273,7 +273,34 @@ and used** — the last genuinely unverified thing is closed. Everything is push
 the repo is **still private by choice**. The next action is making it public and
 cutting the Release.
 
-**Where things stand, end of 2026-08-02 — read this one.**
+**Where things stand, end of 2026-08-03 — read this one.**
+
+**The chain now runs.** `THE-STUDY-CHAIN-PLAN.md`, built in one session from
+real use. The diagnosis is worth keeping in front of you because it is the
+shape of most of what is still wrong anywhere in this codebase:
+
+> Everything in the Pavilion **produces** something. Almost nothing that gets
+> produced can become the **input** to the next thing.
+
+Three joints were missing and every room on either side of them already worked:
+a plan drafted by the AI died as text in a note; nothing in the app knew which
+lesson you were actually *on*; and a book on your own shelf could not become an
+analysis you keep. All three are joined now — **note → lesson → a path you are
+walking → ☀ Today**, and **book → dissection → investigation**. `data.study`
+is one field; a book dissection is a `data.hall.dissections` entry that knows
+its book. No new store was invented for either, on purpose.
+
+Guarded by `test/live/study-chain.mjs` (33 checks) and the `plan-to-lesson.js`
+cases in `npm test`. Both were verified by deliberate sabotage, per rule 2.
+
+**Still true, and still the most important line here:** `0.1.0-beta.3` has
+**zero downloads**. Everything above is more good work that no second human has
+seen. The chain being built does not change what comes next; giving it to one
+person does.
+
+---
+
+**Where things stood, end of 2026-08-02.**
 
 `0.1.0-beta.3` is **published and verified** (asset digest matches the hash in
 the notes) and has **zero downloads**. That is the honest state of the project:
@@ -297,6 +324,12 @@ welcome packet, the Stacks learning custom shelves, Security 101 — and with it
 **the last `status:'planned'` stub in the Learning Tree. Every lesson is real.**
 
 **Genuinely open, in the order I would take them:**
+0. **Walk the chain yourself before anything else** (added 2026-08-03). Take a
+   real book off your own shelf, dissect it over two sittings, make a plan from
+   what you found, put it in the tree, pick it up, and see whether ☀ Today
+   offers you the right thing the next morning. It passes 33 live checks, which
+   is not the same as being *good*, and the seams between rooms are exactly
+   where this project's bugs have always been.
 1. **Give it to one person.** Not a public push — one person who will say when
    they are confused. Everything else is guessing.
 2. **The pool door in-game** (`BOOK-BUNDLES-AND-THE-POOL.md` B2) — 75 MB sits

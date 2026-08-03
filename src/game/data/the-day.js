@@ -76,10 +76,28 @@ export function theDayItems(ctx = {}) {
 
   /* 2 — the next step of something already begun. This is the item most
         likely to build a habit, because continuing is easier than
-        choosing, and it is exactly what the tree never offered. */
+        choosing, and it is exactly what the tree never offered.
+
+        A PICKED-UP path beats anything inferred (THE-STUDY-CHAIN-PLAN.md
+        Stage 2). Progress is a guess at what you care about; picking one
+        up is you saying so, and a stated intention must not be outranked
+        by a heuristic. It also fires at ZERO steps done, which the
+        inference below deliberately cannot — that is the whole first
+        evening of a new path, and it was the one the old rule missed. */
   const walkable = lessons.filter(l => l && l.status !== 'planned' && (l.steps || []).length);
+  const study = ctx.study && ctx.study.id;
+  const picked = study ? walkable.find(l => l.id === study) : null;
+  if (picked) {
+    const done = ((curriculum[picked.id] || {}).steps) || {};
+    const nextIdx = picked.steps.findIndex((_, i) => !done[i]);
+    if (nextIdx >= 0) push({ key: 'step-' + picked.id, icon: '🌱',
+      title: picked.steps[nextIdx].title,
+      note: picked.title + ' · step ' + (nextIdx + 1) + ' of ' + picked.steps.length + ' · the path you picked up',
+      fn: 'openLesson', arg: picked.id });
+  }
   let best = null;
   for (const l of walkable) {
+    if (picked && l.id === picked.id) continue;      // already offered, above
     const done = ((curriculum[l.id] || {}).steps) || {};
     const total = l.steps.length;
     const n = l.steps.filter((_, i) => done[i]).length;
@@ -89,7 +107,10 @@ export function theDayItems(ctx = {}) {
       best = { l, nextIdx, n, total, frac: n / total };
     }
   }
-  if (best) push({ key: 'step-' + best.l.id, icon: '🌱',
+  /* Only ONE lesson step ever appears. If you picked a path up, that is the
+     one — inferring a second from progress would turn the day into a syllabus,
+     and five items is a hard cap for exactly that reason. */
+  if (!picked && best) push({ key: 'step-' + best.l.id, icon: '🌱',
     title: best.l.steps[best.nextIdx].title,
     note: best.l.title + ' · step ' + (best.nextIdx + 1) + ' of ' + best.total,
     fn: 'openLesson', arg: best.l.id });
