@@ -2183,8 +2183,23 @@ function gatherNotes(){
   const titleFor={}; try{ Store.allDocs().forEach(d=>{ titleFor[d.slug]=d.title; }); }catch(e){}
   for(const slug of Object.keys(data.bookNotes||{})){
     const bookTitle=titleFor[slug]||slug;
-    (data.bookNotes[slug]||[]).forEach(n=>
-      out.push({source:'book', icon:'📖', where:'Book · '+bookTitle+(n.page?' · p.'+n.page:''), title:bookTitle, text:n.text||'', date:n.ts||'', key:'book:'+slug+':'+noteHash((n.ts||'')+'|'+(n.text||''))}));
+    /* THE NOTE'S OWN WORDS ARE ITS TITLE. Reported 2026-08-03 as "where can I
+       see the notes and for which book": they were all here, and twenty notes
+       on one book rendered as twenty identical rows saying "The Dhammapada",
+       because `title` was the BOOK's title. Unscannable, and A–Z sorting was
+       meaningless. The book is already named on the `where` line right below,
+       so it never needed to be the title too. An AI-written note keeps its
+       ✨ label as the heading, which is the one case where the first line
+       genuinely is the better name. */
+    (data.bookNotes[slug]||[]).forEach(n=>{
+      const body=(n.text||'').trim();
+      const first=body.split('\n')[0].trim();
+      const title=(first.length>2 ? first : body).slice(0,72) || 'A note';
+      out.push({source:'book', icon:'📖', book:{slug},
+        where:'Book · '+bookTitle+(n.page?' · p.'+n.page:''),
+        title, text:body, date:n.ts||'',
+        key:'book:'+slug+':'+noteHash((n.ts||'')+'|'+(n.text||''))});
+    });
   }
   for(const agent of Object.keys(data.chatNotes||{})){
     const text=(data.chatNotes[agent]||'').trim(); if(!text) continue;
