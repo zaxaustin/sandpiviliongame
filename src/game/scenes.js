@@ -184,6 +184,18 @@ function buildLibrary(){
   t[6][4]='K'; // the secret shelf — Daoism/Practice row, on purpose: the very shelf
   // "On the Second Floor" is shelved on. Looks exactly like every other 'k'
   // tile; walking into it is the only way anyone finds the basement.
+  /* THE SPIRAL STAIRCASE, made visible 2026-08-02. There was a sign at (14,2)
+     announcing "A SPIRAL STAIRCASE" and the tile beneath it drew as plain
+     parchment floor, exactly like the Workshop's. Same fix, same reason: a door
+     you cannot see is not a door, and a sign claiming one is worse than
+     nothing because it tells you the fault is yours for not finding it.
+
+     NOT touched, on purpose: (4,6), the 'K' bookshelf that opens onto the
+     basement. That one is the Pavilion's single real secret and renders
+     pixel-identical to every other shelf BY DESIGN — see the tile legend at the
+     top of this file. Making it visible would not be a fix, it would be a
+     spoiler. A secret you can see is just a door. */
+  t[3][14]='U';
   scenes.library = {
     name:'The Library', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:7,y:14,to:'overworld',sx:7,sy:16},{x:8,y:14,to:'overworld',sx:8,sy:16},
@@ -230,7 +242,7 @@ function buildLibraryBasement(){
   // E like any shelf upstairs. shelfTraditionFor() special-cases this scene.
   t[5][2]='i'; t[5][6]='i'; // candles by the two joke signs — this room is not well lit
   t[6][4]='b'; // a single bean bag — the "secret study room" the idea started as
-  t[3][4]='r'; // the one tile that actually leads back upstairs
+  t[3][4]='U'; // the one tile that actually leads back upstairs — DRAWN, 2026-08-02
   scenes.librarybasement = {
     name:'???', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:4,y:3,to:'library',sx:4,sy:7}],
@@ -262,6 +274,7 @@ function buildLibraryFloor2(){
   shelfRow(3); shelfRow(6);
   t[8][2]='b';  // a reading nook up here too
   t[8][13]='i'; // a votive candle in the corner — devotional throughout, same as downstairs
+  t[9][8]='D';   // back down the spiral, and now you can see it
   scenes.libraryfloor2 = {
     name:'The Library · Second Floor', outdoor:false, tiles:t, w:W, h:H, buildings:[],
     warps:[{x:8,y:9,to:'library',sx:14,sy:4}],

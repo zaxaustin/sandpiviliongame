@@ -77,7 +77,7 @@ a reconstruction. Kept in memory only (a window on the last call, not a record).
 path read from both. A user lesson is an ordinary node with `mine:true`.
 
 **Library administration.** The **Steward's Index** (Caravan Desk) edits any
-catalogue card in-game. Certified entries live in `seed.js`/Supabase, which a
+catalogue card in-game. Certified entries live in `seed.js`, which a
 browser can't rewrite, so edits are an **override layer** (`data.catalogEdits`)
 applied in `store.js`'s `mergedDocs()` — the one choke point every read passes
 through. Exportable, and reversible per card. The **copyright check**
@@ -137,8 +137,9 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one** (~9.4k lines). Every panel, the chat
-  stack, `CHAT_AGENTS`.
+- **`ui/overlays.js`** — **the big one** (~10k lines). Every panel, the chat
+  stack, `CHAT_AGENTS`. **It opens with a map of itself**, anchored to searchable
+  text rather than line numbers and checked by `npm test`. Read that first.
 - **`render.js`** — owns the canvas; reads state, never mutates it.
 - **`data/`** — `seed.js` (library), `store.js` (persistence + library
   adapter), `charter.js`, `visibility.js` (yours/shared/commons + `DATA_MAP`),
@@ -271,6 +272,45 @@ risks were closed on 2026-07-28 and it says so at the bottom.
 and used** — the last genuinely unverified thing is closed. Everything is pushed;
 the repo is **still private by choice**. The next action is making it public and
 cutting the Release.
+
+**Where things stand, end of 2026-08-02 — read this one.**
+
+`0.1.0-beta.3` is **published and verified** (asset digest matches the hash in
+the notes) and has **zero downloads**. That is the honest state of the project:
+everything built for other people — the welcome packet, the feedback composer,
+the release page, the guides, the first-ten-minutes flow — has still never met
+a second human. The steward's call is to polish before promoting, which is
+right. But the next real information comes from one other person's first ten
+minutes, not from any list in this repo.
+
+**The day's lesson, and it is now the first thing `CLAUDE.md` says: every
+serious bug found on 2026-08-02 was found by LOOKING.** None were found by
+reasoning. A Lab that was built and unreachable, three panels that could not be
+dismissed, a staircase that was only a sign, an Index that hid the shelves the
+steward had just spent an evening making, a documented drop gesture that did
+nothing anywhere. All of them found in about ninety seconds of walking around,
+by a person, after passing tests written by me.
+
+**Closed on 2026-08-02:** every finding from the first real sorting session
+(#34–#40), the drop-anywhere lie (#33), book bundles end to end with a real
+welcome packet, the Stacks learning custom shelves, Security 101 — and with it
+**the last `status:'planned'` stub in the Learning Tree. Every lesson is real.**
+
+**Genuinely open, in the order I would take them:**
+1. **Give it to one person.** Not a public push — one person who will say when
+   they are confused. Everything else is guessing.
+2. **The pool door in-game** (`BOOK-BUNDLES-AND-THE-POOL.md` B2) — 75 MB sits
+   in MinIO and cannot be seen from inside the Pavilion.
+3. **`pull-fulltext.py`**, through the S3 API. The symmetrical half of
+   `push-fulltext.py`, and the reason is recorded in `make-bundle.mjs`: reading
+   the pool by poking at MinIO's files worked and returned corrupt text.
+4. **Piper for voice** (`VOICE-PLAN.md`). The OS voices got the steward most of
+   the way — Windows' Natural voices, which are installed and never found.
+5. **The macOS `.dmg`** — never built. CI can do it on a `v*` tag.
+6. **`overlays.js` is ~10k lines.** No bug has ever come from that, the pure
+   logic is already out in `data/*.js`, and there is now a map at the top with a
+   test keeping it honest. When it is split: by room, one at a time, while
+   already working in that room. Never as a big-bang refactor.
 
 **2026-08-02 — the Science Hall gained the Bench, and the research room finally
 has a real subject.** The steward brought a concrete project — *build a universal

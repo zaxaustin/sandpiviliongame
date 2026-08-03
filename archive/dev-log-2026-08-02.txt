@@ -377,3 +377,136 @@ STILL OPEN
 The Electronics courses (201 real, 301 = the six-stage remote ladder).
 Asked for two messages ago and twice deferred by more urgent things —
 that is the next build, before anything else here.
+
+
+================================================================
+FOURTH PASS — THE DAY REAL USE STARTED FINDING THINGS
+================================================================
+
+The steward sorted an actual shelf: the AI filed 111 books by rule and
+model, the rest by hand, "very painless." First time the rules-then-model
+librarian has been exercised at that scale, and it held. Then they walked
+around and found, in roughly ninety seconds, more real bugs than a day of
+reasoning had produced.
+
+That is the headline of this session and it is worth stating plainly:
+EVERY SERIOUS BUG TODAY WAS FOUND BY LOOKING. None were found by
+reasoning. It is now the first thing CLAUDE.md says.
+
+WHAT REAL USE FOUND
+-------------------
+1. THE LAB WAS UNREACHABLE. Built that morning; might as well not have
+   been. Grounds -> Workshop -> staircase -> staircase, on a floor that
+   had said "nothing open here" since it was made, so anyone who explored
+   early had learned to stop climbing. Built and unreachable is the same
+   as unbuilt.
+
+   Fixed at the steward's own suggestion ("there should be a staircase or
+   an elevator"): THE LIFT on all three Workshop floors, naming each and
+   marking where you are, plus a door to the Lab in the pause menu.
+   warpTo() in main.js is the new reusable move — the warp block in the
+   movement loop does this inline and could not be called from a panel.
+
+2. THE LIFT WOULD NOT CLOSE. Nor would the Lab, nor the bundle importer.
+   hideAllOv() was a hand-maintained list of 48 overlay ids and was
+   missing all three panels added that day. The panel opened and nothing
+   ever removed its .open class, so it sat over the world forever.
+
+   Same failure as the window-export list caught the same morning: a list
+   that must be edited in lockstep with another file, with nothing
+   checking. It DERIVES now — querySelectorAll('.overlay'). 51 overlays
+   in the markup, 48 in the list, and the three newest were the three
+   missing. That is the shape of every such bug.
+
+3. THERE WERE NO STAIRS. "you should be able to see things via
+   screenshot theres no stairs either" — right on both counts. The warp
+   tile drew as plain floor, so the only evidence a staircase existed was
+   a sign saying so. Two new tile chars, U and D, walkable and actually
+   drawn, treads reversed between up and down so direction reads at a
+   glance. A door you cannot see is not a door.
+
+4. THE INDEX HID THE SHELVES YOU MADE. The taxonomy maps the eleven
+   LINEAGE shelves the Library ships with and was written before a
+   visitor could name their own. So after a sorting session, 111 books on
+   Electronics/Work/Recipes fell through to {section:'Other'} and the
+   Stacks showed an evening's work as one grey heap. Now "Your shelves"
+   sorts first, and a shelf you made but have not filled still appears.
+
+5. DROP-ANYWHERE WAS A LIE. MANUAL.md and the release notes both
+   promised a file could be dropped anywhere on the window. There was no
+   document-level drop handler at all — the only target was a zone inside
+   the Caravan Desk, three rooms in. Everywhere else it failed in
+   SILENCE, which is the house failure mode and the worst kind: nobody
+   reports it, they just stop trying.
+
+   Now it works anywhere and SHOWS something (a veil while you drag,
+   because a gesture that works but shows nothing stays undiscoverable).
+   A dropped book is shelved unfiled and a small card says so and leaves
+   — no panel, because answering a gesture with a chore is its own bug.
+   Text dragged inside a textarea is untouched: those carry text/plain,
+   not Files.
+
+6. THE POCKETED BOOK FORGOT WHERE THE VOICE GOT TO. Two records of
+   "where we are", and while pocketed the VOICE'S is the true one. The
+   pocket recorded a page when you pocketed it and never moved while the
+   voice read on for twenty minutes. Page turns now write through to
+   both, and restoreReader() prefers the audio position.
+
+7. THE SORT PAGE FELT UNSAFE. "im afraid that im gonna undo the work. is
+   there a commit button?" The fear was correct about the FEEDBACK and
+   wrong about the DATA, which is the worst combination a UI can produce.
+   Nothing was ever at risk. But the view showed the whole library either
+   way, so an hour of work produced no visible change.
+
+   The answer was not a commit button — it was making the pile visibly
+   shrink. The panel opens on "still to sort" when there is a pile, and
+   says in words that every move is already saved.
+
+ALSO BUILT
+----------
+- BOOK BUNDLES, end to end. make-bundle.mjs plus the import side. The
+  WELCOME PACKET is real: 9 books, 5.2 MB, exactly the public-domain
+  classics the app ships as summaries. Provenance enforced not trusted;
+  every book carries a sha256, so a bundle is checkable rather than
+  merely received and a re-import is a no-op.
+- THE MAP at the top of overlays.js, anchored to QUOTED TEXT rather than
+  line numbers, because a line-number map would have been the exact
+  hand-maintained list that bit twice today. npm test checks every
+  anchor; it caught a wrong one on its first run.
+- SECURITY 101 written for real, and with it the LAST STUB IN THE
+  LEARNING TREE IS GONE. Every lesson is real. Three new terminal
+  commands to carry it: man (every page names its Linux equivalent),
+  hash (a real SHA-256 of your own book), net (the no-network claim,
+  made checkable, and telling you to go and verify it).
+- beta.3 published and verified — asset digest matches the hash printed
+  in the notes, which closes the tampering-looking mismatch from the
+  morning.
+
+MISTAKES WORTH KEEPING
+----------------------
+- I tested that the Lab OPENS and that the lift MOVES you. Both passed.
+  Neither test tried to LEAVE the panel or looked at the floor.
+- The pocket test compared the translator line instead of the page
+  number, which made a broken feature look fixed.
+- I asserted a SHA-256 I had invented rather than computed, and it
+  failed against perfectly correct code. Never assert a digest you did
+  not compute.
+- The pool-read hack via `docker exec cat` WORKED and returned corrupt
+  text — MinIO prepends its own inline metadata header. Deleted rather
+  than parsed around: a storage engine's on-disk layout is not an
+  interface, and the failure would have been a bundle that looks fine
+  with a damaged book in it.
+
+WHERE IT STANDS
+---------------
+Every finding from the sorting session is closed. Zero planned stubs.
+beta.3 is published, verified, and has ZERO downloads — which is the
+real state of things: everything built for other people has still never
+met a second human. The steward's call is to polish before promoting,
+which is right; the next real information comes from one other person's
+first ten minutes, not from this list.
+
+Open and honest: Piper for voice (the OS voices got the steward most of
+the way — they added the UK one and like it); the pool door in-game so
+75 MB is visible from inside; pull-fulltext.py through the S3 API; the
+Mac .dmg, never built; and the remote itself, waiting on a multimeter.
