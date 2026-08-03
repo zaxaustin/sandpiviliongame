@@ -83,26 +83,46 @@ screen tells you plainly whether saving to this device is working.
 
 ---
 
-## 3. The three residents — who to talk to, for what
+## 3. The residents — who to talk to, for what
 
-The division is clean and worth knowing on day one:
+**👥 Who to ask** in the pause menu is the directory, and it is the short
+answer to this whole section. Seven residents, each a different **job** rather
+than a different voice — ask the wrong one and you get a worse answer than the
+Pavilion can actually give. Every card is a door: press it and you are talking
+to them, wherever you happen to be standing.
 
-- **Quill · Librarian Agent** (the Library) — **teaches.** Ask about any
-  shelved text, ask what to read given where you actually are in life, and
-  when a conversation turns into "I should really study this properly," she
-  can draft it into a real course/practice plan you pin to the Course Board.
-- **The Mountain Monk** (the Keep) — **guides.** Conduct, meaning, finding
-  your own intention — counsel, not task management. He always runs on the
-  largest AI model installed on your machine and takes real time to think;
-  since his reasoning streams live, you can watch the thought form. Slow
-  and profound is his job description.
-- **Butler Sebastian** (the Workshop) — **works with you.** He reads the
-  honest shape of your day (today's plan, what's due, what's still open),
-  keeps the calendar at his desk, and can draft a schedule in conversation
-  and drop it — timed events and all — straight into your day. Pick his
-  **path** for the day: **🌱 Ease in** (one meaningful thing, kept light) or
-  **🎯 Work mode** (a real schedule he'll hold you to) — meet yourself where
-  your energy is.
+- **Sebastian — the hub.** Your day: the plan, the calendar, what is due.
+  **Start here**, and ask him when you don't know who to ask.
+- **Quill — the librarian.** What is on the shelves: finding a book, what one
+  is about, summarising and comparing.
+- **The Tutor — the teacher.** Breaking a hard thing down until it is genuinely
+  understood, then quizzing you and reviewing your work.
+- **The Steward — the workhorse and the go-between.** The preparatory work
+  (**📋 pre-notes on a book before you read it**), where you stand on the
+  progression path, and who to take a given job to.
+- **The Investigator — evidence and claims.** Is it true, and what would show
+  it wasn't.
+- **The Mountain Monk — meaning and conduct.** The question the others hand over.
+- **The Computer — the terminal.** Lists and searches this machine; mostly needs
+  no AI at all.
+
+Any of them will hand you on **by name** when a question isn't theirs. That is
+part of the job, not a brush-off.
+
+### A little more on three of them
+
+- **Quill** (the Library) — ask what to read given where you actually are in
+  life, not just what a book is called. When a conversation turns into "I
+  should study this properly," she can draft it into a course you pin to the
+  Course Board. *Breaking the subject down afterwards is the Tutor's job.*
+- **The Mountain Monk** (the Keep) — always runs on the largest AI model
+  installed on your machine and takes real time to think; his reasoning streams
+  live, so you can watch the thought form. Slow and profound is the job
+  description, and it is a standing rule rather than an accident.
+- **Sebastian** (the Workshop) — reads the honest shape of your day and can
+  draft a schedule in conversation, dropping it — timed events and all —
+  straight into your day. Pick his **path**: **🌱 Ease in** (one meaningful
+  thing, kept light) or **🎯 Work mode** (a real schedule he'll hold you to).
 
 They only talk once an AI connection exists (§7). Before that, everyone
 still has scripted things to say, and every desk still works.
@@ -194,6 +214,14 @@ your own standing instructions, so you can watch them take effect.
 - **Carry a book:** 🎒 takes it with you, readable from anywhere via the
   pause menu's Inventory.
 - **The Index** (📑, from any shelf) — every text in one searchable list.
+- **Dropping a BATCH — one subject at a time.** Whatever shelf is picked in the
+  intake form is applied to **every file in the drop**. So name a shelf only when
+  the whole batch really is that subject; a mixed pile belongs in **Unfiled**.
+  Unfiled is not a limbo — it is the **librarian's inbox**. The AI sorter works
+  the unsorted pile and deliberately leaves alone anything you placed yourself,
+  so a batch filed onto the wrong shelf is the one state where it cannot help.
+  If that happens: open **⚙ Manage my books**, click that shelf, and press
+  **↩ Send all N back to the pile**. Nothing is deleted.
 - **Your own books — the short version: drag the file onto the window.** A
   `.txt` or `.epub` dropped **anywhere on the Pavilion**, from any screen, lands
   on your own shelf and is readable at once. You do not have to be in a

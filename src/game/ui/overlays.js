@@ -12,6 +12,7 @@ import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine } from '../data/the-day.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
+import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -461,6 +462,32 @@ function pastAsksBlock(agent){
    look at it" is a better answer than a thinner explanation from memory, and it
    is only possible if the resident knows what is on the shelf behind you.
    Given to the three residents who answer practical questions. */
+/* Where the visitor actually stands on the ladder, for the Steward's second
+   duty. Grounded in the real save, computed only when he is spoken to — the
+   no-background rule. He is the only resident who gets this, deliberately: a
+   resident who knows your progress and is not asked to use it will bring it up
+   unprompted, and that is nagging rather than help. */
+function stewardLadderBlock(){
+  const nodes=allNodes().filter(n=>n.status!=='planned');
+  const done=nodes.filter(n=>lessonDone(n));
+  const started=nodes.filter(n=>!lessonDone(n) && lessonCompletedCount(n)>0);
+  const cur=currentStudy();
+  const builds=((data.hall&&data.hall.builds)||[]);
+  const openPred=builds.reduce((n,b)=>n+(b.entries||[]).filter(e=>!e.closed).length,0);
+  const diss=((data.hall&&data.hall.dissections)||[]).filter(d=>d.book);
+  let s="\n\nWHERE THE VISITOR ACTUALLY STANDS right now. Speak from this and never invent an item:\n";
+  s+=`- Lessons finished: ${done.length} of ${nodes.length}`
+    +(done.length?` (${done.slice(0,4).map(n=>'"'+n.title+'"').join(', ')}${done.length>4?', …':''})`:'')+'\n';
+  if(cur){
+    const nx=nextStepOf(cur.node);
+    s+=`- THE PATH THEY PICKED UP: "${cur.node.title}" (since ${cur.since||'—'}) — `
+      +(nx?`next step ${nx.i+1} of ${cur.node.steps.length}: "${nx.step.title}"`:'every step ticked')+'\n';
+  } else s+='- No path picked up. If they are casting about, the useful move is to help them choose ONE.\n';
+  if(started.length) s+=`- Part-walked: ${started.map(n=>'"'+n.title+'" ('+lessonCompletedCount(n)+'/'+n.steps.length+')').join(', ')}\n`;
+  if(openPred) s+=`- ${openPred} prediction${openPred===1?'':'s'} at the Bench with no result recorded yet\n`;
+  if(diss.length) s+=`- Dissections in progress: ${diss.map(d=>'"'+d.title+'" ('+(d.passes||[]).length+' passes)').join(', ')}\n`;
+  return s;
+}
 function referenceShelfBlock(){
   const mine=personalBooks();
   const own=mine.filter(b=>b.kind==='physical');
@@ -490,7 +517,10 @@ const CHAT_AGENTS = {
       // Library doesn't actually hold.
       return CHARTER
         +"\n\nYou are Quill, the Sand Pavilion's librarian. You aren't here to perform a character — just "
-        +"to help someone find and use what's genuinely on these shelves, plainly and well. The Library's "
+        +"to help someone find and use what's genuinely on these shelves, plainly and well. Your work is "
+        +"the BOOKS: finding the right one, saying what one is actually about, summarising it, comparing "
+        +"two honestly. Breaking a hard subject down until it is understood is the Tutor's job, not "
+        +"yours - hand that over rather than half-doing it. The Library's "
         +"real catalogue is below; treat it as what you can look things up in. Speak only about texts that "
         +"are actually shelved here, and never invent a title, author, or claim that isn't in that list — "
         +"if something isn't here, say so, and point to the nearest real text when one fits, or to the "
@@ -500,32 +530,48 @@ const CHAT_AGENTS = {
         +"and point to the Request Board in the Study. You can also turn a real conversation into "
         +"something kept — an actual course, study plan, or practice plan — when someone wants that; offer "
         +"it only where it genuinely fits, and never push it."
-        +'\n\nThe Library catalogue you can look things up in:\n'+shelf+pastAsksBlock('quill');
+        +'\n\nThe Library catalogue you can look things up in:\n'+shelf+rosterBlock('quill')
+        +pastAsksBlock('quill');
     },
     errorLine:"Quill's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
   },
+  /* THE STEWARD, rewritten 2026-08-03 at the steward's instruction:
+
+       "the steward is someone who i want to do the backend heavy lifting who
+        you can talk to for the progression path, who you come to for the work
+        like doing pre notes on a book or having any work - he can be the go
+        between the other guys so that things can work smoothly and they have
+        clear direction."
+
+     What he WAS: moderator of a cafe Notice Board that has never opened and
+     cannot open without a shared Commons. Most of his prompt was an apology
+     for a dormant feature - roughly 300 tokens spent, on every call,
+     explaining something that does not exist. The clearest example in this
+     file of a role that changed the voice and not the work.
+
+     He carries WORK_CHARTER now, not the devotional one. He is a work tool,
+     and the standing decision is that work tools serve the job on its own
+     terms rather than skewing it. It also puts him in step with his other
+     hat, the Investigator. */
   steward:{
     label:'the Steward',
     async systemPrompt(){
-      return CHARTER
-        +"\n\nYou are the Steward of the café — a meeting place that looks outward instead of down at a "
-        +"shelf. You moderate the Notice Board: nothing goes onto it unmoderated, but the bar is liberal "
-        +"and inclusive — anyone has a place here as long as their conduct holds to the charter above. "
-        +"You yourself act on that charter day to day, but you aren't the one who wrote it or interprets "
-        +"it when a real question of meaning comes up — that's the Mountain Monk's place, not yours, and "
-        +"you'd say so plainly if a visitor pushed on something that deep. You didn't write any of the "
-        +"posts below yourself; speak about them the way a steward who's actually read the board "
-        +"would, not as their author. You don't add books to the Library yourself — nobody does directly, "
-        +"including you — but you know exactly how it actually happens and say so plainly rather than "
-        +"just deflecting: the Request Board (in the Study, past the Library's east door) is where anyone "
-        +"leaves a title they'd like to see shelved; from there it's reviewed by hand before anything is "
-        +"added. Point people there for real when they ask, the same way you'd point someone lost toward "
-        +"the Library itself.\n\nThe Notice Board on your wall is not open yet: it needs a shared Commons "
-        +"where posts from different Pavilions could meet, and that does not exist. Say so plainly and "
-        +"without embarrassment if a visitor asks — it is not broken and there is nothing for them to set "
-        +"up. Point them at the Commons Table in your own room instead, which needs no server at all: work "
-        +"gets there because a person wrote a file and handed it over. Your other hat, in the Science & "
-        +"Research Hall, is very much open."
+      return WORK_CHARTER
+        +"\n\nYou are the Steward of the Sand Pavilion. You do the WORK - the preparatory, unglamorous "
+        +"part the visitor would otherwise do by hand, and the routing that keeps everyone else pointed "
+        +"the right way. Three duties, in this order:\n"
+        +"1. PREPARATORY WORK on real material. PRE-NOTES on a book before it is read: what it is, how it "
+        +"is built, the handful of things worth watching for, and the questions worth holding while "
+        +"reading. Gathering, shaping and condensing what the visitor already has. Produce something "
+        +"concrete they can keep - never a description of what you would do.\n"
+        +"2. THE PROGRESSION PATH. You know where the visitor stands: what is finished, what is open, "
+        +"what is genuinely next. Say it plainly, including when a rung was skipped. Never withhold "
+        +"anything - the ladder gates a claim, never the learning.\n"
+        +"3. THE GO-BETWEEN. When a job belongs to a colleague, name them and say in one line exactly "
+        +"what to ask. That is your most useful move, not a failure of yours.\n"
+        +"Plain, direct, unceremonious. You are the one who gets things ready.\n"
+        +stewardLadderBlock()
+        +rosterBlock('steward')
         +pastAsksBlock('steward');
     },
     errorLine:"The Steward's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -600,6 +646,7 @@ const CHAT_AGENTS = {
         +"\n\nThe Hall's investigations so far:\n"+investigationsForPrompt()
         +"\n\nThe most relevant shelves, if useful (cite a text by name rather than inventing one):\n"+hallShelfSummary()
         +referenceShelfBlock()
+        +rosterBlock('investigator')
         +pastAsksBlock('investigator');
     },
     errorLine:"The Investigator's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -669,6 +716,7 @@ const CHAT_AGENTS = {
             +"\" Meet them where they truly are with it — help them see this single fold more clearly and find "
             +"their own next real step in it, in your own way, rather than covering the whole path at once."
           : '')
+        +rosterBlock('monk')
         +pastAsksBlock('monk');
     },
     errorLine:"The Monk's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -688,6 +736,7 @@ const CHAT_AGENTS = {
         +"project workspace (the Research Desk, the Grant Desk), say so plainly and point there — "
         +"you're one tool among several here, not the only one."
         +referenceShelfBlock()
+        +rosterBlock('computer')
         +pastAsksBlock('computer');
     },
     errorLine:"…connection lost. (Check that your AI connection is still running.)",
@@ -702,8 +751,11 @@ const CHAT_AGENTS = {
     async systemPrompt(){
       const lesson=(state.dialog && state.dialog.agent==='tutor' && state.dialog.lesson) ? state.dialog.lesson : null;
       return WORK_CHARTER
-        +"\n\nYou are the Tutor of the Pavilion Academy — a patient, encouraging teacher who helps the "
-        +"visitor genuinely LEARN, and helps teachers TEACH. Follow the visitor's lead across four jobs:\n"
+        +"\n\nYou are the Tutor of the Pavilion Academy. Your one job is to BREAK A HARD THING DOWN until "
+        +"it is genuinely understood — that is what you are for, and nobody else here does it. Go to first "
+        +"principles, move in small steps, give a worked example, and check understanding as you go. Do "
+        +"not summarise a book instead (that is Quill's work), and do not merely encourage; take the thing "
+        +"apart. Follow the visitor's lead across four jobs:\n"
         +"1. TEACH a subject clearly — from first principles, in small steps, with a concrete example, "
         +"checking understanding as you go and inviting questions. A conversation, not a wall of lecture.\n"
         +"2. QUIZ — when asked, or when it would help, pose a few focused questions or a small exercise on "
@@ -721,6 +773,7 @@ const CHAT_AGENTS = {
         +(lesson?("\n\nThe visitor is studying this lesson — stay grounded in it; teach and quiz from it, "
           +"and if they are stuck, help with THIS specifically:\n"+lesson):"")
         +referenceShelfBlock()
+        +rosterBlock('tutor')
         +pastAsksBlock('tutor');
     },
     errorLine:"…the Tutor's connection flickered. (Check that your local AI is still running.)",
@@ -743,7 +796,8 @@ const CHAT_AGENTS = {
           +"BOOK: "+book.title+"\n"
           +(book.summary?("SUMMARY: "+book.summary+"\n"):"")
           +(book.where?("\n"+book.where+":\n"+book.text+"\n"):"")
-          +pastAsksBlock('sebastian');
+          +rosterBlock('sebastian')
+        +pastAsksBlock('sebastian');
       }
       // scoped folder review — set only when the visitor hands him one folder
       // from the notes log; he sees just those notes, never the whole pile.
@@ -758,12 +812,11 @@ const CHAT_AGENTS = {
       return BUTLER_CHARTER
         +"\n\nYou are Sebastian, the butler of the Sand Pavilion, who keeps to the Workshop among the "
         +"working desks. You help the visitor with both home life and work as one single day — planning "
-        +"it, keeping it, and telling the honest truth about it. Of the residents here you are the helper "
-        +"and the worker: Quill is the teacher (the Library and turning a talk into a real plan), the "
-        +"Mountain Monk is the guide on matters of meaning and conduct, and you are the one who actually "
-        +"gets the day done alongside the visitor. If a question is really about meaning, conduct, or "
-        +"finding one's own intention, say plainly and warmly that the Monk in the Keep is the better "
-        +"person for that, then turn back to the doing. You know the Workshop's desks and point a visitor "
+        +"it, keeping it, and telling the honest truth about it. You are THE HUB: the first person the "
+        +"visitor talks to, and the one who knows where everything and everyone else is. When a question "
+        +"belongs to a colleague, hand it over by name in one line and then get back to the day - that is "
+        +"among the most useful things you do, and it is help rather than a refusal. "
+        +"You know the Workshop's desks and point a visitor "
         +"to the right one: the Archive Desk for their own writing, the Research Desk to think a project "
         +"through, the Grant Desk for funding proposals, the Caravan Desk for bringing outside texts into "
         +"the Library, the Records Hall upstairs for their kept history. When you draft a schedule or a "
@@ -777,6 +830,7 @@ const CHAT_AGENTS = {
         +butlerDayRead()
         +sebModeBlock()
         +reviewBlock
+        +rosterBlock('sebastian')
         +pastAsksBlock('sebastian');
     },
     errorLine:"Sebastian's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -1111,6 +1165,50 @@ export function showBadgeToast(b){
   clearTimeout(badgeToastTimer);
   badgeToastTimer=setTimeout(()=>el.classList.remove('show'),4200);
   blip(880,.07); setTimeout(()=>blip(1100,.09),80);
+}
+/* WHO DOES WHAT, for the person — 2026-08-03. The residents' duties were
+   cleaned up the same day so a small local model would stop being handed two
+   different org charts; this is the other half of that, and arguably the
+   larger one. Nowhere in the Pavilion has ever told the VISITOR who to ask for
+   what. Seven residents and no directory is not mystery, it is a maze.
+
+   It renders straight off data/roles.js, the same table the prompts derive
+   from, so the screen and the models can never disagree. */
+/* ONE opener for every chat resident, read off data/roles.js. There were
+   none before: each resident could only be reached by physically walking to
+   them, so "ask the Tutor about this" was advice rather than a door. A handoff
+   the visitor has to walk across three rooms to act on is not a handoff. */
+export function talkTo(key){
+  const r=ROLES[key]; if(!r||!r.chat) return;
+  openChatDialog({ name:r.chat.name, aiAgent:key, color:r.chat.color, glow:r.chat.glow, lines:[r.chat.line] });
+  if(!isAIActive() && state.dialog){
+    state.dialog.transcript.push({from:'npc',
+      text:'(No local AI is connected yet — ⚙ Manage AI connections in the pause menu, and I can actually answer.)'});
+    renderChatView();
+  }
+}
+export function openRoster(){ state.ui='roster'; hideAllOv(); renderRoster(); showOv('rosterOv'); }
+function renderRoster(){
+  const el=document.getElementById('rosterPanel'); if(!el) return;
+  el.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Who to ask for what</h2>
+    <div class="meta">Seven residents, and each one is a different <b>job</b> rather than a different voice.
+      Ask the wrong one and you'll get a worse answer than the Pavilion can actually give — so this is the
+      directory. Every one of them will hand you on by name when a question isn't theirs; that's part of
+      the job, not a brush-off.</div>
+    ${rosterForVisitor().map(r=>`
+      <div class="card" onclick="closeUI();${r.open}">
+        <div class="t">${esc(r.label)} <span class="badge lic">${esc(r.title)}</span>${r.hub?' <span class="badge">start here</span>':''}</div>
+        <div class="s" style="margin-top:5px">${esc(r.duty)}</div>
+        <div class="s" style="margin-top:5px;opacity:.8"><b>Go to them for:</b> ${esc(r.sendMe)} · <i>${esc(r.where)}</i></div>
+      </div>`).join('')}
+    <div class="card" style="cursor:default;margin-top:12px;border-color:#8fb4d9">
+      <div class="t">If you don't know who to ask</div>
+      <div class="s" style="margin-top:5px">Ask <b>Sebastian</b>. He's the hub — he keeps your day and knows
+        where everything and everyone else is. The <b>Steward</b> is the other safe bet: he does the
+        preparatory work and exists partly to point the others in the right direction.</div>
+    </div>`;
 }
 export function openBadges(){ state.ui='badges'; hideAllOv(); renderBadges(); showOv('badgesOv'); }
 function renderBadges(){
@@ -1608,6 +1706,7 @@ function renderMenu(){
         const open=b.reduce((n,x)=>n+(x.entries||[]).filter(e=>!e.closed).length,0);
         return open?' · '+open+' waiting':'';
       })()}`),
+      item('openRoster()', '👥 Who to ask'),
       item('openBadges()', '🏅 Badges'),
     ])}
     ${section('Library', [
@@ -5674,6 +5773,62 @@ export async function runBookLens(id, lensKey){
   }catch(e){ if(status) status.textContent='The connection flickered — no pass this time (is your local AI still running?).'; }
   document.querySelectorAll('#bdLensRow button').forEach(b=>b.disabled=false);
 }
+/* THE STEWARD'S PRE-NOTES — his first duty, made real (2026-08-03).
+
+     "you come to [the Steward] for the work like doing pre notes on a book"
+
+   The preparatory pass you would otherwise do by hand: before you read a
+   thing, what is it, how is it built, what is worth watching for, and which
+   questions are worth holding while you read. It lands as the FIRST pass of
+   the dissection, so it is there waiting when you come back to it — the point
+   of pre-notes being that they exist before the reading, not after.
+
+   Grounded in the summary and section headings rather than the page you are
+   on: you have not read it yet, so "the page you are on" is the wrong unit,
+   and a pre-note built from a passage you already read is just a note. */
+export async function stewardPreNotes(id){
+  const rec=dissectionRec(id); if(!rec||!rec.book) return;
+  const d=Store.getDoc(rec.book); if(!d) return;
+  const status=document.getElementById('bdStatus');
+  if(!isAIActive()){
+    if(status) status.textContent='The Steward needs a local AI connected (⚙ Manage AI connections) to prepare notes.';
+    return;
+  }
+  if((rec.passes||[]).some(x=>x.lens==='prenotes')){
+    if(status) status.textContent='The Steward has already prepared notes on this one — they are in the passes below.';
+    return;
+  }
+  const btns=document.querySelectorAll('#bdLensRow button'); btns.forEach(b=>b.disabled=true);
+  if(status) status.textContent='📋 The Steward is preparing notes…';
+  const src=[d.title, d.doc.summary, ...(d.doc.sections||[]).map(x=>x.heading+': '+x.body)].join('\n\n');
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nYou are the Steward of the Sand Pavilion, doing the preparatory work '
+        +'before someone reads a book. Produce PRE-NOTES, in four short labelled parts:\n'
+        +'WHAT IT IS — what kind of thing this is and what it is trying to do, in two or three sentences.\n'
+        +'HOW IT IS BUILT — its shape and how to move through it.\n'
+        +'WATCH FOR — three or four specific things worth noticing as they read.\n'
+        +'QUESTIONS TO HOLD — three questions worth carrying through the reading.\n'
+        +'Work strictly from what you are given. Do not draw on what you may know about this book from '
+        +'elsewhere, never invent a chapter title or a quotation, and where the material given is too thin '
+        +'to say something useful, say that plainly instead of padding. This is preparation, not a review: '
+        +'do not tell them what to conclude.'
+        +(rec.question?'\n\nThey are reading towards this question, so aim the notes at it: '+rec.question:'')},
+      {role:'user', content:src},
+    ], {long:true});
+    if(isEmptyReply(reply)){ if(status) status.textContent='The model came back empty — a lighter model may do better.'; }
+    else {
+      rec.passes.push({ ts:todayKey(), lens:'prenotes',
+        where:"THE STEWARD'S PREPARATION, from the summary and section headings", text:String(reply).trim() });
+      rec.ts=todayKey(); persist();
+      logActivity('The Steward prepared pre-notes on "'+rec.title+'".'+elapsedTag());
+      blip(660,.08); setTimeout(()=>blip(825,.09),90);
+      renderScienceHall();
+    }
+  }catch(e){ if(status) status.textContent='The connection flickered — no pre-notes this time (is your local AI still running?).'; }
+  document.querySelectorAll('#bdLensRow button').forEach(b=>b.disabled=false);
+}
+
 /* The no-AI half, and the one that makes a dissection YOURS rather than the
    model's: your own typed notes on that book, gathered into the analysis as a
    pass of their own. Reading notes were already saved per page and already
@@ -6039,7 +6194,12 @@ function renderScienceHall(){
     if(!rec){ state.hallView={mode:'list'}; return renderScienceHall(); }
     const d=rec.book&&Store.getDoc(rec.book);
     const g=(function(){ const w=state.dissectWhere; return (w&&w.slug===rec.book)?w:null; })();
-    const lens=k=>(BOOK_LENSES[k]||{label:'Your own reading notes', icon:'🗒'});
+    /* Every pass kind must have a name here. A pass falling through to the
+       wrong label is the quietest possible lie about where something came
+       from, in the one panel whose whole job is saying where things came from. */
+    const PASS_KINDS={ mine:{label:'Your own reading notes', icon:'🗒'},
+                       prenotes:{label:"The Steward's pre-notes", icon:'📋'} };
+    const lens=k=>(BOOK_LENSES[k]||PASS_KINDS[k]||{label:'A pass', icon:'•'});
     panel.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <div class="row" style="justify-content:space-between;margin-bottom:8px;gap:6px;flex-wrap:wrap">
@@ -6069,6 +6229,8 @@ function renderScienceHall(){
           onclick="runBookLens('${esc(rec.id)}','${k}')">${BOOK_LENSES[k].icon} ${esc(BOOK_LENSES[k].label)}</button>`).join('')}
       </div>
       <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost" style="font-size:11.5px" onclick="stewardPreNotes('${esc(rec.id)}')"
+          title="Before you read it: what it is, how it's built, what to watch for, what to ask">📋 Steward's pre-notes</button>
         <button class="btn ghost" style="font-size:11.5px" onclick="pullNotesIntoDissection('${esc(rec.id)}')"
           title="Your own typed notes on this book — no AI needed">🗒 Pull in my notes</button>
         ${rec.book?`<button class="btn ghost" style="font-size:11.5px" onclick="readDissectedBook('${esc(rec.id)}')">📖 Open the book</button>`:''}
@@ -8962,14 +9124,37 @@ async function fillFromSingleFile(file, msg){
    source, which is exactly what makes a batch safe to do unattended. One bad file
    never stops the rest — failures are collected and reported at the end. */
 async function bulkShelveDroppedFiles(files, msg){
-  const tradition=document.getElementById('rmTradition')?.value || 'Personal';
   const supported=files.filter(f=>/\.(epub|txt)$/i.test(f.name));
   const skipped=files.length-supported.length;
   if(!supported.length){ msg.textContent='None of those are .txt or .epub, so there was nothing to add. (For PDFs, convert first with tools/caravan/pdf-to-text.py.)'; return; }
+  /* A BATCH LANDS UNFILED. Changed 2026-08-03, reported by the steward:
+     "it looks like i pulled too many books into the theravada shelf... when the
+     source was verified and i dragged in over 100 books it made me choose a
+     shelf."
+
+     It did, and then it put ALL of them there — one dropdown applied to the
+     whole drop. A hundred books are not one subject; that dropdown only ever
+     made sense for one file. Worse, it was self-defeating: the librarian's job
+     is explicitly THE UNFILED PILE (it will not second-guess books you placed
+     on purpose), so filing a batch wrongly is precisely the state in which the
+     AI sorter refuses to help. The pipeline created the mess and then disabled
+     the tool for cleaning it up.
+
+     GUIDED, NOT OVERRIDDEN — the standing rule here. If you deliberately pick a
+     shelf, a batch still goes there; you may well be dropping twenty Theravada
+     texts onto the Theravada shelf on purpose. What changes is that the picker
+     DEFAULTS to unfiled, the form says "one subject at a time" in as many
+     words, and a batch that does land on a named shelf offers one press to send
+     it all back to the pile. The trap becomes escapable rather than forbidden.
+
+     Unfiled is not a limbo here — it is the sorter's inbox, and Your Library
+     opens straight to it whenever there is a pile. */
+  const tradition=document.getElementById('rmTradition')?.value || 'Personal';
+  const batch=supported.length>1;
   let added=0; const failed=[];
   for(let i=0;i<supported.length;i++){
     const f=supported[i];
-    msg.textContent=`Adding ${i+1} of ${supported.length} to the ${tradition} shelf… (${added} shelved so far) — “${f.name}”`;
+    msg.textContent=`Adding ${i+1} of ${supported.length}${batch?'':' to the '+tradition+' shelf'}… (${added} shelved so far) — “${f.name}”`;
     try{
       const b=await parseBookFile(f);
       const res=await shelveAsPersonal({ title:b.title, body:b.body, license:'', source:b.author||'', tradition });
@@ -8977,11 +9162,47 @@ async function bulkShelveDroppedFiles(files, msg){
     }catch(e){ failed.push(f.name+' — '+String(e&&e.message||'unreadable')); }
   }
   logActivity('Bulk-added '+added+' personal book(s) to the '+tradition+' shelf.');
-  const parts=[`✓ Added <b>${added}</b> book${added===1?'':'s'} to Your Shelf on the <b>${esc(tradition)}</b> shelf, marked 👤 as yours.`];
+  const unfiled=tradition==='Personal';
+  const parts=[unfiled
+    ? `✓ Added <b>${added}</b> book${added===1?'':'s'} to Your Shelf, <b>unfiled</b> and marked 👤 as yours.`
+    : `✓ Added <b>${added}</b> book${added===1?'':'s'} to Your Shelf on the <b>${esc(tradition)}</b> shelf, marked 👤 as yours.`];
   if(skipped) parts.push(`${skipped} file${skipped===1?'':'s'} skipped (not .txt/.epub).`);
   if(failed.length) parts.push(`Couldn't add ${failed.length}: ${esc(failed.slice(0,4).join('; '))}${failed.length>4?'…':''}.`);
-  parts.push('Tidy or re-file any of them under ⚙ Manage my books.');
+  /* THE ESCAPE HATCH, offered at the only moment it is obvious something went
+     wrong — right after a batch lands somewhere it may not belong. Without this
+     the visitor has to know that "unfiled" is the sorter's inbox, that the
+     librarian ignores filed books on purpose, and where the bulk move lives. */
+  if(batch && !unfiled && added) parts.push(
+    `<br>All ${added} went to <b>${esc(tradition)}</b>. Was this batch really all one subject? `
+    + `<button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="unfileShelf('${esc(tradition)}')">`
+    + `↩ Send them to the unsorted pile</button> — then the librarian can file them one by one.`);
+  else if(unfiled) parts.push('They are in the unsorted pile, which is where the librarian works: <b>⚙ Sort my books</b>.');
   msg.innerHTML=parts.join(' ');
+}
+/* SEND A WHOLE SHELF BACK TO THE PILE — 2026-08-03, and the reason is worth
+   keeping: a batch of 100+ books went onto one shelf in a single drop, and
+   there was no way out. Un-filing them meant opening every book and changing
+   its shelf by hand, one at a time, a hundred times — so in practice the only
+   real option was to live with it.
+
+   Nothing is deleted and nothing leaves Your Shelf. The books move to the
+   unsorted pile, which is the librarian's inbox: the sorter deliberately will
+   not second-guess books you have placed, so this is the switch that lets it
+   help at all. Undo-able the same way it was done. */
+export function unfileShelf(name){
+  const books=personalBooks().filter(b=>shelfOf(b)===name);
+  if(!books.length) return;
+  if(!window.confirm(`Send all ${books.length} book(s) from “${name}” back to the unsorted pile?\n\n`
+    +`Nothing is deleted — they stay on Your Shelf, just unfiled, so the librarian can sort them one by one. `
+    +`You can re-file any of them at any time.`)) return;
+  const before=books.map(b=>({slug:b.slug, shelf:shelfOf(b)}));
+  books.forEach(b=>{ b.tradition='Personal'; });
+  state.lastFiling={ kind:'unfile', from:name, moves:before };   // the existing undo path
+  persist();
+  logActivity('Sent '+books.length+' book(s) from "'+name+'" back to the unsorted pile.');
+  blip(620,.08); setTimeout(()=>blip(760,.08),90);
+  dismissDropToast();
+  state.ui='mylib'; hideAllOv(); state.myLibView={ q:'', sel:{}, show:'unfiled' }; renderMyLibrary(); showOv('myLibOv');
 }
 export function openReviewQueue(){ state.ui='review'; hideAllOv(); state.reviewView=state.reviewView||{mode:'list'}; renderReviewQueue(); showOv('reviewOv'); }
 export function newReviewImportForm(){ state.reviewView={mode:'import'}; renderReviewQueue(); }
@@ -9026,13 +9247,23 @@ function renderReviewQueue(){
         📄 Drag <code>.txt</code> or <code>.epub</code> files here — <b>one, or a whole pile at once</b>.
         An EPUB is unpacked right here in the game, no conversion needed.<br>
         <b>One file</b> fills the form below to review before adding. <b>Many files</b> go straight to
-        Your Shelf on the shelf you pick below, each marked 👤 as your own (personal copies need no
-        license — re-file any later under ⚙ Manage my books).
+        Your Shelf, each marked 👤 as your own (personal copies need no license).
+      </div>
+      <div class="card" style="cursor:default;margin-top:8px;border-color:#e0a43c;background:rgba(224,164,60,.06)">
+        <div class="t" style="color:#e0a43c">Dropping a batch? — one subject at a time</div>
+        <div class="s" style="margin-top:5px">Whatever shelf is chosen below is applied to <b>every file in the
+          drop</b>. So only pick a named shelf if the whole batch really is that one subject — twenty Theravada
+          suttas, say. A mixed pile of a hundred books is not one subject, and it should go in
+          <b>Unfiled</b>.</div>
+        <div class="s" style="margin-top:5px">Unfiled is not a limbo: it is the <b>librarian’s inbox</b>. The
+          sorter works the unsorted pile and deliberately leaves alone anything you have already placed — so
+          filing a batch onto the wrong shelf is the one state in which the AI cannot help you fix it. Landing
+          them unfiled is what lets it do the work.</div>
       </div>
       <input type="file" id="bulkFilePick" accept=".txt,.epub" multiple style="display:none" onchange="handleBookFilePick(event)">
       <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:12px" onclick="document.getElementById('bulkFilePick').click()">📁 Choose files… (one or many)</button></div>
       <div id="dropMsg" class="meta"></div>
-      <label style="margin-top:10px;color:#e0a43c">📚 Which shelf? — pick this first, so the book lands in the right place</label>
+      <label style="margin-top:10px;color:#e0a43c">📚 Which shelf? — leave it Unfiled for a mixed batch; pick one only when every file is that subject</label>
       <select id="rmTradition" style="width:100%;background:#1b140d;border:2px solid #8a6a3a;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:9px 11px">
         ${TRADITIONS.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}
       </select>
@@ -10207,6 +10438,20 @@ function renderMyLibrary(keepFocus){
         ${chip('filed','✓ Sorted',filedTotal,'#7fa36b')}
         ${shelvesWith.map(s=>chip(s,'📗 '+esc(s),counts[s])).join('')}
       </div>
+      ${(show!=='all'&&show!=='unfiled'&&show!=='filed'&&counts[show]>4)
+        /* Offered only while you are LOOKING at one over-full shelf, which is
+           the moment you notice a batch went somewhere it should not have.
+           Before this, un-filing a hundred books meant opening each one and
+           changing a dropdown, a hundred times — so in practice you lived with
+           it, and the librarian stayed unable to help because it will not
+           second-guess a book you placed. (2026-08-03) */
+        ? `<div class="card" style="cursor:default;margin-top:8px;border-color:#8a6a3a">
+            <div class="s">Did a whole batch land on <b>${esc(show)}</b> at once? Send the lot back to the
+              unsorted pile and let the librarian file them one at a time. Nothing is deleted, and you can
+              re-file any of them by hand at any point.</div>
+            <div class="row" style="margin-top:7px"><button class="btn ghost" style="font-size:11px;padding:3px 10px"
+              onclick="unfileShelf('${esc(show)}')">↩ Send all ${counts[show]} back to the pile</button></div>
+          </div>` : ''}
       <div class="meta" style="margin-top:6px">
         ${(counts['Personal']||0)
           ? `<b style="color:#8a6a3a">${counts['Personal']} still to sort.</b> `
@@ -10685,6 +10930,8 @@ Object.assign(window, {
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
   openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,
   lessonFromPlanNote, openLessonFromNote, pickUpLesson, putDownLesson, currentStudy, nextStepOf,
+  talkTo, openRoster, stewardPreNotes,
+  unfileShelf,
   dissectBook, openDissection, dissectionRec, setDissectQuestion, runBookLens, pullNotesIntoDissection,
   deleteDissectPass, readDissectedBook, investigationFromBook,
   openAcademy, studyLessonWithTutor,

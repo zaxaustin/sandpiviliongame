@@ -623,6 +623,71 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+/* ---------- who does what ----------
+   The residents' duties, derived from one table instead of hand-copied into
+   seven prompts. They HAD drifted: Sebastian's prompt told the model "Quill is
+   the teacher", true in July and the Tutor's job by August. A small model
+   handed two different org charts in two conversations acts on the wrong one,
+   and to a visitor that reads as "the roles are confusing the AI."
+   See src/game/data/roles.js. */
+{
+  const { ROLES, ROLE_KEYS, rosterBlock, rosterForVisitor } =
+    await import('../src/game/data/roles.js');
+  const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+
+  for (const k of ROLE_KEYS) {
+    const r = ROLES[k];
+    for (const f of ['label', 'title', 'duty', 'sendMe', 'where', 'open']) {
+      if (!r[f] || String(r[f]).length < 3) fail(`roles.js: '${k}' is missing ${f}`);
+    }
+    if (r.duty.length < 60) fail(`roles.js: '${k}' duty is too thin to tell a model anything: "${r.duty}"`);
+    // every role must be reachable — an org chart nobody can act on is a poster
+    if (!/\(\)$|\('[a-z]+'\)$/.test(r.open)) fail(`roles.js: '${k}' open '${r.open}' is not a callable`);
+    const fn = r.open.replace(/\(.*$/, '');
+    if (!ov.includes('function ' + fn + '(')) fail(`roles.js: '${k}' opens with ${fn}(), which is not defined in overlays.js`);
+    if (!ov.includes('\n  ' + fn + ',') && !ov.includes(' ' + fn + ',')) fail(`roles.js: '${k}' opens with ${fn}(), which is never put on window — the button will silently do nothing`);
+  }
+
+  /* THE DRIFT GUARD, and the reason this file exists. Nothing may hand a model
+     a duty description that is not this table's. */
+  const stale = [
+    ['Quill is the teacher', 'Quill was the teacher in July; the Tutor is now'],
+    ['Steward of the caf', 'the Steward is the workhorse now, not a moderator of a board that never opened'],
+  ];
+  for (const [phrase, why] of stale) {
+    if (ov.includes(phrase)) fail(`overlays.js still says "${phrase}" — ${why}. Duties live in data/roles.js.`);
+  }
+
+  // every chat resident in CHAT_AGENTS must be in the roster, and vice versa
+  const agents = [...ov.matchAll(/^  ([a-z]+):\{\n    label:/gm)].map(m => m[1]);
+  for (const a of agents) if (!ROLE_KEYS.includes(a)) fail(`roles.js has no entry for the resident '${a}' — colleagues cannot hand anything to them`);
+  for (const k of ROLE_KEYS) {
+    if (ROLES[k].chat && !agents.includes(k)) fail(`roles.js: '${k}' claims a chat door but is not a resident in CHAT_AGENTS`);
+  }
+
+  /* A resident must never be told to hand a question to ITSELF — a model given
+     that instruction loops, or refuses its own job. */
+  for (const k of ROLE_KEYS) {
+    const b = rosterBlock(k);
+    if (b.includes('- ' + ROLES[k].label + ' (')) fail(`roles.js: rosterBlock('${k}') lists ${ROLES[k].label} among the OTHERS`);
+    if (!/WHO ELSE IS HERE/.test(b)) fail(`roles.js: rosterBlock('${k}') produced no roster at all`);
+  }
+  // the Steward and the Investigator are one person in two hats; neither is
+  // ever told to hand something to himself under his other name
+  if (rosterBlock('steward').includes('Investigator')) fail('roles.js: the Steward was told to hand work to the Investigator, who is himself');
+  if (rosterBlock('investigator').includes('the Steward')) fail('roles.js: the Investigator was told to hand work to the Steward, who is himself');
+
+  // it is added to seven prompts, so its size is paid for seven times
+  const longest = Math.max(...ROLE_KEYS.map(k => rosterBlock(k).length));
+  if (longest > 1400) fail(`roles.js: the roster block is ${longest} chars — every resident pays that on every call`);
+
+  // exactly one hub, and it is where an unrouted question goes
+  const hubs = ROLE_KEYS.filter(k => ROLES[k].hub);
+  if (hubs.length !== 1) fail(`roles.js: ${hubs.length} residents claim to be the hub — there must be exactly one front door`);
+
+  if (rosterForVisitor().length !== ROLE_KEYS.length) fail('roles.js: the visitor-facing directory does not list every resident');
+}
+
 /* ---------- the context window, set explicitly ----------
    The most expensive silent bug this project has had, measured on this machine
    2026-08-03: Ollama runs every model at num_ctx 4096 unless told otherwise, so

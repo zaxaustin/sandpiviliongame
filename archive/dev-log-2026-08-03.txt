@@ -151,3 +151,77 @@ documented in MANUAL.md, and guarded.
 And beta.3 still has ZERO downloads. Everything above is more good
 work that no second human has seen. The next real information does not
 come from this log.
+
+
+================================================================
+SECOND PASS — the roles, and why the AI kept forgetting who it was
+================================================================
+
+The steward, after playing with the chain: "im worried about the local
+ai memmory and that these differnt roles will confuse the ai instead of
+it acting out its role when given a task."
+
+Right, and the cause was not the number of roles. Two findings, both
+measured rather than reasoned about.
+
+1. THE CONTEXT WINDOW. Ollama runs every model at num_ctx 4096 unless
+   told otherwise. `ollama ps` reported context_length 4096 for
+   llama3.2, whose real window is 131k; ornith:9b's is 262k. The
+   Pavilion sent num_predict on every request and never once sent
+   num_ctx.
+
+     prompt 7,279 tokens -> Ollama evaluated 2,050
+     the model answered "I am Llama, a large language model by Meta AI"
+     ...having been told in the first line it never saw that it was
+     the Investigator.
+
+   With num_ctx 16384: all 7,279 evaluated, role held perfectly. So the
+   resident's identity was being deleted before the model saw it, every
+   time a conversation or a grounded task got big. num_ctx is now sized
+   per request, 4096 to 32k, powers of two.
+
+   The other half of the worry was already sound: agent memory is keyed
+   per resident, so Quill's has never been able to reach the Monk.
+
+2. SEVEN PROMPTS EACH DESCRIBING THE OTHER SIX, BY HAND. They had
+   already drifted: Sebastian's prompt told the model "Quill is the
+   teacher", true in July and the Tutor's job by August. Same
+   hand-maintained-list failure as hideAllOv and the window exports.
+   Now data/roles.js is the one table and every prompt derives its
+   roster from it; npm test fails on the stale phrases by name.
+
+THE DUTIES, set by the steward and now written down:
+  Sebastian  the hub - the day, and who to ask
+  Quill      the books - find, summarise, compare
+  Tutor      breaks a hard thing down until it is understood
+  Steward    the workhorse: preparatory work, the progression path,
+             and the go-between. WORK_CHARTER now, not the devotional
+             one - he is a work tool. His old prompt was ~300 tokens of
+             apology for a cafe Notice Board that has never opened.
+
+Built with it: the Steward's PRE-NOTES on a book (his first duty made
+real - what it is, how it is built, what to watch for, what to ask,
+before you read it); talkTo(), one door to any resident, because "ask
+the Tutor about this" was advice rather than a door; and WHO TO ASK in
+the pause menu, because nowhere had ever told the VISITOR who does what.
+Seven residents and no directory is not mystery, it is a maze.
+
+THE BULK-IMPORT TRAP
+--------------------
+Reported mid-session: "i pulled too many books into the theravada shelf
+... when the source was verified and i dragged in over 100 books it made
+me choose a shelf." It did, and then applied that one shelf to all 100.
+
+The bad part is the second half. The librarian's job is explicitly THE
+UNFILED PILE - it will not second-guess books you placed on purpose. So
+the pipeline filed a batch wrongly and thereby disabled the only tool
+for fixing it, and un-filing meant opening 100 books one at a time.
+
+Fixed as guidance, not enforcement (the standing rule): the picker still
+works if you deliberately choose a shelf, but the form now says "one
+subject at a time" in as many words, explains that Unfiled is the
+librarian's inbox rather than a limbo, and a batch landing on a named
+shelf offers one press to send it all back. unfileShelf() also appears
+on any shelf over four books deep in Manage my books.
+
+The steward called it his mistake. It wasn't.
