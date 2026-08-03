@@ -290,3 +290,76 @@ Avogadro's constant. Matching is on word boundaries now. Funny once;
 the same bug on a bigger table is the corpus-pasting habit wearing a
 false-match costume — which is the exact failure the catalogue bug had
 demonstrated an hour earlier.
+
+
+================================================================
+FOURTH PASS — retrieval, and the day's close
+================================================================
+
+RETRIEVAL, the thing the whole reference/retrieval plan was aimed at.
+data/retrieval.js: BM25 over a book's own pages, so "rare" means rare
+in THIS book. The dissection's question field earns a second job — it
+was already the discipline of the room, and now it is also what finds
+the material. One field, two reasons, no new UI to learn.
+
+Verified on a real book, not a fixture: "what does it say about anger
+and hatred" on the Dhammapada returned page 49, which is verse 407 —
+"Him I call indeed a Brahmana from whom anger and hatred, pride and
+envy have dropt like a mustard seed from the point of a needle."
+
+Honest about what it is not: keyword matching, not meaning. The panel
+says so, and a search matching nothing says nothing rather than
+returning the first page as a consolation prize.
+
+Pagination MOVED into retrieval.js and the reader calls it. Retrieval
+citing page 47 while the reader shows page 51 is the same
+two-lists-that-must-agree failure as hideAllOv and the window exports.
+
+THE BUG THAT PASSED THREE CHECKS
+--------------------------------
+The patch script meant to add the retrieval import aborted on an assert
+before writing — while the code CALLING paginate() landed by another
+route. Then: node --check passed (valid syntax), npm run build:beta
+passed (a free variable is legal JS), npm test passed (nothing imports
+overlays.js), and the reader's full text was dead on arrival with a
+bare ReferenceError.
+
+Found by driving a browser at it. Again.
+
+npm test now walks every export of every data/*.js and fails if
+overlays.js calls it without importing it. Verified by deleting the
+import again: four failures naming it exactly.
+
+ALSO TODAY
+----------
+- The models have no database. Answered properly, with the measurement:
+  Quill's prompt recited the WHOLE catalogue at ~43 tokens a book, so
+  the librarian got worse the more books you owned. Now degrades
+  summaries -> titles -> shape, and SAYS when its view is partial,
+  because a librarian inventing a "not shelved" is the one lie it can
+  tell.
+- The Reference Desk. `ref <term>`, exact and offline, no AI. The guard
+  caught N_A normalising to "n a" and matching "what did the monk MEA-N
+  A-bout right intention", so a question about right intention arrived
+  carrying Avogadro's constant.
+- Book notes are legible: a note's own first line is its title now,
+  instead of every note on a book reading "The Dhammapada".
+- Two plans written: MAKING-AND-THE-OPEN-HARDWARE-COMMONS.md, revised
+  the same evening so the TOWN SQUARE comes first — a marketplace needs
+  products and cannot start at population one, a town square needs one
+  person with something to show and can.
+
+WHERE IT STANDS
+---------------
+Tomorrow's list is plans/BETA-TESTING-FEEDBACK.md Round 5. Chapters via
+the table of contents (#41) is the one to take first and the diagnosis
+is already written: chapterPages() scans only the first 3 lines of each
+page, and a page is a 1,400-char slice, so most chapter headings are
+in the text and never seen.
+
+The honest headline for beta testing: the dissection lenses, the
+Steward's pre-notes and every reworked prompt have only ever been run
+on their NO-AI paths. Nobody has seen what a real model returns from
+any of them.
+
+And beta.3 still has zero downloads.

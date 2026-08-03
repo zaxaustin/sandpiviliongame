@@ -23,6 +23,44 @@ the one place it matters — the trigger.
 
 ---
 
+## Revision, 2026-08-03 evening — the town square comes FIRST
+
+Added the same day, after the steward reframed it himself:
+
+> "a lot of people are doing the same thing... to give people a place to
+> advertize there ideas, especially around a place like this that glorifies the
+> spread of knowledge. i think this could be a good professional town square.
+> we can treat this like advertising the grass roots and can do it for free as
+> pro bono to the smaller guys."
+
+**This is a better first commons than the marketplace below, and it should be
+built before any of Part 3.** The reason is structural, not aesthetic:
+
+- A hardware marketplace needs **products** — plus shipping, licences,
+  certification, and someone at the other end with stock. It cannot start at
+  population one; an empty shop reads as a dead project.
+- A town square needs **one person with something to show.** It works at
+  population one and gets better with each arrival. It has no trigger to wait
+  for.
+
+It is also the honest position for a project that already refuses to be a till,
+and it reaches far past hardware — a course someone wrote, an investigation, a
+build, a small business, a cause. **Pro bono for the grassroots** is not a
+concession here; it is the same stance as the rest of the Pavilion, applied to
+people rather than books.
+
+So the tier order in Part 3 inverts: **🏅 the Wall of Glory becomes the whole
+first version**, generalised past hardware into "anything a person made and
+wants seen." The Shop and the Flea Market stay exactly as written, and stay
+behind their trigger.
+
+What it needs that does not exist yet: the identity keypair (Part 2.1), signed
+packets (2.2), the "what IS this" field (2.6), and a page worth looking at.
+Nothing else. That is a genuinely small build for the thing most likely to give
+the Pavilion a second inhabitant.
+
+---
+
 ## Part 0 — "is there anything like this already?"
 
 Yes, in pieces. Not one of them is the whole thing, and knowing exactly which

@@ -2028,3 +2028,87 @@ same words a terminal uses. Cheap, and it turns a convenience into a doorway.
 Filed because it is not actually a joke. The four postures already exist (`M`),
 and reading while seated is the kind of small in-world honesty this project
 tends to be right about. No action, just recorded.
+
+## Round 5 — 2026-08-03, and the list for tomorrow
+
+A day of real use, and the pattern held: **every bug was found by the
+steward walking around, and several had passed every automated check.**
+Closed this session — the plan-to-tree dead end, no way to pick up a
+path, no way to dissect a book, thirteen flat buttons in the reader,
+Ollama silently deleting the resident's identity, seven prompts with
+drifted org charts, a bulk import that filed 100 books wrongly and then
+disabled the tool for fixing it, ☀ Today offering the same book forever,
+Quill reciting the whole catalogue on every message, and book notes that
+all rendered with the same title.
+
+### Still open, in the order I would take them
+
+**A. Chapters are not marked, and the cause is known (#41).**
+`chapterPages()` scans only **the first 3 lines of each page**, and a
+page is a 1,400-character slice — so a chapter heading lands mid-page
+most of the time and is never seen. That is why "the first 4 chapters"
+appear and then nothing: those happened to fall near a page top. Three
+stages, and the steward's own idea is the middle one:
+  1. scan the **whole page**, not the top — probably doubles what is
+     found today, one line;
+  2. **read the table of contents first.** Nearly every Gutenberg text
+     opens with a Contents block. Parse it for the canonical chapter
+     names, then find each name's **second** occurrence in the body (the
+     first being the TOC entry itself). Stronger than pattern-guessing
+     because the book states its own structure — including chapters
+     named "On Earnestness" with no "Chapter" in them;
+  3. **fall back honestly.** TOC → heading scan → none, and say which. A
+     book with no chapter marks should say so rather than show dead
+     buttons. This matters as much as (2): a book converted from PDF
+     often has no TOC at all.
+Unlocks the real ask — a note recorded as "ch. 4, p. 61", notes grouped
+by chapter, retrieval citing a chapter, and "take notes on chapters 1–4"
+becoming something the Pavilion understands.
+
+**B. A per-book view of notes (#42).** The hub is legible now, but there
+is still no "show me everything I wrote about THIS book" in one place.
+Each gathered note carries its slug as of today, so the grouping has
+something to hang on. **Not** the Records Hall — that room is the
+project's memory; reading notes are the visitor's.
+
+**C. Prompt weight (#43).** With `num_ctx` fixed, a fat prompt is no
+longer *wrong*, only slow — and slow matters on a cooling-limited
+machine. The Investigator carries ~1,265 tokens of role and the Monk
+~1,173 before a word of the question. Measured today: the same request
+took 8.5s at 2k evaluated and 23s at 7.3k. Trimming is the next real
+speedup, and it serves clarity as well as speed.
+
+**D. Two residents are costumes, not stances (#44).** By the test the
+steward set — *does this change what the model DOES, or only how it
+sounds* — the Tutor overlaps Quill and the Monk on "explain this", and
+the Steward's old café-moderator hat overlapped Sebastian. The Steward
+is fixed. The Tutor now says plainly that breaking things down is his
+alone; whether that holds is a question for real use, not for me.
+
+**E. The macOS `.dmg`, the pool door, Piper for voice.** Unchanged from
+the 2026-08-02 list, and all still genuinely open.
+
+### What to poke at in the beta — the things most likely to be wrong
+
+Everything below is **built and verified only by me**. None of it has
+met a second human, and several have never met a real model.
+
+- **The four dissection lenses and the Steward's pre-notes** have only
+  ever been run on their *no-AI* paths. Nobody has seen what a real
+  model actually returns from them. Highest-value thing to try.
+- **Every reworked prompt** — Sebastian as the hub, Quill off teaching,
+  the Tutor breaking things down, the Steward doing work. Do they hand
+  off by name when a question is not theirs? Do they stay in their lane?
+- **`ref <term>`** at the Computer. Try to find a value it gets wrong.
+- **Retrieval** — ask a dissection question whose words are *not* in the
+  book and confirm it says so rather than returning something weak.
+  Then ask one whose words *are* there and check the pages it cites are
+  the pages the reader shows.
+- **☀ Today over several mornings.** Does it offer a genuinely different
+  unread book each day, and does the path you picked up stay on top?
+- **The whole chain, with a real book.** Dissect over two evenings →
+  make a plan → put it in the tree → pick it up → check Today the next
+  morning. The seams between rooms are where every bug in this project
+  has lived.
+- **A clean install**, which the steward has already called for before
+  the finished beta.

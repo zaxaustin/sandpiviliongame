@@ -273,6 +273,42 @@ and used** — the last genuinely unverified thing is closed. Everything is push
 the repo is **still private by choice**. The next action is making it public and
 cutting the Release.
 
+**Where things stand, end of 2026-08-03 (second session) — read this one.**
+
+A long day, and the shape of it is worth keeping: **the steward found every
+bug by using the thing, and several had passed every automated check.** Two of
+those were invisible-by-construction and are the ones to remember:
+
+1. **Ollama runs every model at `num_ctx` 4096 unless told otherwise.** We sent
+   `num_predict` and never `num_ctx`, so a 7,279-token request was evaluated at
+   2,050 and the model answered "I am Llama, by Meta AI" — having been told, in
+   the first line it never saw, that it was the Investigator. **The resident's
+   identity was being deleted before the model saw it.** Sized per request now.
+2. **A patch script aborted before writing, so an import never landed while the
+   code calling it did.** `node --check` passed, the build passed, `npm test`
+   passed, and the reader's full text was dead. `npm test` now walks every
+   `data/*.js` export and fails if `overlays.js` calls it without importing it.
+
+Built today: the study chain (note → lesson → a path you walk → Today; book →
+dissection → investigation), the roles cleaned up from one table with a
+directory for the visitor, the Steward recast as the workhorse with real
+pre-notes, the Reference Desk (`ref`), retrieval (BM25 over a book's own
+pages), and the catalogue brief that stops the librarian getting worse as the
+Library grows.
+
+**Tomorrow's list lives in `plans/BETA-TESTING-FEEDBACK.md` Round 5** — chapters
+via the table of contents (#41) is the one to take first, and the diagnosis is
+already written. **What to poke at is in the same place**, and the honest
+headline there is that the dissection lenses, the pre-notes and every reworked
+prompt have only ever been run on their no-AI paths.
+
+**And still: beta.3 has zero downloads.** Everything above is more good work
+that no second human has seen. `MAKING-AND-THE-OPEN-HARDWARE-COMMONS.md` now
+opens with the reason a **town square** — a free page for anyone with something
+to show — is the likeliest thing to change that, and it is a small build.
+
+---
+
 **Where things stand, end of 2026-08-03 — read this one.**
 
 **The chain now runs.** `THE-STUDY-CHAIN-PLAN.md`, built in one session from
