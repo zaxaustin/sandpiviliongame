@@ -18,6 +18,108 @@ import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
 import { epubToText } from '../epub.js';
 
+/* ================================================================
+   MAP OF THIS FILE — read this before hunting.
+
+   ~10,000 lines, and that is fine: it is a few dozen INDEPENDENT panel
+   renderers, not a tangle. Nothing here has ever broken because the
+   file is long. But "where do I even look" is a real cost, so:
+
+   HOW TO USE THIS MAP. Search for the quoted anchor text, not a line
+   number — line numbers rot within a day and a stale map is worse than
+   none. Every anchor below is checked by `npm test`; if you rename a
+   section, the test tells you to fix this map.
+
+   THE SHAPE OF EVERY PANEL, so one is enough to learn:
+       openThing()      sets state.ui, hideAllOv(), renderThing(), showOv('thingOv')
+       renderThing()    writes innerHTML into #thingPanel — no logic worth testing
+       state.thingView  whatever that panel is currently showing
+   and EVERY function called from an inline onclick MUST appear in the
+   `Object.assign(window, {...})` block at the very bottom, in both
+   directions — `npm test` checks both, because each has bitten.
+
+   ── The residents and the chat stack ──────────────────────────────
+     "AI-backed NPCs"          CHAT_AGENTS: one entry per resident, each
+                               with its own systemPrompt(). Quill, the
+                               Monk, Sebastian, the Steward/Investigator,
+                               the Computer, the Tutor.
+     "read the current dialog" scripted dialog + read-aloud
+     "Sebastian's reminder"    the opt-in ping. No polling anywhere else.
+
+   ── Frame: menu, settings, your data ──────────────────────────────
+     "Pause menu"              every door in one place. Add new rooms here.
+     "AI status + Connections" Ollama / OpenAI-compatible / Anthropic
+     "Can my computer run"     measures the machine instead of asking
+     "Voice settings"          read-aloud voice + rate
+     "visibility first"        Your Data, and DATA_MAP
+     "Save export / import"    the whole Pavilion as one file
+     "Activity Log"            what actually happened, human-readable
+
+   ── The Library ───────────────────────────────────────────────────
+     "Library shelves"         shelf browser + the Reader
+     "Reading the whole book"  paginated full text, read-aloud, the pocket
+     "Getting somewhere in a"  chapter jumps in a long book
+     "The Index"               flat list by category
+     "The Stacks"              hierarchical, and knows YOUR shelves
+     "Your Shelf"              the personal half: filing, bulk moves,
+                               the AI shelf suggester, the undo
+     "BRING A BOOK IN"         the intake table
+     "DROP A FILE ANYWHERE"    the global drop handler + the veil
+     "[BUNDLES]"               a packet of books, reviewed before it lands
+     "Steward Review Queue"    texts entering the certified Library
+     "Live SuttaCentral"       the one in-browser fetch that works
+
+   ── The Study: the day ────────────────────────────────────────────
+     "THE DAY"                 ☀ Today — five things, no AI, no timer
+     "SEBASTIAN'S STAND-UP"    one question at a time
+     "Planner (the Writing"    the Writing Desk
+     "Sparks"                  a thought from a book becomes a task
+     "Your Notes"              every note store, gathered
+     "The Idea Jar"            one click to jot, one click back
+     "Paths"                   things you walk, deliberately undated
+     "THE COMPUTER, rebuilt"   the terminal index. No AI required.
+     "Upcoming"                the due badge and everything behind it
+
+   ── The Workshop ──────────────────────────────────────────────────
+     "The Archive Desk"        your own writing
+     "The Research Desk"       projects and notes to think in
+     "The Records Hall"        the project's own memory, walkable
+     "THE LIFT"                three floors, named
+     "THE LAB"                 the gathering view: builds, datasheets,
+                               paper books, investigations
+     "THE BENCH"               predict → do → measure. Two-phase on
+                               purpose; the guess cannot be edited after.
+
+   ── The Science & Research Hall ───────────────────────────────────
+     "seed investigations"     the worked examples, and the method
+     "Phase 3 — self-experiments"  n-of-1, logged by hand
+     (the Investigator lives in CHAT_AGENTS above)
+
+   ── Learning ──────────────────────────────────────────────────────
+     "prerequisite tree: a node"  CURRICULUM — every lesson lives here
+     "Lessons you wrote"       user-authored nodes, merged in
+     "Drafting a lesson"       one question at a time to a small model
+     "Course Board"            pinning and archiving
+
+   ── The Café and sharing ──────────────────────────────────────────
+     "The two café wall boards"  dormant by design; says so
+     "The Grant Desk"          funding proposals
+     "The Alexandria Stone"    the Commons Table
+     "The bequest file"        the Inheritance Hall's unit
+     "The Request Board"       books you want, queued for the Caravan
+
+   ── Things worth knowing before you change anything ───────────────
+   · Pure logic belongs in data/*.js so `npm test` can reach it —
+     copyright, sourcing, memory, the-day, shelf-rules, draft-parse are
+     all out already. Add to that habit rather than to this file.
+   · hideAllOv() DERIVES its list. Never hand-maintain one again; that
+     exact pattern has bitten twice (this file's window exports, and
+     hideAllOv itself).
+   · Splitting this file: by ROOM, one at a time, while you are already
+     working in that room. Never as a big-bang refactor — a working
+     10k-line file becomes a broken twelve-file one.
+   ================================================================ */
+
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 /* escaping text is not the same as a safe link — a `javascript:` URL
    still renders as harmless text but still runs if someone clicks it.

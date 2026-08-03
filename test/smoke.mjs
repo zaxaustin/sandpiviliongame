@@ -290,6 +290,37 @@ for (const [key, s] of Object.entries(scenes)) {
 }
 
 
+/* ---------- the map at the top of overlays.js ----------
+   The file opens with a map of itself, pointing at sections by QUOTED ANCHOR
+   TEXT rather than line number, because line numbers rot within a day. This
+   checks every anchor still exists — otherwise the map becomes the thing it
+   was written to prevent: confident, specific, and wrong.
+
+   The map promises "every anchor below is checked by npm test". This is that
+   promise. A rename tells you here rather than wasting someone's afternoon. */
+{
+  const src = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const mapStart = src.indexOf('MAP OF THIS FILE');
+  if (mapStart < 0) {
+    fail('overlays.js: the map at the top of the file is gone — it is the only orientation a newcomer gets');
+  } else {
+    const mapEnd = src.indexOf('====== */', mapStart);
+    const map = src.slice(mapStart, mapEnd > 0 ? mapEnd : mapStart + 8000);
+    const body = src.slice(mapEnd > 0 ? mapEnd : mapStart + 8000);
+    // every "quoted anchor" in the left-hand column of the map
+    const anchors = [...map.matchAll(/^\s{5}"([^"]{4,})"/gm)].map(m => m[1]);
+    if (anchors.length < 25) {
+      fail(`overlays.js map: only ${anchors.length} anchors parsed — the map's shape has drifted from what this test reads`);
+    }
+    for (const a of anchors) {
+      if (!body.includes(a)) {
+        fail(`overlays.js map points at "${a}" and no such text exists below it — rename the map entry, or the map is lying to the next person`);
+      }
+    }
+  }
+}
+
+
 /* ---------- resident memory ----------
    What a resident carries between visits. The bar this has to clear is the one
    the gap was described by: a tag list ("you've asked about electronics") is
