@@ -159,11 +159,37 @@ export function theDayItems(ctx = {}) {
     fn: 'openNotesLog', arg: forgotten.n.key });
 
   /* 6 — brought in and never opened. The commonest quiet regret in any
-        library, and the app is the only thing that can notice. */
+        library, and the app is the only thing that can notice.
+
+        IT ROTATES, and that is the whole of this rule now. It used to offer
+        unread[0] — first in import order, the same book every morning until
+        you read it. Fine with three books. The steward imported a hundred-odd
+        spiritual texts on 2026-08-03 precisely so he could "read spiritual
+        texts that i havent read yet", and this would have shown him book one
+        of a hundred, forever, and never mentioned the other ninety-nine.
+        A recommendation that cannot change is a nag with better manners.
+
+        Deterministic per day rather than random: it must not reshuffle every
+        time the panel is opened, or it stops being an invitation and becomes a
+        slot machine. Same book all day, a new one tomorrow.
+
+        Readable ones first. A shelf here holds both real full texts and
+        Pavilion summaries of books it does not ship, and "read a page of this"
+        is a poor offer when there is no page. */
   const unread = books.filter(b => !read[b.slug]);
-  if (unread.length) push({ key: 'unread', icon: '📚', title: unread[0].title,
-    note: unread.length > 1 ? unread.length + ' books you added and have not opened' : 'you added this and never opened it',
-    fn: 'openReader', arg: unread[0].slug });
+  if (unread.length) {
+    const hasText = b => !!(b.doc && b.doc.fullText);
+    const pool = unread.filter(hasText).length ? unread.filter(hasText) : unread;
+    let seed = 0;
+    for (const c of String(today)) seed = (seed * 31 + c.charCodeAt(0)) >>> 0;
+    const pick = pool[seed % pool.length];
+    const shelf = pick.tradition && pick.tradition !== 'Personal' ? pick.tradition : '';
+    push({ key: 'unread', icon: '📚', title: pick.title,
+      note: unread.length > 1
+        ? (shelf ? shelf + ' · ' : '') + 'one of ' + unread.length + ' you have not opened — a different one each day'
+        : 'you added this and never opened it',
+      fn: 'openReader', arg: pick.slug });
+  }
 
   /* NEVER EMPTY — and on DAY ONE this is the only thing that fires, so it is
      the whole first impression. The first version looked only at the personal

@@ -953,6 +953,33 @@ for (const [key, s] of Object.entries(scenes)) {
   const ghost = theDayItems({ today: TODAY, lessons: two, study: { id: 'gone' }, curriculum: {} });
   if (ghost.some(i => i.arg === 'gone')) fail('the-day: it offered a lesson that no longer exists');
 
+  /* THE UNREAD PICK ROTATES (2026-08-03). It used to be unread[0] — first in
+     import order, the same book every morning until read. Fine with three
+     books; useless with the hundred spiritual texts the steward imported so he
+     could read ones he had not read yet. A recommendation that cannot change
+     is a nag with better manners. */
+  const bookShelfOf = n => Array.from({ length: n }, (_, i) => ({ slug: 'b' + i, title: 'Book ' + i,
+    tradition: 'Theravada', doc: { fullText: { text: 'x' } } }));
+  const unreadPickOn = day => (theDayItems({ today: day, books: bookShelfOf(40), read: {} })
+    .find(i => i.key === 'unread') || {}).arg;
+  const rotDays = ['2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07',
+                '2026-08-08', '2026-08-09', '2026-08-10'];
+  const rotPicks = rotDays.map(unreadPickOn);
+  if (rotPicks.some(x => !x)) fail('the-day: no unread book was offered from a bookShelfOf of 40');
+  if (new Set(rotPicks).size < 4) fail(`the-day: eight rotDays produced only ${new Set(rotPicks).size} distinct books — it is not rotating`);
+  // ...but it must NOT reshuffle within a day, or it is a slot machine
+  if (unreadPickOn('2026-08-03') !== rotPicks[0]) fail('the-day: the same day gave two different books — the pick must be stable until tomorrow');
+  // a readable book beats a summary stub: "read a page of this" needs a page
+  const rotMixed = theDayItems({ today: TODAY, read: {}, books: [
+    { slug: 'stub', title: 'Summary only', doc: {} },
+    { slug: 'real', title: 'Has full text', doc: { fullText: { text: 'x' } } }] });
+  const rotU = rotMixed.find(i => i.key === 'unread');
+  if (!rotU || rotU.arg !== 'real') fail(`the-day: offered "${u && rotU.arg}" — a book with no text is a poor thing to offer to read`);
+  // and it still works when NOTHING has full text, rather than going silent
+  const rotAllStubs = theDayItems({ today: TODAY, read: {},
+    books: [{ slug: 's1', title: 'A', doc: {} }, { slug: 's2', title: 'B', doc: {} }] });
+  if (!rotAllStubs.some(i => i.key === 'unread')) fail('the-day: a bookShelfOf of summaries offered nothing at all');
+
   // IT NOTICES, IT DOES NOT NAG — only past three days, and phrased as a question
   const fresh = theDayItems({ today: TODAY, sparks: [{ dayKey: '2026-07-27', text: 'yesterday thing' }] });
   if (fresh.some(i => i.icon === '🔁')) fail('the-day: it nagged about something one day old');
