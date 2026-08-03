@@ -15,6 +15,7 @@ import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
 import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data/reference.js';
+import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
@@ -2867,17 +2868,12 @@ export async function aiAnalyzePage(){
    kept whole per page (split on blank lines) so a page never cuts a
    thought in half; a page only overflows past the target size if a
    single paragraph genuinely runs longer than that on its own. */
-const FULLTEXT_PAGE_CHARS = 1400;
-function paginateFullText(text){
-  const paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
-  const pages=[]; let cur='';
-  for(const p of paras){
-    if(cur && (cur.length+p.length+2)>FULLTEXT_PAGE_CHARS){ pages.push(cur); cur=p; }
-    else cur = cur ? cur+'\n\n'+p : p;
-  }
-  if(cur) pages.push(cur);
-  return pages.length ? pages : [text];
-}
+/* Pagination MOVED to data/retrieval.js (2026-08-03) and is called from there
+   rather than duplicated here. Retrieval reports "page 47" and the reader must
+   then show you page 47 — two functions with their own idea of where a page
+   ends is exactly the two-lists-that-must-agree failure this project has hit
+   three times already. */
+function paginateFullText(text){ return paginate(text); }
 /* Full text lives one of two ways: inlined in doc.fullText.text (the
    zero-setup seed.js fallback — always works, no server required), or as
    doc.fullText.storage (a MinIO pointer, {bucket,key}) once a text has
@@ -2885,6 +2881,33 @@ function paginateFullText(text){
    Try the inline copy first (instant, no network); only reach for MinIO
    when there isn't one, and fail visibly rather than silently if MinIO
    isn't running, instead of leaving the reader stuck on "Loading…". */
+/* The three ways a book's text can live, with no DOM attached — extracted
+   2026-08-03 so retrieval can read a book WITHOUT the reader being open. The
+   copy inside openFullText() writes its progress and its failures into reader
+   elements, which is right there and useless anywhere else. Returns the text
+   or null; the caller says what a null means in its own words. */
+export async function loadBookText(slug){
+  const d=Store.getDoc(slug); const ft=d && d.doc && d.doc.fullText;
+  if(!ft) return null;
+  if(ft.text) return ft.text;
+  if(ft.storage && ft.storage.personal){
+    const bridge=window.desktopBridge;
+    if(bridge && bridge.libraryRead){
+      try{ const res=await bridge.libraryRead(ft.storage.personal); if(res && res.ok) return res.text; }
+      catch(e){ return null; }
+    }
+    return null;
+  }
+  if(ft.storage && ft.storage.bucket){
+    try{
+      const base=(import.meta.env && import.meta.env.VITE_MINIO_ENDPOINT) || 'http://localhost:9000';
+      const res=await fetch(`${base}/${ft.storage.bucket}/${ft.storage.key}`);
+      if(!res.ok) return null;
+      return await res.text();
+    }catch(e){ return null; }
+  }
+  return null;
+}
 export async function openFullText(slug, landOnPage){
   const d=Store.getDoc(slug); if(!d||!d.doc.fullText) return;
   const ft=d.doc.fullText;
@@ -5780,6 +5803,60 @@ function dissectGrounding(rec){
     where:"THE BOOK'S SUMMARY AND SECTIONS (not the full text — no page was open)",
     text:(d.doc.sections||[]).map(x=>x.heading+': '+x.body).join('\n\n') };
 }
+/* ================================================================
+   SEARCH THE WHOLE BOOK — REFERENCE-AND-RETRIEVAL-PLAN.md Part B.
+
+   Until now a lens could only see the page you happened to be on, so
+   "go through this paper properly with the local AI" meant finding
+   every relevant passage yourself first — which is most of the work.
+
+   Now: your QUESTION is the query. It searches every page of the book,
+   takes the three that actually answer it, and those become what the
+   lenses work on — each labelled with its real page number, so the
+   model can cite it and you can go and check.
+
+   The question field earning a second job is the point. It was already
+   the discipline of this room ("write it before you run anything");
+   now it is also the thing that finds the material. One field, two
+   reasons, no new UI to learn.
+
+   Honest about what it is: keyword matching, not meaning. Ask about
+   "impermanence" and it will not find a page that only says "nothing
+   lasts". The panel says so rather than letting a thin result look
+   like a thorough one. */
+export async function findPassagesFor(id){
+  const rec=dissectionRec(id); if(!rec||!rec.book) return;
+  const status=document.getElementById('bdStatus');
+  const q=(rec.question||'').trim();
+  if(!q){ if(status) status.textContent='Write your question first — it is what the search looks for.'; return; }
+  if(status) status.textContent='🔎 Reading the whole book…';
+  const text=await loadBookText(rec.book);
+  if(!text){
+    if(status) status.textContent='This one has no full text here — there is nothing to search. '
+      +'(A summary-only book, a paper book you own, or local storage is not running.)';
+    return;
+  }
+  const pages=paginate(text);
+  const hits=searchPages(pages, q, {limit:3});
+  if(!hasResults(hits)){
+    if(status) status.textContent='Nothing in this book matched those words. This searches for WORDS, not meaning — '
+      +'try the terms the author would actually use, or open the passage yourself and press 🔬 Dissect from here.';
+    return;
+  }
+  const d=Store.getDoc(rec.book);
+  state.dissectWhere={
+    slug:rec.book, title:d.title, summary:d.doc.summary,
+    where:'THE '+hits.length+' PASSAGES OF THIS BOOK THAT BEST MATCH THE READER\'S QUESTION '
+      +'(pages '+hits.map(h=>h.page+1).join(', ')+'). Cite the page number when you draw on one.',
+    human:hits.length+' matching passage'+(hits.length===1?'':'s')+' · pages '+hits.map(h=>h.page+1).join(', '),
+    onPage:true,
+    text:passagesBlock(hits, {full:true, cap:7000}),
+    found:hits.map(h=>({page:h.page, snippet:h.snippet})),
+  };
+  logActivity('Searched "'+rec.title+'" for the passages matching the question.');
+  blip(700,.07);
+  renderScienceHall();
+}
 export function setDissectQuestion(id,val){
   const rec=dissectionRec(id); if(!rec) return;
   rec.question=val; rec.ts=todayKey();
@@ -6275,12 +6352,23 @@ function renderScienceHall(){
           onclick="runBookLens('${esc(rec.id)}','${k}')">${BOOK_LENSES[k].icon} ${esc(BOOK_LENSES[k].label)}</button>`).join('')}
       </div>
       <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+        <button class="btn ghost" style="font-size:11.5px" onclick="findPassagesFor('${esc(rec.id)}')"
+          title="Search every page for the passages that answer your question, and work from those">🔎 Find the passages</button>
         <button class="btn ghost" style="font-size:11.5px" onclick="stewardPreNotes('${esc(rec.id)}')"
           title="Before you read it: what it is, how it's built, what to watch for, what to ask">📋 Steward's pre-notes</button>
         <button class="btn ghost" style="font-size:11.5px" onclick="pullNotesIntoDissection('${esc(rec.id)}')"
           title="Your own typed notes on this book — no AI needed">🗒 Pull in my notes</button>
         ${rec.book?`<button class="btn ghost" style="font-size:11.5px" onclick="readDissectedBook('${esc(rec.id)}')">📖 Open the book</button>`:''}
       </div>
+      ${(g&&g.found&&g.found.length)?`<div class="card" style="cursor:default;margin-top:9px;border-color:#7fb069">
+        <div class="s" style="color:#7fb069">🔎 Found ${g.found.length} passage${g.found.length===1?'':'s'} — the lenses work on these now</div>
+        ${g.found.map(f=>`<div class="s" style="margin-top:6px">
+          <b>page ${f.page+1}</b> · <span style="cursor:pointer;text-decoration:underline"
+            onclick="closeUI();openReader('${esc(rec.book)}');setTimeout(()=>openFullText('${esc(rec.book)}',${f.page}),260)">go and read it</span>
+          <div style="opacity:.85;margin-top:2px">${esc(f.snippet)}</div></div>`).join('')}
+        <div class="s" style="margin-top:7px;opacity:.75">This matched WORDS, not meaning — a page that makes the same
+          point in different words will not be here. Worth a look before you trust the answer.</div>
+      </div>`:''}
       <div class="meta" id="bdStatus" style="margin-top:8px;color:#e0a43c"></div>
 
       <h3 style="margin-top:20px">The passes${rec.passes.length?` <span class="badge lic">${rec.passes.length}</span>`:''}</h3>
@@ -10976,7 +11064,7 @@ Object.assign(window, {
   openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
   openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,
   lessonFromPlanNote, openLessonFromNote, pickUpLesson, putDownLesson, currentStudy, nextStepOf,
-  talkTo, openRoster, stewardPreNotes,
+  talkTo, openRoster, stewardPreNotes, findPassagesFor, loadBookText,
   unfileShelf,
   dissectBook, openDissection, dissectionRec, setDissectQuestion, runBookLens, pullNotesIntoDissection,
   deleteDissectPass, readDissectedBook, investigationFromBook,

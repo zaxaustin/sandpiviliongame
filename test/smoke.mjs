@@ -10,7 +10,7 @@
    hardcoded list here is exactly the kind of thing this script exists
    to catch drifting silently.
    ================================================================ */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { scenes, SOLID } from '../src/game/scenes.js';
 import { SEED_LIBRARY, TRADITIONS } from '../src/game/data/seed.js';
 
@@ -677,6 +677,127 @@ for (const [key, s] of Object.entries(scenes)) {
 
   // an empty shelf says so rather than producing a confusing blank
   if (catalogueBrief([]).mode !== 'empty') fail('catalogue-brief: an empty Library did not report itself as empty');
+}
+
+/* ---------- every data/*.js name that overlays.js USES, it must IMPORT ----------
+   Added 2026-08-03 after this exact bug shipped past three checks. A patch
+   script aborted before writing, so the `retrieval.js` import line never
+   landed — while the code that CALLS paginate() and searchPages() did. The
+   result: `node --check` passed (it is valid syntax), `npm run build:beta`
+   passed (a free variable is legal), `npm test` passed (nothing imports
+   overlays.js), and the reader's full text was dead on arrival with a bare
+   ReferenceError. Found only by driving a browser at it.
+
+   That is the house failure mode with a new coat, and it is the same shape as
+   the window-export bug: a name referenced in one place and defined in
+   another, with nothing checking the join. So it gets checked. */
+{
+  const ovSrc = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const dataDir = new URL('../src/game/data/', import.meta.url);
+  const modules = readdirSync(dataDir).filter(f => f.endsWith('.js'));
+
+  // what overlays.js actually imports, per module
+  const imported = new Set();
+  for (const m of ovSrc.matchAll(/import\s*\{([^}]+)\}\s*from\s*'[^']*\/data\/[^']+'/g)) {
+    for (const raw of m[1].split(',')) {
+      const name = raw.trim().split(/\s+as\s+/)[0].trim();
+      if (name) imported.add(name);
+      const alias = raw.trim().split(/\s+as\s+/)[1];
+      if (alias) imported.add(alias.trim());
+    }
+  }
+
+  for (const file of modules) {
+    const src = readFileSync(new URL(file, dataDir), 'utf8');
+    const exports = [...src.matchAll(/^export\s+(?:async\s+)?(?:function|const|let)\s+([A-Za-z_$][\w$]*)/gm)]
+      .map(m => m[1]);
+    for (const name of exports) {
+      if (imported.has(name)) continue;
+      /* Is it CALLED bare in overlays.js? Scanned rather than regexed, because
+         a name preceded by a dot is a method on something else entirely and a
+         false positive here would send a future session hunting a bug that
+         does not exist. */
+      let used = false;
+      for (let at = ovSrc.indexOf(name + '('); at >= 0; at = ovSrc.indexOf(name + '(', at + 1)) {
+        const before = at > 0 ? ovSrc[at - 1] : ' ';
+        if (/[.\w$]/.test(before)) continue;          // obj.name(  or  somethingname(
+        used = true; break;
+      }
+      if (used) {
+        fail(`overlays.js calls ${name}() from data/${file} but never imports it — `
+           + 'a bare ReferenceError at runtime that node --check, the build and this suite would all otherwise pass');
+      }
+    }
+  }
+}
+
+/* ---------- retrieval: finding the passage, not pasting the book ----------
+   REFERENCE-AND-RETRIEVAL-PLAN Part B. Until 2026-08-03 nothing could look
+   INSIDE a book: searchDocs() returned null, Quill got titles and blurbs, and
+   a dissection lens saw only the page you happened to have open.
+   See src/game/data/retrieval.js. */
+{
+  const { paginate, tokenize, searchPages, passagesBlock, hasResults, PAGE_CHARS } =
+    await import('../src/game/data/retrieval.js');
+
+  /* PAGES MUST BE THE READER'S PAGES. Retrieval citing "page 47" while the
+     reader shows page 51 is the two-lists-that-must-agree failure this project
+     has hit three times, so the reader now calls paginate() rather than owning
+     a second copy. */
+  const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  if (/function paginateFullText\(text\)\{\s*$/m.test(ov) && !/return paginate\(text\)/.test(ov)) {
+    fail('overlays.js has its own pagination again — retrieval will cite pages the reader does not show');
+  }
+  if (!/return paginate\(text\)/.test(ov)) fail('overlays.js no longer delegates pagination to retrieval.js');
+
+  const para = n => 'Paragraph number ' + n + ' talks at some length about ordinary matters of no consequence. ';
+  const book = Array.from({ length: 120 }, (_, i) =>
+    (i === 40 ? 'The forward voltage of an infrared LED is typically two volts and the series resistor follows from it. '
+     : i === 90 ? 'Impedance matching in the antenna stage determines how much power actually radiates. '
+     : '') + para(i)).join('\n\n');
+
+  const pages = paginate(book);
+  if (pages.length < 5) fail(`retrieval: 120 paragraphs paginated to ${pages.length} pages`);
+  for (const pg of pages) if (pg.length > PAGE_CHARS * 2) fail('retrieval: a page ran far past the page size');
+  if (paginate('').length !== 1) fail('retrieval: empty text must still be one page, not zero');
+
+  // it finds the RIGHT page, not merely a page
+  const hits = searchPages(pages, 'infrared LED forward voltage resistor');
+  if (!hasResults(hits)) fail('retrieval: found nothing for a phrase that is verbatim in the book');
+  else {
+    const where = pages.findIndex(x => /forward voltage of an infrared/.test(x));
+    if (hits[0].page !== where) fail(`retrieval: best hit was page ${hits[0].page}, the passage is on ${where}`);
+    if (!/infrared/i.test(hits[0].snippet)) fail('retrieval: the snippet does not contain the thing that matched');
+  }
+  const other = searchPages(pages, 'antenna impedance matching');
+  if (!hasResults(other) || other[0].page === hits[0].page) fail('retrieval: a different question returned the same page');
+
+  // it must say NOTHING rather than return the first page as a consolation
+  if (hasResults(searchPages(pages, 'zebra tessellation quokka'))) {
+    fail('retrieval: invented matches for words absent from the book — a thin result must not look thorough');
+  }
+  if (hasResults(searchPages(pages, 'the and of'))) fail('retrieval: stopwords alone produced matches');
+  if (hasResults(searchPages([], 'anything'))) fail('retrieval: searched an empty book and found something');
+
+  // a page carrying EVERY term beats a page repeating one
+  const two = ['resistor resistor resistor resistor resistor resistor ' + para(1),
+               'the resistor and the capacitor together set the time constant ' + para(2)];
+  const both = searchPages(two, 'resistor capacitor');
+  if (!both.length || both[0].page !== 1) fail('retrieval: keyword spam outranked the page that answers the question');
+
+  /* THE BUDGET PROPERTY. This is the rule the plan is built on and the reason
+     the catalogue bug happened: retrieve the fragment, never the corpus. */
+  const block = passagesBlock(searchPages(pages, 'infrared LED forward voltage', { limit: 3 }), { full: true, cap: 6000 });
+  if (block.length > 6600) fail(`retrieval: the passages block is ${block.length} chars — it must be a fragment`);
+  if (!/\[page \d+\]/.test(block)) fail('retrieval: passages are not labelled with their page, so nothing can be cited or checked');
+  if (passagesBlock([], {}) !== '') fail('retrieval: an empty result produced a non-empty block for the model to confabulate from');
+
+  // tokenizing keeps the words that discriminate and drops the ones that never do
+  const t = tokenize('The Forward Voltage of an LED, and the resistor!');
+  if (!t.includes('forward') || !t.includes('voltage') || !t.includes('led') || !t.includes('resistor')) {
+    fail(`retrieval: tokenizer dropped a meaningful word — got ${JSON.stringify(t)}`);
+  }
+  if (t.includes('the') || t.includes('of') || t.includes('an')) fail('retrieval: stopwords survived tokenizing');
 }
 
 /* ---------- the reference desk ----------
