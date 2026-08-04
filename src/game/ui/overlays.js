@@ -11,6 +11,9 @@ import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS } from '../data/the-day.js';
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
+import { esc, jsq } from './dom.js';
+import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
+         studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache } from './study-table.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
@@ -128,12 +131,9 @@ import { epubToText } from '../epub.js';
      10k-line file becomes a broken twelve-file one.
    ================================================================ */
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-/* A string going into a JS single-quoted literal that is itself inside an
-   HTML attribute — two layers, and getting one of them wrong is a button
-   that silently does nothing (the house failure mode). Escape for JS first,
-   then for HTML, in that order. */
-function jsq(s){ return esc(String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
+/* esc/jsq moved to ui/dom.js — the first extraction out of this file, so
+   ui/study-table.js can share them instead of keeping a second copy of an
+   escaping rule. See the import at the top. */
 /* escaping text is not the same as a safe link — a `javascript:` URL
    still renders as harmless text but still runs if someone clicks it.
    Anywhere a user-supplied URL becomes an href (Waypoints, course steps),
@@ -4062,6 +4062,7 @@ export function removePlanLogEntry(id){
    visible unconditionally. */
 const TOOLBOX_ITEMS = [
   {id:'book', icon:'📖', label:'The book in front of you'},
+  {id:'study', icon:'📚', label:'Work through a book'},
   {id:'blocks', icon:'🔥', label:'Rhythm blocks'},
   {id:'sparks', icon:'✨', label:'Sparks from reading'},
   {id:'notes', icon:'🗂', label:'Your notes'},
@@ -4069,6 +4070,7 @@ const TOOLBOX_ITEMS = [
   {id:'past', icon:'📅', label:'Past days'},
 ];
 const TOOLBOX_TITLES = {book:'The book in front of you',
+  study:'Work through a book, one story at a time',
   blocks:'Rhythm blocks — tap to cycle: waiting → tended → rested',
   sparks:'Sparks from reading', notes:'Your notes — lately, and worth another look',
   assist:'Call someone over', past:'Past days'};
@@ -4085,8 +4087,31 @@ function toolLabel(t){
   /* And the book button names the book you are actually carrying — the desk
      should show what is ON it before you open anything. */
   if(t.id==='book'){ const b=deskBook(); return b ? b.doc.title : t.label; }
+  if(t.id==='study') return studyTableLabel();
   return t.label;
 }
+/* THE SEAM between this file and ui/study-table.js, written down rather than
+   implied. The workroom lives outside the monolith (the steward asked for
+   overlays.js to be broken up, and a new panel had no business making it
+   worse); the handful of things it needs that still live here are handed over
+   once, here, so nothing has to import backwards. */
+initStudyTable({
+  deskBook,
+  loadBookText,
+  writeBookNote: (slug, text, page) => {
+    /* The Reader's own path, so a note written at the table is identical to
+       one written mid-page: same shape, same chapter, same four doors. The
+       view is only used for the chapter lookup, so it is passed when it
+       happens to be the same book and simply absent otherwise. */
+    const v = (state.fullTextView && state.fullTextView.slug===slug) ? state.fullTextView : null;
+    return writeBookNote(slug, text, v, page);
+  },
+  openBookAt: async (slug, page) => {
+    closeUI();
+    openReader(slug);
+    await openFullText(slug, page);
+  },
+});
 export function openPlanner(){
   state.ui='planner'; hideAllOv();
   const day=plannerDay();
@@ -4140,6 +4165,7 @@ function renderToolPanel(){
     <div id="planToolBody"></div>
   </div>`;
   if(tool==='book') renderDeskBookBody();
+  else if(tool==='study') renderStudyTable();
   else if(tool==='blocks') renderBlocksBody();
   else if(tool==='sparks') renderPlanSparksBody();
   else if(tool==='notes') renderNotesBody();
@@ -12373,6 +12399,9 @@ Object.assign(window, {
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
   fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention, setDeskAgent,
   deskAddNote, deskNoteSent, renderDeskBookAfterPutDown, deskDraftLesson, deskOpenDraft,
+  /* ui/study-table.js — the window block stays in ONE file, which is this
+     one, so the two-directional export check keeps working. */
+  studyStep, studyLabelToggle, studyLabelSave, studyUnlabel, studyOpenHere, studyAddNote,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,

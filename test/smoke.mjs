@@ -122,18 +122,37 @@ for (const [key, s] of Object.entries(scenes)) {
    Board". A silent no-op button is worse than a crash: nobody reports it. */
 {
   const src = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  /* EVERY ui/ FILE IS SCANNED FOR HANDLERS, not just overlays.js.
+     Breaking overlays.js up (2026-08-04, at the steward's request) put panels
+     in new files while the window-export block correctly stayed in ONE place.
+     This check read overlays.js alone, so the moment a panel moved out its
+     buttons stopped being covered — the split would have quietly disabled the
+     project's oldest guard, which is a worse outcome than the monolith. */
+  const uiDir = new URL('../src/game/ui/', import.meta.url);
+  const uiFiles = readdirSync(uiDir).filter(f => f.endsWith('.js'));
   const block = src.slice(src.lastIndexOf('Object.assign(window'));
-  const exported = new Set(block.match(/[A-Za-z_$][\w$]*/g) || []);
+  /* COMMENTS ARE STRIPPED BEFORE THE NAMES ARE READ. Found 2026-08-04 while
+     deliberately breaking this very check: dropping `studyAddNote` from the
+     list but mentioning it in the comment on the same line made the guard
+     pass. A name in a comment is not an export, and a guard that a comment
+     can satisfy is the "born dead" failure this project keeps writing —
+     the same shape as the prompt-budget check that parsed apostrophes
+     inside comments as string quotes. */
+  const stripComments = t => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+  const exported = new Set(stripComments(block).match(/[A-Za-z_$][\w$]*/g) || []);
   // functions assigned straight onto window elsewhere count too
   for (const m of src.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) exported.add(m[1]);
   const RESERVED = new Set(['if', 'for', 'while', 'return', 'event', 'this', 'switch', 'try']);
-  const called = new Set();
-  for (const m of src.matchAll(/on(?:click|change|input|keydown|dragover|dragleave|drop)\s*=\s*["'`]?\s*([A-Za-z_$][\w$]*)\s*\(/g)) {
-    if (!RESERVED.has(m[1])) called.add(m[1]);
-  }
-  for (const fn of called) {
-    if (!exported.has(fn)) {
-      fail(`overlays.js: '${fn}()' is called from an inline handler but is not on window — that button silently does nothing`);
+  for (const file of uiFiles) {
+    const text = readFileSync(new URL(file, uiDir), 'utf8');
+    const called = new Set();
+    for (const m of text.matchAll(/on(?:click|change|input|keydown|dragover|dragleave|drop)\s*=\s*["'`]?\s*([A-Za-z_$][\w$]*)\s*\(/g)) {
+      if (!RESERVED.has(m[1])) called.add(m[1]);
+    }
+    for (const fn of called) {
+      if (!exported.has(fn)) {
+        fail(`ui/${file}: '${fn}()' is called from an inline handler but is not in the window export block (which lives in overlays.js) — that button silently does nothing`);
+      }
     }
   }
 
@@ -1643,6 +1662,71 @@ for (const d of SEED_LIBRARY) {
   const nasty = lessonToHTML({ title:'</title><script>alert(1)</script>', steps:[{title:'<img onerror=x>'}] });
   if (/<script>|<img /i.test(nasty)) fail('lesson-doc: the HTML export does not escape — a title could inject script into a page the teacher publishes');
   if (lessonFileName(node, 'html') !== 'of-mice-and-men-week-1.html') fail('lesson-doc: the filename is not something you could find again: ' + lessonFileName(node, 'html'));
+}
+
+/* ---------- how a book is divided, and who divided it ----------
+   data/marks.js, the foundation of the Study Table. Two rules carry the
+   whole feature: a mark the reader made outranks one we guessed, and a book
+   with no marks at all is still divisible — page by page — or the workroom
+   refuses to open for the 88 books that find no chapters. */
+{
+  const { mergeMarks, unitsFor, unitAt, unitLabel } = await import('../src/game/data/marks.js');
+
+  /* --- hand outranks detection, which is what schema.sql has always said --- */
+  const detected = [{ page: 0, label: 'CHAPTER I' }, { page: 10, label: 'CHAPTER II' }];
+  const hand = [{ page: 10, label: 'The Ambattha Sutta', ts: '2026-08-04' }];
+  const merged = mergeMarks(detected, hand, 40);
+  if (merged.length !== 2) fail(`marks: merging 2 detected + 1 hand on the same page gave ${merged.length} marks, not 2`);
+  const at10 = merged.find(m => m.page === 10);
+  if (!at10 || at10.label !== 'The Ambattha Sutta' || at10.source !== 'hand') {
+    fail(`marks: the hand mark did not win at page 10 — got ${JSON.stringify(at10)}. schema.sql: "'hand' outranks everything, because a person who has the book open is better evidence than any heuristic"`);
+  }
+  if (merged[0].source !== 'detected') fail('marks: an untouched detected mark should survive a merge');
+
+  // a hand mark where nothing was detected is simply inserted
+  const inserted = mergeMarks(detected, [{ page: 25, label: 'A story I found' }], 40);
+  if (inserted.length !== 3 || inserted[2].page !== 25) fail(`marks: a hand mark on an undetected page was not inserted — ${JSON.stringify(inserted.map(m => m.page))}`);
+
+  // marking the PLACE but not the name must not throw the only label away
+  const kept = mergeMarks(detected, [{ page: 10, label: '   ' }], 40);
+  if (kept.find(m => m.page === 10).label !== 'CHAPTER II') {
+    fail('marks: an empty hand label discarded the detected one — the person marked the place, not the name');
+  }
+
+  // saved data outlives the book it was saved against
+  const stale = mergeMarks([], [{ page: 900, label: 'from a longer import' }], 40);
+  if (stale.length) fail('marks: a mark past the end of the book survived — it would put the reader off the end');
+  if (mergeMarks([], [{ page: -3, label: 'x' }], 40).length) fail('marks: a negative page survived');
+
+  /* --- THE 88 BOOKS: no marks at all must still divide --- */
+  const pageUnits = unitsFor(12, []);
+  if (pageUnits.length !== 12) {
+    fail(`marks: a book with no marks gave ${pageUnits.length} units, not 12 — the Study Table would refuse to open for the 88 books that find no chapters`);
+  } else {
+    // guarded, so a broken count reports its own name instead of crashing the suite on the next line
+    if (pageUnits[3].from !== 3 || pageUnits[3].to !== 3) fail('marks: page-sized units are not one page each');
+    if (unitLabel(pageUnits[3]) !== 'Page 4') fail(`marks: a page unit repeats itself — "${unitLabel(pageUnits[3])}"`);
+  }
+
+  /* --- units cover EVERY page, so no page falls outside the workroom --- */
+  const units = unitsFor(40, merged);
+  const covered = new Set();
+  for (const u of units) for (let p = u.from; p <= u.to; p++) covered.add(p);
+  if (covered.size !== 40) fail(`marks: units cover ${covered.size} of 40 pages — a page outside every unit is a page the workroom cannot open`);
+  for (const u of units) if (u.to < u.from) fail(`marks: unit "${u.label}" runs backwards (${u.from}→${u.to})`);
+
+  // a book whose first chapter starts late still accounts for its opening pages
+  const late = unitsFor(40, [{ page: 5, label: 'CHAPTER I', source: 'detected' }]);
+  if (late[0].from !== 0 || late[0].source !== 'implicit') {
+    fail(`marks: pages before the first mark belong to nothing — ${JSON.stringify(late[0])}`);
+  }
+  if (late.length !== 2 || late[1].to !== 39) fail(`marks: the last unit does not run to the end — ${JSON.stringify(late)}`);
+
+  /* --- where am I --- */
+  if (unitAt(units, 10).label !== 'The Ambattha Sutta') fail('marks: unitAt did not find the unit containing the page');
+  if (unitAt(units, 9).label !== 'CHAPTER I') fail('marks: unitAt is off by one at a boundary');
+  if (unitAt(units, 999) !== null) fail('marks: unitAt invented a unit for a page past the end');
+  if (unitsFor(0, []).length) fail('marks: a book with no pages produced units');
 }
 
 /* ---------- report ---------- */
