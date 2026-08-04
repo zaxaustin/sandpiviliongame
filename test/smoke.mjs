@@ -1528,6 +1528,58 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- a hosted model must never be mistaken for a local one ----------
+
+   The highest-stakes silent failure this project has: the Monk's standing
+   rule is "the largest LOCAL model", and on 2026-08-03 it returned
+   `gpt-oss:20b-cloud` on the steward's own machine — his most private
+   conversations routed to Ollama's servers while the title screen said
+   "running on this device alone".
+
+   The guard existed. It said `name.endsWith(':cloud')`, which was true of
+   the naming a month ago and false of `gpt-oss:20b-cloud`. So this list is
+   the ACTUAL output of `ollama list` on that machine, hyphen form included,
+   and it is checked by both signals — the name and the manifest-sized
+   entry — because a naming convention will change again. */
+{
+  const { bestLocalModel, isCloudModel } = await import('../src/game/ai/provider.js');
+
+  const REAL = [
+    { name: 'gpt-oss:20b-cloud',     size: 306,        cloud: true  },
+    { name: 'deepseek-v4-pro:cloud', size: 344,        cloud: true  },
+    { name: 'ornith:9b',             size: 5629110568, cloud: false },
+    { name: 'llama3.2:latest',       size: 2019393189, cloud: false },
+    { name: 'deepseek-r1:8b',        size: 5225376047, cloud: false },
+    { name: 'qwen3.5:9b',            size: 6594474711, cloud: false },
+  ];
+  for (const m of REAL) {
+    if (isCloudModel(m) !== m.cloud) {
+      fail(`provider.js: isCloudModel() calls '${m.name}' ${isCloudModel(m) ? 'hosted' : 'local'} — it is ${m.cloud ? 'hosted' : 'local'}. A hosted model treated as local sends a resident's conversation to a server while the app claims otherwise`);
+    }
+    // the name alone must be enough too — availableModels is a list of strings
+    if (m.cloud && !isCloudModel(m.name)) {
+      fail(`provider.js: isCloudModel('${m.name}') missed it on the NAME. availableModels carries names only, so the size signal is not always there to save it`);
+    }
+  }
+
+  const picked = bestLocalModel(REAL.map(m => m.name), REAL[0].name);
+  if (isCloudModel(picked)) {
+    fail(`provider.js: bestLocalModel() picked '${picked}', which is hosted — this is the call that decides where the Monk's conversations go`);
+  }
+  if (picked !== 'ornith:9b' && picked !== 'qwen3.5:9b') {
+    fail(`provider.js: bestLocalModel() picked '${picked}'; the largest genuinely local model in that list is 9B`);
+  }
+  // nothing local at all must yield NOTHING, never a hosted fallback
+  const onlyCloud = bestLocalModel(['gpt-oss:20b-cloud'], 'gpt-oss:20b-cloud');
+  if (onlyCloud !== null) {
+    fail(`provider.js: with only hosted models installed, bestLocalModel() returned '${onlyCloud}' instead of null — a fallback that reaches for a server is the failure this whole check exists to stop`);
+  }
+  // and a local model that merely mentions the word must survive
+  if (isCloudModel('cloudy-llama:8b')) {
+    fail("provider.js: isCloudModel() is matching the word 'cloud' anywhere in a name — a local model would be discarded");
+  }
+}
+
 /* ---------- report ---------- */
 if (failures.length) {
   console.error(`✗ ${failures.length} smoke-test failure(s):\n`);

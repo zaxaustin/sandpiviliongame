@@ -19,7 +19,7 @@ import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrie
 import { findChapters, chapterAt } from '../data/chapters.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
-import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel } from '../ai/provider.js';
+import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
@@ -1674,14 +1674,17 @@ export async function checkOllama(){
     </div>`;
     return;
   }
-  /* NOT EVERY MODEL OLLAMA LISTS IS LOCAL. Ollama now serves hosted models
-     too, tagged `:cloud` — this machine has deepseek-v4-pro:cloud sitting in
-     the same list as the real ones. Saying "nothing leaves this machine"
-     while one of those is installed would be a straightforward lie, and the
-     kind that is hardest to notice because the panel is otherwise telling
-     the truth. Found 2026-08-03 by looking at the actual output. */
-  const cloud=models.filter(m=>/:cloud\b/i.test(m));
-  const local=models.filter(m=>!/:cloud\b/i.test(m));
+  /* NOT EVERY MODEL OLLAMA LISTS IS LOCAL. Saying "nothing leaves this
+     machine" while a hosted model is selected would be a straightforward
+     lie, and the kind hardest to notice because the panel is otherwise
+     telling the truth.
+
+     This panel used to carry its OWN `/:cloud\b/` regex — a second copy of
+     a rule that already existed in provider.js, and both had gone stale
+     against `gpt-oss:20b-cloud`. One definition now, in provider.js, where
+     the model list is actually built. */
+  const cloud=models.filter(m=>isCloudModel(m));
+  const local=models.filter(m=>!isCloudModel(m));
   const best=bestLocalModel(local, local[0]||models[0]);
   const list=(arr)=>arr.map(m=>esc(m)).join(' · ');
   out.innerHTML=`<div class="card" style="cursor:default;border-color:${local.length?'#7fa36b':'#8a6a3a'}">

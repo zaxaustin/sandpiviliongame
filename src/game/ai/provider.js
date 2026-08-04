@@ -188,15 +188,46 @@ const REPLY_TIMEOUT = { short:90000, long:240000, deep:360000 };
 // isAvailable() already confirmed are real. Falls back to whatever the
 // connection auto-picked if nothing parses, so this never breaks a
 // connection, just fails to improve on it.
+/* A MODEL OLLAMA LISTS IS NOT NECESSARILY A MODEL OLLAMA RUNS HERE.
+
+   Ollama serves hosted models through the same local endpoint and lists
+   them in /api/tags beside the real ones. Using one sends the
+   conversation to Ollama's servers — which is fine if you chose it, and a
+   straightforward lie if the title screen says "running on this device
+   alone" while it happens.
+
+   This was already guarded, with `name.endsWith(':cloud')`, and the guard
+   had gone stale: the free-tier models are named `gpt-oss:20b-cloud`, so
+   the hyphen form slipped straight through as local. Measured 2026-08-03
+   on this machine — `bestLocalModel()` returned `gpt-oss:20b-cloud`,
+   meaning THE MONK'S standing "largest local model" rule would have sent
+   his conversations to a server, silently.
+
+   So: two independent signals, because a naming convention is exactly the
+   sort of thing that changes again.
+     · the NAME — `:cloud` or `-cloud`, the tags Ollama actually uses;
+     · the SIZE — a hosted entry is a bare manifest (306 and 344 bytes on
+       this machine) where any real local model is hundreds of megabytes.
+   Either one is enough to disqualify it. */
+export function isCloudModel(nameOrEntry){
+  const e = (nameOrEntry && typeof nameOrEntry === 'object') ? nameOrEntry : { name: nameOrEntry };
+  if (/[:\-]cloud\b/i.test(String(e.name || ''))) return true;
+  return typeof e.size === 'number' && e.size >= 0 && e.size < 1e6;
+}
+/* THE LARGEST MODEL THAT ACTUALLY RUNS ON THIS COMPUTER. Cloud entries are
+   excluded here as well as at detection — this is the one call that decides
+   where the Monk's most private conversations go, and it should not depend
+   on someone else having filtered the list first. */
 export function bestLocalModel(availableModels, fallback){
   let best=fallback, bestSize=-1;
   for(const m of (availableModels||[])){
-    const match=m.match(/(\d+(?:\.\d+)?)\s*b\b/i);
+    if(isCloudModel(m)) continue;
+    const match=String(m).match(/(\d+(?:\.\d+)?)\s*b\b/i);
     if(!match) continue;
     const size=parseFloat(match[1]);
     if(size>bestSize){ bestSize=size; best=m; }
   }
-  return best;
+  return isCloudModel(best) ? (fallback && !isCloudModel(fallback) ? fallback : null) : best;
 }
 
 // The two "nothing came back" sentinels below — exported so a caller can
@@ -220,7 +251,7 @@ export function isEmptyReply(text){
 export function makeOllamaProvider(baseUrl, name, preferredModel){
   const url = (baseUrl || 'http://localhost:11434').replace(/\/$/,'');
   const p = {
-    name: name || 'Ollama', model: null, availableModels: [],
+    name: name || 'Ollama', model: null, availableModels: [], cloudModels: [],
     // Ollama can stream tokens live; chat() below uses it when a caller passes
     // opts.onStream (see sendChatMessage). The cloud providers here don't set
     // this, so live streaming stays scoped to local models — which is exactly
@@ -236,11 +267,13 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
         const res = await localFetch(url+'/api/tags', { signalMs:1200 });
         if(!res.ok) return false;
         const body = await res.json();
-        const models = (body.models||[]).map(m=>m.name);
-        // ":cloud" models show up in /api/tags like any local one, but they
-        // proxy to Ollama's hosted service and 403 on /api/chat without a
-        // paid subscription — never auto-pick one of those for a resident.
-        const local = models.filter(m=>!m.endsWith(':cloud'));
+        // Hosted models show up in /api/tags exactly like local ones and
+        // proxy to Ollama's servers — never auto-pick one for a resident.
+        // Filtered on the FULL entry (name and size), not the name alone;
+        // see isCloudModel above for why the name is not enough.
+        const entries = (body.models||[]);
+        p.cloudModels = entries.filter(isCloudModel).map(m=>m.name);
+        const local = entries.filter(m=>!isCloudModel(m)).map(m=>m.name);
         if(!local.length) return false;
         p.availableModels = local;
         // an explicit model wins if it's actually installed; otherwise
