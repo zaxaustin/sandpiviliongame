@@ -52,6 +52,36 @@ yet) and update `MAINTAINING.md`'s "What's next" section to match reality —
 future sessions (yours or anyone else's) depend on both staying honest,
 not aspirational.
 
+## Session workflow — keep a session focused
+
+Written by the steward, 2026-08-04.
+
+1. Read `MAINTAINING.md` → **"What's next"**.
+2. State the **single focus** for this session in one plain sentence before
+   touching code.
+3. Prefer **player-added books** over seed books for any library, reader or
+   chapter work.
+4. After a UI, packaging or storage change: **build the artifact you ship and
+   look at it** (preview + screenshot, or packaged-boot). Reasoning alone is
+   not evidence.
+5. End by updating `MAINTAINING.md`'s "What's next" and appending an honest
+   note to the day's dev-log.
+
+## SUPABASE IS GONE. Standing rule, stated 2026-08-04.
+
+The hosted Supabase backend was **deleted on 2026-08-02.**
+
+- **Do not load Supabase skills.** Do not suggest Supabase features. Do not
+  check anything against cloud RLS or service-role patterns — none of it
+  applies here and the security ceremony it drags in is pure cost.
+- The direction is **local Postgres + local MinIO on this machine**
+  (`docker-compose.yml`, `electron/db.cjs`).
+- Any remaining mention of Supabase anywhere in the docs is **historical, or a
+  cleanup target** — never an instruction.
+
+(The rest of this file already said the direction was *off* Supabase; this
+states it as a flat rule so no session has to infer it.)
+
 ---
 
 ## TEST THE PLAYER'S BOOKS, NOT THE SEED. Added 2026-08-03, twice earned.

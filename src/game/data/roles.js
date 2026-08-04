@@ -115,6 +115,22 @@ export const ROLES = {
     open: "talkTo('monk')",
     chat: { name:'the Mountain Monk', color:'#2a2118', glow:'#c9a86a',
       line:'Sit, if you like. What is on your mind?' },
+    /* HE SPEAKS AT THE PACE OF SPEECH. Asked for 2026-08-04 — the thing early
+       ChatGPT did, where the words arrive at the rate a person would actually
+       say them instead of landing as a wall.
+
+       Characters per second. 34 is close to unhurried speaking aloud (~110
+       words a minute); a local model on this machine generates several times
+       faster than that, so the reply is BUFFERED and revealed at his pace
+       rather than slowed down — nothing waits on the display, and clicking
+       the log still skips straight to the end.
+
+       It belongs on the Monk and not in the chat code because it is part of
+       who he is: he is the one resident this project has decided never to
+       trade depth for speed with (see chatOptsFor). Everyone else stays
+       instant — a librarian who made you wait for a shelf number would be
+       an affectation. */
+    pace: 34,
   },
   computer: {
     label: 'the Computer',

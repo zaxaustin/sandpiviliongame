@@ -1,0 +1,48 @@
+# Working on the Sand Pavilion
+
+This file orients a fresh session. Read it once, then get oriented from the sources below rather than trusting this summary alone.
+
+## Before anything else (optional, recommended)
+
+Before diving into code, consider reading
+`library-drafts/done/ganesha-and-the-campaign.md`
+— the steward’s own telling of why Ganesha is invoked before any real
+undertaking. Optional every time. Recommended every time.
+
+## Get oriented, in order
+
+1. **MAINTAINING.md** — current-state reference: what’s built, invariants, code map, backend, what’s next. Read this first every time.
+2. **The most recent archive/dev-log-*.txt** — how the project actually got here, session by session.
+3. **plans/*.md** — open plans. Check here before designing something from scratch. `plans/BETA-TESTING-FEEDBACK.md` is real issues found by real use. Closed plans live in `plans/done/`.
+4. **LEARNING-PATH.md** — for “why / how does this work” questions.
+5. **MANUAL.md and PROTOCOLS.md** — user-facing layer. When a feature changes what a user sees, these move with it.
+
+When you finish a real session, update that day’s `archive/dev-log-YYYY-MM-DD.txt` and the “What’s next” section of `MAINTAINING.md` so future sessions stay honest.
+
+
+
+## Session workflow (keep sessions focused)
+
+1. Read `MAINTAINING.md` → “What’s next”.
+2. State the **single focus** for this session in one plain sentence before touching code.
+3. Prefer **player-added books** over seed books for any library / reader / chapter work.
+4. After UI, packaging, or storage changes: build the artifact you ship and **look at it** (preview + screenshot or packaged-boot). Reasoning alone is not evidence.
+5. End the session by updating `MAINTAINING.md` “What’s next” and appending a short honest note to the day’s dev-log.
+
+## Standing rule — Supabase is gone
+
+The hosted Supabase backend was deleted on 2026-08-02.  
+Do not load Supabase skills, do not suggest Supabase features, and do not check against cloud RLS or service-role patterns.  
+Current direction: local Postgres + local MinIO on the user’s machine (`docker-compose.yml`, `electron/db.cjs`).  
+Any remaining mentions of Supabase in docs are historical cleanup targets only.
+
+---
+
+## (keep the rest of the existing good content below this point)
+
+- TEST THE PLAYER’S BOOKS, NOT THE SEED
+- LOOK AT IT
+- Hard-won rules
+- The test suite
+- Five standing decisions
+- etc.

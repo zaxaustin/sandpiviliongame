@@ -228,6 +228,18 @@ function typewriteChatText(el,text,scrollEl){
   },20);
 }
 export function skipChatTyping(){
+  /* One promise, both reveals: click the log and you are at the end. A paced
+     resident that could not be skipped would be a gimmick rather than a
+     texture — the words are already here, this only decides how fast you
+     see them. */
+  const d=state.dialog;
+  if(d && d.streaming && paceOf(d.agent) && (d.streaming.shown||0) < d.streaming.content.length){
+    stopPacedReveal();
+    d.streaming.shown=d.streaming.content.length;
+    const el=document.getElementById('streamText');
+    if(el) el.textContent=d.streaming.content;
+    return;
+  }
   if(!chatTyping) return;
   stopChatTyping();
   renderChatView();
@@ -245,9 +257,53 @@ function updateStreamingBubble(d){
     if(box) box.style.display='';
     if(span) span.textContent=d.streaming.thinking;
   }
+  /* A PACED RESIDENT IS BUFFERED, NOT SLOWED. The tokens still arrive as fast
+     as the model makes them — `content` is always the whole truth — and only
+     the REVEAL is held to a speaking rate. So nothing waits on the display,
+     the reply is complete in memory the moment it is complete, and a visitor
+     who does not want to watch can click the log to skip to the end. */
+  if(paceOf(d.agent)){ startPacedReveal(d); return; }
   txt.textContent=d.streaming.content;
   const log=document.getElementById('chatLog');
   if(log) log.scrollTop=log.scrollHeight;
+}
+/* ----- speaking at the pace of speech (data/roles.js `pace`) ----- */
+function paceOf(agentKey){ const r=ROLES[agentKey]; return (r && Number(r.pace)) || 0; }
+let paceTimer=null;
+function stopPacedReveal(){ if(paceTimer){ clearInterval(paceTimer); paceTimer=null; } }
+function startPacedReveal(d){
+  if(paceTimer) return;                       // already draining this reply
+  const cps=paceOf(d.agent); if(!cps) return;
+  const TICK=50, per=Math.max(1, Math.round(cps*TICK/1000));
+  paceTimer=setInterval(()=>{
+    const s=d.streaming;
+    if(!s || d.minimized){ stopPacedReveal(); return; }
+    s.shown=Math.min((s.shown||0)+per, s.content.length);
+    /* re-queried every tick: any full render detaches the old node, and
+       writing into a detached element is the silent-nothing failure. */
+    const el=document.getElementById('streamText');
+    if(el) el.textContent=s.content.slice(0, s.shown);
+    const log=document.getElementById('chatLog');
+    if(log) log.scrollTop=log.scrollHeight;
+    if(s.done && s.shown>=s.content.length) stopPacedReveal();
+  }, TICK);
+}
+/* Let the last words finish before the bubble is replaced by the final
+   render — otherwise the reply snaps to full length at the moment it lands,
+   which is precisely the effect being avoided. Bounded, because a reveal is
+   never worth hanging a conversation on. */
+function finishPacedReveal(d){
+  const s=d && d.streaming;
+  if(!s || !paceOf(d.agent) || d.minimized){ stopPacedReveal(); return Promise.resolve(); }
+  s.done=true;
+  if((s.shown||0)>=s.content.length){ stopPacedReveal(); return Promise.resolve(); }
+  startPacedReveal(d);
+  const capMs=Math.min(20000, (s.content.length-(s.shown||0))/Math.max(1,paceOf(d.agent))*1000+500);
+  return new Promise(res=>{
+    const done=()=>{ clearInterval(poll); clearTimeout(bail); res(); };
+    const poll=setInterval(()=>{ if(!paceTimer || !d.streaming) done(); }, 60);
+    const bail=setTimeout(()=>{ stopPacedReveal(); done(); }, capMs);
+  });
 }
 /* ---------- the "phone": pocket a conversation and keep living ----------
    A local model can take 30–180s to answer. Rather than stand at the
@@ -1233,6 +1289,8 @@ async function sendChatMessage(q){
     const aborted = err && (err.name==='AbortError' || /abort|timed?\s*out/i.test(String(err.message||'')));
     d.transcript.push({from:'npc', text: aborted ? TIMEOUT_LINE : agent.errorLine});
   }
+  // let a paced resident finish saying it before the bubble is replaced
+  await finishPacedReveal(d);
   d.thinking=false; d.streaming=null;
   if(d.minimized){
     // the visitor pocketed the phone and walked off — don't type into a
