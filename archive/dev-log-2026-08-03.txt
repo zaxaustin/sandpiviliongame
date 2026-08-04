@@ -935,3 +935,53 @@ Verified: npm test, preflight (zero network), teacher, study-chain
 looking at the title screen, which is identical either way, but by
 asking the deployed bundle whether today's functions exist in it. They
 do; it auto-deploys from main and is current.
+
+================================================================
+FIFTH SESSION, coda - WHAT A FRESH INSTALL ACTUALLY OFFERS
+================================================================
+
+The steward:
+
+  "make sure to have a book or somthing to refrence as an option for
+   the lesson plan to build"
+
+Measured before answering, and he was right to ask. On a CLEAN install
+the set-text list holds the 27 shipped books, and:
+
+  26 chapters  headings   The Dhammapada
+  17 chapters  headings   The Bhagavad Gita
+   0 chapters  none       Satipatthana
+   0 chapters  none       The Metta Sutta
+   0 chapters  none       Anapanasati
+   0 chapters  none       The First Sermon
+  ...and TWENTY-ONE with no full text at all, only a summary.
+
+So a teacher on his first evening had a 21-in-27 chance of picking a
+book with no text, writing "Read chapters 3-4", getting no door, and
+having no idea why. The house failure mode, landing squarely on the
+feature meant to sell the whole thing. (The four 0-chapter suttas are
+correct - they are short texts with no divisions.)
+
+TWO RULES, BOTH HONEST RATHER THAN CLEVER:
+
+1. The picker is SPLIT and says which is which - "full text: steps can
+   link to a chapter or page" against "summary only: a lesson can still
+   be about it, but steps won't link". A property check, instant, no
+   compute. And a summary-only set text renders NO reading doors at all,
+   with one plain line on the lesson saying why. A dead button is worse
+   than no button.
+
+2. A CITATION THE BOOK CANNOT HONOUR gets no door and a warning instead:
+   "ch. 40 - this text has 26 chapters, so there is nothing to link to."
+   Computed once per lesson from the text already in memory; where the
+   text has not been fetched the count is UNKNOWN, and unknown is not
+   zero, so the door still renders and resolves on the way in. That
+   distinction is the whole of the "say I don't know" rule applied here.
+
+This is also the answer to a fair question about the beta: the shelf is
+never empty, and there is always at least one shipped book a lesson can
+link INTO - the Dhammapada and the Gita both carry real chapters.
+
+Verified in test/live/teacher.mjs against the fresh shelf on a second
+page. Broke the summary-only rule on purpose: the door came back and the
+check failed, naming it.

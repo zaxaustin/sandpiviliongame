@@ -8036,10 +8036,22 @@ function renderLearningTree(){
       <div class="meta">Name the book this lesson is about and every step that mentions a chapter or a page
         becomes a door straight to it — write it however you like (<code>Read chapters 3–4</code>,
         <code>pp. 12-18</code>); it is read, not a code you have to learn.</div>
-      <select id="mlBook" style="${NOTE_SELECT_STYLE}">
-        <option value="">— no set text —</option>
-        ${Store.allDocs().map(d=>`<option value="${esc(d.slug)}"${editing&&editing.book&&editing.book.slug===d.slug?' selected':''}>${esc(d.title)}${d.attribution?' — '+esc(d.attribution):''}</option>`).join('')}
-      </select>
+      ${(function(){
+        /* HONEST ABOUT WHICH BOOKS CAN CARRY A READING. On a fresh install 21
+           of the 27 shipped books are summaries with no full text — so a
+           teacher picking one at random would write "Read chapters 3-4",
+           get no door, and have no idea why. The split is a property check,
+           instant, and it is the difference between a feature and a trap. */
+        const all=Store.allDocs();
+        const opt=d=>`<option value="${esc(d.slug)}"${editing&&editing.book&&editing.book.slug===d.slug?' selected':''}>${esc(d.title)}${d.attribution?' — '+esc(d.attribution):''}</option>`;
+        const readable=all.filter(d=>d.doc&&d.doc.fullText);
+        const summary=all.filter(d=>!(d.doc&&d.doc.fullText));
+        return `<select id="mlBook" style="${NOTE_SELECT_STYLE}">
+          <option value="">— no set text —</option>
+          ${readable.length?`<optgroup label="📖 full text — steps can link to a chapter or page">${readable.map(opt).join('')}</optgroup>`:''}
+          ${summary.length?`<optgroup label="📄 summary only — a lesson can still be about it, but steps won't link">${summary.map(opt).join('')}</optgroup>`:''}
+        </select>`;
+      })()}
       <label>The steps — one per line</label>
       <div class="meta">Optionally put a longer explanation after a <b>|</b> on the same line:
         <code>Tin the tip | Melt a little solder onto the iron before you start; it makes everything after it work.</code></div>
@@ -8067,6 +8079,16 @@ function renderLearningTree(){
     const next=allNodes().filter(n=>(n.prereqs||[]).includes(node.id));
     // the set text, if this lesson names one and it is still on the shelves
     const setText=(node.book&&node.book.slug) ? Store.getDoc(node.book.slug) : null;
+    const setReadable=!!(setText&&setText.doc&&setText.doc.fullText);
+    /* HOW MANY CHAPTERS THE BOOK REALLY HAS, when we can know it without
+       loading anything. `null` means genuinely unknown (the text lives in
+       MinIO or on disk and has not been fetched) — and unknown is NOT the
+       same as zero, so an unverifiable citation still gets its door and is
+       simply resolved on the way in. What this catches is the citation the
+       book CANNOT honour: "chapter 30" of a book with nine. Saying so on
+       the lesson beats sending a class to a page that is not there. */
+    const setChapters=(setReadable && setText.doc.fullText.text)
+      ? findChapters(paginate(setText.doc.fullText.text)).marks.length : null;
     panel.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>${esc(node.title)}</h2>
@@ -8079,6 +8101,7 @@ function renderLearningTree(){
       ${setText?`<div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11.5px"
         onclick="openLessonReading('${jsq(setText.slug)}','page',1)" title="Open the set text">📕 Set text: ${esc(setText.title)}${setText.attribution?' — '+esc(setText.attribution):''}</button></div>`:''}
       ${(node.book&&node.book.slug&&!setText)?`<div class="meta" style="margin-top:6px;color:#e0a43c">📕 Its set text is no longer on these shelves.</div>`:''}
+      ${(setText&&!setReadable)?`<div class="meta" style="margin-top:6px">This one is a summary rather than the full text, so steps can't link to a chapter or a page. The lesson works exactly as well; it just points at the book rather than into it.</div>`:''}
       ${(function(){
         /* An out-of-order lesson is READ IN FULL, and told plainly where it sits.
            A fact, not a refusal — and it always names the way round, because a
@@ -8111,12 +8134,16 @@ function renderLearningTree(){
            text opens it. Detected from what the teacher typed rather than a
            syntax they had to learn (data/lesson-doc.js) — and absent, never
            guessed, where the step names nothing. */
-        const r=setText ? readingIn((s.title||'')+' '+(s.body||'')) : null;
+        // no full text, no reading door — the Reader has no page to open
+        const r=setReadable ? readingIn((s.title||'')+' '+(s.body||'')) : null;
+        // a chapter this book demonstrably does not have: say so, never a door
+        const beyond=!!(r && r.kind==='chapter' && setChapters!=null && r.from>setChapters);
         return `<div class="card" style="cursor:pointer" onclick="toggleLessonStep('${node.id}',${i})">
           <div class="t">${on?'☑':'☐'} ${esc(s.title)}</div>
           <div class="s" style="margin-top:5px">${esc(s.body)}</div>
-          ${(r||s.action)?`<div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
-            ${r?`<button class="btn ghost" style="font-size:11.5px" onclick="event.stopPropagation(); openLessonReading('${jsq(setText.slug)}','${r.kind}',${r.from})"
+          ${beyond?`<div class="s" style="margin-top:6px;color:#e0a43c">⚠ ${esc(readingLabel(r))} — this text has ${setChapters} chapter${setChapters===1?'':'s'}, so there is nothing to link to.</div>`:''}
+          ${((r&&!beyond)||s.action)?`<div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+            ${(r&&!beyond)?`<button class="btn ghost" style="font-size:11.5px" onclick="event.stopPropagation(); openLessonReading('${jsq(setText.slug)}','${r.kind}',${r.from})"
                    title="Open ${esc(setText.title)} at ${esc(readingLabel(r))}">📖 ${esc(readingLabel(r))} →</button>`:''}
             ${s.action?`<button class="btn ghost" style="font-size:11.5px" onclick="event.stopPropagation(); ${s.action.fn}()">${esc(s.action.label)} →</button>`:''}
           </div>`:''}

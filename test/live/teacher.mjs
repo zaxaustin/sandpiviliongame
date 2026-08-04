@@ -202,6 +202,69 @@ ok('and it really becomes a LESSON, not a note',
   `${received.lessons} lesson(s) with ${received.steps} steps, ${received.notes} note(s)`);
 ok('with its steps intact', /Epictetus — week 1/.test(received.title), received.title);
 
+/* ---- what a NEW user actually meets ----
+   On a clean install the shelf is the 27 shipped books, and 21 of them are
+   summaries with no full text. A teacher picking one of those, writing "Read
+   chapters 3-4", and getting no door with no explanation is the house failure
+   mode landing on the feature meant to sell the whole thing. */
+console.log('\nWhat a fresh install offers as a set text\n');
+
+const fresh = await p2.evaluate(async () => {
+  openLearningTree();
+  await new Promise(r => setTimeout(r, 300));
+  newLessonForm();
+  await new Promise(r => setTimeout(r, 400));
+  const sel = document.getElementById('mlBook');
+  const groups = [...sel.querySelectorAll('optgroup')].map(g => ({
+    label: g.label, n: g.querySelectorAll('option').length,
+    first: g.querySelector('option')?.value,
+  }));
+  return { groups, total: sel.querySelectorAll('option').length - 1 };
+});
+console.log('  ' + fresh.groups.map(g => `${g.n} ${g.label}`).join('\n  '));
+ok('a fresh shelf offers set texts at all', fresh.total >= 20, fresh.total + ' books');
+ok('and says which can carry a reading',
+  fresh.groups.length === 2 && /full text/.test(fresh.groups[0].label) && /summary only/.test(fresh.groups[1].label),
+  JSON.stringify(fresh.groups.map(g => g.label)));
+ok('there is at least one shipped book a lesson can link INTO',
+  (fresh.groups[0] || {}).n >= 1, ((fresh.groups[0] || {}).n || 0) + ' with full text');
+
+const summaryOnly = await p2.evaluate(async (slug) => {
+  document.getElementById('mlTitle').value = 'A summary-only set text';
+  document.getElementById('mlBook').value = slug;
+  document.getElementById('mlSteps').value = 'Read chapters 3-4 and annotate | should not offer a door';
+  saveMyLesson(null);
+  await new Promise(r => setTimeout(r, 400));
+  const panel = document.getElementById('treePanel');
+  return {
+    doors: [...panel.querySelectorAll('button')].map(x => x.textContent.trim()).filter(t => /^📖/.test(t)),
+    says: /summary rather than the full text/.test(panel.textContent),
+  };
+}, (fresh.groups[1] || {}).first);
+ok('a summary-only set text offers NO reading door', summaryOnly.doors.length === 0, JSON.stringify(summaryOnly.doors));
+ok('and says plainly why, rather than leaving a dead button', summaryOnly.says);
+
+/* A citation the book cannot honour. The Dhammapada ships with 26 chapters;
+   "chapter 40" is a mistake, and a class sent to a page that is not there is
+   worse than being told. */
+const beyond = await p2.evaluate(async (slug) => {
+  newLessonForm();
+  await new Promise(r => setTimeout(r, 350));
+  document.getElementById('mlTitle').value = 'A citation past the end';
+  document.getElementById('mlBook').value = slug;
+  document.getElementById('mlSteps').value = 'Read chapter 2 | fine\nRead chapter 400 | there is no such chapter';
+  saveMyLesson(null);
+  await new Promise(r => setTimeout(r, 500));
+  const panel = document.getElementById('treePanel');
+  return {
+    doors: [...panel.querySelectorAll('button')].map(x => x.textContent.trim()).filter(t => /^📖/.test(t)),
+    warns: /nothing to link to/.test(panel.textContent),
+  };
+}, (fresh.groups[0] || {}).first);
+ok('a real chapter still gets its door', beyond.doors.length === 1, JSON.stringify(beyond.doors));
+ok('a chapter the book does not have gets NO door', !beyond.doors.some(d => /400/.test(d)), JSON.stringify(beyond.doors));
+ok('and the teacher is told, so he can fix it before Monday', beyond.warns);
+
 ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | ') || 'none');
 ok('no page errors for the colleague', errs2.length === 0, errs2.slice(0, 3).join(' | ') || 'none');
 

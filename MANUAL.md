@@ -795,13 +795,23 @@ progression — a 101 that opens a 201 — which is the thing you need if you're
 teaching someone else and not just yourself. The Tutor studies your lessons
 exactly as it studies the built-in ones.
 
+**There's always a book to build on.** The Pavilion ships with a shelf, so the
+set-text list is never empty on a fresh install — and it's split honestly:
+**📖 full text** (steps can link into a chapter or page) and **📄 summary only**
+(the lesson can still be *about* the book, but a step won't link). Pick a
+summary-only one and it says so on the lesson rather than leaving you with a
+button that does nothing. Drop in your own `.txt` or `.epub` and it joins the
+first group.
+
 **Name a set text, and the steps become doors.** Pick a book in the authoring
 form and any step that mentions a chapter or a page opens it — and you write
 that **however you normally would**: *"Read chapters 3–4 and annotate"*,
 *"Discuss pp. 12-18 in pairs"*. There's no syntax to learn; it's read, not
 parsed. A step that names nothing gets no door, deliberately: a lesson that
 cites the wrong pages is a class that goes wrong on Monday, so where it isn't
-sure it says nothing at all.
+sure it says nothing at all. And if you cite a chapter the book doesn't
+have — chapter 40 of a book with 26 — it tells you, on the lesson, while
+there's still time to fix it.
 
 **And the AI reads the book before it helps.** With a set text chosen,
 **✨ Draft it** works *from that book* — it's given the real chapter list and
