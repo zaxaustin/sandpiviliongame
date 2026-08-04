@@ -181,6 +181,207 @@ for (const [key, s] of Object.entries(scenes)) {
   }
 }
 
+/* ---------- a moved panel must resolve every name it executes ----------
+   Written 2026-08-04, after the SAME bug crashed the Learning Tree cut twice.
+   Moving a region out satisfies its outward CALLS through initX() shims, and
+   both times a name that was not a call slipped through: stopSpeaking (an
+   import nobody thought to add) and NOTE_SELECT_STYLE (a bare style constant
+   sitting inside a template hole).
+
+   Neither `node --check`, `npm test` nor `npm run build:beta` said a word —
+   a free identifier is legal JavaScript until the line runs, and only that one
+   branch runs it. It took driving Chrome at the app to find each. With seven
+   more cuts to make, hand-picking the shim list again is not a plan.
+
+   FOUR VERSIONS OF THIS CHECK WERE WRONG BEFORE THIS ONE, and each was found
+   by breaking it on purpose rather than by reading it:
+
+     1. only `name(` call sites          — missed the constant entirely
+     2. every identifier, strings and all — buried the one real answer under
+                                            139 English words of prompt prose
+     3. "names overlays.js declares"      — overlays.js declares `remember`,
+                                            `typing` and `experiment`, which
+                                            are also ordinary English words
+     4. "...declares OR imports"          — still overlays-shaped, so it went
+                                            green the moment NOTE_SELECT_STYLE
+                                            was rehomed to ui/dom.js, which is
+                                            precisely the fix it should survive
+
+   So it asks the question that does not mention overlays.js at all: does this
+   module resolve every identifier it EXECUTES? Strings are stripped (killing
+   the prose), template ${...} holes are kept (that is where the constant hid),
+   and window-dispatched handlers are excluded because the handlers->exports
+   check above already owns them. */
+{
+  const uiDir = new URL('../src/game/ui/', import.meta.url);
+
+  /* Reduce a file to the characters that actually EXECUTE, blanking everything
+     else but keeping every newline so reported line numbers stay true.
+     Comments and string bodies go; the ${...} holes inside a template literal
+     STAY, because those are live code — and a hole is exactly where
+     NOTE_SELECT_STYLE was hiding when this bug shipped.
+
+     THIS IS A REAL LEXER, not a regex, and that is not gold-plating. The regex
+     version of this same step leaked whole sentences of English into the
+     results, because a template literal can contain `${`a nested one`}` and no
+     regular expression can balance that. Lexing is exact where parsing would
+     be overkill: one pass, one state, a stack for the ${} nesting.
+
+     Dropping strings also drops `fn:'openX'` and `onclick="openY()"`, which is
+     correct — those dispatch through window at click time and the
+     handlers->exports check above already owns them. */
+  const executable = (t) => {
+    const blank = c => (c === '\n' ? '\n' : ' ');
+    let out = '';
+    let i = 0;
+    /* One mode stack, so `${`a nested template`}` unwinds by construction
+       instead of by a special case. `code` frames inside a template carry a
+       brace depth: the `}` that returns to the template is the one at zero. */
+    const stack = [{ mode: 'code', depth: 0 }];
+    /* REGEX LITERALS MUST BE RECOGNISED, or `.replace(/'/g, ...)` opens a
+       string that never closes and swallows the rest of the file — which is
+       what leaked the steward's own quoted words into an earlier run of this
+       check as if they were undefined variables. The usual heuristic: a `/`
+       starts a regex unless the previous meaningful character could end an
+       expression. */
+    let prev = '';
+    const canPrecedeRegex = () => !/[\w$)\]]/.test(prev);
+    while (i < t.length) {
+      const top = stack[stack.length - 1];
+      const c = t[i], d = t[i + 1];
+
+      if (top.mode === 'code') {
+        if (c === '/' && d === '*') { out += '  '; i += 2; stack.push({ mode: 'block' }); continue; }
+        if (c === '/' && d === '/') { out += '  '; i += 2; stack.push({ mode: 'line' }); continue; }
+        if (c === '/' && canPrecedeRegex()) {
+          out += ' '; i++;
+          let cls = false;                                  // inside a [...] class
+          while (i < t.length) {
+            if (t[i] === '\\') { out += '  '; i += 2; continue; }
+            if (t[i] === '[') cls = true;
+            else if (t[i] === ']') cls = false;
+            else if (t[i] === '/' && !cls) { out += ' '; i++; break; }
+            else if (t[i] === '\n') break;                   // unterminated: bail, don't eat the file
+            out += blank(t[i]); i++;
+          }
+          while (i < t.length && /[dgimsuvy]/.test(t[i])) { out += ' '; i++; }   // flags
+          prev = '/'; continue;
+        }
+        if (c === '"' || c === "'") { out += ' '; i++; stack.push({ mode: 'str', q: c }); prev = '"'; continue; }
+        if (c === '`') { out += ' '; i++; stack.push({ mode: 'tpl' }); prev = '"'; continue; }
+        if (c === '{') top.depth++;
+        if (c === '}') {
+          // the closing brace of a ${...} hole: hand control back to the template
+          if (top.depth === 0 && stack.length > 1) { out += ' '; i++; stack.pop(); prev = '"'; continue; }
+          top.depth--;
+        }
+        out += c; i++;
+        if (!/\s/.test(c)) prev = c;
+        continue;
+      }
+
+      if (top.mode === 'block') {
+        if (c === '*' && d === '/') { out += '  '; i += 2; stack.pop(); continue; }
+        out += blank(c); i++; continue;
+      }
+      if (top.mode === 'line') {
+        if (c === '\n') { stack.pop(); continue; }        // the \n itself is emitted by code mode
+        out += ' '; i++; continue;
+      }
+      if (top.mode === 'str') {
+        if (c === '\\') { out += '  '; i += 2; continue; }
+        if (c === top.q) { out += ' '; i++; stack.pop(); continue; }
+        out += blank(c); i++; continue;
+      }
+      // template literal: the text is inert, the ${...} holes are live code
+      if (c === '\\') { out += '  '; i += 2; continue; }
+      if (c === '`') { out += ' '; i++; stack.pop(); continue; }
+      if (c === '$' && d === '{') { out += '  '; i += 2; stack.push({ mode: 'code', depth: 0 }); continue; }
+      out += blank(c); i++;
+    }
+    return out;
+  };
+  const KEYWORDS = new Set(`if else for while do switch case default break continue return
+    function class extends new delete typeof instanceof in of void this super null true false
+    undefined try catch finally throw var let const await async yield import export from as
+    static get set arguments`.split(/\s+/));
+
+  const GLOBALS = new Set(`Set Map WeakMap WeakSet Number String Boolean Array Object JSON Math
+    Date RegExp Promise Symbol BigInt Proxy Reflect Intl parseInt parseFloat isNaN isFinite NaN
+    Infinity setTimeout clearTimeout setInterval clearInterval queueMicrotask
+    requestAnimationFrame cancelAnimationFrame document window console globalThis navigator
+    location history performance screen require module exports process Error TypeError
+    RangeError SyntaxError encodeURIComponent decodeURIComponent encodeURI decodeURI Blob URL
+    URLSearchParams File FileReader FormData Headers Request Response AbortController
+    localStorage sessionStorage indexedDB alert confirm prompt fetch structuredClone getComputedStyle
+    Uint8Array Uint16Array Int32Array Float32Array ArrayBuffer TextEncoder TextDecoder Image Audio
+    Event CustomEvent KeyboardEvent MouseEvent MutationObserver ResizeObserver IntersectionObserver
+    DOMParser SpeechSynthesisUtterance speechSynthesis crypto atob btoa Node HTMLElement`.split(/\s+/));
+
+  /* Everything a module can legally resolve on its own. Deliberately GENEROUS:
+     a false negative here is a missed crash, but a false positive is a red
+     suite on correct code, and this project has thrown away two guards that
+     cried wolf. Params, destructuring, catch bindings and loop variables all
+     count as declared. */
+  const declaredIn = (src, code) => {
+    const have = new Set();
+    /* Trim the punctuation a coarse split leaves behind. Without the leading
+       strip, `list.sort((a, z) => ...)` yields the fragment `(a`, which fails
+       the identifier test — so `a` looked undefined and the guard cried wolf
+       on correct code. */
+    const add = (n) => {
+      n = String(n || '').trim().replace(/^[([{.\s]*(?:\.\.\.)?/, '').replace(/[)\]}\s]*$/, '').split('=')[0].trim();
+      if (/^[A-Za-z_$][\w$]*$/.test(n)) have.add(n);
+    };
+    /* TWO list shapes, and conflating them cost a round. In a DESTRUCTURING
+       pattern `{ page: p }` the colon renames, so the binding is on the right.
+       In a DECLARATOR the same colon is a ternary's else-branch, and taking
+       the right-hand side there threw away the variable and kept `null` —
+       which made ten correct `const x = cond ? a : b` lines look undefined. */
+    const addPattern = s => { for (const part of String(s).split(',')) add(part.split(':').pop()); };
+    const addDecls = s => { for (const part of String(s).split(',')) add(part); };
+
+    for (const m of src.matchAll(/(?:function|class)\s+([A-Za-z_$][\w$]*)/g)) add(m[1]);
+    /* for (const x OF ...) and for (const k IN ...) bind x and k. Missing this
+       flagged `need`, `r` and `line` — three ordinary loop variables. */
+    for (const m of code.matchAll(/\b(?:const|let|var)\s+([^\n;]*?)\s+(?:of|in)\s/g)) addDecls(m[1]);
+    // multi-declarator lines:  const TREE_COL=230, TREE_ROW=112;
+    for (const m of code.matchAll(/\b(?:const|let|var)\s+([^\n;]*)/g)) addDecls(m[1]);
+    for (const m of src.matchAll(/import\s*\{([^}]*)\}/g)) {
+      for (const part of m[1].split(',')) add(part.trim().split(/\s+as\s+/).pop());
+    }
+    for (const m of src.matchAll(/import\s+([A-Za-z_$][\w$]*)\s+from/g)) add(m[1]);
+    for (const m of code.matchAll(/\{([^{}]*)\}\s*=/g)) addPattern(m[1]);         // { a, b } =
+    for (const m of code.matchAll(/\[([^[\]]*)\]\s*=/g)) addPattern(m[1]);        // [ t, ...rest ] =
+    for (const m of code.matchAll(/function[^(]*\(([^)]*)\)|\(([^)]*)\)\s*=>/g)) addPattern(m[1] || m[2]);
+    for (const m of code.matchAll(/([A-Za-z_$][\w$]*)\s*=>/g)) add(m[1]);         // x => ...
+    for (const m of code.matchAll(/catch\s*\(\s*([A-Za-z_$][\w$]*)/g)) add(m[1]);
+    /* object-method shorthand — `async systemPrompt(){...}` defines a method,
+       it does not reference a variable called systemPrompt */
+    for (const m of code.matchAll(/(?:^|[,{]\s*)(?:async\s+)?\*?\s*([A-Za-z_$][\w$]*)\s*\([^()]*\)\s*\{/gm)) add(m[1]);
+    return have;
+  };
+
+  const moved = readdirSync(uiDir).filter(f => f.endsWith('.js') && f !== 'overlays.js');
+  for (const file of moved) {
+    const src = readFileSync(new URL(file, uiDir), 'utf8');
+    const code = executable(src);
+    const have = declaredIn(src, code);
+    const seen = new Set();
+    const lines = code.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)/g)) {
+        const n = m[1];
+        if (seen.has(n) || have.has(n) || KEYWORDS.has(n) || GLOBALS.has(n)) continue;
+        // an object-literal KEY is not a reference:  { page: 1 }
+        if (/^\s*:(?!:)/.test(lines[i].slice(m.index + n.length))) continue;
+        seen.add(n);
+        fail(`ui/${file}:${i + 1} executes '${n}', which this module neither declares nor imports — a ReferenceError the moment that one branch runs, and neither the build nor node --check will tell you`);
+      }
+    }
+  }
+}
+
 /* ---------- copyright triage ----------
    The one place in this project where being wrong has consequences outside
    the app, so the rules get real cases. The property that matters most is the
