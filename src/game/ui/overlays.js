@@ -2641,6 +2641,29 @@ function notesLogCard(n, v, folders){
             ? `<button class="btn ghost" style="font-size:11px" onclick="openLessonFromNote('${n.id}')">🌳 It’s in the tree — open it</button>`
             : `<button class="btn ghost" style="font-size:11px" onclick="lessonFromPlanNote('${n.id}','notesLogMsg')" title="Turn this note into a lesson you can tick off and pick up">🌳 Put this in the tree</button>`}
         </div><div class="meta" id="notesLogMsg" style="margin:6px 0 0"></div>`
+      /* A BOOK NOTE HAD NOWHERE TO GO. Reported 2026-08-03 from real use:
+         "with note taking I played around with it but I'm lacking direction in
+         what I can do there." Measured, it was not vague at all — beside a book
+         note in the reader there was ONE door, and opened here in Your Notes
+         there were NONE. A My Note on this very panel offered two.
+
+         So you could gather every note you had written about a book, grouped
+         under its real chapters, and then do nothing with any of them.
+
+         All four below already existed somewhere else; none of this is new
+         machinery. That is the point — the study chain was built for exactly
+         this and book notes were simply never wired into it. */
+      : (open && n.source==='book' && n.slug)
+      ? `<div class="row" onclick="event.stopPropagation()" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+          <button class="btn" style="font-size:11px" onclick="openBookAtNote('${esc(n.key)}')"
+            title="${n.page!==undefined?'Go to the exact page this was written on':'Open the book'}">📖 Open the book${n.page!==undefined?' here':''}</button>
+          <button class="btn ghost" style="font-size:11px" onclick="bookNoteToToday('${esc(n.key)}')"
+            title="Put it on today's plan, the way the reader already can">→ Bring to today's plan</button>
+          <button class="btn ghost" style="font-size:11px" onclick="bookNoteToLesson('${esc(n.key)}')"
+            title="Turn this into a lesson you can walk and tick off">🌳 Put this in the tree</button>
+          <button class="btn ghost" style="font-size:11px" onclick="bookNoteToDissection('${esc(n.key)}')"
+            title="A note is often where an investigation starts">🔬 Dissect this book</button>
+        </div><div class="meta" id="notesLogMsg" style="margin:6px 0 0"></div>`
       : '';
     // folder + tag editors live only in the expanded view, and stop their own
     // clicks so fiddling with them doesn't collapse the card.
@@ -2672,6 +2695,60 @@ export function toggleNotesLogItem(key){
   v.expanded = v.expanded===key ? null : key;
   if(v.expanded===key) markNoteSeen(key);   // opened, therefore actually read
   renderNotesLogList();
+}
+/* ----- WHAT A BOOK NOTE CAN BECOME -----
+   Added 2026-08-03. Each of these is a door the note already deserved; the
+   work is finding the note again from its gathered `key` (source:slug:hash),
+   because the hub deliberately does not carry the raw save object around. */
+function bookNoteFromKey(key){
+  const parts=String(key||'').split(':');
+  if(parts[0]!=='book') return null;
+  const slug=parts[1];
+  const list=data.bookNotes[slug]||[];
+  const n=gatherNotes().find(x=>x.key===key);
+  if(!n) return null;
+  const i=list.findIndex(x=>(x.text||'').trim()===String(n.text||'').trim());
+  return { slug, note:list[i], index:i, gathered:n };
+}
+/* The one nothing did before: a note knows its chapter and page, so it can
+   put you back exactly where you wrote it. */
+export async function openBookAtNote(key){
+  const f=bookNoteFromKey(key); if(!f) return;
+  const d=Store.getDoc(f.slug); if(!d) return;
+  closeUI();
+  openReader(f.slug);
+  const page=f.note && f.note.page;
+  if(page!==undefined && d.doc.fullText){
+    await openFullText(f.slug);
+    const v=state.fullTextView;
+    if(v){ v.page=Math.max(0, Math.min(v.pages.length-1, page)); renderFullTextPage(); }
+  }
+}
+export function bookNoteToToday(key){
+  const f=bookNoteFromKey(key); if(!f||f.index<0) return;
+  sendNoteToToday(f.slug, f.index);
+  const el=document.getElementById('notesLogMsg');
+  if(el) el.textContent='✓ It is on today’s plan.';
+}
+/* A book note becomes a My Note first, because that is what the tree takes —
+   and it keeps the book link, so the lesson knows where it came from. */
+export function bookNoteToLesson(key){
+  const f=bookNoteFromKey(key); if(!f||!f.note) return;
+  const d=Store.getDoc(f.slug);
+  const body=String(f.note.text||'').replace(/^✨[^\n]*\n/,'');   // drop an AI label if present
+  const note={ id:newNoteId(),
+    title:(body.split('\n')[0]||'A note').slice(0,72),
+    body, created:todayKey(), updated:todayKey(),
+    book:{ slug:f.slug, page:(f.note.page!==undefined? f.note.page+1 : null), chapter:f.note.chLabel||null } };
+  data.notes.unshift(note); persist();
+  logActivity('Carried a note from "'+(d?d.title:f.slug)+'" into Your Notes, on the way to the tree.');
+  lessonFromPlanNote(note.id,'notesLogMsg');
+}
+export function bookNoteToDissection(key){
+  const f=bookNoteFromKey(key); if(!f) return;
+  closeUI();
+  openReader(f.slug);
+  dissectBook();
 }
 export function assignNoteFolder(key, val){
   if(val==='__new'){
@@ -11700,6 +11777,7 @@ Object.assign(window, {
   openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
   openNotesLog, openNotesWhileListening, returnToBook, setNotesLogSource, setNotesLogFolder, setNotesLogSearch, toggleNotesLogItem,
   openNotesForBook, setNotesLogBook,
+  openBookAtNote, bookNoteToToday, bookNoteToLesson, bookNoteToDissection,
   assignNoteFolder, setNoteTags, askSebastianReviewFolder,
   createNoteInLog, editNoteInLog, closeNotesLogEditor, deleteNoteFromLog,
   linkNoteBook, setNoteBookPage, setNoteBookChapter, unlinkNoteBook, openLinkedBook, draftLessonPlanFromNote,

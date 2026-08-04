@@ -209,6 +209,75 @@ R.push(['the dissection and its passes survive a restart',
   (after.hall.dissections || []).length === 1 && after.hall.dissections[0].passes.length === 1]);
 
 let bad = 0;
+/* ---- A BOOK NOTE MUST HAVE SOMEWHERE TO GO (2026-08-03) ----
+   Reported from real use: "with note taking I played around with it but I'm
+   lacking direction in what I can do there." Measured, it was precise: beside
+   a book note in the reader there was ONE door, and opened in Your Notes there
+   were NONE — while a My Note on the same panel offered two. You could gather
+   every note about a book, grouped under its real chapters, and then do
+   nothing with any of them.
+
+   Tested on a PLAYER-ADDED book, per CLAUDE.md's standing rule: no
+   doc.sections, author off the file, a filename-shaped title. The seed books
+   are tidier than real ones in every way a test cares about. */
+{
+  /* Added the way a player actually adds one — by dropping the file. No
+     reload: evaluateOnNewDocument re-fires on one and would overwrite the
+     save this suite has been building (MAINTAINING.md's gotcha, and the
+     reason p2 exists further up). */
+  const slug = await p.evaluate(async () => {
+    const lines = ['Title: A Book Brought In', 'Author: Nobody', ''];
+    for (let i = 1; i < 30; i++) lines.push('Chapter ' + i, '', 'Words enough to paginate this properly.', '');
+    const dt = new DataTransfer();
+    dt.items.add(new File([lines.join('\n')], 'a-book-brought-in.txt', { type: 'text/plain' }));
+    document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    await new Promise(r => setTimeout(r, 2200));
+    const d = (window.__store.allDocs() || []).find(x => x.personal && /brought in/i.test(x.title || ''));
+    return d ? d.slug : null;
+  });
+  R.push(['a dropped book is on the shelf, the way a player adds one', !!slug]);
+
+  const doors = await p.evaluate(async (s) => {
+    openReader(s); await openFullText(s);
+    for (let i = 0; i < 3; i++) window.jumpChapter(1);
+    document.getElementById('rdNoteInput').value = 'A thought worth following up.';
+    addBookNote(s);
+    await new Promise(r => setTimeout(r, 300));
+    window.__benchSlug = s;
+    openNotesForBook(s);
+    await new Promise(r => setTimeout(r, 400));
+    const card = document.querySelector('#notesLogList .card');
+    if (!card) return { labels: [], key: null };
+    card.click();
+    await new Promise(r => setTimeout(r, 300));
+    return {
+      labels: [...document.querySelectorAll('#notesLogList .card button')].map(x => x.textContent.trim()),
+      key: (/toggleNotesLogItem\('([^']+)'\)/.exec(card.getAttribute('onclick') || '') || [])[1],
+    };
+  }, slug);
+  R.push(['a book note offers somewhere to go at all', doors.labels.length >= 4]);
+
+  const landed = await p.evaluate(async (k) => {
+    await window.openBookAtNote(k);
+    await new Promise(r => setTimeout(r, 700));
+    return { page: document.getElementById('rdFullTextPageNum')?.textContent || '' };
+  }, doors.key);
+  R.push(['"open the book here" lands past page 1', !/Page 1 of/.test(landed.page) && /Page \d/.test(landed.page)]);
+
+  /* By EFFECT, not by message. The first version of this check grepped the
+     planner PANEL and reported a working feature as broken, because sparks
+     render elsewhere. Read the save. */
+  const spark = await p.evaluate(async (k) => {
+    closeUI(); openNotesForBook(window.__benchSlug);
+    await new Promise(r => setTimeout(r, 300));
+    window.bookNoteToToday(k);
+    await new Promise(r => setTimeout(r, 600));
+    const save = window.__store.load();
+    return Object.values(save.planner || {}).some(d => (d.sparks || []).some(x => /worth following up/i.test(x.text || '')));
+  }, doors.key);
+  R.push(['"bring to today" actually puts it on the plan', spark]);
+}
+
 for (const [name, ok] of R) { console.log((ok ? '  PASS  ' : '  FAIL  ') + name); if (!ok) bad++; }
 console.log(`\n${R.length - bad}/${R.length} checks`);
 console.log('page errors:', errs.length ? errs.slice(0, 3) : 'none');
