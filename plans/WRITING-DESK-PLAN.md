@@ -1,6 +1,31 @@
 # The Writing Desk — from a day planner to the place you actually work
 
-**Written 2026-08-03, for review. Nothing here is built.**
+**Written 2026-08-03 for review. APPROVED AND BUILT the same day — all four
+steps.** The steward's approval, and it sharpens what the residents are for:
+
+> *"these personalities are good and they add a feel of realism but their real
+> purpose should be agents without a doubt. Their roles are specific… we can
+> have them work one at a time, the pace doesn't have to be fast, just good
+> work should be done — it should feel like we are contributing to the greater
+> knowledge pool of humanity."*
+
+What was built, and where it lives:
+
+| step | state | code |
+|---|---|---|
+| 1 · the picker | **built** | `deskResidents()` / `setDeskAgent()` / `deskSystemPrompt()` in `ui/overlays.js` |
+| 2 · older notes | **built** | `renderNotesBody()`, sharing `forgottenNotes()` in `data/the-day.js` |
+| 3 · the pocketed book | **built** | `deskBook()` / `renderDeskBookBody()` / `writeBookNote()` |
+| 4 · the lesson draft | **built** | `deskDraftLesson()` → a note → `lessonFromPlanNote()` |
+
+Verified in `test/live/writing-desk.mjs` (48 checks, against a **player-added**
+book, including real exchanges with the local model). Four things were found
+by deliberately breaking the guards and one by taking a screenshot and looking
+at it — all recorded in `archive/dev-log-2026-08-03.txt`.
+
+The original plan follows, unchanged.
+
+---
 
 From the steward:
 

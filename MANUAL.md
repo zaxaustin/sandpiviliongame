@@ -359,11 +359,34 @@ your own standing instructions, so you can watch them take effect.
 
 ## 5. The Study — planning the day and the long paths
 
-- **The Writing Desk** — today's page. Write the day's intention, keep
-  notes alongside, and open the toolbox for: **sparks** (notes brought over
-  from books/research, each with a done-checkbox), **Ask the Steward**
-  (AI-grounded advice on the actual day), past days, and **🗂 My Notes**
-  (a filing cabinet of freeform named notes kept across days).
+- **The Writing Desk** — today's page, and the one room where the work you
+  are actually doing is all on one surface. Write the day's intention, keep
+  notes alongside, and open the toolbox for:
+    - **📖 The book in front of you.** Pocket a book in the Reader (**↓**) and
+      walk off with it; it lands here. The desk shows the chapter and page you
+      are on, opens it again in one press, and lets you **write a note about it
+      without leaving the desk** — that note keeps the same chapter and page a
+      note taken in the Reader would.
+    - **💬 Call someone over.** A picker of every resident — Sebastian, Quill,
+      the Tutor, the Steward, the Investigator, the Mountain Monk, the
+      Computer. **One at a time, on purpose:** the one you called over is
+      working for you, and each keeps their own separate thread, so calling the
+      Tutor over never hands her the librarian's conversation. Whoever is here
+      is told what is on the desk — today's intention, what is due, your sparks,
+      and the book you are holding. Sebastian is there when you open it, since
+      the day is his job.
+    - **🗂 Your notes** — what you wrote **lately**, and what is **worth
+      another look** (written and not opened in over a fortnight; the same
+      quiet rule ☀ Today uses). Every one of them opens; a book note opens the
+      book at the page it was written on. Your filing cabinet of freeform named
+      notes is still below it.
+    - **✨ Draft a lesson from this (AI)**, on the book panel — your local AI
+      turns the book, the page you are on, and your own notes on it into a
+      lesson plan **written into a note first**. You read it, edit it, and only
+      then press **🌳 Put it in the tree**. Nothing ever reaches the tree
+      without that press.
+    - **sparks** (notes brought over from books/research, each with a
+      done-checkbox), **rhythm blocks**, and **past days**.
 - **The Course Board** — the long paths: multi-step courses you pin,
   categorize (Practice / Study / Skill / Work / Health / Personal), search,
   and archive when finished. Quill and the Computer can draft one from a

@@ -609,3 +609,114 @@ SUMMARY header on a book with no full text.
 WHAT DID NOT CHANGE. beta.3 still has zero downloads. Everything here
 makes his own Pavilion better - which is the goal he named - and none of
 it puts the thing in front of a second person.
+
+================================================================
+FIFTH SESSION, 2026-08-03 - THE WRITING DESK, ALL FOUR STEPS
+================================================================
+
+The steward approved WRITING-DESK-PLAN.md and sharpened what it was
+for:
+
+  "these personalities are good and they add a feel of realism but
+   there real purpous should be agents without a doubt. there roles
+   are specific... we can have them work one at a time, the pace
+   dosent have to be fast jsut good work should be done, it should
+   feel like we are contruibuting to the greater knolegepool of
+   humanity."
+
+So: not faster, better. Four steps, each verified before the next.
+
+WHAT THE DESK WAS. A day planner - intention, ember, rhythm blocks,
+sparks - with ONE AI panel hardcoded to the Steward, carrying its own
+system prompt, its own history and its own error line. It was the only
+room in the Pavilion talking to a resident through plumbing nobody else
+used. Meanwhile your notes, the book you were reading, and a lesson
+being drafted each lived in a different room. A form you fill in, when
+what he described is a desk you sit down at.
+
+1 - CALL SOMEONE OVER. A picker of all seven residents, DERIVED from
+data/roles.js (deskResidents()), never hand-listed - hand-maintained
+copies of that org chart have drifted three times here. Each resident
+answers through the same CHAT_AGENTS[key].systemPrompt() they use in
+their own room, plus deskFraming() (what you called them over FOR,
+taken from their own sendMe line) and deskStateBlock() (what is
+actually on the desk).
+
+ONE AT A TIME IS THE DESIGN. Each keeps a separate thread in
+state.plannerChat.byAgent - calling the Tutor over must never hand her
+the librarian's last four exchanges as if they were her own. That is
+the difference between a personality and an agent: an agent is chosen
+for a purpose.
+
+The DEFAULT is the hub, derived rather than named. roles.js says the
+day belongs to Sebastian, and the day is what this desk is. The old
+hardcoded Steward predated that file.
+
+2 - YOUR OLDER NOTES. The desk showed only today. It now shows what you
+wrote LATELY and what is WORTH ANOTHER LOOK, and the resurfacing rule
+is not a second copy: forgottenNotes() was lifted out of theDayItems()
+into data/the-day.js and both call it. Deliberately a reader, not a
+second editor - one place a note is written, one place they are
+gathered. The filing cabinet is still underneath it.
+
+3 - THE BOOK IN FRONT OF YOU. state.readerPocket already existed and
+was used nowhere near here. The desk now shows the book you walked over
+with - title, author, chapter, page - reopens it in one press, and
+takes a note on it through writeBookNote(), the SAME path the Reader
+uses, extracted so there is no second implementation. The note carries
+the same chapter and page, and the same doors. An empty desk is not a
+dead end: it carries the doors to a book.
+
+4 - A LESSON DRAFTED IN NOTES, BEFORE THE WALL. deskDraftLesson()
+grounds the local model in the book, the page actually in front of you,
+and your own notes on it, and writes a lesson plan INTO A NOTE. Then it
+stops. The model drafts, the person promotes - the same "a suggestion
+is not a decision" line the shelf sorter's review step exists to keep.
+Read it, edit it, then press.
+
+--- WHAT BREAKING THE GUARDS FOUND (rule 2, and it earned itself four
+    times in one session) ---
+
+* chatOptsFor() was not used at the desk at all. The Mountain Monk
+  called over would have SILENTLY lost his standing rule - best
+  installed model, real room to think. Nothing would have looked
+  wrong; he would just have been worse.
+
+* The confirmation after keeping a note was built from what the desk
+  BELIEVED it was about to write, not from the note written. Broken on
+  purpose, it cheerfully said "kept at ch. 1 - p. 4" while the note
+  recorded no page at all. A confident wrong answer, which this
+  project has decided is worse than saying "I don't know".
+
+* "It landed on the right page" passed while the note carried no page,
+  because the reader was ALREADY on that page. The test walks away
+  first now.
+
+* The first version of the live test used a synthetic book -
+  'one line\n'.repeat(400) - and it paginated to ONE PAGE, because
+  paginate() splits on BLANK lines. Every page assertion passed
+  without being able to fail. It runs on a real excerpt from a book he
+  brought in: 35 pages, real chapters, ch. 1 - p. 4.
+
+--- AND ONE FOUND ONLY BY LOOKING ---
+
+Screenshotted the desk with the Tutor called over: the three quick-start
+buttons still said "Help me plan today". No error, no crash, just
+quietly the wrong thing. They derive from the resident's own sendMe line
+now, and that is a check too. Same screenshot showed a chapter label cut
+mid-word ("...and Not in Our Powe") - trimmed to a word boundary.
+
+The picker guard was broken deliberately as well (hand-listed to three
+residents): every derivation check failed as intended, including the
+hub default.
+
+VERIFIED. npm test; test/live/writing-desk.mjs 48 checks, against a
+PLAYER-ADDED book per the standing rule, including real exchanges with
+the local model and a real lesson draft; preflight (39, zero network);
+study-chain 37/37. Screenshots of all three panels read, not assumed.
+
+WHAT DID NOT CHANGE. beta.3 still has zero downloads. Next up, in
+order: hand-marked chapters for the 88 books that find none;
+tools/chapter-sweep.mjs as a real command; then the installer, which
+verify:release is correctly refusing right now because the source is
+newer than the .exe.

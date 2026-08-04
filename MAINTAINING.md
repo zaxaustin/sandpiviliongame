@@ -44,6 +44,18 @@ Steward/Investigator (café + Science Hall), the Computer, and the Tutor
 reminder pings, the due badge, Still Open, task migration across days, The Log,
 and **Paths** (ideas you pick up and walk — deliberately no due dates).
 
+**The Writing Desk is the editor pane** (2026-08-03, `plans/WRITING-DESK-PLAN.md`
+steps 1–4). Four things sit on one surface: **the pocketed book** you walked
+over with (`state.readerPocket` → `deskBook()`), notes on it written through the
+Reader's own `writeBookNote()`; **a resident picker** derived from `roles.js`
+(`deskResidents()`) where each keeps a separate thread in `state.plannerChat.byAgent`
+and answers through the same `CHAT_AGENTS[key].systemPrompt()` as in their own
+room, plus `deskFraming()`/`deskStateBlock()`; **your older notes**, recent and
+resurfaced via the shared `forgottenNotes()` in `data/the-day.js`; and
+**`deskDraftLesson()`**, which drafts into a note and stops — the model drafts,
+the person promotes. `test/live/writing-desk.mjs` counts the picker against
+`ROLE_KEYS` in both directions and asserts nothing reaches the tree unpressed.
+
 **Learning.** The Learning Tree (a real prerequisite curriculum, progress in
 `data.curriculum`), the Academy Tutor (teach / quiz / review / plan a lesson),
 `lessons/` as the content home, and the Course Board.
@@ -330,11 +342,25 @@ now states how that coexists with a real database — *a feature that needs it
 is ABSENT without it, never DEGRADED*, because two code paths means the one
 you test is not the one that runs.
 
-**What's next, in order:** the sorter on `v_unshelved` (twenty at a time,
-resumable, allowed to say UNSURE — mostly deletion now); the notes and
-records wired into the rooms that show them; hand-marked chapters for the 88
-books that still find none; the rest of the residents given lookups the way
-Quill has one.
+**The Writing Desk was rebuilt on 2026-08-03 (fifth session)** — all four
+steps of `plans/WRITING-DESK-PLAN.md`. It was a day planner with one AI panel
+hardcoded to the Steward while your notes, your book and a drafting lesson
+lived in three other rooms. It now carries the pocketed book (write a note on
+it without leaving), a resident picker derived from `roles.js` with one thread
+each, your older notes including the resurfacing rule, and a lesson drafted
+into a note that reaches the tree only when you press. See the section above
+for the code map.
+
+**What's next, in order:** hand-marked chapters for the 88 books that still
+find none (`source='hand'` and `confirmed` already exist in the schema and
+nothing writes them); the real-library sweep promoted to `tools/chapter-sweep.mjs`
+so "how does this do on the actual library" is one command; then the launch
+mechanics — `npm run verify:release` currently FAILS correctly (the installer
+is older than the source), so: `build:beta`, `electron:build:beta`,
+packaged-boot, and `plans/BETA-RELEASE-NOTES.md` updated. After that: the
+sorter on `v_unshelved` (twenty at a time, resumable, allowed to say UNSURE —
+mostly deletion now); the notes and records tables actually filled; the rest
+of the residents given lookups the way Quill has one.
 
 **And still, unchanged and still the most important line here:**
 `0.1.0-beta.3` has **zero downloads**. All of the above makes the steward's

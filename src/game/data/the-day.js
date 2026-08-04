@@ -41,6 +41,25 @@ export function daysBetween(a, b) {
   return Math.round((pb - pa) / 86400000);
 }
 
+/* A note you wrote and have not looked at since — the ONE rule in this file
+   that anything else wanted too. ☀ Today takes the single oldest; the Writing
+   Desk (WRITING-DESK-PLAN.md step 2) shows a few, because you are sitting
+   down to work rather than glancing at a list. Same rule, one definition —
+   two copies of "what counts as forgotten" would drift the first time either
+   number was tuned.
+
+   Past a fortnight, so it stays a rediscovery rather than a review queue, and
+   `seen` beats `date`: seen is set when a note is actually opened, not merely
+   listed. */
+export const FORGOTTEN_AFTER_DAYS = 14;
+export function forgottenNotes(notes, today, limit) {
+  return (notes || [])
+    .map(n => ({ n, age: daysBetween(n.seen || n.date, today) }))
+    .filter(x => x.n.date && x.age >= FORGOTTEN_AFTER_DAYS && String(x.n.text || '').trim().length > 20)
+    .sort((a, b) => b.age - a.age)
+    .slice(0, limit == null ? 1 : limit);
+}
+
 /* ---- the whole thing --------------------------------------------------
    Everything is passed in, nothing is reached for:
      today       'YYYY-MM-DD'
@@ -148,11 +167,7 @@ export function theDayItems(ctx = {}) {
         One at a time, and only past a fortnight, so it stays a rediscovery
         rather than a review queue. `seen` is set when a note is actually
         opened, not merely listed. */
-  const notes = ctx.notes || [];
-  const forgotten = notes
-    .map(n => ({ n, age: daysBetween(n.seen || n.date, today) }))
-    .filter(x => x.n.date && x.age >= 14 && String(x.n.text || '').trim().length > 20)
-    .sort((a, b) => b.age - a.age)[0];
+  const forgotten = forgottenNotes(ctx.notes, today, 1)[0];
   if (forgotten) push({ key: 'note-' + forgotten.n.key, icon: '🗒',
     title: forgotten.n.title || 'A note you wrote',
     note: 'written ' + forgotten.age + ' days ago and not opened since — worth another look?',

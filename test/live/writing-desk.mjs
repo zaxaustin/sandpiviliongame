@@ -308,7 +308,132 @@ ok('and lands on the exact page the note was written on',
   followed.page === 'Page ' + pocketed.pageNum + ' of ' + pocketed.pageCount,
   `${followed.page} — expected page ${pocketed.pageNum}`);
 
+/* ---- older notes at the desk ---- */
+console.log('\nYour older notes, at the desk\n');
+
+const older = await p.evaluate(async () => {
+  closeUI(); openPlanner();
+  await new Promise(r => setTimeout(r, 250));
+  togglePlannerTool('notes');
+  await new Promise(r => setTimeout(r, 400));
+  const body = document.getElementById('planToolBody');
+  const heads = [...body.querySelectorAll('h4')].map(x => x.textContent.trim());
+  const cards = [...body.querySelectorAll('.card')];
+  return {
+    heads,
+    text: body.textContent.replace(/\s+/g, ' '),
+    firstCardDoors: [...(cards[0]?.querySelectorAll('button') || [])].map(x => x.textContent.trim()),
+    opensNote: body.innerHTML.includes('openNotesLog('),
+    opensBook: body.innerHTML.includes('openBookAtNote('),
+    stillHasCabinet: body.innerHTML.includes('createNote()'),
+  };
+});
+ok('the desk gathers what you wrote lately', older.heads.includes('Lately'), JSON.stringify(older.heads));
+ok('and the note written a moment ago is in it',
+  /Assent is the only thing wholly ours/.test(older.text), older.text.slice(0, 100));
+ok('every gathered note opens somewhere', older.opensNote && older.opensBook,
+  `openNotesLog:${older.opensNote} openBookAtNote:${older.opensBook}`);
+ok('the filing cabinet is still there — this is a reader, not a replacement', older.stillHasCabinet);
+
+/* The resurfacing rule is shared with ☀ Today, so prove the DESK asks it,
+   with a note old enough to qualify. */
+const resurfaced = new Date(Date.now() - 40 * 86400000).toISOString().slice(0, 10);
+await p.evaluate(async (old) => {
+  /* write it straight into the save the way an old note actually looks, then
+     reopen the desk so the panel is built fresh from gatherNotes() */
+  const raw = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
+  raw.notes = raw.notes || [];
+  raw.notes.push({ id: 'old-note-1', title: 'An old thought', created: old, updated: old,
+    body: 'Something I wrote weeks ago and have not looked at since, long enough to count.' });
+  localStorage.setItem('sandPavilionSave.v2', JSON.stringify(raw));
+  return old;
+}, resurfaced);
+
+/* CLAUDE.md rule 6 — a reload re-fires evaluateOnNewDocument and would wipe
+   the save just written. Carry it to a SECOND page instead. */
+const p2 = await b.newPage();
+const errs2 = [];
+p2.on('pageerror', e => errs2.push(e.message));
+await p2.goto('http://localhost:4173', { waitUntil: 'networkidle2' });
+await p2.click('#startBtn');
+await new Promise(r => setTimeout(r, 1500));
+const surfaced = await p2.evaluate(async () => {
+  openPlanner();
+  await new Promise(r => setTimeout(r, 250));
+  togglePlannerTool('notes');
+  await new Promise(r => setTimeout(r, 400));
+  const body = document.getElementById('planToolBody');
+  return {
+    heads: [...body.querySelectorAll('h4')].map(x => x.textContent.trim()),
+    text: body.textContent.replace(/\s+/g, ' '),
+  };
+});
+ok('a note not looked at in weeks comes back at the desk',
+  surfaced.heads.includes('Worth another look') && /An old thought|weeks ago and have not looked/.test(surfaced.text),
+  JSON.stringify(surfaced.heads));
+ok('and it says how long it has been', /\d+ days ago/.test(surfaced.text),
+  (/(\d+ days ago)/.exec(surfaced.text) || [])[1] || surfaced.text.slice(0, 90));
+
+/* ---- the lesson draft, surfaced where the work happens ---- */
+console.log('\nA lesson drafted in notes, before the wall\n');
+
+const draftDoor = await p.evaluate(async () => {
+  togglePlannerTool('book');
+  await new Promise(r => setTimeout(r, 350));
+  const body = document.getElementById('planToolBody');
+  return {
+    hasDraft: [...body.querySelectorAll('button')].some(x => /Draft a lesson/.test(x.textContent)),
+    call: body.innerHTML.includes('deskDraftLesson()'),
+  };
+});
+ok('the drafting chain is visible from the book on the desk',
+  draftDoor.hasDraft && draftDoor.call, JSON.stringify(draftDoor));
+
+if (!desk.aiOn) {
+  skip('a draft lands in a NOTE, not on the wall', 'no local AI connected');
+} else {
+  const drafted = await p.evaluate(async () => {
+    const treeBefore = (JSON.parse(localStorage.getItem('sandPavilionSave.v2')).myLessons || []).length;
+    await deskDraftLesson();
+    await new Promise(r => setTimeout(r, 500));
+    const save = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
+    const plan = (save.notes || []).find(n => /^Lesson plan — /.test(n.title || ''));
+    return {
+      msg: document.getElementById('deskNoteMsg')?.textContent || '',
+      madeNote: !!plan,
+      planBody: plan ? (plan.body || '').slice(0, 120) : '',
+      linkedToBook: !!(plan && plan.book && plan.book.slug === 'personal-discourses-of-epictetus'),
+      treeBefore,
+      treeAfter: (save.myLessons || []).length,
+      offersRead: (document.getElementById('deskNoteMsg')?.innerHTML || '').includes('deskOpenDraft('),
+      offersTree: (document.getElementById('deskNoteMsg')?.innerHTML || '').includes('lessonFromPlanNote('),
+    };
+  });
+  ok('a draft lands in a NOTE, not on the wall', drafted.madeNote, drafted.msg.slice(0, 90));
+  ok('and NOTHING reached the tree without a press',
+    drafted.treeAfter === drafted.treeBefore, `${drafted.treeBefore} → ${drafted.treeAfter}`);
+  ok('the draft says where it came from', /Drafted by your local AI from/.test(drafted.planBody), drafted.planBody.slice(0, 70));
+  ok('the draft is linked back to the book', drafted.linkedToBook);
+  ok('you are offered the read-and-edit step before the tree',
+    drafted.offersRead && drafted.offersTree, `read:${drafted.offersRead} tree:${drafted.offersTree}`);
+
+  const edited = await p.evaluate(async () => {
+    const save = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
+    const plan = (save.notes || []).find(n => /^Lesson plan — /.test(n.title || ''));
+    deskOpenDraft(plan.id);
+    await new Promise(r => setTimeout(r, 350));
+    return {
+      editing: !!document.getElementById('noteBodyInput'),
+      tool: !!document.getElementById('noteTitleInput'),
+      canPromote: (document.getElementById('planToolBody')?.innerHTML || '').includes('lessonFromPlanNote('),
+    };
+  });
+  ok('“read and edit it” opens the draft in an editor', edited.editing && edited.tool, JSON.stringify(edited));
+  ok('and the tree is one press away from the editor', edited.canPromote);
+}
+
 ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | ') || 'none');
+ok('no page errors on the second page either', errs2.length === 0, errs2.slice(0, 3).join(' | ') || 'none');
 
 await b.close();
 console.log('\n' + (failed ? `${failed} FAILED` : 'writing-desk: all checks passed')

@@ -9,7 +9,7 @@ import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-pa
 import { planToLesson } from '../data/plan-to-lesson.js';
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
-import { theDayItems, theDayLine } from '../data/the-day.js';
+import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS } from '../data/the-day.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
@@ -4008,13 +4008,14 @@ const TOOLBOX_ITEMS = [
   {id:'book', icon:'📖', label:'The book in front of you'},
   {id:'blocks', icon:'🔥', label:'Rhythm blocks'},
   {id:'sparks', icon:'✨', label:'Sparks from reading'},
-  {id:'notes', icon:'🗂', label:'My Notes'},
+  {id:'notes', icon:'🗂', label:'Your notes'},
   {id:'assist', icon:'💬', label:'Call someone over'},
   {id:'past', icon:'📅', label:'Past days'},
 ];
 const TOOLBOX_TITLES = {book:'The book in front of you',
   blocks:'Rhythm blocks — tap to cycle: waiting → tended → rested',
-  sparks:'Sparks from reading', notes:'My Notes', assist:'Call someone over', past:'Past days'};
+  sparks:'Sparks from reading', notes:'Your notes — lately, and worth another look',
+  assist:'Call someone over', past:'Past days'};
 function toolTitle(id){
   if(id==='book'){ const b=deskBook(); return b ? b.doc.title : TOOLBOX_TITLES.book; }
   return TOOLBOX_TITLES[id];
@@ -4158,10 +4159,12 @@ function renderDeskBookBody(){
       <button class="btn ghost" onclick="dismissReaderPocket();renderDeskBookAfterPutDown()">Put it down</button>
     </div>
     <textarea id="deskNoteInput" rows="3" placeholder="Write about it — this note keeps the chapter and page you are on…"></textarea>
-    <div class="row" style="margin-top:6px;align-items:center">
+    <div class="row" style="margin-top:6px;align-items:center;flex-wrap:wrap">
       <button class="btn" onclick="deskAddNote()">✎ Keep this note</button>
-      <span class="meta" id="deskNoteMsg" style="margin:0"></span>
+      <button class="btn ghost" style="font-size:11.5px" onclick="deskDraftLesson()"
+        title="Draft a lesson plan into a note first — you read it and edit it before anything reaches the tree">✨ Draft a lesson from this (AI)</button>
     </div>
+    <div class="meta" id="deskNoteMsg" style="margin-top:6px"></div>
     ${recent.length ? `<h4 style="margin:14px 0 4px">Your last notes on this book</h4>`
       + recent.map(n=>`<div class="card" style="cursor:default">
           <div class="s">${esc(n.ts||'')}${n.ch!==undefined?' · ch. '+n.ch:''}${n.page!==undefined?' · p. '+(n.page+1):''}</div>
@@ -4192,6 +4195,70 @@ export function deskAddNote(){
   if(msg) msg.textContent='✓ kept'+(n.ch!==undefined?' at ch. '+n.ch:'')
     +(n.page!==undefined?' · p. '+(n.page+1):' — no page kept for this one');
   blip(700,.06,'sine',.03);
+}
+
+/* ----- A LESSON DRAFTED IN NOTES, BEFORE IT GOES ON THE WALL —
+   WRITING-DESK-PLAN.md step 4, in the steward's own sequencing:
+
+     "have the AI make a full lesson plan in notes first before its ready
+      for the wall."
+
+   The chain already existed end to end and was invisible from the desk,
+   which is where the work happens: a draft lands in a NOTE
+   (draftLessonPlanFromNote), plan-to-lesson.js turns a note into a real
+   lesson, lessonFromPlanNote puts it in the tree. What could not be done
+   was start that chain from the book you are actually holding.
+
+   THE RULE THAT MUST SURVIVE: the model drafts, the person promotes.
+   Nothing reaches the tree without a press — the same "a suggestion is
+   not a decision" line the shelf sorter's review step exists to keep
+   true. So this writes a note and stops. */
+export async function deskDraftLesson(){
+  const b=deskBook(); if(!b) return;
+  const el=document.getElementById('deskNoteMsg');
+  const say=(t,html)=>{ if(!el) return; if(html) el.innerHTML=t; else el.textContent=t; };
+  if(!isAIActive()){ say('Connect a local AI (⚙ Manage AI connections) to draft a lesson from this book.'); return; }
+  const notes=(data.bookNotes[b.slug]||[]).slice(0,12);
+  /* Grounded in what is genuinely on the desk: the book, where you are in
+     it, the page you are actually looking at, and your own notes on it.
+     Nothing invented, and it says so where a piece is missing. */
+  const page=(b.view && b.page!=null && b.view.pages[b.page]) ? String(b.view.pages[b.page]).slice(0,3000) : '';
+  const ground='BOOK: "'+b.doc.title+'"'+((b.doc.attribution||b.doc.author)?' by '+(b.doc.attribution||b.doc.author):'')
+    +'\nWHERE THEY ARE: '+deskBookWhere(b)
+    +(page?'\n\nTHE PAGE IN FRONT OF THEM:\n'+page:'\n\n(no page text available — work from the notes below alone)')
+    +(notes.length?'\n\nTHEIR OWN NOTES ON THIS BOOK:\n'+notes.map(n=>
+        '- '+(n.ch!==undefined?'(ch. '+n.ch+') ':'')+(n.text||'')).join('\n')
+      :'\n\n(they have not written any notes on this book yet)');
+  say('Your local AI is drafting a lesson plan from this book…');
+  try{
+    const reply=await AI.chat([
+      {role:'system', content:WORK_CHARTER+'\n\nTurn what this reader has in front of them into a concrete, personal '
+        +'LESSON PLAN they can actually walk: a one-line goal, then a short sequence of numbered study sessions — each '
+        +'with what to read or do and roughly how long — one small hands-on task per session, and a simple way to check '
+        +'understanding at the end. Ground it strictly in the book and notes given; where you do not know something, say '
+        +'so rather than inventing it. Plain readable text, no preamble about what you are about to do.'},
+      {role:'user', content:ground},
+    ], {long:true});
+    if(isEmptyReply(reply)){ say('The model came back empty — a lighter model may do better.'); return; }
+    const plan={id:newNoteId(), title:'Lesson plan — '+b.doc.title,
+      body:'✨ Drafted by your local AI from "'+b.doc.title+'" ('+deskBookWhere(b)+') and your notes on it.\n\n'
+        +String(reply).trim(), created:todayKey(), updated:todayKey(), book:{slug:b.slug, page:(b.page!=null?b.page+1:null), chapter:(b.ch?b.ch.number:null)}};
+    data.notes.unshift(plan); persist();
+    logActivity('Drafted a lesson plan from "'+b.doc.title+'" at the Writing Desk.');
+    blip(660,.08); setTimeout(()=>blip(825,.09),90);
+    /* A draft that only says "saved" is the dead end this plan exists to
+       close. Read it, edit it, THEN promote it — all three from here. */
+    say('✨ Drafted into a note — read it before it goes anywhere. '
+      +'<button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="deskOpenDraft(\''+plan.id+'\')">✎ Read and edit it</button> '
+      +'<button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="lessonFromPlanNote(\''+plan.id+'\',\'deskNoteMsg\')">🌳 Put it in the tree</button>', true);
+  }catch(e){ say('The connection flickered — no draft this time (is your local AI still running?).'); }
+}
+/* Straight from the draft message into the desk's own note editor — the
+   reading-and-editing step, in the room you are already in. */
+export function deskOpenDraft(id){
+  state.plannerTool='notes';
+  state.plannerNoteView={mode:'edit', id};
+  renderToolbox(); renderToolPanel();
 }
 
 /* ----- Sparks — the bridge closing the gap between reading and doing:
@@ -4574,9 +4641,35 @@ function renderNotesBody(){
       ${noteLogHtml(note)}`;
     return;
   }
+  /* WRITING-DESK-PLAN.md step 2 — YOUR OLDER NOTES, AT THE DESK.
+
+     The desk showed only today. Everything you ever wrote was one room
+     away, which is fine for a filing cabinet and wrong for a desk: you sit
+     down at a desk with your earlier work already on it.
+
+     DELIBERATELY A READER, NOT A SECOND EDITOR. One place a note is written
+     (wherever it lives), one place they are all gathered (Your Notes). This
+     shows them and opens them; it must never become a third store. The two
+     sections below are pure reads of gatherNotes() — nothing new is saved. */
+  const all=notesForRules();
+  const back=forgottenNotes(all, todayKey(), 3);
+  const recent=all.slice(0,5);              // gatherNotes() sorts newest-first by default
+  const noteCard=(n,tail)=>`<div class="card" style="cursor:default">
+      <div class="s">${esc(n.icon||'🗒')} ${esc(n.where||'')}${tail?' · '+esc(tail):''}</div>
+      <div>${esc((n.text||'').length>170?n.text.slice(0,170)+'…':(n.text||'(empty)'))}</div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openNotesLog('${jsq(n.key)}')">Open it</button>
+        ${n.source==='book'?`<button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openBookAtNote('${jsq(n.key)}')">📖 Open the book here</button>`:''}
+      </div>
+    </div>`;
   el.innerHTML = `
-    <div class="meta">A filing cabinet for anything that isn't tied to one specific day — separate from today's page above.
-      The same notes appear in <b>🗒 Your Notes</b> (pause menu), where they can also be searched, filed, and linked to books.</div>
+    ${back.length ? `<h4 style="margin:0 0 4px">Worth another look</h4>
+      <div class="meta" style="margin-top:0">Written and not opened in over ${FORGOTTEN_AFTER_DAYS} days. Nothing is overdue about it — it is only here because you are sitting down.</div>
+      ${back.map(x=>noteCard(x.n, x.age+' days ago')).join('')}` : ''}
+    ${recent.length ? `<h4 style="margin:${back.length?'14px':'0'} 0 4px">Lately</h4>
+      ${recent.map(n=>noteCard(n, n.date||'')).join('')}` : ''}
+    <h4 style="margin:14px 0 4px">Your filing cabinet</h4>
+    <div class="meta" style="margin-top:0">For anything not tied to one day. The same notes appear in <b>🗒 Your Notes</b> (pause menu), where they can also be searched, filed, and linked to books.</div>
     <div class="row" style="margin:8px 0"><button class="btn" onclick="createNote()">+ New note</button></div>
     ${data.notes.length ? data.notes.map(n=>`
       <div class="card" onclick="openNote('${n.id}')">
@@ -5514,10 +5607,18 @@ export function currentDayItems(){
     read: data.read||{},
     dissections: (data.hall&&data.hall.dissections)||[],
     catalogue: Store.allDocs(),
-    notes: gatherNotes().map(function(n){
-      return { key:n.key, title:n.title, text:n.text, date:n.date,
-               seen:(data.noteMeta[n.key]&&data.noteMeta[n.key].seen)||'' };
-    }),
+    notes: notesForRules(),
+  });
+}
+/* Every note in the Pavilion, in the shape the pure rules in data/the-day.js
+   expect — including `seen`, which lives in noteMeta and is what makes
+   "not looked at since" mean anything. Shared by ☀ Today and the Writing
+   Desk so both ask the same question of the same pile. */
+function notesForRules(){
+  return gatherNotes().map(function(n){
+    return { key:n.key, title:n.title, text:n.text, date:n.date, where:n.where,
+             icon:n.icon, source:n.source, slug:n.slug||null,
+             seen:(data.noteMeta[n.key]&&data.noteMeta[n.key].seen)||'' };
   });
 }
 export function openTheDay(){
@@ -11987,7 +12088,7 @@ Object.assign(window, {
   selectBook, shelfOpenSelected,
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
   fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention, setDeskAgent,
-  deskAddNote, deskNoteSent, renderDeskBookAfterPutDown,
+  deskAddNote, deskNoteSent, renderDeskBookAfterPutDown, deskDraftLesson, deskOpenDraft,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,
