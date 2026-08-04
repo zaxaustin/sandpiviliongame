@@ -1942,6 +1942,14 @@ function renderMenu(){
         const cur=currentStudy(); if(!cur) return '';
         return ' \u00b7 ' + cur.node.title.slice(0,26);
       })()}`),
+      /* The Course Board had NO menu door at all — you reached it by walking
+         to a desk in the Study, or backwards out of the Learning Tree. Asked
+         plainly 2026-08-03: "where in game can i make a course, the course
+         board?" A room that can only be found by remembering where it is has
+         the Lab's problem in a milder form. */
+      item('openCourses()', `📋 The Course Board${(function(){
+        const n=(data.courses||[]).filter(c=>!c.archived).length; return n?' · '+n:'';
+      })()}`),
       item('openAcademy()', '🎓 The Academy'),
       /* The Lab is four hops away — Grounds, Workshop, up, up — on a floor that
          until 2026-08-02 said "nothing open here", so anyone who explored early
@@ -8043,7 +8051,9 @@ function renderLearningTree(){
            get no door, and have no idea why. The split is a property check,
            instant, and it is the difference between a feature and a trap. */
         const all=Store.allDocs();
-        const opt=d=>`<option value="${esc(d.slug)}"${editing&&editing.book&&editing.book.slug===d.slug?' selected':''}>${esc(d.title)}${d.attribution?' — '+esc(d.attribution):''}</option>`;
+        // arriving from a book preselects it — see writeLessonOnThisBook()
+        const preset=(editing&&editing.book&&editing.book.slug) || v.book || '';
+        const opt=d=>`<option value="${esc(d.slug)}"${preset===d.slug?' selected':''}>${esc(d.title)}${d.attribution?' — '+esc(d.attribution):''}</option>`;
         const readable=all.filter(d=>d.doc&&d.doc.fullText);
         const summary=all.filter(d=>!(d.doc&&d.doc.fullText));
         return `<select id="mlBook" style="${NOTE_SELECT_STYLE}">
@@ -8546,7 +8556,25 @@ export async function exportLesson(id, kind){
   setTimeout(()=>URL.revokeObjectURL(url),800);
   say('Saved to your Downloads folder as '+name+'.');
 }
-export function newLessonForm(id){ state.treeView={mode:'write', id:id||null}; renderLearningTree(); }
+export function newLessonForm(id, bookSlug){ state.treeView={mode:'write', id:id||null, book:bookSlug||null}; renderLearningTree(); }
+/* TEACH FROM THE BOOK YOU ARE HOLDING — the door that was missing, reported
+   2026-08-03: "i have the long discourses in my back pack, where do i make a
+   lesson on the buddhas teachings for new people?"
+
+   Every piece existed and none of it was reachable from the book. Making a
+   lesson meant leaving the Reader, opening the pause menu, finding 🌳 Lesson
+   plans, pressing ✎ Write a lesson, and then finding the book again in a list
+   of three hundred. That is four hops away from the thing you are already
+   looking at, which is exactly the "nothing may be a dead end / one keystroke
+   to anywhere" bar in CLAUDE.md, failed. */
+export function writeLessonOnThisBook(){
+  const slug=currentDocSlug()||(state.readerPocket&&state.readerPocket.slug);
+  if(!slug) return;
+  stopSpeaking();
+  state.ui='tree'; hideAllOv();
+  newLessonForm(null, slug);
+  showOv('treeOv');
+}
 export function saveMyLesson(existingId){
   const g=i=>document.getElementById(i)?.value ?? '';
   const title=g('mlTitle').trim();
@@ -12415,7 +12443,7 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
-  openLessonReading, exportLesson,
+  openLessonReading, exportLesson, writeLessonOnThisBook,
   openAlexandria, runLibraryTriage, applyTriageMove,
   acceptAllSuggestions, dismissSuggestions, acceptOneSuggestion,
   acceptShelfGroup, rejectShelfGroup, rejectOneSuggestion,

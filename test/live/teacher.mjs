@@ -28,6 +28,40 @@ await p.goto('http://localhost:4173', { waitUntil: 'networkidle2' });
 await p.click('#startBtn');
 await new Promise(r => setTimeout(r, 1500));
 
+/* ---- can he FIND it? ----
+   Asked outright 2026-08-03: "where in game can i make a course, the course
+   board? ... i have the long discourses in my back pack, where do i make a
+   lesson on the buddhas teachings?" Every piece existed; none of it was
+   reachable from the book he was holding. Being unfindable is the same as
+   being unbuilt (the Lab taught this project that once already). */
+console.log('\nCan he find the door at all\n');
+
+const findable = await p.evaluate(async () => {
+  closeUI(); openMenu();
+  await new Promise(r => setTimeout(r, 400));
+  const menu = [...document.querySelectorAll('#menuOv button')].map(x => x.textContent.trim());
+  return { menu, courseBoard: menu.some(t => /Course Board/.test(t)), tree: menu.some(t => /Lesson plans/.test(t)) };
+});
+ok('the Course Board has a door in the pause menu', findable.courseBoard,
+  findable.menu.filter(t => /Course|Lesson|Academy/.test(t)).join(' · '));
+ok('so does the Learning Tree', findable.tree);
+
+const fromBook = await p.evaluate(async () => {
+  closeUI();
+  openReader('personal-discourses');
+  await new Promise(r => setTimeout(r, 400));
+  const offered = !!document.getElementById('rdLessonBtn');
+  writeLessonOnThisBook();
+  await new Promise(r => setTimeout(r, 500));
+  const sel = document.getElementById('mlBook');
+  return { offered, onWriteForm: !!sel, preset: sel ? sel.value : null,
+           panelOpen: !!document.querySelector('#treeOv.open') };
+});
+ok('the book you are holding offers to become a lesson', fromBook.offered);
+ok('and it opens the lesson writer', fromBook.onWriteForm && fromBook.panelOpen, JSON.stringify(fromBook));
+ok('with the book ALREADY chosen — no hunting it in a list of hundreds',
+  fromBook.preset === 'personal-discourses', JSON.stringify(fromBook.preset));
+
 console.log('\nA teacher writes a lesson on a set text\n');
 
 const written = await p.evaluate(async () => {
