@@ -1170,6 +1170,11 @@ for (const [key, s] of Object.entries(scenes)) {
   // exactly one hub, and it is where an unrouted question goes
   const hubs = ROLE_KEYS.filter(k => ROLES[k].hub);
   if (hubs.length !== 1) fail(`roles.js: ${hubs.length} residents claim to be the hub — there must be exactly one front door`);
+  /* Same shape, same reason: the Study Table derives its default resident from
+     this flag rather than naming one, so exactly one may carry it. */
+  const studios = ROLE_KEYS.filter(k => ROLES[k].studio);
+  if (studios.length !== 1) fail(`roles.js: ${studios.length} residents claim the Study Table — it opens with exactly one, and a panel that has to pick between two would hard-code a name`);
+  if (!ROLES[studios[0]] || !ROLES[studios[0]].chat) fail(`roles.js: '${studios[0]}' is the Study Table's resident but has no chat door — it cannot be spoken to`);
 
   if (rosterForVisitor().length !== ROLE_KEYS.length) fail('roles.js: the visitor-facing directory does not list every resident');
 }

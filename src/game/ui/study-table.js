@@ -32,6 +32,7 @@ import { esc, jsq } from './dom.js';
 import { paginate } from '../data/retrieval.js';
 import { findChapters } from '../data/chapters.js';
 import { mergeMarks, unitsFor, unitAt, unitLabel } from '../data/marks.js';
+import { ROLES, ROLE_KEYS, rosterForVisitor } from '../data/roles.js';
 
 /* Injected once, at import time in overlays.js. */
 let X = {};
@@ -104,7 +105,136 @@ export async function renderStudyTable() {
   const unit = bk.units.find(u => u.idx === v.idx) || bk.units[0];
   if (!unit) { el.innerHTML = `<div class="meta">This book has no pages to divide.</div>`; return; }
 
-  el.innerHTML = navRow(b, bk, unit) + labelRow(unit, bk) + textRow(bk, unit) + notesRow(b, unit);
+  el.innerHTML = navRow(b, bk, unit) + labelRow(unit, bk) + textRow(bk, unit)
+    + notesRow(b, unit) + chatRow(b, unit);
+}
+
+/* ---------- the chat, grounded in THIS story ----------
+
+   The steward's own words for what he wanted here:
+
+     "an ai chat window there so i can say i wana make a small lesson on this
+      story help me break it down and the lessons we can gain from it."
+
+   ONE AT A TIME, ONE THREAD EACH — the same rule the Writing Desk's picker
+   follows. Calling the Tutor over must never hand her the Steward's last four
+   exchanges as if they were her own.
+
+   The DEFAULT is derived, not named: whoever carries `studio: true` in
+   data/roles.js, which is the Steward, because his duty there is literally
+   pre-notes on a book and shaping raw material. npm test asserts exactly one. */
+function studioDefault() {
+  const r = ROLE_KEYS.find(k => ROLES[k].studio);
+  return r || 'steward';
+}
+function chatState() {
+  const c = state.studyChat = state.studyChat || {};
+  if (!c.agent || !ROLES[c.agent]) c.agent = studioDefault();
+  c.byAgent = c.byAgent || {};
+  c.byAgent[c.agent] = c.byAgent[c.agent] || { history: [] };
+  return c;
+}
+function residents() {
+  return (X.residents ? X.residents() : rosterForVisitor());
+}
+
+function chatRow(b, unit) {
+  if (!X.askResident) return '';
+  const c = chatState(), key = c.agent, t = c.byAgent[key], r = ROLES[key] || { label: key };
+  if (X.aiActive && !X.aiActive()) {
+    return `<h4 style="margin:14px 0 4px">Talk it through</h4>
+      <div class="meta">No local AI connected (⚙ Manage AI connections). Everything else on this table works without one.</div>`;
+  }
+  const picker = residents().map(p => `<button class="btn ${p.key === key ? '' : 'ghost'}" style="font-size:11px;padding:3px 10px"
+      title="${esc(p.title || '')}" onclick="studySetAgent('${jsq(p.key)}')">${esc(p.label)}${(c.byAgent[p.key] && c.byAgent[p.key].history.length) ? ' •' : ''}</button>`).join('');
+  const quick = [
+    ['Break this one down', 'Help me break this story down — what is actually happening in it, and how is it built?'],
+    ['What can we take from it', 'What can we take from this story? The lessons in it, plainly.'],
+    ['Draft a small lesson', 'I want to make a small lesson on this story for someone new to it. Where would you start?'],
+  ];
+  return `<h4 style="margin:14px 0 4px">Talk it through — about this one</h4>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:6px">${picker}</div>
+    <div class="meta" style="margin-top:0">${esc(r.label)} is reading <b>${esc(unit.label)}</b> with you. One at a time; each keeps their own thread.</div>
+    <div class="row" style="margin:6px 0;gap:6px;flex-wrap:wrap">
+      ${quick.map(([label, prompt]) => `<button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="studyFillPrompt('${jsq(prompt)}')">${esc(label)}</button>`).join('')}
+    </div>
+    <div id="studyChatLog">${(t.history || []).map((h, i) => `<div class="card" style="cursor:default">
+        <div class="t">${h.role === 'user' ? 'You' : esc(r.label)}</div>
+        <div class="s" style="white-space:pre-wrap">${esc(h.content)}</div>
+        ${h.role === 'assistant' ? `<div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="studyKeepReply(${i})">✎ Keep this as a note</button></div>` : ''}
+      </div>`).join('')}</div>
+    <textarea id="studyAskInput" rows="2" placeholder="Ask ${esc(r.label)} about this story…"></textarea>
+    <div class="row" style="margin-top:6px;align-items:center">
+      <button class="btn" onclick="studyAsk()">Ask</button>
+      <span class="meta" id="studyAskMsg" style="margin:0"></span>
+    </div>`;
+}
+
+/* WHAT THE RESIDENT IS ACTUALLY SHOWN. The story's own text — bounded, and
+   declared an excerpt rather than silently truncated — plus the visitor's own
+   notes on it. This is the difference between a resident who has read what you
+   are reading and one guessing from a title. */
+function grounding(b, unit, bk) {
+  const full = bk.pages.slice(unit.from, unit.to + 1).join('\n\n');
+  const CAP = 6000;
+  const body = full.length > CAP ? full.slice(0, CAP) : full;
+  const mine = notesInUnit(b.slug, unit).map(({ n }) => '- ' + (n.text || '')).join('\n');
+  return `\n\nTHE VISITOR IS WORKING THROUGH A BOOK, ONE STORY AT A TIME, AND THIS IS THE ONE IN FRONT OF THEM.\n`
+    + `BOOK: "${b.doc.title}"${b.doc.attribution ? ' by ' + b.doc.attribution : ''}\n`
+    + `THIS PART: "${unit.label}"${unit.source === 'hand' ? ' (they named it themselves)' : ''} — ${unitLabel(unit)}\n`
+    + (full.length > CAP ? `\nTHE OPENING OF ITS TEXT (an excerpt — the part is longer than this):\n` : `\nITS TEXT IN FULL:\n`)
+    + body
+    + (mine ? `\n\nWHAT THEY HAVE ALREADY WRITTEN ABOUT THIS PART — build on it rather than repeating it:\n${mine}` : `\n\n(they have not written anything on this part yet)`)
+    + `\n\nStay with THIS part. Speak from the text above and say plainly when something is not in it; `
+    + `they are studying carefully, not looking for a summary of the whole book.`;
+}
+
+export function studySetAgent(key) {
+  if (!ROLES[key]) return;
+  const c = chatState();
+  if (c.agent === key) return;
+  c.agent = key; chatState();
+  blip(560, .05, 'sine', .03);
+  renderStudyTable();
+}
+export function studyFillPrompt(text) {
+  const el = document.getElementById('studyAskInput');
+  if (el) { el.value = text; el.focus(); }
+}
+export async function studyAsk() {
+  const b = tableBook(); if (!b || !cache) return;
+  const unit = cache.units.find(u => u.idx === view().idx); if (!unit) return;
+  const input = document.getElementById('studyAskInput'); if (!input) return;
+  const q = input.value.trim(); if (!q) return;
+  const c = chatState(), key = c.agent, thread = c.byAgent[key];
+  thread.history.push({ role: 'user', content: q });
+  input.value = '';
+  await renderStudyTable();
+  const msg = () => document.getElementById('studyAskMsg');
+  const m = msg(); if (m) m.textContent = '…';
+  try {
+    const reply = await X.askResident(key, thread.history, grounding(b, unit, cache));
+    thread.history.push({ role: 'assistant', content: reply });
+    logActivity('Talked with ' + ((ROLES[key] || {}).label || key) + ' about "' + unit.label + '".');
+  } catch (e) {
+    thread.history.push({ role: 'assistant', content: (ROLES[key] || {}).label + "'s connection flickered — no answer this time." });
+  }
+  await renderStudyTable();
+}
+/* A reply worth keeping becomes a note on THIS story, through the Reader's own
+   path — so it is indistinguishable from one written by hand and carries the
+   same page and the same doors. */
+export function studyKeepReply(i) {
+  const b = tableBook(); if (!b || !cache) return;
+  const unit = cache.units.find(u => u.idx === view().idx); if (!unit) return;
+  const c = chatState(), t = c.byAgent[c.agent];
+  const h = (t.history || [])[i]; if (!h || h.role !== 'assistant') return;
+  if (X.writeBookNote) X.writeBookNote(b.slug, h.content, unit.from);
+  blip(700, .06, 'sine', .03);
+  renderStudyTable().then(() => {
+    const m = document.getElementById('studyMsg');
+    if (m) m.textContent = '✓ kept on p. ' + (unit.from + 1);
+  });
 }
 
 function navRow(b, bk, unit) {

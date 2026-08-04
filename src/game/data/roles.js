@@ -95,6 +95,17 @@ export const ROLES = {
     chat: { name:'THE STEWARD', color:'#c86e5a', glow:'#f2b6a3',
       line:'Work, then. Something to prepare, somewhere you are on the path, or you are not sure who to ask — which is it?' },
     router: true,
+    /* THE STUDY TABLE'S SPECIALIST, set 2026-08-04 at the steward's suggestion:
+       "if you wana speclise an ai channle to do this mabie the stuard is a good
+       call." He was right, and the reason was already written in this file
+       weeks earlier — the Steward's duty is literally pre-notes on a book
+       before you read it, and gathering and shaping raw material. That IS
+       working through a book one story at a time.
+
+       Marked here rather than named in the panel, the same way `hub` is, so
+       the table derives its default instead of hard-coding a name. Exactly
+       one resident may carry it; npm test checks that. */
+    studio: true,
   },
   investigator: {
     label: 'the Investigator',

@@ -13,7 +13,8 @@ import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS } from '.
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
 import { esc, jsq } from './dom.js';
 import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
-         studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache } from './study-table.js';
+         studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache,
+         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply } from './study-table.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
@@ -4168,6 +4169,18 @@ initStudyTable({
     closeUI();
     openReader(slug);
     await openFullText(slug, page);
+  },
+  /* THE AI PLUMBING STAYS IN ONE PLACE. The table says who it wants and what
+     it is looking at; CHAT_AGENTS, the Monk's standing model rule, and the
+     context budget all continue to live here, so there is exactly one way a
+     resident is spoken to in this application. */
+  residents: () => rosterForVisitor().filter(r => CHAT_AGENTS[r.key] && CHAT_AGENTS[r.key].systemPrompt),
+  aiActive: isAIActive,
+  askResident: async (key, history, groundingBlock) => {
+    const agent = CHAT_AGENTS[key] || CHAT_AGENTS[deskDefaultAgent()];
+    const system = (await agent.systemPrompt()) + groundingBlock;
+    const reply = await AI.chat([{role:'system', content:system}, ...history], chatOptsFor(key));
+    return isEmptyReply(reply) ? 'The words did not come this time — ask again, or try a lighter model.' : reply;
   },
 });
 export function openPlanner(){
@@ -12460,6 +12473,7 @@ Object.assign(window, {
   /* ui/study-table.js — the window block stays in ONE file, which is this
      one, so the two-directional export check keeps working. */
   studyStep, studyLabelToggle, studyLabelSave, studyUnlabel, studyOpenHere, studyAddNote,
+  studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,

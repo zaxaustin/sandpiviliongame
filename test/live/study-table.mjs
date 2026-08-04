@@ -8,7 +8,10 @@
    for nearly half the shelf, and the page-by-page path is the majority case
    rather than a fallback.
 
-   Runs with NO AI connected — none of this stage needs one. */
+   Everything up to the chat runs with NO AI — reading, dividing, labelling and
+   note-taking need nothing installed, which is the claim that matters for the
+   shipped beta. The chat section below asserts the picker where a model is
+   present and asserts the honest "no local AI connected" line where it is not. */
 import puppeteer from 'file:///C:/Users/resto/Desktop/projects/sand%20pavilion%20game/node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js';
 import { readFileSync } from 'node:fs';
 
@@ -25,7 +28,12 @@ const errs = [];
 p.on('pageerror', e => errs.push(e.message));
 
 await p.evaluateOnNewDocument((plain, chaptered) => localStorage.setItem('sandPavilionSave.v2', JSON.stringify({
-  seenWelcome: true, aiConnections: [],
+  /* aiConnections deliberately NOT overridden — the default save carries the
+     built-in Ollama connection, so the picker checks below run for real on a
+     machine that has one and take the no-AI branch on one that does not.
+     Everything ABOVE this line still works with nothing connected, which is
+     the claim that matters for the shipped beta. */
+  seenWelcome: true,
   personalLibrary: [
     { slug:'personal-sigalaka', title:'Advice to Sigalaka', tradition:'Personal', personal:true,
       license:'', added:'2026-08-04', category:'personal', attribution:'Bhikkhu Sujato',
@@ -162,6 +170,42 @@ const outranks = await p.evaluate(async () => {
 ok('renaming a detected chapter replaces its name', /What is truly ours/.test(outranks.after),
   `${outranks.before} → ${outranks.after}`);
 ok('and the panel credits you for it', outranks.meta.some(m => /you named this one/.test(m)));
+
+/* ---- the chat, and who opens it ----
+   The AI half is skipped without a local model (this suite runs with none),
+   but WHO is at the table and WHAT they are told they are reading are
+   deterministic, and they are the part that silently rots. */
+console.log('\nWho is at the table\n');
+
+const { ROLES, ROLE_KEYS } = await import('../../src/game/data/roles.js');
+const studio = ROLE_KEYS.find(k => ROLES[k].studio);
+
+const chat = await p.evaluate(async () => {
+  const body = document.getElementById('planToolBody');
+  const row = [...body.querySelectorAll('.row')].find(r => r.innerHTML.includes('studySetAgent'));
+  return {
+    picker: row ? [...row.querySelectorAll('button')].map(x => ({
+      label: x.textContent.replace(/\s*•$/, '').trim(),
+      active: !x.className.includes('ghost'),
+      key: (/studySetAgent\('([^']+)'\)/.exec(x.getAttribute('onclick') || '') || [])[1],
+    })) : [],
+    quick: [...body.querySelectorAll('button')].map(x => x.textContent.trim())
+      .filter(t => /Break this|take from it|small lesson/.test(t)),
+    says: (body.textContent.match(/is reading .{0,50}/) || [''])[0],
+    noAiLine: /No local AI connected/.test(body.textContent),
+  };
+});
+if (chat.noAiLine) {
+  ok('with no AI, the table says so and everything else still works', true, 'chat panel absent, rest intact');
+} else {
+  ok('every resident in roles.js is offered at the table',
+    chat.picker.length === ROLE_KEYS.length, `${chat.picker.length} of ${ROLE_KEYS.length}`);
+  ok('it opens with the studio specialist — DERIVED from roles.js, never named',
+    chat.picker.filter(x => x.active).map(x => x.key).join() === studio,
+    `active ${JSON.stringify(chat.picker.filter(x => x.active).map(x => x.label))} · studio flag: ${studio}`);
+  ok('and it names the story they are reading with you', /reading .+ with you/.test(chat.says), chat.says);
+  ok('the three quick starts are there', chat.quick.length === 3, JSON.stringify(chat.quick));
+}
 
 ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | ') || 'none');
 
