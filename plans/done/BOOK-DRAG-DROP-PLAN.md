@@ -10,7 +10,7 @@
 > also handles **`.epub`** (the format most sites give you), unpacked in the
 > browser itself via `DecompressionStream` + `DOMParser`, no library — see
 > `src/game/epub.js` and the dev log. The two live extensions still open:
-> **multiple books at once** (`plans/BATCH-BOOK-UPLOAD-PLAN.md`) and `.pdf`
+> **multiple books at once** (`plans/done/BATCH-BOOK-UPLOAD-PLAN.md`) and `.pdf`
 > in-game. `.txt`/`.epub` single-book is done.
 
 **Path A built and verified live, 2026-07-10** — see "Status" at the

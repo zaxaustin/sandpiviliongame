@@ -70,6 +70,37 @@ R.push(['a BUNDLE dropped on the world opens for review',
   await p.evaluate(()=>document.getElementById('bundleOv').className.includes('open'))]);
 R.push(['and still adds nothing without a press', (await count())===before]);
 
+/* THE SUMMARY BOOK'S PROMISE MUST HOLD. Ten shipped classics are carried as
+   summaries, and each says in as many words: "drag the file onto this window
+   — and this page becomes the real book."
+
+   Measured 2026-08-03: it did not. The file shelved as a separate personal
+   copy, the seed entry stayed summary-only, and the visitor was left on a page
+   still telling them it was not the book — now owning two copies, one of them
+   unreachable from where they stood. This is the first-ten-minutes path, so a
+   lie here is the one a new tester meets. */
+{
+  const opened = await p.evaluate(async () => {
+    closeUI(); openReader('tao-te-ching');
+    await new Promise(r => setTimeout(r, 300));
+    const lines = ['Title: Tao Te Ching', 'Author: Laozi', '', 'Chapter 1', '',
+      'The way that can be told is not the eternal way.'];
+    for (let i = 2; i < 42; i++) lines.push('', 'Chapter ' + i, '', 'Words of the way, at length, for pagination.');
+    const dt = new DataTransfer();
+    dt.items.add(new File([lines.join('\n')], 'tao-te-ching.txt', { type: 'text/plain' }));
+    document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    await new Promise(r => setTimeout(r, 2500));
+    return {
+      slug: window.currentDocSlug ? window.currentDocSlug() : '',
+      stillSaysSummary: /not the book itself/i.test(document.getElementById('rdBody').textContent),
+      canReadFullText: document.getElementById('rdFullTextBtn')?.style.display === 'inline-block',
+    };
+  });
+  R.push(['dropping a summary title lands you ON the real text', opened.slug !== 'tao-te-ching' && !!opened.slug]);
+  R.push(['and the page stops calling itself a summary', !opened.stillSaysSummary]);
+  R.push(['and the full text is actually readable', opened.canReadFullText]);
+}
+
 let bad=0; for(const [n,ok] of R){ console.log((ok?'  PASS  ':'  FAIL  ')+n); if(!ok) bad++; }
 console.log('page errors:', errs.length?errs.slice(0,3):'none');
 await b.close(); process.exit(bad||errs.length?1:0);

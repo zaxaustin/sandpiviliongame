@@ -272,7 +272,8 @@ your own standing instructions, so you can watch them take effect.
   source are ever needed here** — a personal copy is your business. Papers,
   drafts, a work manual, something you wrote yourself: all of it belongs here.
 
-  The Library's own shelves are *lineages* — Theravada, Daoism, Classics — and
+  The Library's own shelves are *lineages* — Theravada, Mahayana, Daoism,
+  Chinese, Hindu, Tantra, Christian, Native American, Classics — and
   they were never going to fit a real personal collection. So **make your own**:
   press **＋ New shelf of my own** and name it whatever you actually own —
   *Electronics*, *Work*, *Recipes*, *Papers to read*. Your shelves exist only in
@@ -282,12 +283,50 @@ your own standing instructions, so you can watch them take effect.
   If your library is already a pile, the **Sort them out** section is the cure:
   search it, tick several books at once, and **move them all** to a shelf in one
   go. Anything not yet filed sits under **📥 Unfiled** so you can see the size of
-  the job. Same-title duplicates are flagged. With a local AI connected,
-  **✨ Suggest shelves for my unfiled books** reads your titles and fills in the
-  dropdowns — it never files anything itself; a suggestion is not a decision.
+  the job. Same-title duplicates are flagged.
+
+  **✨ Have the librarian sort these** does the rest, and it works the way a
+  person actually sorts — **twenty books at a time, then it stops.** Press it
+  again for the next twenty. Rules run first and file the obvious ones with no
+  AI at all (a title with "Sutta" in it does not need a model's opinion); only
+  the genuinely unclear ones are handed on.
+
+  **It is allowed to say it does not know.** A book it cannot place honestly is
+  marked **needs a look** rather than guessed at — a wrong shelf is worse than
+  none, because it is a book you will never find again. Those stay in the pile
+  for you, and **↺ Clear "needs a look" marks** lets it try them again later.
+
+  **Then you review its work, grouped by where the books are going:**
+
+  ```
+  → Nature   4 books                    [✓ File these 4]  [✕ Not this shelf]
+      the AI   Walden
+      the AI   Our National Parks
+      rule     Man And Nature
+      the AI   Sailing Alone Around The World
+  ```
+
+  Read one at a time, a wrong suggestion looks like any other line. Read as a
+  group, the book that does not belong is obvious. Beside each title it says
+  whether a **rule** or **the AI** chose it, because those deserve different
+  amounts of trust. File a whole shelf, reject a whole shelf, or drop a single
+  book with the ✕ beside it.
+
+  **Nothing moves until you press something.** Not even a rule's placement. A
+  suggestion is not a decision.
 
   Renaming a shelf carries its books with it. Removing a shelf returns its books
   to Unfiled — **nothing is ever deleted by tidying**.
+
+  **Who wrote it.** Adding a book by hand now has an **Author** field, filled in
+  for you when the file says (most Project Gutenberg texts announce their title
+  and author in the first few lines). It matters more than it looks: the author
+  is what a resident searches when you ask *"do I have anything by Epictetus?"*
+
+  Books added before this existed were shelved without theirs. **✎ Recover
+  missing authors** reads it back out of each book's own stored text — no AI
+  involved, and it only ever fills in a missing author. One you set yourself is
+  never touched.
 
   **What kind of thing is it?** Beside each book is a small dropdown, and it
   changes what the rest of the Pavilion does with the entry:
@@ -513,8 +552,24 @@ and yours; that's the point, and it's the one piece with real steps:
 2. **In the desktop app, that's it.** (A browser needs one extra
    `OLLAMA_ORIGINS` step — Protocol 2 has it.)
 3. The title screen reports what it found; **⚙ Manage AI connections**
-   manages everything, including optional ☁ cloud keys — always labeled,
-   never assumed.
+   manages everything.
+
+**In the panel, press “Check for Ollama” first.** It looks on your own machine
+and tells you plainly what it found — whether Ollama is running, which models
+you have, and which one the Mountain Monk will claim (he always takes the
+largest). If something is missing it gives you the line to copy.
+
+**One thing worth knowing before you go looking for a cloud key: a
+subscription is not an API key.** Paying for Claude or ChatGPT in their own
+apps does not give you one — an API key is a separate, pay-per-use developer
+credential. If you do have one, the ☁ presets are there under *"I already have
+an API key"*; if you do not, Ollama above is the free way in, and it is the way
+this Pavilion is meant to be used. A ☁ connection sends your conversation to
+that company's servers, the same as using their app would.
+
+Ollama also lists some **hosted** models tagged `:cloud`. The panel separates
+those from your local ones and says so, because "nothing leaves this machine"
+is only true of the local ones.
 
 The **🧠 Local AI** panel (pause menu) shows what's actually loaded, its
 memory footprint, and a "today's session" count of asks and timings.
@@ -538,6 +593,29 @@ memory footprint, and a "today's session" count of asks and timings.
 - The Café's shared boards need a hosted Commons connection and say so
   politely when there isn't one — the beta build is deliberately
   local-only.
+
+**An optional local database — and everything works without it.** The title
+screen says which you are running:
+
+> ○ Running on this device alone — everything works. A local database
+> (Docker + Postgres) is an optional upgrade…
+
+That is the honest state, not a warning. The Pavilion is complete on its own:
+your save holds your days, notes, courses and progress, and it always will.
+
+If you do set one up (Docker, then `docker compose up -d postgres`), it holds
+what the Pavilion knows *about* your books — their cards, their shelves, their
+chapters — and that buys four things a browser cannot do on its own:
+
+- search **every note you have ever written**, at once;
+- see everything you wrote about one book, grouped by its real chapters;
+- sort a big shelf twenty at a time and pick up where you left off;
+- chapter marks you correct by hand, that stay corrected.
+
+Residents can also *look things up* rather than being handed a list — so
+"no, that is not on these shelves" becomes something Quill can actually check
+instead of guess. **Nothing about this is required, and nothing you already
+have moves into it without you.**
 
 ---
 

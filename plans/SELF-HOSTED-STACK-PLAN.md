@@ -5,7 +5,31 @@ Docker, a 100 GB reserve) and **is not a fan of Supabase**; the chosen direction
 is the **full self-hosted stack** — local Postgres + MinIO in Docker now, and a
 small VPS running the *same* stack later, only if a shared Commons is ever
 actually wanted. This plan gets there honestly, in slices, with nothing lost and
-no cloud dependency required at any step. A written plan; **build later.**
+no cloud dependency required at any step.
+
+> **STATUS (2026-08-03) — PHASE 1 IS BUILT.** This said "a written plan; build
+> later" for three weeks after the thing was standing up. It is not a plan any
+> more at the bottom of the stack:
+>
+> - **Postgres and MinIO both run in Docker** — `docker-compose.yml`,
+>   `tools/schema.sql`, and numbered re-runnable migrations in
+>   `tools/migrations/`.
+> - **294 books, 6,361 chapters, plus notes and records tables** are in it.
+> - `electron/db.cjs` is the bridge (named queries only, fails soft in 27ms
+>   with the container stopped); `store.js hydrateFromDb()` pulls the
+>   catalogue once at boot and **merges upward**, so a shelf you assigned
+>   always beats a NULL.
+> - **The app still runs with every container stopped**, and that is a tested
+>   release gate (`test/live/backend.mjs`, 12 checks).
+>
+> The reason it finally happened is worth keeping, because it is not the one
+> written above: not local-first preference, but that **Supabase did not allow
+> AI integration on the backend**. A resident should ASK a question of the
+> library rather than be handed a pasted list and left to guess.
+>
+> **Genuinely still open:** the VPS running the same stack, auth (named here
+> as the one honestly hard piece, and still is), and anything to do with a
+> shared commons. Those wait for a second person, exactly as this plan says.
 
 **The ethos this serves:** local-first, own-your-data, "build it ourselves
 before a third party" (README standing decisions). Supabase was always kept

@@ -417,7 +417,7 @@ to show — is the likeliest thing to change that, and it is a small build.
 
 **Where things stood, end of 2026-08-03 (first session) — the study chain.**
 
-**The chain now runs.** `THE-STUDY-CHAIN-PLAN.md`, built in one session from
+**The chain now runs.** `plans/done/THE-STUDY-CHAIN-PLAN.md`, built in one session from
 real use. The diagnosis is worth keeping in front of you because it is the
 shape of most of what is still wrong anywhere in this codebase:
 
@@ -609,7 +609,7 @@ customization; the visual polish tail.
 (`data/the-day.js` + the pause menu) answers *"why open this today?"* — at most
 five things actually waiting, each one press away, computed on open from saved
 data with no AI and no network. **Sebastian's stand-up** delivers them one at a
-time instead of presenting a form. `plans/WHY-OPEN-IT-TODAY-PLAN.md` holds the
+time instead of presenting a form. `plans/done/WHY-OPEN-IT-TODAY-PLAN.md` holds the
 diagnosis they came from — three complaints that turned out to be one problem:
 everything here was a place you *could* go and nothing was *waiting for you*.
 **The next move is not more building — it is using it for a real day**, because

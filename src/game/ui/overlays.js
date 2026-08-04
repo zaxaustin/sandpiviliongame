@@ -2898,7 +2898,17 @@ export function openReader(slug){
   document.getElementById('rdBody').innerHTML =
     `<p class="rdSummary">${esc(d.doc.summary)}</p>` +
     d.doc.sections.map(s=>`<h3>${esc(s.heading)}</h3><p>${esc(s.body)}</p>`).join('') +
-    (textMissing?`<div class="card" style="cursor:default;margin-top:16px;border-color:#8a6a3a">
+    /* IF YOU ALREADY OWN IT, SAY SO INSTEAD OF ASKING AGAIN. Without this the
+       summary keeps inviting you to fetch a book that is already on your shelf
+       — the drop worked, and the page that asked for it never noticed. */
+    (textMissing && fullTextTwinOf(slug)?`<div class="card" style="cursor:default;margin-top:16px;border-color:#7fa36b">
+        <div class="t" style="color:#7fa36b">✓ You have the whole text of this one</div>
+        <div class="s" style="margin-top:5px">You added <b>${esc(fullTextTwinOf(slug).title)}</b> to your own shelf.
+          This page is still the Pavilion's short summary — the real book is one press away.</div>
+        <div class="row" style="margin-top:9px">
+          <button class="btn" onclick="openReader('${esc(fullTextTwinOf(slug).slug)}')">📖 Open your copy</button>
+        </div></div>`:'') +
+    (textMissing && !fullTextTwinOf(slug)?`<div class="card" style="cursor:default;margin-top:16px;border-color:#8a6a3a">
         <div class="t">📄 This is the Pavilion's summary — not the book itself</div>
         <div class="s" style="margin-top:5px">The full text of <b>${esc(d.title)}</b> isn't bundled with the
           Pavilion. It is <b>public domain</b>, so nothing stops you having it — it just isn't shipped, because
@@ -9474,9 +9484,38 @@ async function acceptDropAnywhere(fileList){
   toast.classList.add('on');
   toast.innerHTML='Reading…';
   clearTimeout(dropToastTimer);
+  const openOn=(state.ui==='reader') ? state.currentDoc : null;
   await bulkShelveDroppedFiles(files, toast);
   if(state.ui==='mylib') renderMyLibrary();       // if the shelf is open, show it arrive
+  /* THE PAGE HAS TO ACTUALLY BECOME THE BOOK. A summary-only seed entry says,
+     in as many words, "drag the file onto this window … and this page becomes
+     the real book." Measured 2026-08-03: it did not. The file shelved as a
+     separate personal copy, the seed entry stayed summary-only, and the visitor
+     was left staring at a page still telling them it was not the book — now
+     owning two Tao Te Chings, one of them unreachable from where they stood.
+
+     A promise printed on the page is a promise. If a drop lands while that
+     page is open and it is plainly the same book, go to it. */
+  if(openOn) reopenIfReplaced(openOn);
   dropToastTimer=setTimeout(()=>toast.classList.remove('on'), 9000);
+}
+/* Did a personal copy of the book we are looking at just arrive? Matched on
+   the normalised title, because the slugs differ by construction — a personal
+   copy is `personal-<slug>` and can never collide with a certified one. */
+function fullTextTwinOf(slug){
+  const d=slug && Store.getDoc(slug);
+  if(!d || d.doc.fullText) return null;             // already the real thing
+  const want=String(d.title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  if(want.length<4) return null;
+  return Store.allDocs().find(x=>x.personal && x.doc.fullText && x.slug!==slug
+    && String(x.title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()===want) || null;
+}
+function reopenIfReplaced(slug){
+  const twin=fullTextTwinOf(slug);
+  if(!twin) return;
+  openReader(twin.slug);
+  const msg=document.getElementById('rdSpokenNote');
+  if(msg) msg.textContent='✓ This is your copy now — the whole text, not the summary.';
 }
 let dropToastTimer=null;
 export function dismissDropToast(){

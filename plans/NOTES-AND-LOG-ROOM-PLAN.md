@@ -6,6 +6,26 @@
 > itself), and Sebastian's **scoped folder review**. **Still open:** the
 > Records Hall repurpose (making the room itself the log's home) and
 > reading `archive/dev-log-*.txt` live — the room half of this plan.
+>
+> **UPDATE 2026-08-03 — the Records Hall half now has a FOUNDATION, and a
+> precise next step rather than an open question.** Migration 003
+> (`tools/migrations/003-records.sql`) adds a `records` table plus the
+> `v_records` / `v_record_counts` / `v_notes_by_place` views, built to the
+> steward's own design: the writing PLACES stay separate (reading, the bench,
+> planning with Sebastian), and the Hall **sees across all of them unless a
+> record is hidden**. Hiding is a property of the record, never a deletion,
+> and never asks why.
+>
+> A `records` row is an INDEX ENTRY — kind, title, when, plus `ref` and
+> `opener` pointing back at wherever the real thing lives — so the room owns
+> nothing and duplicates nothing, the same discipline the Lab follows.
+> Migration 002 does the same for `notes`, keyed to book AND chapter, with
+> Postgres full-text search across everything ever written.
+>
+> **What is missing is the INDEXER.** Both tables are empty. Something has to
+> walk the save — dissections, builds, experiments, lessons, days, notes —
+> and write index rows. That is the next real slice of this plan, and it is
+> now a nameable afternoon rather than a design problem.
 
 Written 2026-07-11, from a direct ask: "I want a way for users to see their
 notes and have them organised in a way that can be good for long term —
