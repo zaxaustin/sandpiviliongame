@@ -1793,6 +1793,58 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- NOTHING YOU WROTE IS EVER OVERWRITTEN ----------
+   data/note-versions.js. The steward agreed to let an AI improve his own
+   writing on one condition — that it feel like git — and the property that
+   makes git safe is not branching or merging, it is that nothing written is
+   ever replaced. This is the check that keeps that true, and it is the reason
+   the feature is safe to build at all. */
+{
+  const NV = await import('../src/game/data/note-versions.js');
+  const { versionsOf, currentText, addVersion, restoreVersion, hasHistory, versionSummary } = NV;
+
+  /* a note from before versions existed is a note with one version */
+  const old = { ts: '2026-07-01', text: 'what I wrote first', page: 3 };
+  const v0 = versionsOf(old);
+  if (v0.length !== 1 || v0[0].tag !== 'original' || v0[0].text !== 'what I wrote first') {
+    fail(`note-versions: an old note did not read as a single 'original' — ${JSON.stringify(v0)}`);
+  }
+  if (old.versions !== undefined) fail('note-versions: versionsOf() wrote a field into a note it was only reading — an absent field is not a migration');
+  if (hasHistory(old)) fail('note-versions: one version is not a history');
+
+  /* THE INVARIANT. Improve it, restore it, improve it again — and every
+     earlier version must survive, verbatim, in place. */
+  const n = { ts: '2026-08-04', text: 'wu wei is not doing nothing', page: 5 };
+  addVersion(n, 'Wu wei is not inaction; it is action without forcing.', 'ai-cleanup', 'steward');
+  const afterFirst = versionsOf(n).map(x => x.text);
+  if (afterFirst.length !== 2) fail(`note-versions: improving a note gave ${afterFirst.length} versions, not 2`);
+  if (afterFirst[0] !== 'wu wei is not doing nothing') fail('note-versions: THE ORIGINAL WAS LOST when an improvement was added — this is the one thing this file exists to prevent');
+  if (currentText(n) !== afterFirst[1] || n.text !== afterFirst[1]) fail('note-versions: note.text is not the current version, so every other reader of data.bookNotes is now stale');
+
+  restoreVersion(n, 0);
+  const afterRestore = versionsOf(n).map(x => x.text);
+  if (afterRestore.length !== 3) fail(`note-versions: RESTORE TRUNCATED THE HISTORY (${afterRestore.length} versions) — going back must append, so that going back can itself be undone`);
+  if (afterRestore[1] !== 'Wu wei is not inaction; it is action without forcing.') fail('note-versions: restoring dropped the version it was undoing');
+  if (currentText(n) !== 'wu wei is not doing nothing') fail('note-versions: restore did not make the restored text current');
+
+  /* every earlier entry, byte for byte, after all of that */
+  const finalHistory = versionsOf(n);
+  if (finalHistory[0].text !== 'wu wei is not doing nothing' || finalHistory[0].tag !== 'original') {
+    fail(`note-versions: version 0 was mutated somewhere along the way — ${JSON.stringify(finalHistory[0])}`);
+  }
+
+  /* an improvement identical to what is already there is not an event */
+  const before = versionsOf(n).length;
+  addVersion(n, '  wu wei is not doing nothing  ', 'ai-cleanup');
+  if (versionsOf(n).length !== before) fail('note-versions: an identical "improvement" was appended — a history full of nothing happening is one nobody reads');
+  addVersion(n, '   ', 'ai-cleanup');
+  if (versionsOf(n).length !== before) fail('note-versions: an empty version was appended');
+
+  const strip = versionSummary(n);
+  if (!strip[strip.length - 1].current) fail('note-versions: the history strip does not mark which version is current');
+  if (strip.filter(x => x.current).length !== 1) fail('note-versions: more than one version is marked current');
+}
+
 /* ---------- report ---------- */
 if (failures.length) {
   console.error(`✗ ${failures.length} smoke-test failure(s):\n`);
