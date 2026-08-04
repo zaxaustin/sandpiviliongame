@@ -283,6 +283,56 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
+**Where things stand, end of 2026-08-04 (FIFTH session) — READ THIS ONE.**
+Full account in [`archive/dev-log-2026-08-04.txt`](archive/dev-log-2026-08-04.txt).
+
+**Built and green today:** the **Study Table** — a toggle on the Writing Desk
+where you work a book one story at a time, naming the units yourself
+(`data/marks.js`, hand marks outrank detection; 18 of 39 books find no chapters
+at all, so it falls back to page-sized units and opens for every book).
+Notes keep their history (`data/note-versions.js` — restore **appends**, never
+truncates). A resident sits with you who has read the story actually in front
+of you. A lesson drafts out of the work you did.
+
+**`CLAUDE.md` is now 204 lines**, streamlined at the steward's request; the
+long version with the reasoning is at `archive/CLAUDE-full-2026-08-04.md`.
+The storage ceiling in it is **measured, not guessed** — web ~10–20 books,
+desktop hundreds, Docker buys *search*, not capacity.
+
+**`overlays.js` is coming apart: 12,726 → 11,138.** Two cuts done
+(`ui/residents.js`, `ui/lesson-tree.js`), **seven to go** — the order and the
+method are in [`plans/OVERLAYS-SPLIT-PLAN.md`](plans/OVERLAYS-SPLIT-PLAN.md).
+Move the block verbatim, satisfy its outward calls with `initX()` shims, and
+leave the window-export block in `overlays.js`, which owns it.
+
+> **Before the next cut, know this.** The same bug crashed the Learning Tree
+> cut twice — `stopSpeaking`, then `NOTE_SELECT_STYLE` — and **neither
+> `node --check`, `npm test` nor `npm run build:beta` said a word about
+> either.** A free identifier is legal JavaScript until the line runs. Both
+> took driving real Chrome at the app to find. `npm test` now checks that
+> every `ui/` module resolves every name it *executes*; **five versions of
+> that check were wrong first**, each found by breaking it on purpose. Do not
+> trust a green suite on a fresh cut until you have opened the app.
+
+**The immediate next three, in the steward's stated order:**
+
+1. **The Learning Tree as a real visual tree** — his words, *"like a visual
+   tree or like a game tallent menu."* `plans/LIVING-TREE-AND-DISCUSSION-PLAN.md`
+   §2: the prerequisites exist in the data and are invisible in the drawing.
+   Step one is an SVG edge layer behind the existing cards.
+2. **The Course Board as a traditional website** — headed sections, a real
+   index, less game-panel chrome.
+3. **The Monk's role** — *"help people find there intention with the 8fold
+   path… to be able to teach is a supreme gift where a pratitior learns the
+   most."*
+
+Also open, and named so it is not lost: `tools/migrations/004-note-versions.sql`
+(planned in stage 1c, never written), stage 1d's lecture script / slides /
+personal book of notes, and the beta build — `verify:release` is **correctly**
+failing on an `.exe` older than the source.
+
+---
+
 **Read `plans/SHIPPING-THE-BETA.md` first** — one file, how to hand it over,
 and "the first ten minutes" (the path the beta is actually built around and
 held to). `plans/done/BETA-PREFLIGHT.md` is the older checklist; its three headline

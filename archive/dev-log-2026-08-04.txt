@@ -1,0 +1,199 @@
+DEV LOG — 2026-08-04
+====================
+
+A long session. The Study Table got built and used, the residents' prompts got
+audited and cut, CLAUDE.md got streamlined at the steward's request, and
+overlays.js finally started coming apart.
+
+Thirteen commits. What follows is what was LEARNED, not what was typed —
+the commit messages carry the what.
+
+
+THE STUDY TABLE  (5486d3f, 2c34d05, db3ec1b, fcd7574, 6e39ac8, 14cf703)
+-----------------------------------------------------------------------
+
+The steward's ask, in his words:
+
+  "where can i go to have the book along side me to go over the stories there
+   and make a plan to digest these teachings one by one and have notes of it
+   grow ... i can then add my own thoughts, the ai would have a chance to
+   respond or edit what i wrote to make it better"
+
+Built as a toggle on the Writing Desk, not a replacement — his correction.
+
+  data/marks.js        the unit you name yourself; hand marks OUTRANK detection
+  data/note-versions.js  restore APPENDS, never truncates. Git's own instinct.
+  data/lesson-doc.js   "chapters 3-4" / "pp. 12-18" read out of a step naturally
+  ui/study-table.js    the workroom, born OUTSIDE the monolith
+
+18 of 39 books find no chapters at all, so unitsFor() falls back to page-sized
+units. The workroom opens for every book in the library or it opens for none.
+
+
+WHAT COST TIME, AND WHY
+-----------------------
+
+1. THE MEASUREMENT WAS THE BROKEN THING. Five times. The pattern of the day.
+
+   - A synthetic test book paginated to ONE page, because paginate() splits on
+     BLANK lines and the fixture was 'line\n'.repeat(400). Every page assertion
+     passed and none of them meant anything. Switched to a real fixture, 35
+     pages.
+   - A test read document.body and matched the hidden TITLE SCREEN, reporting
+     a pass on a reply that did not exist. Now reads only new #chatLog content.
+   - The reading door looked for m.number===N, but "chapter N" is the Nth mark.
+     Every door landed on page 1 and "following it opens the book" had been
+     passing the whole time.
+   - The window-export guard could be satisfied by a COMMENT. Found by breaking
+     it on purpose. Comments are stripped now.
+   - And the whole tail of this log.
+
+   Rule 2 keeps earning it: reasoning is not evidence. But the sharper version
+   is rule 3 — a guard you did not break is a guard you have not tested.
+
+2. THINGS THAT GROW WITH HOW MUCH THE VISITOR HAS DONE. The most valuable bug
+   class this project has. The Monk was carrying all 294 books on every single
+   message — ~12,800 tokens, forever, growing. Now a lookup plus filtered
+   shelves: ~159. Four more unbounded prompt lists found in the same audit and
+   capped at 8 with a named remainder.
+
+   Every list handed to a model is capped and names its remainder, or it is a
+   slow leak that nobody sees until the resident hangs.
+
+3. THE CLOUD-MODEL GUARD WAS STALE. bestLocalModel() was returning
+   gpt-oss:20b-cloud — the Monk's private conversations would have gone to a
+   server. The check was endsWith(':cloud'). Fixed on two signals (name AND
+   reported size). Then the fix itself over-corrected and locked laptop users
+   out of hosted models entirely; corrected again to OFFER them in a labelled
+   cloud group, never auto-pick. "needing one and being able to have there
+   asstance are two different things."
+
+4. DRAFTED LESSON STEPS SAID "GO TO THE LIBRARY AND ASK SEBASTIAN." The
+   drafting call was routed through a resident prompt, so the model wrote
+   in-world instead of writing a lesson. Now WORK_CHARTER + DRAFT_SYS.
+
+
+THE PROMPTS  (93849b0)
+----------------------
+
+  "we dont have to force the modles to conform so stricly — thats for fine
+   tuning and having real personal modles which we are not there yet. having
+   the game like format to focus the users intentions is more than enough."
+
+Visible in the Monk's own reasoning that day: "Does this violate any rules? Is
+it helpful?" A thinking model handed a list of constraints audits itself
+against them mid-thought, and spends the visitor's seconds on compliance.
+
+The room already does the work. Someone who walked to the Keep has narrowed
+what they want; the prompt does not have to re-narrow it. Identity, knowledge,
+and real grounding — not a rulebook.
+
+The full Eightfold Path went BACK IN for the Monk, at the steward's ask:
+"its good for his own pratice as well as mine its only bllooms through
+pratice ... mabie as an optinal thing to refrence."
+
+
+THE OVERLAYS SPLIT  (bb45248, 1ccc0b9, 2dad1b3)
+-----------------------------------------------
+
+overlays.js 12,726 -> 11,138. Two cuts done, seven to go, plan in
+plans/OVERLAYS-SPLIT-PLAN.md.
+
+The method: move the block VERBATIM, satisfy its outward calls with shims
+filled by initX(), leave the window-export block in overlays.js which owns it.
+No line of the moved code is rewritten. residents.js went first (686 lines),
+lesson-tree.js second (998).
+
+THE SAME BUG CRASHED THE LESSON-TREE CUT TWICE:
+
+  stopSpeaking       an import the hand-picked shim list missed
+  NOTE_SELECT_STYLE  a bare style constant inside a template ${...} hole
+
+Neither node --check, nor npm test, nor npm run build:beta said one word about
+either. A free identifier is legal JavaScript until the line runs, and only
+one branch runs it. Both took driving real Chrome at the app to find.
+
+So npm test now asks: does every ui/ module resolve every name it EXECUTES?
+
+FIVE VERSIONS OF THAT CHECK WERE WRONG, each found by breaking it on purpose:
+
+  1. only `name(` call sites       missed the constant entirely
+  2. every identifier, strings too buried the one real answer under 139 words
+                                   of English prose from inside prompt strings
+  3. "names overlays.js declares"  overlays.js declares `remember`, `typing`
+                                   and `experiment` — all ordinary words
+  4. "...declares OR imports"      still overlays-shaped, so it went green the
+                                   moment NOTE_SELECT_STYLE was rehomed to
+                                   ui/dom.js — the exact fix it should survive
+  5. regex string-stripping        .replace(/'/g, ...) opens a string that
+                                   never closes and eats the rest of the file
+
+Version 6 is a real LEXER — one pass, a mode stack so `${`a nested template`}`
+unwinds by construction, and regex-literal recognition. Not gold-plating: no
+regular expression can balance that nesting, and version 5 proved it by
+reporting the steward's own quoted words as undefined variables.
+
+Two more rounds after that were binding forms the scanner did not know:
+for...of, array destructuring, object-method shorthand, and a leading-paren
+bug that turned `((a, z) =>` into the fragment `(a`. Then a subtler one: the
+same comma-split was applied to destructuring patterns AND declarator lists,
+but in `{ page: p }` the colon renames while in `x = cond ? a : b` it is a
+ternary — taking the right-hand side threw the variable away and kept `null`.
+Ten correct lines looked undefined.
+
+Both original bugs, reintroduced one at a time, now fail the suite.
+
+The lesson worth keeping: a guard that has never been broken on purpose is
+not a guard, it is a comment. Every one of those eight wrong versions passed
+a green suite.
+
+
+THE WINDOW-EXPORT GUARD NEARLY DIED IN THE SPLIT
+------------------------------------------------
+
+It only scanned overlays.js. The moment a panel moved out, its buttons stopped
+being covered — the split would have quietly disabled the project's oldest
+guard, which is a worse outcome than the monolith. Widened to the whole ui/
+directory before the first cut, not after.
+
+Same shape as the prompt-budget check that parsed apostrophes in comments as
+string quotes. Guards born dead are this project's most reliable bug.
+
+
+CLAUDE.md  (7fcd674)
+--------------------
+
+462 -> 204 lines, "keep the best pratices and cut the waist". Full version at
+archive/CLAUDE-full-2026-08-04.md — when a rule seems arbitrary, the story is
+in there.
+
+Added: the session workflow, SUPABASE IS GONE stated flat, DON'T FORCE THE
+MODEL TO CONFORM, and the measured storage ceiling.
+
+STORAGE, MEASURED — real books average 563 KB:
+
+  web build      ~10-20 books   text goes inline into a ~5-10 MB quota
+  desktop app    hundreds       libraryWrite puts text in .txt under userData
+  + Docker       no limit       MinIO for text, Postgres for search
+
+Docker buys SEARCH AND SORTING, not capacity. Say so honestly. The earlier
+"about 100 books" line was wrong by an order of magnitude in both directions
+depending on which build you meant.
+
+
+WHERE IT STANDS
+---------------
+
+Green: npm test, build:beta, preflight (zero network), teacher, study-table,
+writing-desk, study-chain 39/39.
+
+NOT done, and named so it is not lost:
+  - seven more cuts: hall, library, notes, planner, workshop, computer, commons
+  - the Learning Tree as a VISUAL tree (LIVING-TREE-AND-DISCUSSION-PLAN.md §2,
+    the SVG edge layer) — the steward's "like a game tallent menu"
+  - the Course Board as a traditional website
+  - the Monk's role: help people find their intention with the Eightfold Path.
+    "to be able to teach is a supreme gift where a pratitior learns the most"
+  - tools/migrations/004-note-versions.sql, planned in 1c and never written
+  - stage 1d remainder: lecture script, slides, the personal book of notes
+  - the beta build; verify:release is correctly failing on a stale .exe
