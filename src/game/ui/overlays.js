@@ -1550,11 +1550,37 @@ export async function refreshLibraryStorageStatus(){
 
    Written for a person who has never installed a container: it says what is
    on, what it would add, and it never implies anything is broken. */
+/* WHERE YOUR BOOKS ACTUALLY GO, and it is not the same answer in a browser as
+   in the app. Measured 2026-08-04 against the steward's own 39 imported books,
+   which average 563 KB:
+
+     web build     text is stored INSIDE the save, against a browser quota of
+                   about 5-10 MB — roughly A DOZEN BOOKS and then it is full
+     desktop app   libraryWrite puts each text in its own .txt under userData;
+                   the save keeps only the catalogue row — hundreds are fine
+     + Docker      MinIO holds the text, Postgres indexes it — no real limit
+
+   Docker buys SEARCH AND SORTING, not capacity, and saying otherwise would
+   send someone to install a container for a problem it does not solve. A
+   browser reader who is about to lose a book deserves the warning BEFORE the
+   quota error, not after. */
+export function libraryCeilingLine(){
+  const desktop = typeof window!=='undefined' && !!window.desktopBridge;
+  const n = (Store.dbAvailable && Store.dbAvailable()) ? 0 : personalBooks().length;
+  if(desktop || (Store.dbAvailable && Store.dbAvailable())) return '';
+  if(n < 8) return '';
+  return n >= 12
+    ? `⚠ ${n} books in a browser tab. Browser storage runs out at roughly a dozen full texts — `
+      +`install the desktop app and your books live in real files instead, with no practical limit.`
+    : `You have ${n} books here. A browser tab holds roughly a dozen full texts before its storage `
+      +`is full; the desktop app keeps them as real files instead.`;
+}
 export function backendStatusLine(){
   const on = Store.dbAvailable && Store.dbAvailable();
   if(!on) return { on:false,
     text:'○ Running on this device alone — everything works. A local database (Docker + Postgres) '
-        +'is an optional upgrade that adds search across all your notes and faster sorting of a big shelf.' };
+        +'is an optional upgrade that adds search across all your notes and faster sorting of a big shelf — '
+        +'it does not change how many books you can keep.' };
   return { on:true, text:'● Local database connected — your shelves, chapters and notes are indexed.' };
 }
 /* What a database actually adds, in the visitor's terms rather than ours.
@@ -1568,8 +1594,12 @@ export const BACKEND_UPGRADES = [
 export async function refreshBackendStatus(){
   const el=document.getElementById('dbMode'); if(!el) return;
   const s=backendStatusLine();
-  el.textContent=s.text;
-  el.style.color = s.on ? '#8fbf8f' : '#9c8b74';
+  /* The ceiling warning rides on the same line, and only when it is true of
+     THIS visitor — a browser reader whose shelf is filling up. Silence
+     otherwise; a warning everyone sees is a warning nobody reads. */
+  const ceiling=libraryCeilingLine();
+  el.textContent = ceiling ? s.text+'  '+ceiling : s.text;
+  el.style.color = ceiling ? '#e0a43c' : (s.on ? '#8fbf8f' : '#9c8b74');
 }
 
 /* ----- AI status + Connections panel ----- */

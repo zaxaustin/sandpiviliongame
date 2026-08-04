@@ -291,3 +291,46 @@ queue rather than a local one), and takedown/provenance discipline at scale
 server, and don't describe the local MinIO as a shared commons in any
 user-facing text. `MAINTAINING.md`'s backend table and `README.md`'s "where
 your things are kept" both state the current truth; keep them true.
+
+---
+
+## POSTGRES WITHOUT DOCKER — answered 2026-08-04
+
+The steward asked: *"can we add posgress to the elecron app build? without
+docker? that should be possible right? did we go about this the wrong way?"*
+
+**Yes, it is possible, and the right tool is PGlite** — Postgres compiled to
+WASM, running in-process. Checked against the registry: `@electric-sql/pglite`
+0.5.4, ~25 MB unpacked. No server, no container, no port, nothing for a user
+to install.
+
+**Why PGlite and not SQLite.** `better-sqlite3` is smaller and more mature, but
+our schema is Postgres: `TEXT[]`, `GIN`, `to_tsvector`, views, `BIGSERIAL`,
+`TIMESTAMPTZ`. Porting it means **two schemas to keep in step** — which is the
+exact two-implementations rot `CLAUDE.md` forbids and that `store.js` already
+has a scar from. PGlite runs `tools/schema.sql` and the migrations essentially
+unchanged. One schema, one set of migrations, one truth.
+
+**Did we go about it wrong?** The *sequence* was right and the *assumption* was
+wrong. Building against real Postgres first bought a real schema, real numbered
+migrations, and `electron/db.cjs`'s named-query seam — PGlite inherits all
+three for free, and the swap is confined to one file. What was wrong was
+treating Docker as the only door, so every database-backed feature was gated
+behind a multi-gigabyte install that only this machine has.
+
+**What it would take** (not started):
+
+1. `@electric-sql/pglite` as a dependency; a data directory under `userData`.
+2. `electron/db.cjs` gains a second backend behind the SAME named queries —
+   real Postgres when `docker-compose` is up, PGlite otherwise. The renderer
+   cannot tell, which is the point.
+3. Run `tools/schema.sql` + `tools/migrations/*.sql` on first open. They are
+   already `IF NOT EXISTS` throughout and already proven re-runnable.
+4. Verify in the **packaged** app, not just `npm run dev`.
+5. Then the "locked until Docker" features unlock for everyone, and Docker goes
+   back to being what it actually is: MinIO for big text, and a shared stack
+   later if a Commons is ever wanted.
+
+**Caveat to check before committing to it:** PGlite is 0.5.x, single-connection,
+and adds ~25 MB to the installer. Worth measuring the packaged size before and
+after, and worth running `backend.mjs` against it.
