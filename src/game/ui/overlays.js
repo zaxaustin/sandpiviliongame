@@ -128,6 +128,11 @@ import { epubToText } from '../epub.js';
    ================================================================ */
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+/* A string going into a JS single-quoted literal that is itself inside an
+   HTML attribute — two layers, and getting one of them wrong is a button
+   that silently does nothing (the house failure mode). Escape for JS first,
+   then for HTML, in that order. */
+function jsq(s){ return esc(String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
 /* escaping text is not the same as a safe link — a `javascript:` URL
    still renders as harmless text but still runs if someone clicks it.
    Anywhere a user-supplied URL becomes an href (Waypoints, course steps),
@@ -2366,6 +2371,12 @@ function setNoteMeta(key, patch){
   else data.noteMeta[key]=m;
   persist();
 }
+/* The identity of a book note, in ONE place. gatherNotes() builds it and
+   bookNoteFromKey() reads it back; anywhere else that wants to hand a note
+   to the four doors (the Writing Desk does, now) has to agree exactly, and
+   two copies of a hash recipe is precisely the drift this project keeps
+   paying for. */
+function bookNoteKey(slug, n){ return 'book:'+slug+':'+noteHash((n.ts||'')+'|'+(n.text||'')); }
 function gatherNotes(){
   const out=[];
   for(const n of (data.notes||[]))
@@ -2392,7 +2403,7 @@ function gatherNotes(){
         slug, bookTitle, ch:n.ch, chLabel:n.chLabel, page:n.page,
         where:'Book · '+bookTitle+(n.ch!==undefined?' · ch. '+n.ch:'')+(n.page!==undefined?' · p.'+(n.page+1):''),
         title, text:body, date:n.ts||'',
-        key:'book:'+slug+':'+noteHash((n.ts||'')+'|'+(n.text||''))});
+        key:bookNoteKey(slug,n)});
     });
   }
   for(const agent of Object.keys(data.chatNotes||{})){
@@ -3021,28 +3032,37 @@ export function openReader(slug){
    sent anywhere or added to the shared shelves. Kept outside the summary/full-text
    toggle (rdSummaryView vs rdFullTextView) so it stays visible across both,
    the same note surviving whichever way you're reading the book right now. */
+/* WRITING A BOOK NOTE, in one place, so the Writing Desk takes a note on the
+   book in front of you by exactly the path the Reader does — same shape, same
+   chapter and page, same badge — rather than a second implementation that
+   drifts (WRITING-DESK-PLAN.md step 3).
+
+   BETA-TESTING-FEEDBACK.md #10 — a note taken while actually reading the full
+   text knows which page it was on; a note taken from the summary view has no
+   page to attach, same as every note taken before this field existed: an
+   ABSENT field, not a migration. Same for the chapter (#41) — "ch. 4, p. 61"
+   is the unit people think in, and a book with no chapter marks records
+   nothing rather than a guess. */
+function writeBookNote(slug, text, view, page){
+  const note={ts:todayKey(),text};
+  if(view && view.slug===slug){
+    note.page = (page!=null) ? page : view.page;
+    const ch=chapterAt(chapterPages(view), note.page);
+    if(ch){ note.ch=ch.number; note.chLabel=ch.label; }
+  }
+  (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift(note);
+  persist();
+  const d=Store.getDoc(slug);
+  logActivity('Added a note to "'+(d?d.title:slug)+'".');
+  awardBadge('first-note');
+  return note;
+}
 export function addBookNote(slug){
   if(!slug) return;
   const input=document.getElementById('rdNoteInput');
   const text=input.value.trim(); if(!text) return;
-  // BETA-TESTING-FEEDBACK.md #10 — a note taken while actually reading the
-  // full text knows which page it was on; a note taken from the summary
-  // view has no page to attach, same as every note taken before this field
-  // existed — an absent field, not a migration.
-  const note={ts:todayKey(),text};
-  if(state.fullTextView && state.fullTextView.slug===slug){
-    note.page=state.fullTextView.page;
-    /* "ch. 4, p. 61" — the unit people actually think in (#41). An ABSENT
-       field where the book has no chapter marks, never a guessed one, the
-       same way `page` was added for notes taken from the summary view. */
-    const ch=currentChapter(state.fullTextView);
-    if(ch){ note.ch=ch.number; note.chLabel=ch.label; }
-  }
-  (data.bookNotes[slug]=data.bookNotes[slug]||[]).unshift(note);
-  persist(); input.value=''; renderBookNotes(slug);
-  const d=Store.getDoc(slug);
-  logActivity('Added a note to "'+(d?d.title:slug)+'".');
-  awardBadge('first-note');
+  writeBookNote(slug, text, state.fullTextView);
+  input.value=''; renderBookNotes(slug);
 }
 /* The actual bridge between reading and doing: one click carries a note
    straight onto today's planner record (see plannerDay()'s `sparks`
@@ -3985,14 +4005,31 @@ export function removePlanLogEntry(id){
    passive/glanceable automation-philosophy pattern correctly and stay
    visible unconditionally. */
 const TOOLBOX_ITEMS = [
+  {id:'book', icon:'📖', label:'The book in front of you'},
   {id:'blocks', icon:'🔥', label:'Rhythm blocks'},
   {id:'sparks', icon:'✨', label:'Sparks from reading'},
   {id:'notes', icon:'🗂', label:'My Notes'},
-  {id:'assist', icon:'💬', label:'Ask the Steward'},
+  {id:'assist', icon:'💬', label:'Call someone over'},
   {id:'past', icon:'📅', label:'Past days'},
 ];
-const TOOLBOX_TITLES = {blocks:'Rhythm blocks — tap to cycle: waiting → tended → rested',
-  sparks:'Sparks from reading', notes:'My Notes', assist:'Ask the Steward', past:'Past days'};
+const TOOLBOX_TITLES = {book:'The book in front of you',
+  blocks:'Rhythm blocks — tap to cycle: waiting → tended → rested',
+  sparks:'Sparks from reading', notes:'My Notes', assist:'Call someone over', past:'Past days'};
+function toolTitle(id){
+  if(id==='book'){ const b=deskBook(); return b ? b.doc.title : TOOLBOX_TITLES.book; }
+  return TOOLBOX_TITLES[id];
+}
+/* The toolbox button for the chat says WHO is at the desk, not a fixed
+   name — the whole point of the picker is that it isn't always the same
+   resident, and a button that says "Ask the Steward" while the Tutor is
+   sitting there is the silent-wrong-thing this project keeps paying for. */
+function toolLabel(t){
+  if(t.id==='assist'){ const r=ROLES[deskChat().agent]; return r ? 'Ask '+r.label : t.label; }
+  /* And the book button names the book you are actually carrying — the desk
+     should show what is ON it before you open anything. */
+  if(t.id==='book'){ const b=deskBook(); return b ? b.doc.title : t.label; }
+  return t.label;
+}
 export function openPlanner(){
   state.ui='planner'; hideAllOv();
   const day=plannerDay();
@@ -4002,7 +4039,7 @@ export function openPlanner(){
   document.getElementById('planSaved').textContent='';
   renderPlanUpcoming();
   renderPlanLog();
-  state.plannerChat=state.plannerChat||{history:[]};
+  deskChat();                       // who is at the desk, and their own thread
   state.plannerTool=null;
   renderToolbox();
   renderToolPanel();
@@ -4034,7 +4071,7 @@ function renderToolbox(){
   el.innerHTML = TOOLBOX_ITEMS.map(t=>{
     const active=state.plannerTool===t.id;
     return `<button class="btn ghost" style="${active?'background:#e0a43c;color:#1a1208':''}"
-      onclick="togglePlannerTool('${t.id}')">${t.icon} ${t.label}</button>`;
+      onclick="togglePlannerTool('${t.id}')">${t.icon} ${esc(toolLabel(t))}</button>`;
   }).join('');
 }
 function renderToolPanel(){
@@ -4042,15 +4079,121 @@ function renderToolPanel(){
   const tool=state.plannerTool;
   if(!tool){ el.innerHTML=''; return; }
   el.innerHTML = `<div class="card" style="cursor:default;margin-top:10px">
-    <h3 style="margin-top:0">${TOOLBOX_TITLES[tool]}</h3>
+    <h3 style="margin-top:0">${esc(toolTitle(tool))}</h3>
     <div id="planToolBody"></div>
   </div>`;
-  if(tool==='blocks') renderBlocksBody();
+  if(tool==='book') renderDeskBookBody();
+  else if(tool==='blocks') renderBlocksBody();
   else if(tool==='sparks') renderPlanSparksBody();
   else if(tool==='notes') renderNotesBody();
   else if(tool==='assist') renderPlannerAssistBody();
   else if(tool==='past') renderPastDaysBody();
 }
+/* ----- THE BOOK IN FRONT OF YOU — WRITING-DESK-PLAN.md step 3.
+
+   The mechanism already existed and was used nowhere near here:
+   state.readerPocket, a book you pocketed and walked off with. That IS
+   "the book in front of you", so the desk shows it.
+
+   WHAT THIS CLOSES. You could already take a note IN the Reader, and plan
+   AT the desk. What you could not do was sit at the desk with the book
+   open and write about it — which is what a person actually does when
+   studying, and the reason the desk felt like a form rather than a desk.
+
+   The chapter and page come from the live view when it is still the same
+   book, and are simply ABSENT otherwise — the steward's own rule: "I don't
+   know is fine, it leaves the user space to also contribute." A note that
+   cites a guessed chapter is worse than one that cites none. */
+function deskBook(){
+  const p=state.readerPocket; if(!p||!p.slug) return null;
+  let d=null; try{ d=Store.getDoc(p.slug); }catch(e){ d=null; }
+  if(!d) return null;
+  /* Land where the VOICE is, not where you closed it — the same honesty
+     restoreReader() already applies: a book that has been reading aloud
+     while you walked over here is further on than the pocket remembers. */
+  const speaking = state.bookAudio && state.bookAudio.slug===p.slug ? state.bookAudio.page : null;
+  const page = speaking!=null ? speaking : (p.page!=null ? p.page : null);
+  const view = (state.fullTextView && state.fullTextView.slug===p.slug) ? state.fullTextView : null;
+  const ch = (view && page!=null) ? chapterAt(chapterPages(view), page) : null;
+  return { slug:p.slug, doc:d, page, ch, view, pages: view ? view.pages.length : null };
+}
+/* One line of "where you are in it", the same vocabulary the Reader and the
+   notes use, with nothing invented where the book does not say. */
+/* A detected chapter label is already clipped to a fixed width upstream, so a
+   long one arrives mid-word ("…and Not in Our Powe"). Cut it back to a word
+   instead — seen in a screenshot, not in any test. */
+function trimLabel(s, max){
+  s=String(s||'').trim();
+  if(s.length<=max) return s;
+  const cut=s.slice(0,max);
+  const at=cut.lastIndexOf(' ');
+  return (at>max*0.5 ? cut.slice(0,at) : cut).replace(/[,;:.\s]+$/,'')+'…';
+}
+function deskBookWhere(b){
+  const bits=[];
+  if(b.ch) bits.push('ch. '+b.ch.number+(b.ch.label?' · '+trimLabel(b.ch.label,44):''));
+  if(b.page!=null) bits.push('p. '+(b.page+1)+(b.pages?' of '+b.pages:''));
+  return bits.length ? bits.join(' · ') : 'no page kept — pocketed from the summary';
+}
+function renderDeskBookBody(){
+  const el=document.getElementById('planToolBody'); if(!el) return;
+  const b=deskBook();
+  if(!b){
+    /* NOT A DEAD END. An empty panel that only explains itself is the thing
+       CLAUDE.md's IDE framing rules out — so it carries the door with it. */
+    el.innerHTML = `<div class="meta">Nothing on the desk yet. Open any book and press <b>↓ pocket</b> in the
+      Reader — it comes with you, and lands here so you can write about it while you work.</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" onclick="openMyLibrary()">📚 Your shelves</button>
+        <button class="btn ghost" onclick="openIndex()">🗂 The whole Index</button>
+      </div>`;
+    return;
+  }
+  const notes=(data.bookNotes[b.slug]||[]);
+  const recent=notes.slice(0,3);
+  el.innerHTML = `
+    <div class="meta" style="margin-top:0">${esc(b.doc.attribution||b.doc.author||'')}${(b.doc.attribution||b.doc.author)?' · ':''}${esc(deskBookWhere(b))}</div>
+    <div class="row" style="margin:8px 0">
+      <button class="btn" onclick="restoreReader()">📖 Open it here</button>
+      <button class="btn ghost" onclick="dismissReaderPocket();renderDeskBookAfterPutDown()">Put it down</button>
+    </div>
+    <textarea id="deskNoteInput" rows="3" placeholder="Write about it — this note keeps the chapter and page you are on…"></textarea>
+    <div class="row" style="margin-top:6px;align-items:center">
+      <button class="btn" onclick="deskAddNote()">✎ Keep this note</button>
+      <span class="meta" id="deskNoteMsg" style="margin:0"></span>
+    </div>
+    ${recent.length ? `<h4 style="margin:14px 0 4px">Your last notes on this book</h4>`
+      + recent.map(n=>`<div class="card" style="cursor:default">
+          <div class="s">${esc(n.ts||'')}${n.ch!==undefined?' · ch. '+n.ch:''}${n.page!==undefined?' · p. '+(n.page+1):''}</div>
+          <div>${esc((n.text||'').length>200?n.text.slice(0,200)+'…':n.text)}</div>
+          <div class="row" style="margin-top:6px">
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openBookAtNote('${jsq(bookNoteKey(b.slug,n))}')">📖 Open the book here</button>
+            <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="bookNoteToToday('${jsq(bookNoteKey(b.slug,n))}');deskNoteSent()">→ Bring to today</button>
+          </div>
+        </div>`).join('')
+      + (notes.length>recent.length ? `<div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openNotesForBook('${jsq(b.slug)}')">All ${notes.length} notes on this book →</button></div>` : '')
+      : `<div class="meta" style="margin-top:12px">No notes on this book yet.</div>`}`;
+}
+export function renderDeskBookAfterPutDown(){ if(state.plannerTool==='book'){ renderToolbox(); renderToolPanel(); } }
+export function deskNoteSent(){ const el=document.getElementById('deskNoteMsg'); if(el) el.textContent='✓ on today’s plan'; }
+export function deskAddNote(){
+  const b=deskBook(); if(!b) return;
+  const input=document.getElementById('deskNoteInput'); if(!input) return;
+  const text=input.value.trim(); if(!text) return;
+  /* The confirmation is built from THE NOTE THAT WAS ACTUALLY WRITTEN, not
+     from what the desk believed it was about to write. Caught by deliberately
+     breaking this: the note recorded no page at all and the desk still said
+     "✓ kept at ch. 1 · p. 4" — a confident wrong answer, which is the one
+     thing this project has decided is worse than saying "I don't know". */
+  const n=writeBookNote(b.slug, text, b.view, b.page);
+  input.value='';
+  renderDeskBookBody();
+  const msg=document.getElementById('deskNoteMsg');
+  if(msg) msg.textContent='✓ kept'+(n.ch!==undefined?' at ch. '+n.ch:'')
+    +(n.page!==undefined?' · p. '+(n.page+1):' — no page kept for this one');
+  blip(700,.06,'sine',.03);
+}
+
 /* ----- Sparks — the bridge closing the gap between reading and doing:
    a book note, brought over from the Reader in one click, lands here
    instead of just sitting on the book forever. Lives on the same
@@ -4442,13 +4585,73 @@ function renderNotesBody(){
       </div>`).join('') : '<p>No notes filed yet — start one above.</p>'}`;
 }
 
-/* ----- Ask the Steward (Writing Desk) — the Steward's café persona,
-   the same character, just grounded in today's actual planner state
-   instead of the notice board. Reuses CHAT_AGENTS.steward's system
-   prompt as a base rather than duplicating its charter/moderation
-   framing — this is the same resident wearing a different hat, per
-   the standing decision that daily-life help is the Steward's place,
-   not the Monk's (see CHAT_AGENTS.monk). */
+/* ----- Call someone over (Writing Desk) — WRITING-DESK-PLAN.md step 1.
+
+   WHAT THIS REPLACED: one AI panel hardcoded to the Steward, with its
+   own system prompt, its own history, and its own error line — the desk
+   was the only room in the Pavilion that talked to a resident through
+   plumbing nobody else used. Every resident here now answers through
+   the same CHAT_AGENTS[key].systemPrompt() they answer with in their
+   own room, plus a desk framing on top.
+
+   The steward's reasoning, and it is the design rather than a limit:
+
+     "that way there one at a time and there purposes act like agents
+      helping you."
+
+   ONE AT A TIME. A desk with six residents on it is a group chat; a
+   desk where you deliberately called ONE over is an assistant. That is
+   also the difference between a personality and an agent — an agent is
+   chosen for a purpose. So each resident keeps their OWN thread here
+   (`byAgent`): calling the Tutor over must never hand her the
+   librarian's last four exchanges as if they were her own.
+
+   The roster DERIVES from data/roles.js. Add a resident there with a
+   chat prompt and they appear at this desk with no second edit — a
+   hand-maintained list that must match another file has drifted three
+   times in this repo (hideAllOv, the window exports, Sebastian's
+   org chart). test/live/writing-desk.mjs counts the buttons against
+   ROLE_KEYS so this cannot quietly rot. */
+function deskResidents(){
+  return rosterForVisitor().filter(r => CHAT_AGENTS[r.key] && CHAT_AGENTS[r.key].systemPrompt);
+}
+/* The hub is the default, derived rather than named: roles.js says the
+   day belongs to Sebastian ("keeps the visitor's day: the plan, the
+   calendar, what is due, what is still open"), and the day is what this
+   desk IS. Whoever is marked `hub` there is who is sitting here when
+   you open it. */
+function deskDefaultAgent(){
+  const hub=deskResidents().find(r=>r.hub);
+  return hub ? hub.key : (deskResidents()[0]||{key:'steward'}).key;
+}
+function deskChat(){
+  const c = state.plannerChat = state.plannerChat || {};
+  if(!c.agent || !CHAT_AGENTS[c.agent]) c.agent = deskDefaultAgent();
+  c.byAgent = c.byAgent || {};
+  c.byAgent[c.agent] = c.byAgent[c.agent] || {history:[]};
+  return c;
+}
+function deskThread(){ const c=deskChat(); return c.byAgent[c.agent]; }
+export function setDeskAgent(key){
+  if(!CHAT_AGENTS[key]) return;
+  const c=deskChat();
+  if(c.agent===key){ return; }
+  c.agent=key; deskChat();            // make sure the newcomer has a thread
+  blip(560,.05,'sine',.03);
+  renderToolbox();                    // the toolbox button names who is here
+  renderPlannerAssistBody();
+}
+/* What the desk is FOR, in the resident's own words from roles.js — so a
+   colleague called over knows why, and hands the job on when it is not
+   theirs instead of half-doing it. Derived, never written twice. */
+function deskFraming(key){
+  const r=ROLES[key]; if(!r) return '';
+  return "\n\nRIGHT NOW you are not in your own room — the visitor has called you over to their Writing "
+    +"Desk, where they sit down to actually work. They came to you specifically for this: "+r.sendMe+". "
+    +"They want something concrete they can keep — a line, a list, a draft — not a description of what you "
+    +"would do, and not a lecture. Short and usable. If what they ask is plainly a colleague's work, name "
+    +"them and say in one line what to ask; that is help, not a refusal.";
+}
 function plannerContext(){
   const day=plannerDay();
   const blocksSummary=day.blocks.map(b=>`${b.name}: ${b.state}`).join(', ');
@@ -4465,61 +4668,94 @@ function plannerContext(){
     : '(nothing brought over from reading yet today)';
   return { day, blocksSummary, upcoming, recent, sparks };
 }
-async function plannerSystemPrompt(){
-  const stewardBase=await CHAT_AGENTS.steward.systemPrompt();
+/* WHAT IS ON THE DESK — the same grounding for whoever was called over,
+   because it describes the desk and not the resident. One block, one code
+   path; a resident who does not need a line simply ignores it, which is
+   cheaper than two prompt builders that drift apart. */
+function deskStateBlock(){
   const { day, blocksSummary, upcoming, recent, sparks }=plannerContext();
-  return stewardBase
-    +"\n\nRight now you're specifically helping at the Writing Desk, not the café counter — a "
-    +"visitor wants real help planning or reviewing their actual day, not café chat. Be concrete: "
-    +"suggest an actual intention, which rhythm blocks deserve real focus today, or what to notice "
-    +"given what's coming up. If they've brought sparks over from something they read, treat those "
-    +"as real signal for what's actually on their mind right now — weave them into the day rather "
-    +"than ignoring them in favor of due dates alone. A short, usable answer, not a lecture.\n\n"
-    +"Today's intention so far: "+(day.intention||'(not set yet)')
+  const b=deskBook();
+  /* The pocketed book is the single most useful fact at this desk and the one
+     nothing was told: it is what the visitor is actually holding. It goes to
+     WHOEVER was called over, not only to the librarian — the Tutor teaching
+     from the page you are on is the point of the room. */
+  const book = b
+    ? `"${b.doc.title}"${(b.doc.attribution||b.doc.author)?' by '+(b.doc.attribution||b.doc.author):''}, open at ${deskBookWhere(b)}`
+    : '(no book on the desk right now)';
+  return "\n\nWHAT IS ON THE DESK IN FRONT OF THEM RIGHT NOW. Speak from this; never invent an item "
+    +"that is not here. If they have brought sparks over from something they read, those are real signal "
+    +"for what is actually on their mind today — weigh them, do not skip past them to the due dates.\n"
+    +"The book open in front of them: "+book
+    +"\nToday's intention so far: "+(day.intention||'(not set yet)')
     +"\nToday's rhythm blocks: "+blocksSummary
     +"\nSparks brought over from reading today:\n"+sparks
     +"\nWhat's due soon:\n"+upcoming
     +"\nRecent days, for pattern:\n"+recent;
 }
+async function deskSystemPrompt(key){
+  const agent=CHAT_AGENTS[key]||CHAT_AGENTS[deskDefaultAgent()];
+  return (await agent.systemPrompt()) + deskFraming(key) + deskStateBlock();
+}
 export function fillPlannerPrompt(text){ const el=document.getElementById('planAskInput'); if(el){ el.value=text; el.focus(); } }
 export async function sendPlannerMessage(){
   const input=document.getElementById('planAskInput');
   const q=input.value.trim(); if(!q) return;
-  state.plannerChat=state.plannerChat||{history:[]};
-  state.plannerChat.history.push({role:'user',content:q}); input.value=''; renderPlannerAssistBody();
+  const c=deskChat(), key=c.agent, thread=c.byAgent[key];
+  const who=(ROLES[key]&&ROLES[key].label)||key;
+  thread.history.push({role:'user',content:q}); input.value=''; renderPlannerAssistBody();
   try{
-    const reply=await AI.chat([{role:'system',content:await plannerSystemPrompt()}, ...state.plannerChat.history]);
-    state.plannerChat.history.push({role:'assistant',content:reply}); state.plannerChat.lastReply=reply;
-    logActivity('Asked the Steward for help planning the day.'+elapsedTag());
+    /* chatOptsFor() and not {} — the Monk's standing rule (best installed
+       model, real room to think) is his wherever he is standing, and a desk
+       that quietly downgraded him would look exactly like nothing at all. */
+    const reply=await AI.chat([{role:'system',content:await deskSystemPrompt(key)}, ...thread.history], chatOptsFor(key));
+    thread.history.push({role:'assistant',content:reply}); thread.lastReply=reply;
+    logActivity('Called '+who+' over to the Writing Desk.'+elapsedTag());
   }catch(e){
-    state.plannerChat.history.push({role:'assistant',content:"The Steward's connection flickers — no answer this time. Check that your AI connection is still running."});
+    /* the resident's OWN error line, so a flickering connection sounds like
+       the person you were talking to rather than a stray Steward */
+    thread.history.push({role:'assistant',content:(CHAT_AGENTS[key]&&CHAT_AGENTS[key].errorLine)
+      || (who+"'s connection flickers — no answer this time. Check that your AI connection is still running.")});
   }
   renderPlannerAssistBody();
 }
 export function usePlannerReplyAsIntention(){
-  const c=state.plannerChat; if(!c||!c.lastReply) return;
-  document.getElementById('planIntent').value = c.lastReply.length>140 ? c.lastReply.slice(0,140) : c.lastReply;
+  const t=deskThread(); if(!t||!t.lastReply) return;
+  document.getElementById('planIntent').value = t.lastReply.length>140 ? t.lastReply.slice(0,140) : t.lastReply;
   schedulePlanAutosave();
 }
 function renderPlannerAssistBody(){
   const el=document.getElementById('planToolBody'); if(!el) return;
   const aiOn=isAIActive();
-  const c=state.plannerChat||{history:[]};
+  const c=deskChat(), key=c.agent, t=c.byAgent[key], r=ROLES[key]||{label:key,title:'',duty:''};
+  /* The quick start follows WHO IS THERE, derived from their own sendMe line.
+     Three fixed day-planning prompts under a librarian is the same silent
+     mismatch as a button labelled "Ask the Steward" while the Tutor is
+     sitting at the desk — found by taking a screenshot and looking at it. */
+  const startPrompt = "I called you over to my Writing Desk for "+(r.sendMe||'help with today')
+    +". Given what is on the desk right now, where do we start?";
+  /* The picker. Derived from roles.js — see deskResidents(). The visitor
+     has as much right to know who does what as the model does, so the one
+     who is here says what they are for, in the same words the model gets. */
+  const picker=`<div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">${
+    deskResidents().map(p=>`<button class="btn ${p.key===key?'':'ghost'}" style="font-size:11px;padding:3px 10px"
+      title="${esc(p.title)} — ${esc(p.sendMe)}"
+      onclick="setDeskAgent('${p.key}')">${esc(p.label)}${(c.byAgent[p.key]&&c.byAgent[p.key].history.length)?' •':''}</button>`).join('')}</div>
+    <div class="meta" style="margin-top:0">${esc(r.label)} — ${esc(r.title)}. Bring them: ${esc(r.sendMe||'')}. One at a time, on purpose; each keeps their own thread.</div>`;
   el.innerHTML = aiOn ? `
-    <div class="meta">The Steward can help you think through today, grounded in what's actually due and how recent days went.</div>
+    ${picker}
     <div class="row" style="margin-bottom:10px">
-      <button class="btn ghost" style="font-size:11.5px" onclick="fillPlannerPrompt('Help me set an intention for today.')">Help me plan today</button>
-      <button class="btn ghost" style="font-size:11.5px" onclick="fillPlannerPrompt('Given what\\'s due soon, what should I actually focus on?')">What should I focus on</button>
+      <button class="btn ghost" style="font-size:11.5px" onclick="fillPlannerPrompt('${jsq(startPrompt)}')">Set ${esc(r.label)} to work</button>
+      <button class="btn ghost" style="font-size:11.5px" onclick="fillPlannerPrompt('Given what\\'s on this desk, what should I actually focus on today?')">What should I focus on</button>
       <button class="btn ghost" style="font-size:11.5px" onclick="fillPlannerPrompt('Looking at my recent days, what pattern should I adjust?')">Spot a pattern</button>
     </div>
-    <div id="planAskHistory">${(c.history||[]).map(h=>`
-      <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':'The Steward'}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
-    <textarea id="planAskInput" rows="2" placeholder="Ask, or pick a quick start above…"></textarea>
+    <div id="planAskHistory">${(t.history||[]).map(h=>`
+      <div class="card" style="cursor:default"><div class="t">${h.role==='user'?'You':esc(r.label)}</div><div class="s">${esc(h.content)}</div></div>`).join('')}</div>
+    <textarea id="planAskInput" rows="2" placeholder="Ask ${esc(r.label)}, or pick a quick start above…"></textarea>
     <div class="row" style="margin-top:8px">
       <button class="btn" onclick="sendPlannerMessage()">Ask</button>
-      ${c.lastReply?`<button class="btn ghost" onclick="usePlannerReplyAsIntention()">📋 Use as today's intention</button>`:''}
+      ${t.lastReply?`<button class="btn ghost" onclick="usePlannerReplyAsIntention()">📋 Use as today's intention</button>`:''}
     </div>`
-    : `<div class="meta">No local AI connected right now (⚙ Manage AI connections) — the Steward needs a live connection to help plan.</div>`;
+    : `${picker}<div class="meta">No local AI connected right now (⚙ Manage AI connections) — nobody can be called over without a live connection.</div>`;
 }
 
 /* ----- Courses (the Course Board) ----- */
@@ -11750,7 +11986,8 @@ Object.assign(window, {
   minimizeReader, restoreReader, dismissReaderPocket,
   selectBook, shelfOpenSelected,
   openPlanner, cycleBlock, savePlanner, viewPastDay, backToPlanner,
-  fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention,
+  fillPlannerPrompt, sendPlannerMessage, usePlannerReplyAsIntention, setDeskAgent,
+  deskAddNote, deskNoteSent, renderDeskBookAfterPutDown,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,
