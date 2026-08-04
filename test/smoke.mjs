@@ -766,8 +766,19 @@ for (const [key, s] of Object.entries(scenes)) {
      summary — on every message. That is the same bug already fixed for
      Quill, and a Library "built from scratch by its owner" walks straight
      into it. A cap is structural, so it is checked structurally. */
+/* THE UI IS MORE THAN ONE FILE NOW. overlays.js is being broken up (2026-08-04),
+   and the checks below look for CODE rather than for a filename — a prompt
+   body, a grounding block, a resident. Pointing them at overlays.js alone made
+   every one of them fail the moment the residents moved out, each correctly
+   reporting "has it been renamed?". Reading the whole ui/ directory means the
+   next extraction moves code without moving a single test. */
+const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
+  .filter(f => f.endsWith('.js'))
+  .map(f => readFileSync(new URL('../src/game/ui/' + f, import.meta.url), 'utf8'))
+  .join('\n');
+
 {
-  const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const ov = UI_SOURCE;
   const { CHARTER, WORK_CHARTER, BUTLER_CHARTER } = await import('../src/game/data/charter.js');
   const { rosterBlock } = await import('../src/game/data/roles.js');
   const { briefTokens } = await import('../src/game/data/catalogue-brief.js');
@@ -1005,7 +1016,7 @@ for (const [key, s] of Object.entries(scenes)) {
      reader shows page 51 is the two-lists-that-must-agree failure this project
      has hit three times, so the reader now calls paginate() rather than owning
      a second copy. */
-  const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const ov = UI_SOURCE;
   if (/function paginateFullText\(text\)\{\s*$/m.test(ov) && !/return paginate\(text\)/.test(ov)) {
     fail('overlays.js has its own pagination again — retrieval will cite pages the reader does not show');
   }
@@ -1132,7 +1143,7 @@ for (const [key, s] of Object.entries(scenes)) {
 {
   const { ROLES, ROLE_KEYS, rosterBlock, rosterForVisitor } =
     await import('../src/game/data/roles.js');
-  const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const ov = UI_SOURCE;
 
   for (const k of ROLE_KEYS) {
     const r = ROLES[k];
@@ -1763,7 +1774,7 @@ for (const d of SEED_LIBRARY) {
    block that feeds a system prompt, with no slice bounding it. It cannot catch
    everything, but it catches the exact thing that was wrong four times. */
 {
-  const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const ov = UI_SOURCE;
   const BLOCKS = ['referenceShelfBlock', 'stewardLadderBlock', 'pastAsksBlock', 'butlerDayRead'];
   for (const name of BLOCKS) {
     const start = ov.indexOf('function ' + name + '(');
