@@ -15,7 +15,7 @@ import { esc, jsq } from './dom.js';
 import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
          studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache,
          studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
-         studyTidyNote, studyToggleHistory, studyRestoreVersion } from './study-table.js';
+         studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson } from './study-table.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
@@ -4300,6 +4300,37 @@ initStudyTable({
      it is looking at; CHAT_AGENTS, the Monk's standing model rule, and the
      context budget all continue to live here, so there is exactly one way a
      resident is spoken to in this application. */
+  /* The draft lands in the AUTHORING FORM, filled in, and stops. The steward's
+     own sequencing — "before its ready for the wall" — and the same rule the
+     Writing Desk's drafter follows: the model drafts, the person promotes. */
+  openLessonWriter: (prefill) => {
+    state.ui='tree'; hideAllOv();
+    newLessonForm(null, prefill.bookSlug || null);
+    showOv('treeOv');
+    setTimeout(()=>{
+      const set=(id,v)=>{ const el=document.getElementById(id); if(el&&v!=null) el.value=v; };
+      set('mlTitle', prefill.title);
+      set('mlSummary', prefill.summary);
+      set('mlSteps', (prefill.steps||[]).map(s=>s.body?`${s.title} | ${s.body}`:s.title).join('\n'));
+      const msg=document.getElementById('mlMsg');
+      if(msg) msg.textContent='Drafted from your notes. Change anything you like — nothing is kept until you add it to the tree.';
+    }, 40);
+  },
+  /* A ONE-SHOT DRAFTING JOB IS NOT A CONVERSATION, and must not wear a
+     resident's prompt. Caught 2026-08-04 by reading the drafted steps instead
+     of the pass/fail: routed through the Steward, whose whole prompt is about
+     the Pavilion's desks and handing work to colleagues, the lesson came back
+     as "Go to the Library and ask for a summary" and "Ask Sebastian what is
+     due" — navigation instructions, not study. Every check still passed.
+
+     The room does the work, and this was the wrong room. WORK_CHARTER +
+     DRAFT_SYS is what draftLessonWithAI and draftCourseWithAI already use for
+     the same shape of job. */
+  draftText: async (prompt, opts) => {
+    const reply = await AI.chat([{role:'system', content:WORK_CHARTER+'\n\n'+DRAFT_SYS},
+                                 {role:'user', content:prompt}], opts||{long:true});
+    return isEmptyReply(reply) ? '' : reply;
+  },
   residents: () => rosterForVisitor().filter(r => CHAT_AGENTS[r.key] && CHAT_AGENTS[r.key].systemPrompt),
   aiActive: isAIActive,
   askResident: async (key, history, groundingBlock) => {
@@ -12600,7 +12631,7 @@ Object.assign(window, {
      one, so the two-directional export check keeps working. */
   studyStep, studyLabelToggle, studyLabelSave, studyUnlabel, studyOpenHere, studyAddNote,
   studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
-  studyTidyNote, studyToggleHistory, studyRestoreVersion,
+  studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,

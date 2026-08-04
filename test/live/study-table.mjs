@@ -207,6 +207,48 @@ if (chat.noAiLine) {
   ok('the three quick starts are there', chat.quick.length === 3, JSON.stringify(chat.quick));
 }
 
+/* ---- the way out: a lesson built from the work, not invented ----
+   Stage 1d. The STRUCTURE is not the model's job — the parts you named and
+   took notes on are the lesson, and code knows that sequence exactly. The
+   model only writes the bodies. So these checks hold with or without an AI. */
+console.log('\nA lesson out of the work you did\n');
+
+/* back to the book the notes were actually taken on — the suite moved to the
+   chaptered one for the hand-outranks-detection checks above */
+await open('personal-sigalaka');
+const draft = await p.evaluate(async () => {
+  const offered = /Draft a lesson from these notes/.test(document.getElementById('planToolBody').textContent);
+  if (!offered) return { offered };
+  studyDraftLesson();
+  for (let i = 0; i < 150; i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    const t = document.getElementById('mlTitle'); if (t && t.value) break;
+  }
+  const save = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
+  return {
+    offered,
+    onForm: !!document.getElementById('mlSteps'),
+    book: document.getElementById('mlBook')?.value || '',
+    steps: (document.getElementById('mlSteps')?.value || '').split('\n').filter(Boolean),
+    lessonsInTree: (save.myLessons || []).length,
+  };
+});
+ok('the table offers a lesson once there is work to build from', draft.offered);
+if (draft.offered) {
+  ok('it opens in the authoring FORM, and nothing reached the tree',
+    draft.onForm && draft.lessonsInTree === 0, `${draft.lessonsInTree} lesson(s) in the tree`);
+  ok('the set text is already chosen', draft.book === 'personal-sigalaka', draft.book);
+  ok('the steps are the parts I worked, each carrying its pages',
+    draft.steps.length >= 1 && draft.steps.every(l => /pp?\.\s*\d+/.test(l)),
+    JSON.stringify(draft.steps.map(l => l.split('|')[0].trim())));
+  /* The bodies came out as "Go to the Library and ask Sebastian" the first
+     time, because the job was routed through a resident whose whole prompt is
+     about this application's desks. Every other check passed. */
+  ok('and they are about the BOOK, not about this application',
+    !/Sebastian|Quill|Writing Desk|the Pavilion/i.test(draft.steps.join(' ')),
+    (draft.steps.join(' ').match(/Sebastian|Quill|Writing Desk|the Pavilion/i) || ['clean'])[0]);
+}
+
 ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | ') || 'none');
 
 await b.close();

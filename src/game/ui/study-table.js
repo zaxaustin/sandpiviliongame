@@ -107,7 +107,24 @@ export async function renderStudyTable() {
   if (!unit) { el.innerHTML = `<div class="meta">This book has no pages to divide.</div>`; return; }
 
   el.innerHTML = navRow(b, bk, unit) + labelRow(unit, bk) + textRow(bk, unit)
-    + notesRow(b, unit) + chatRow(b, unit);
+    + notesRow(b, unit) + draftRow(b, bk) + chatRow(b, unit);
+}
+
+/* The way OUT of the table, and it only appears once there is work to build
+   from — an empty "draft a lesson" button is a promise the panel cannot keep. */
+function draftRow(b, bk) {
+  const worked = workedUnits(b.slug, bk.units);
+  if (!worked.length) return '';
+  return `<div class="card" style="cursor:default;margin-top:14px;border-color:#8fb4d9">
+      <div class="t">Make a lesson out of this</div>
+      <div class="s" style="margin-top:5px">You have notes on <b>${worked.length}</b> part${worked.length === 1 ? '' : 's'} of
+        this book. Those parts, in order, become the steps — each one linking back to its own pages. It opens
+        in the lesson writer for you to change before anything is kept.</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" onclick="studyDraftLesson()">✎ Draft a lesson from these notes</button>
+      </div>
+      <div class="meta" id="studyDraftMsg" style="margin:6px 0 0"></div>
+    </div>`;
 }
 
 /* ---------- the chat, grounded in THIS story ----------
@@ -463,6 +480,82 @@ export async function studyTidyNote(i) {
   } catch (e) {
     say('the connection flickered — your note is untouched.');
   }
+}
+
+/* ---------- DRAFT A LESSON FROM THE WORK YOU ACTUALLY DID ----------
+
+   Stage 1d, and the payoff of the whole table:
+
+     "then with all these notes i would like to draft a lesson plan slowly and
+      with guidlnes."
+
+   THE STRUCTURE IS NOT THE MODEL'S JOB. The stories you named and took notes
+   on ARE the lesson — that sequence is real work you already did, and code
+   knows it exactly. So the steps are built here, in order, one per story you
+   actually worked. The model is asked for one thing only: the body of each
+   step, written from YOUR notes on that story. Deterministic code first; the
+   model for what code cannot do.
+
+   Every step carries its page range, which means readingIn() (data/lesson-doc.js)
+   turns each one into a real door into the book with nothing extra to write.
+
+   And it lands in the AUTHORING FORM, not in the tree. You read it, change it,
+   and press. Nothing reaches the wall without that press. */
+export function workedUnits(slug, units) {
+  return (units || []).map(u => ({ unit: u, notes: notesInUnit(slug, u) }))
+    .filter(x => x.notes.length);
+}
+export async function studyDraftLesson() {
+  const b = tableBook(); if (!b || !cache) return;
+  const worked = workedUnits(b.slug, cache.units);
+  const say = t => { const el = document.getElementById('studyDraftMsg'); if (el) el.textContent = t; };
+  if (!worked.length) { say('Take a note on a story or two first — the lesson is built out of the ones you have actually worked.'); return; }
+
+  /* The skeleton, built from real work rather than asked for. */
+  const steps = worked.map(({ unit }) => ({
+    title: `${unit.label} — pp. ${unit.from + 1}–${unit.to + 1}`,
+    body: '',
+  }));
+
+  if (X.draftText && (!X.aiActive || X.aiActive())) {
+    say('drafting from your notes…');
+    try {
+      const material = worked.map(({ unit, notes }, i) =>
+        `${i + 1}. ${unit.label}\n` + notes.map(({ n }) => '   - ' + (n.text || '')).join('\n')).join('\n\n');
+      const asked = 'I have worked through parts of "' + b.doc.title + '" and taken these notes:\n\n'
+        + material + '\n\n'
+        + 'Write ONE line for each numbered part, in the same order, saying what a learner should actually DO '
+        + 'with that part — drawn from my notes above, not from general knowledge. Format each as:\n'
+        + '<number>. <what to do>\n'
+        + 'Nothing else. No heading, no commentary. Do not mention this application, its rooms or its '
+        + 'residents — these are instructions for reading a book.';
+      const reply = await X.draftText(asked);
+      /* Parsed leniently and NEVER trusted to be complete — a step the model
+         skipped keeps the reader's own note as its body, so the draft is whole
+         either way. A half-filled form is worse than an honest one. */
+      const byIndex = {};
+      for (const line of String(reply || '').split('\n')) {
+        const m = /^\s*(\d{1,2})\s*[.)\]:-]\s*(\S.*)$/.exec(line);
+        if (m) byIndex[Number(m[1])] = m[2].trim();
+      }
+      steps.forEach((s, i) => { s.body = byIndex[i + 1] || ''; });
+    } catch (e) { say('the connection flickered — drafting the shape without it.'); }
+  }
+  /* Where the model said nothing, the reader's own words stand. */
+  steps.forEach((s, i) => {
+    if (!s.body) {
+      const first = worked[i].notes[0];
+      s.body = first ? String(first.n.text || '').replace(/\s+/g, ' ').slice(0, 220) : '';
+    }
+  });
+
+  if (!X.openLessonWriter) return;
+  X.openLessonWriter({
+    title: b.doc.title + ' — what I found in it',
+    summary: `A path through ${worked.length} part${worked.length === 1 ? '' : 's'} of "${b.doc.title}", built from the notes I took working through it.`,
+    bookSlug: b.slug,
+    steps,
+  });
 }
 
 /* For the toolbox button, so it names the book you are working through. */
