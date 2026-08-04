@@ -276,6 +276,34 @@ let bad = 0;
     return Object.values(save.planner || {}).some(d => (d.sparks || []).some(x => /worth following up/i.test(x.text || '')));
   }, doors.key);
   R.push(['"bring to today" actually puts it on the plan', spark]);
+
+  /* THE FIFTH DOOR: talk it over, rather than turn it into another artifact.
+     The check that earns its place is not "the button exists" — it is that
+     the Monk is REACHABLE once you press it. He opened behind Your Notes the
+     first time: connected, greeting you, and completely covered. Nothing
+     about the chat was wrong, so only a screenshot caught it. */
+  const monk = await p.evaluate(async (k) => {
+    closeUI(); openNotesForBook(window.__benchSlug);
+    await new Promise(r => setTimeout(r, 300));
+    document.querySelector('#notesLogList .card')?.click();   // doors live in the EXPANDED card
+    await new Promise(r => setTimeout(r, 300));
+    const offered = [...document.querySelectorAll('#notesLogList .card button')]
+      .some(x => /Talk it over with the Monk/.test(x.textContent));
+    /* This suite runs with NO AI connected on purpose, and the Monk door is
+       gated on one — a button that cannot answer is worse than no button. So
+       the honest assertion is that the door tracks the connection, in both
+       directions, rather than that it is always there. */
+    const aiOn = /Connected to/.test(document.getElementById('aiMode')?.textContent || '');
+    window.talkToMonkAboutNote(k);
+    await new Promise(r => setTimeout(r, 800));
+    return {
+      offered, aiOn,
+      greeted: /turning over/.test(document.getElementById('chatLog')?.textContent || ''),
+      covered: [...document.querySelectorAll('.overlay.open')].map(x => x.id),
+    };
+  }, doors.key);
+  R.push(['the Monk door on a note tracks whether an AI can answer', monk.offered === monk.aiOn]);
+  R.push(['and he is actually reachable when you get there', monk.greeted && monk.covered.length === 0]);
 }
 
 for (const [name, ok] of R) { console.log((ok ? '  PASS  ' : '  FAIL  ') + name); if (!ok) bad++; }

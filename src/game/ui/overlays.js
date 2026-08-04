@@ -803,6 +803,15 @@ const CHAT_AGENTS = {
             +"\" Meet them where they truly are with it — help them see this single fold more clearly and find "
             +"their own next real step in it, in your own way, rather than covering the whole path at once."
           : '')
+        +((state.dialog&&state.dialog.noteContext)
+          ? "\n\nThe visitor has brought you SOMETHING THEY WROTE THEMSELVES and asked to talk it over — not a "
+            +"text from the shelves, their own thinking, kept from "+String(state.dialog.noteContext.where||'their notes').replace(/\n/g,' ')
+            +". Hold it as a person's own words rather than a passage to be interpreted: what they wrote is "
+            +"evidence of where they actually are, and the conversation is about them, not about the note. Ask "
+            +"what is underneath it before you answer it. If it draws on a text you know — the Dao among them — "
+            +"you may open that text with them freely. Their note reads:\n\""
+            +String(state.dialog.noteContext.text).replace(/"/g,"'")+"\""
+          : '')
         +rosterBlock('monk')
         +pastAsksBlock('monk');
     },
@@ -2645,12 +2654,26 @@ function notesLogCard(n, v, folders){
        plan into a path. A door nobody can see is not a door. */
     const own = data.notes.find(x=>x.id===n.id);
     const inTree = own && own.lesson && curriculumNode(own.lesson);
+    /* TAKE IT TO THE MONK. Asked for 2026-08-03: "the monk can help with
+       spiritual things and dhamma talks — at the very least we should be able
+       to take our notes to him and have a discussion on the Dao."
+
+       Every door on this card so far turns a note into another ARTIFACT — a
+       plan, a lesson, a dissection. None of them let you simply talk it over,
+       which is the oldest way anyone has ever worked out what they think.
+       Offered on every source, because a note is a note; hidden with no AI,
+       because a button that cannot answer is worse than no button. */
+    const monkBtn = isAIActive()
+      ? `<button class="btn ghost" style="font-size:11px" onclick="talkToMonkAboutNote('${jsq(n.key)}')"
+          title="Sit with the Mountain Monk in the Keep and talk this one over">🧘 Talk it over with the Monk</button>`
+      : '';
     const editRow = (open && n.source==='mynotes')
       ? `<div class="row" onclick="event.stopPropagation()" style="margin-top:10px;gap:6px;flex-wrap:wrap">
           <button class="btn" style="font-size:11px" onclick="editNoteInLog('${n.id}')">✏ Open to edit / link a book</button>
           ${inTree
             ? `<button class="btn ghost" style="font-size:11px" onclick="openLessonFromNote('${n.id}')">🌳 It’s in the tree — open it</button>`
             : `<button class="btn ghost" style="font-size:11px" onclick="lessonFromPlanNote('${n.id}','notesLogMsg')" title="Turn this note into a lesson you can tick off and pick up">🌳 Put this in the tree</button>`}
+          ${monkBtn}
         </div><div class="meta" id="notesLogMsg" style="margin:6px 0 0"></div>`
       /* A BOOK NOTE HAD NOWHERE TO GO. Reported 2026-08-03 from real use:
          "with note taking I played around with it but I'm lacking direction in
@@ -2674,7 +2697,12 @@ function notesLogCard(n, v, folders){
             title="Turn this into a lesson you can walk and tick off">🌳 Put this in the tree</button>
           <button class="btn ghost" style="font-size:11px" onclick="bookNoteToDissection('${esc(n.key)}')"
             title="A note is often where an investigation starts">🔬 Dissect this book</button>
+          ${monkBtn}
         </div><div class="meta" id="notesLogMsg" style="margin:6px 0 0"></div>`
+      /* Notes from a conversation, a research project or a grant have no
+         artifact door of their own — they must still not be a dead end. */
+      : (open && monkBtn)
+      ? `<div class="row" onclick="event.stopPropagation()" style="margin-top:10px;gap:6px;flex-wrap:wrap">${monkBtn}</div>`
       : '';
     // folder + tag editors live only in the expanded view, and stop their own
     // clicks so fiddling with them doesn't collapse the card.
@@ -7489,6 +7517,28 @@ export function deleteFoldReflection(id,idx){
 // Ask the Monk about THIS fold — reuses the resident chat stack (like
 // talkToInvestigator) but tags the dialog with foldContext, which the Monk's
 // systemPrompt reads to meet the visitor where they are with this one fold.
+/* Bring a note you wrote to the Monk and talk it over — the same mechanism as
+   the fold above (state.dialog.*Context read by his systemPrompt), pointed at
+   your own words instead of a stone in the Keep. Works on any note from any
+   source; the Monk is told plainly that these are the visitor's OWN words and
+   not a shelved text, because how he should hold the two is different. */
+export function talkToMonkAboutNote(key){
+  const n=gatherNotes().find(x=>x.key===key); if(!n) return;
+  markNoteSeen(key);          // it has now genuinely been reopened, not merely listed
+  /* CLOSE YOUR NOTES FIRST. openChatDialog does not hide overlays — the fold
+     panel it was copied from is reached from a place that already closed one.
+     Without this the Monk opens BEHIND the notes panel: connected, greeting
+     you, and completely unreachable. Found in a screenshot, not a test; the
+     test then had to be fixed too, because it was reading document.body and
+     happily matching the title screen. */
+  closeUI();
+  openChatDialog({
+    name:'the Mountain Monk', aiAgent:'monk', color:'#2a2118', glow:'#c9a86a',
+    lines:['You have brought something you wrote yourself. Sit. What is it you are actually turning over in it?'],
+  });
+  if(state.dialog) state.dialog.noteContext={ title:n.title||'', where:n.where||'', text:String(n.text||'').slice(0,2200) };
+  logActivity('Took a note to the Mountain Monk.');
+}
 export function talkToMonkAboutFold(){
   const sign=state.foldView&&state.foldView.sign; if(!sign) return;
   const plain=String(sign.name).replace(/^\d+ · /,'');
@@ -12145,7 +12195,7 @@ Object.assign(window, {
   newExperimentForm, createExperiment, logExperimentToday, deleteExperiment, readExperimentWithInvestigator,
   newBuildForm, createBuild, deleteBuild, predictForm, createPrediction,
   closeBenchEntry, reopenBenchEntry, readBuildWithInvestigator,
-  openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold,
+  openFoldReflection, addFoldReflection, deleteFoldReflection, talkToMonkAboutFold, talkToMonkAboutNote,
   openLearningTree, openLesson, backToTree, toggleLessonStep, saveLessonToNotes, draftLessonPlanFromLesson,
   lessonFromPlanNote, openLessonFromNote, pickUpLesson, putDownLesson, currentStudy, nextStepOf,
   talkTo, openRoster, stewardPreNotes, findPassagesFor, loadBookText,

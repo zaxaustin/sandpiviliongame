@@ -380,6 +380,11 @@ your own standing instructions, so you can watch them take effect.
       quiet rule ☀ Today uses). Every one of them opens; a book note opens the
       book at the page it was written on. Your filing cabinet of freeform named
       notes is still below it.
+    - **🧘 Talk it over with the Monk** — on any note, in **🗒 Your Notes**.
+      Every other door turns a note into something else (a plan, a lesson, a
+      dissection); this one just lets you sit with it. He is given your words
+      as *yours* — your own thinking, not a passage to interpret — and will ask
+      what is underneath it before he answers. Needs a local AI connected.
     - **✨ Draft a lesson from this (AI)**, on the book panel — your local AI
       turns the book, the page you are on, and your own notes on it into a
       lesson plan **written into a note first**. You read it, edit it, and only

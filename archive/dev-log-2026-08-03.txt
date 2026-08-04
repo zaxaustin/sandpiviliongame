@@ -720,3 +720,55 @@ order: hand-marked chapters for the 88 books that find none;
 tools/chapter-sweep.mjs as a real command; then the installer, which
 verify:release is correctly refusing right now because the source is
 newer than the .exe.
+
+================================================================
+FIFTH SESSION, later - TAKE A NOTE TO THE MONK
+================================================================
+
+Asked for directly:
+
+  "the monk can help with spirtual things and dhama talks at the very
+   least we should be able to take are notes to him and have a
+   dessusion on the dao i think that would be nice."
+
+Every door on a note so far turned it into another ARTIFACT - a plan, a
+lesson, a dissection. None of them let you simply TALK IT OVER, which is
+the oldest way anyone has ever worked out what they think. So:
+talkToMonkAboutNote(key), the same mechanism as talkToMonkAboutFold -
+state.dialog.noteContext, read by the Monk's own systemPrompt - pointed
+at your own words instead of a stone in the Keep. Offered on every note
+source. He is told plainly that these are the visitor's OWN words and
+not a shelved text, because how he should hold the two is different.
+
+Gated on isAIActive(): a button that cannot answer is worse than none.
+
+THE BUG, AND IT WAS FOUND IN A SCREENSHOT. openChatDialog does not hide
+overlays - the fold panel it was copied from is reached from somewhere
+that already closed one. So the Monk opened BEHIND Your Notes:
+connected, greeting you by name, and completely unreachable. Nothing
+about the chat itself was wrong, which is exactly why no assertion about
+the chat would have caught it. closeUI() first.
+
+AND THE TEST WAS THE BROKEN THING AGAIN - fifth time this week. The
+grounding check read document.body.textContent, which includes the
+hidden title screen, and duly matched the word "effort" in the boot
+copy. It reported a pass on a reply that did not exist. It reads only
+what is NEW in #chatLog now. The permanent check in study-chain asserts
+the thing that actually broke: that nothing is sitting on top of him
+when you arrive.
+
+The door is gated on AI, and study-chain runs with none on purpose, so
+the permanent assertion is that the door TRACKS the connection in both
+directions rather than that it is always there. 39/39.
+
+Verified with the real local model against a hand-added Tao Te Ching: a
+note asking where the line falls between wu wei and simply avoiding a
+thing, and he answered it as the visitor's own question rather than as
+a passage to interpret.
+
+ALSO WRITTEN, nothing built: plans/THE-TEACHERS-TREE-PLAN.md, for the
+steward's teacher friend. Five measured gaps, the sharpest being that
+the lesson node is the ONE artifact in the Pavilion that cannot cite a
+book, and that a published lesson comes back through takePacket() as a
+plain note rather than a lesson - so the collective tree cannot
+currently grow at all.
