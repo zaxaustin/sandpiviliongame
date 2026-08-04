@@ -609,10 +609,36 @@ function stewardLadderBlock(){
     s+=`- THE PATH THEY PICKED UP: "${cur.node.title}" (since ${cur.since||'—'}) — `
       +(nx?`next step ${nx.i+1} of ${cur.node.steps.length}: "${nx.step.title}"`:'every step ticked')+'\n';
   } else s+='- No path picked up. If they are casting about, the useful move is to help them choose ONE.\n';
-  if(started.length) s+=`- Part-walked: ${started.map(n=>'"'+n.title+'" ('+lessonCompletedCount(n)+'/'+n.steps.length+')').join(', ')}\n`;
+  /* Both of these grew with how much work the visitor had done — see the note
+     on referenceShelfBlock. The Steward is the one resident whose whole job is
+     knowing where you stand, so he keeps the most, and still says what he has
+     left out rather than implying the list is all of it. */
+  if(started.length) s+=`- Part-walked: ${started.slice(0,LIST_CAP).map(n=>'"'+n.title+'" ('+lessonCompletedCount(n)+'/'+n.steps.length+')').join(', ')}`
+    +(started.length>LIST_CAP?`, and ${started.length-LIST_CAP} more`:'')+'\n';
   if(openPred) s+=`- ${openPred} prediction${openPred===1?'':'s'} at the Bench with no result recorded yet\n`;
-  if(diss.length) s+=`- Dissections in progress: ${diss.map(d=>'"'+d.title+'" ('+(d.passes||[]).length+' passes)').join(', ')}\n`;
+  if(diss.length) s+=`- Dissections in progress: ${diss.slice(0,LIST_CAP).map(d=>'"'+d.title+'" ('+(d.passes||[]).length+' passes)').join(', ')}`
+    +(diss.length>LIST_CAP?`, and ${diss.length-LIST_CAP} more`:'')+'\n';
   return s;
+}
+/* EVERY LIST HANDED TO A MODEL IS CAPPED, and says what it left out.
+
+   Audited 2026-08-04, one resident at a time, after the Monk turned out to be
+   carrying all 294 books on every message. The STATIC half of every prompt has
+   been budgeted since #43 and all seven pass; the DYNAMIC blocks were never
+   checked, and three of them grew without any limit at all — worse, they grew
+   with HOW MUCH THE VISITOR HAD DONE. Own more paper books, part-walk more
+   lessons, keep more dissections open, and the resident got heavier and slower
+   at exactly the moment they had most to talk to you about. That is the
+   catalogue bug wearing different clothes.
+
+   Capped small, and the remainder is NAMED rather than dropped silently —
+   "and 6 more" is information; a truncated list that pretends to be complete
+   is the confident wrong answer this project refuses. */
+const LIST_CAP = 8;
+function capped(items, render){
+  const shown=items.slice(0, LIST_CAP).map(render).join('\n');
+  const rest=items.length-LIST_CAP;
+  return rest>0 ? shown+`\n(and ${rest} more — ask if none of these is the one.)` : shown;
 }
 function referenceShelfBlock(){
   const mine=personalBooks();
@@ -625,9 +651,9 @@ function referenceShelfBlock(){
     +"what is being asked, SAY SO and send them to it by name, with a chapter or a topic if you know "
     +"the book, rather than giving a thinner explanation from memory. Never pretend to quote from one "
     +"and never invent a page number — pointing them at it is the whole service here:\n"
-    +own.map(b=>`- "${b.title}"${b.attribution?' — '+b.attribution:''}`).join('\n');
+    +capped(own, b=>`- "${b.title}"${b.attribution?' — '+b.attribution:''}`);
   if(ds.length) s+="\n\nDatasheets they keep (reachable at the Computer with  ds <part>):\n"
-    +ds.map(b=>`- ${b.part||'—'} · "${b.title}"`).join('\n');
+    +capped(ds, b=>`- ${b.part||'—'} · "${b.title}"`);
   return s;
 }
 /* See the Monk below. Kept beside CHAT_AGENTS rather than in seed.js because
@@ -1100,7 +1126,9 @@ function butlerDayRead(){
   const todaysEvents=eventsOn(k);
   const lines=[];
   lines.push(intention ? `Today's stated intention: "${intention}".` : `No intention has been set for today yet.`);
-  if(todaysEvents.length) lines.push(`On the calendar today: ${todaysEvents.map(e=>`"${e.title}"${e.start?' at '+e.start:''}`).join('; ')}.`);
+  // a busy day is exactly when he must stay fast — capped, remainder named
+  if(todaysEvents.length) lines.push(`On the calendar today: ${todaysEvents.slice(0,LIST_CAP).map(e=>`"${e.title}"${e.start?' at '+e.start:''}`).join('; ')}`
+    +(todaysEvents.length>LIST_CAP?`, and ${todaysEvents.length-LIST_CAP} more`:'')+'.');
   if(blocks.length) lines.push(`Rhythm blocks: ${tended} tended, ${rested} rested, ${waiting} still waiting.`);
   if(ahead.length) lines.push(`Coming up (courses/grants due, and calendar events): ${ahead.map(i=>`"${i.title}" (${i.due<k?'OVERDUE, was due '+i.due:i.kind==='event'?'on '+i.due+(i.start?' at '+i.start:''):'due '+i.due})`).join('; ')}.`);
   else lines.push(`Nothing has a due date or event coming up.`);

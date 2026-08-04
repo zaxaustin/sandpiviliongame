@@ -1747,6 +1747,52 @@ for (const d of SEED_LIBRARY) {
   if (unitsFor(0, []).length) fail('marks: a book with no pages produced units');
 }
 
+/* ---------- NO LIST HANDED TO A MODEL MAY GROW WITHOUT A LIMIT ----------
+
+   The static half of every resident's prompt has been budgeted since #43, and
+   all seven pass. The DYNAMIC half was never checked, and on 2026-08-04 an
+   audit found three blocks with no cap at all — the paper shelf, the
+   part-walked lessons, the open dissections — plus the Monk pasting all 294
+   books on every message.
+
+   What makes that class of bug nasty is the direction it grows in: the more
+   the visitor had actually DONE, the heavier and slower the resident became.
+   The person with most to talk about got the worst conversation.
+
+   So this greps for the shape rather than the instance: a .map(...).join in a
+   block that feeds a system prompt, with no slice bounding it. It cannot catch
+   everything, but it catches the exact thing that was wrong four times. */
+{
+  const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const BLOCKS = ['referenceShelfBlock', 'stewardLadderBlock', 'pastAsksBlock', 'butlerDayRead'];
+  for (const name of BLOCKS) {
+    const start = ov.indexOf('function ' + name + '(');
+    if (start < 0) { fail(`prompt lists: ${name}() is gone — has it been renamed? This check is pointed at it.`); continue; }
+    let depth = 0, end = start;
+    for (let i = ov.indexOf('{', start); i < ov.length; i++) {
+      if (ov[i] === '{') depth++;
+      else if (ov[i] === '}') { depth--; if (!depth) { end = i; break; } }
+    }
+    const body = ov.slice(start, end);
+    /* every list-building call must be bounded by a slice or run through the
+       shared capped() helper, on the same expression */
+    for (const m of body.matchAll(/([A-Za-z_$][\w$.]*)\s*\.map\s*\(/g)) {
+      const name2 = m[1];
+      const line = body.slice(Math.max(0, m.index - 120), m.index + 160);
+      /* A list may be bounded at the map, OR where it was assigned — Sebastian
+         slices `ahead` five lines earlier, and flagging that would train the
+         next person to ignore this check, which is how a guard dies. */
+      const boundedAtUse = /\.slice\s*\(/.test(line) || /capped\s*\(/.test(line);
+      const boundedAtBirth = new RegExp('(?:const|let|var)\\s+' + name2.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        + '\\s*=[^;\\n]*\\.slice\\s*\\(').test(body);
+      const bounded = boundedAtUse || boundedAtBirth;
+      if (!bounded) {
+        fail(`prompt lists: ${name}() maps over '${m[1]}' with nothing bounding it — that block grows with how much the visitor has done, so the person with the most to talk about gets the slowest resident. Cap it and name the remainder (see capped()).`);
+      }
+    }
+  }
+}
+
 /* ---------- report ---------- */
 if (failures.length) {
   console.error(`✗ ${failures.length} smoke-test failure(s):\n`);
