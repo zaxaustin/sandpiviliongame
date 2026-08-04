@@ -274,15 +274,29 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
         const entries = (body.models||[]);
         p.cloudModels = entries.filter(isCloudModel).map(m=>m.name);
         const local = entries.filter(m=>!isCloudModel(m)).map(m=>m.name);
-        if(!local.length) return false;
-        p.availableModels = local;
+        p.availableModels = local;      // what may ever be auto-picked
+        /* A HOSTED MODEL IS OFFERED, NEVER TAKEN. It is excluded from every
+           automatic choice above — but if the visitor deliberately selected
+           one it is theirs, and refusing to honour that would leave a laptop
+           with no local model unable to use the Pavilion at all. Chosen, it
+           works; unchosen, it does not exist. */
+        const chosenCloud = preferredModel && p.cloudModels.includes(preferredModel);
+        if(!local.length && !chosenCloud) return false;
         // an explicit model wins if it's actually installed; otherwise
         // fall back to auto-pick so a stale/misspelled choice never just
         // breaks the connection silently.
-        p.model = (preferredModel && local.includes(preferredModel))
+        p.model = (preferredModel && (local.includes(preferredModel) || chosenCloud))
           ? preferredModel
           : local.find(m=>m.startsWith('llama3.2')) || local[0];
-        p.name = (name || 'Ollama') + ' · ' + p.model;
+        /* THE NAME MUST NOT LIE. The built-in connection is called "Ollama
+           (local)", so choosing a hosted model produced the status line
+           "Connected to Ollama (local) · gpt-oss:20b-cloud" — precisely the
+           claim this whole guard exists to prevent, printed on the title
+           screen. Seen 2026-08-03 in the output of the picker test. */
+        p.usingCloud = !!chosenCloud;
+        p.name = (chosenCloud
+          ? (name || 'Ollama').replace(/\s*\(local\)\s*/i, '') + ' ☁ hosted'
+          : (name || 'Ollama')) + ' · ' + p.model;
         return true;
       } catch(e){ return false; } // not running, wrong port, or OLLAMA_ORIGINS doesn't allow this page
     },

@@ -372,6 +372,19 @@ screen said *running on this device alone*. Two signals — the name (`:cloud`
 or `-cloud`) and the size (a hosted entry is a ~300-byte manifest) — because
 the previous name-only rule went stale. Never add a second copy of that test.
 
+**But hosted models are OFFERED, never taken** — the correction to that same
+fix, which had left a laptop with no local model unable to use the Pavilion at
+all. They appear in the connection's model picker in their own ☁ group, are
+never auto-picked and never reach the Monk, and a deliberate choice is honoured
+and labelled. `p.usingCloud` drops "(local)" from the connection name, because
+the status line read *"Connected to Ollama (local) · gpt-oss:20b-cloud"* — the
+exact claim the guard exists to prevent, on the title screen.
+
+**And a laptop is the normal case for the beta's testers.** Ollama's hosted
+models reach the app through the same local endpoint with **no API key**:
+`ollama signin`, then `ollama pull gpt-oss:20b-cloud`. Measured at 0.64s where
+a local 9B takes many seconds.
+
 **What's next, in order:** hand-marked chapters for the 88 books that still
 find none (`source='hand'` and `confirmed` already exist in the schema and
 nothing writes them); the real-library sweep promoted to `tools/chapter-sweep.mjs`

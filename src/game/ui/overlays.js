@@ -1612,13 +1612,25 @@ function connCardHTML(c,i){
     </div>
   </div>`;
 }
-function modelPickerHTML(i,c,models){
-  const opts=['<option value="">(auto-pick)</option>']
-    .concat(models.map(m=>`<option value="${esc(m)}" ${c.model===m?'selected':''}>${esc(m)}</option>`));
+/* HOSTED MODELS ARE OFFERED, NEVER TAKEN. The Pavilion will not auto-pick one
+   and the Monk will never be handed one (see isCloudModel in ai/provider.js) —
+   but a laptop cannot run a 9B model, and refusing to even LIST the thing that
+   would work for that person is enforcement, not guidance. So they sit in
+   their own group, labelled ☁, and only a deliberate choice selects one.
+   The steward's line: needing an assistant and being able to have one are two
+   different things. */
+function modelPickerHTML(i,c,models,cloud){
+  const local=models||[], hosted=cloud||[];
+  const opt=m=>`<option value="${esc(m)}" ${c.model===m?'selected':''}>${esc(m)}</option>`;
+  const opts=['<option value="">(auto-pick a local model)</option>']
+    .concat(local.length?[`<optgroup label="🏠 on this machine">${local.map(opt).join('')}</optgroup>`]:[])
+    .concat(hosted.length?[`<optgroup label="☁ run on Ollama's servers">${hosted.map(opt).join('')}</optgroup>`]:[]);
+  const chosenCloud=hosted.includes(c.model);
   return `<div class="s">Model:
     <select onchange="setConnectionModel(${i},this.value)" style="background:#1b140d;border:1px solid #55432e;border-radius:5px;color:#f5e9d4;font-family:inherit;font-size:12px;padding:3px 6px">
       ${opts.join('')}
-    </select></div>`;
+    </select>${chosenCloud?`<div class="s" style="color:#e0a43c;margin-top:4px">☁ This one runs on Ollama's servers — what you say to a resident leaves this machine. Useful on a laptop that cannot run a model itself; swap to a 🏠 one any time.</div>`:''}
+    ${(!local.length&&hosted.length&&!chosenCloud)?`<div class="s" style="color:#e0a43c;margin-top:4px">Only hosted models are installed. Pick one above to use it, or pull a local one to keep everything on this machine.</div>`:''}</div>`;
 }
 const CONNECTION_PRESETS = {
   ollama: { name:'Ollama (local)', kind:'ollama', baseUrl:'http://localhost:11434' },
@@ -1822,9 +1834,13 @@ function renderConnections(){
     provider.isAvailable().then(ok=>{
       const row=document.getElementById('connStatus'+i);
       if(row) row.outerHTML=`<span id="connStatus${i}">${statusBadge(c,ok)}</span>`;
-      if(ok && provider.availableModels?.length){
+      /* Rendered even when the connection is NOT active, because the one
+         case that matters is a laptop with only hosted models installed:
+         it reports inactive precisely until you choose one, and if the
+         picker were hidden there would be no way to. */
+      if(provider.availableModels?.length || provider.cloudModels?.length){
         const modelRow=document.getElementById('connModel'+i);
-        if(modelRow) modelRow.outerHTML=modelPickerHTML(i,c,provider.availableModels);
+        if(modelRow) modelRow.outerHTML=modelPickerHTML(i,c,provider.availableModels,provider.cloudModels);
       }
     });
   });

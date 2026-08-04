@@ -587,6 +587,27 @@ and tells you plainly what it found — whether Ollama is running, which models
 you have, and which one the Mountain Monk will claim (he always takes the
 largest). If something is missing it gives you the line to copy.
 
+### If your computer can't run a model itself
+
+Most laptops can't, and that's the ordinary case — not a failure. Ollama also
+offers **hosted** models, and they reach the Pavilion through the *same* local
+Ollama, so **you never paste an API key into this app**:
+
+```
+ollama signin                      # a free account at ollama.com
+ollama pull gpt-oss:20b-cloud      # instant — there are no weights to download
+```
+
+Then in **⚙ Manage AI connections**, open the connection's **Model** list and
+pick it from the **☁ run on Ollama's servers** group. It's fast — noticeably
+faster than a local model on a strong machine.
+
+**What changes when you do, said plainly.** What you say to a resident leaves
+your computer and is answered on Ollama's servers. So it's never chosen for
+you: the Pavilion always auto-picks a 🏠 local model, the Mountain Monk will
+*only* ever use a local one, and the title screen stops saying "local" the
+moment a hosted model is active. Swap back to 🏠 at any time.
+
 **One thing worth knowing before you go looking for a cloud key: a
 subscription is not an API key.** Paying for Claude or ChatGPT in their own
 apps does not give you one — an API key is a separate, pay-per-use developer
