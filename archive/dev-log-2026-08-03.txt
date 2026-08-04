@@ -772,3 +772,94 @@ the lesson node is the ONE artifact in the Pavilion that cannot cite a
 book, and that a published lesson comes back through takePacket() as a
 plain note rather than a lesson - so the collective tree cannot
 currently grow at all.
+
+================================================================
+FIFTH SESSION, later still - THE TEACHER'S TREE, AND A HOSTED
+MODEL THAT WAS ABOUT TO GET THE MONK'S CONVERSATIONS
+================================================================
+
+The steward set the order himself:
+
+  "i dont want to rebuild the installer unless we can get this teacher
+   lesson plan moving to a point its ready for testing, thats gona
+   change this from a cool game to a useful feature its the most
+   important before we build"
+
+--- THE CLOUD QUESTION, TESTED RATHER THAN GUESSED ---
+
+He asked how the cloud connection with Ollama is, because a laptop
+cannot host a local model and most of his friends are on laptops.
+
+IT WORKS AND IT IS THE RIGHT ANSWER FOR THEM. Ollama serves hosted
+models through the SAME local endpoint, so no API key is ever pasted
+into this app: gpt-oss:20b-cloud answered in 0.64 seconds where a local
+9B takes many. Install Ollama, sign in, pull a -cloud model, done. The
+paid tier is real - deepseek-v4-pro:cloud returns "requires a
+subscription".
+
+AND TESTING IT EXPOSED THE HIGHEST-STAKES SILENT BUG IN THE PROJECT.
+bestLocalModel() returned gpt-oss:20b-cloud on this machine. So the
+Monk's standing rule - always the largest LOCAL model - would have sent
+his most private conversations to a server, while the title screen said
+"Running on this device alone."
+
+The guard existed and had gone stale: it tested for a name ending in
+":cloud", which was true of the naming a month ago and false of the
+hyphen form the free tier actually uses. It was also in the wrong PLACE
+- a display filter in one panel, a second copy of the same regex in
+another, while chatOptsFor() read the raw unfiltered list. One
+definition now, in provider.js where the list is built, on two
+independent signals: the NAME, and the SIZE (a hosted entry is a
+306-byte manifest where a real model is gigabytes). bestLocalModel()
+returns null rather than falling back to a server when nothing local is
+installed. Guarded with the ACTUAL output of ollama list on this
+machine; restoring the old rule fails 4 checks, each naming what it
+would have cost.
+
+--- THE TEACHER'S TREE, gaps 1-3 of THE-TEACHERS-TREE-PLAN.md ---
+
+1. A LESSON CAN CITE A BOOK. It was the one artifact in the Pavilion
+   that could not, while a note has carried chapter and page since this
+   morning. A set-text picker on the lesson, and per-step readings
+   DETECTED from what was typed naturally - "Read chapters 3-4 and
+   annotate", "Discuss pp. 12-18" - rather than a syntax a teacher has
+   to learn. Where it finds nothing it says nothing: a lesson that
+   cites the wrong pages is a class that goes wrong on Monday.
+
+2. IT LEAVES AS A DOCUMENT. A packet is right for another Pavilion and
+   useless in a classroom. Markdown, and ONE self-contained HTML file -
+   styles inside it, nothing fetched, real print rules - that he can
+   put on his own site. We render the file; the website stays his. Also
+   fixed the save dialog, which hardcoded a JSON filter for every file
+   including plain text.
+
+3. A PUBLISHED LESSON COMES BACK AS A LESSON. It used to fall through
+   takePacket()'s else branch into Your Notes as prose, so the
+   collective tree could never grow - hand a colleague a lesson and he
+   retyped it. Prerequisites travel as titles and are matched locally;
+   unmatched ones are dropped rather than arriving locked.
+
+--- WHAT THE END-TO-END TEST CAUGHT ---
+
+* THE READING DOOR NEVER WORKED. It looked for a mark whose number
+  field equalled N, but "chapter N" is the Nth MARK - chapterAt()
+  assigns number as index+1 and nothing writes it onto the mark itself.
+  So every reading door landed silently on page 1. Caught only because
+  the test asserted where it LANDED rather than that it opened; the
+  check "following it opens the book" passed the whole time.
+
+* The Commons promise ("lands in your Learning Tree") is rendered on
+  the opened packet, not on the shelf - and my test read the shelf.
+  Fixed the test, not the app.
+
+* And one from a screenshot of the exported page: a page RANGE was
+  labelled "p. 12-18". On a handout that is "pp.".
+
+Verified end to end with NO AI CONNECTED AT ALL - a teacher must not
+need one. test/live/teacher.mjs: write a lesson on a player-added book,
+follow a step to chapter 2 (page 7 of 35), export both formats,
+publish it, and receive it as a colleague on a second page. npm test,
+preflight, study-chain 39/39, writing-desk all green.
+
+STILL NOT DONE: the acceptance test that actually matters - a real
+lesson on a real set text, handed to the teacher himself.

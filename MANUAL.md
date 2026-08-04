@@ -774,6 +774,28 @@ progression — a 101 that opens a 201 — which is the thing you need if you're
 teaching someone else and not just yourself. The Tutor studies your lessons
 exactly as it studies the built-in ones.
 
+**Name a set text, and the steps become doors.** Pick a book in the authoring
+form and any step that mentions a chapter or a page opens it — and you write
+that **however you normally would**: *"Read chapters 3–4 and annotate"*,
+*"Discuss pp. 12-18 in pairs"*. There's no syntax to learn; it's read, not
+parsed. A step that names nothing gets no door, deliberately: a lesson that
+cites the wrong pages is a class that goes wrong on Monday, so where it isn't
+sure it says nothing at all.
+
+**Take the lesson out of the Pavilion.** On any lesson: **⤓ Save as Markdown**
+for something to paste anywhere, or **⤓ Save as a web page** for one
+self-contained `.html` file — styles inside it, nothing fetched, prints
+properly, and you can drop it straight onto any host. It's a handout you own.
+Nothing is uploaded, and there is no account: the website, if you make one, is
+entirely yours.
+
+**Hand one to a colleague.** **🤝 Publish it** makes a packet file. When
+someone opens that in their own Pavilion it lands in **their Learning Tree as
+a real lesson** — steps intact, ready to walk or rewrite — not as a wall of
+text they have to retype. Prerequisites travel by name and are matched to
+whatever lessons they already have; anything they don't have is simply
+dropped, so nothing arrives locked.
+
 ---
 
 ## 11. What's yours, what's shared — and where sharing happens

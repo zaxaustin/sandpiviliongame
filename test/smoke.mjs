@@ -1580,6 +1580,71 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- a lesson that cites a book, and leaves as a document ----------
+   THE-TEACHERS-TREE-PLAN.md gaps 1 and 2. A teacher writes "Read chapters
+   3-4 and annotate" — naturally, not in a syntax — and gets a door. The
+   risk is the opposite of a missing feature: a CONFIDENTLY WRONG citation
+   sends a class to the wrong pages on Monday, so the detector must decline
+   rather than guess. */
+{
+  const { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } =
+    await import('../src/game/data/lesson-doc.js');
+
+  const finds = [
+    ['Read chapters 3-4 and annotate the argument', 'chapter', 3, 4],
+    ['Read chapters 3–4 (en dash)',                 'chapter', 3, 4],
+    ['Ch. 7: the turn',                             'chapter', 7, 7],
+    ['Read chapter 2 to 5 before class',            'chapter', 2, 5],
+    ['Discuss pp. 12-18 in pairs',                  'page',   12, 18],
+    ['Homework: pages 40 and 41',                   'page',   40, 41],
+    ['Read p. 9 aloud',                             'page',    9,  9],
+  ];
+  for (const [text, kind, from, to] of finds) {
+    const r = readingIn(text);
+    if (!r) { fail(`lesson-doc: readingIn() found nothing in "${text}"`); continue; }
+    if (r.kind !== kind || r.from !== from || r.to !== to) {
+      fail(`lesson-doc: readingIn("${text}") gave ${r.kind} ${r.from}-${r.to}, expected ${kind} ${from}-${to}`);
+    }
+  }
+  const declines = [
+    'Warm-up: five minutes of free writing',
+    'Bring 3 examples of your own',           // a bare number is not a citation
+    'Chapter 0 of nothing',
+    'Read the whole book',
+  ];
+  for (const text of declines) {
+    const r = readingIn(text);
+    if (r) fail(`lesson-doc: readingIn("${text}") invented a ${r.kind} reference — a wrong citation sends a class to the wrong pages`);
+  }
+  if (readingIn('Read chapters 9-2') ?.to !== 9) {
+    fail('lesson-doc: a backwards range should collapse to the one chapter named, not produce an empty span');
+  }
+  const labels = [[{kind:'chapter',from:3,to:4},'ch. 3–4'], [{kind:'chapter',from:3,to:3},'ch. 3'],
+                  [{kind:'page',from:12,to:18},'pp. 12–18'], [{kind:'page',from:9,to:9},'p. 9']];
+  for (const [r, want] of labels) {
+    if (readingLabel(r) !== want) fail(`lesson-doc: readingLabel(${JSON.stringify(r)}) is "${readingLabel(r)}", not "${want}" — this is printed on a handout`);
+  }
+
+  const node = { title:'Of Mice and Men — week 1', summary:'Open the novel.', track:'English 10', level:101,
+    written:'2026-08-03', steps:[{title:'Read chapters 1-2', body:'Mark every promise either man makes.'},
+                                 {title:'Warm-up: what is a friend?', body:''}] };
+  const book = { title:'Of Mice and Men', attribution:'John Steinbeck' };
+  const md = lessonToMarkdown(node, { book, prereqTitles:['Reading a novel'] });
+  for (const must of ['# Of Mice and Men — week 1', 'ch. 1–2', 'English 10', 'Before this:', 'Mark every promise'])
+    if (!md.includes(must)) fail(`lesson-doc: the Markdown is missing "${must}"`);
+
+  const html = lessonToHTML(node, { book, prereqTitles:['Reading a novel'] });
+  /* One file, or it is not a document he can put anywhere. */
+  if (!/^<!doctype html>/i.test(html)) fail('lesson-doc: the HTML has no doctype — it is a fragment, not a page');
+  if (/<(script|link|img)\b/i.test(html)) fail('lesson-doc: the HTML pulls in something external; it must be one self-contained file');
+  if (!/@media print/.test(html)) fail('lesson-doc: no print rules — the first thing a teacher does is print it');
+  if (!html.includes('<title>Of Mice and Men — week 1</title>')) fail('lesson-doc: the page has no title');
+  /* And it must not be injectable — a lesson title is user text going into a page they will publish. */
+  const nasty = lessonToHTML({ title:'</title><script>alert(1)</script>', steps:[{title:'<img onerror=x>'}] });
+  if (/<script>|<img /i.test(nasty)) fail('lesson-doc: the HTML export does not escape — a title could inject script into a page the teacher publishes');
+  if (lessonFileName(node, 'html') !== 'of-mice-and-men-week-1.html') fail('lesson-doc: the filename is not something you could find again: ' + lessonFileName(node, 'html'));
+}
+
 /* ---------- report ---------- */
 if (failures.length) {
   console.error(`✗ ${failures.length} smoke-test failure(s):\n`);

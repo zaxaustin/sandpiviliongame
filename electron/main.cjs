@@ -135,10 +135,23 @@ ipcMain.handle('desktop-fetch-stream-start', async (event, { id, url, method, he
    <a download> pattern, which Electron still honors but never prompts).
    A real save dialog in the main process, exposed through preload's
    existing bridge. */
+/* The filter follows the FILE, not a guess. It was hardcoded to JSON, so the
+   plain-text bug report — and, from 2026-08-03, a teacher's lesson plan saved
+   as .md or .html — was offered a JSON filter and could be saved with the
+   wrong extension. A one-line fault that would look like the app mangling
+   his handout. */
+const SAVE_FILTERS = {
+  json: { name: 'JSON', extensions: ['json'] },
+  md:   { name: 'Markdown', extensions: ['md'] },
+  html: { name: 'Web page', extensions: ['html'] },
+  txt:  { name: 'Text', extensions: ['txt'] },
+};
 ipcMain.handle('desktop-save-file', async (event, { defaultName, content }) => {
+  const ext = String(defaultName || '').split('.').pop().toLowerCase();
+  const filter = SAVE_FILTERS[ext];
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
     defaultPath: defaultName,
-    filters: [{ name: 'JSON', extensions: ['json'] }],
+    filters: [...(filter ? [filter] : []), { name: 'All files', extensions: ['*'] }],
   });
   if(canceled || !filePath) return { ok:false, canceled:true };
   try{

@@ -1,6 +1,31 @@
 # The teacher's tree — lesson planning a professional would actually use
 
-**Written 2026-08-03, for review. Nothing here is built.**
+**Written 2026-08-03 for review. Gaps 1–3 BUILT the same day**, at the
+steward's instruction — *"i dont want to rebuild the installer unless we can
+get this teacher lesson plan moving to a point its ready for testing, thats
+gona change this from a cool game to a useful feature."*
+
+| gap | state | where |
+|---|---|---|
+| 1 · a lesson can cite a book | **built** | `mlBook` picker → `node.book`; readings **detected** in the step text (`data/lesson-doc.js`), opened by `openLessonReading()` |
+| 2 · it leaves as a document | **built** | `lessonToMarkdown()` / `lessonToHTML()` → `exportLesson()`; the save dialog's hardcoded JSON filter fixed |
+| 3 · a packet comes back as a lesson | **built** | the `lesson` branch in `takePacket()`; `PACKET_KINDS.lesson.lands` now says the tree |
+| 4 · repeat / minutes on a step | not built | still the one a teacher can live without |
+| 5 · draw the edges | not built | `LIVING-TREE-AND-DISCUSSION-PLAN.md` §2 step 1 |
+
+Verified end to end in `test/live/teacher.mjs` — write a lesson on a
+player-added book, follow a step to the right chapter, export both formats,
+publish it, and receive it as a colleague with no AI connected at all. Two
+bugs it caught are in `archive/dev-log-2026-08-03.txt`; the sharper one is
+that "chapter N" is the Nth *mark*, not a stored field, so the reading door
+had been landing silently on page 1.
+
+**Still to do before he tries it:** the acceptance test below — a real lesson
+on a real set text, handed to him. That has not happened yet.
+
+The original plan follows, unchanged.
+
+---
 
 From the steward:
 

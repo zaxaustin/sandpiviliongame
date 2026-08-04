@@ -16,7 +16,11 @@
 
 export const PACKET_KINDS = {
   paper:  { icon:'📄', label:'Paper',       lands:'your Science & Research Hall' },
-  lesson: { icon:'🎓', label:'Lesson plan', lands:'Your Notes' },
+  /* A lesson lands in the TREE now, not in Your Notes — until 2026-08-03 it
+     fell through to the note branch as prose, which is why the collective
+     tree could never grow. This line and takePacket() have to agree; the
+     label is what the visitor is promised before they press. */
+  lesson: { icon:'🎓', label:'Lesson plan', lands:'your Learning Tree' },
   course: { icon:'🧭', label:'Course',      lands:'your Course Board' },
   note:   { icon:'🗒', label:'Note',        lands:'Your Notes' },
 };

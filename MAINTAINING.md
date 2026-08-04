@@ -351,6 +351,27 @@ each, your older notes including the resurfacing rule, and a lesson drafted
 into a note that reaches the tree only when you press. See the section above
 for the code map.
 
+**The Learning Tree serves a teacher now** (2026-08-03,
+`plans/THE-TEACHERS-TREE-PLAN.md` gaps 1–3). A lesson can name a **set text**
+(`node.book`), and any step that mentions a chapter or page becomes a door —
+**detected** from natural wording in `data/lesson-doc.js`, never a syntax, and
+absent rather than guessed. `openLessonReading()` resolves a chapter through
+the same marks the reader and notes use: **"chapter N" is the Nth mark**, an
+index and not a stored field, which is the bug that made every door land on
+page 1. A lesson leaves as Markdown or one self-contained HTML page
+(`exportLesson()`), and a published lesson finally lands in a colleague's
+**tree** rather than as prose in their notes (`takePacket()`'s `lesson`
+branch). `test/live/teacher.mjs` drives all of it with **no AI connected**.
+
+**A HOSTED MODEL IS NOT A LOCAL ONE, and `isCloudModel()` in
+`ai/provider.js` is the only place that decides.** Ollama lists its hosted
+models in `/api/tags` beside the real ones; on 2026-08-03 `bestLocalModel()`
+returned `gpt-oss:20b-cloud`, meaning the Monk's standing "largest local
+model" rule would have routed his conversations to a server while the title
+screen said *running on this device alone*. Two signals — the name (`:cloud`
+or `-cloud`) and the size (a hosted entry is a ~300-byte manifest) — because
+the previous name-only rule went stale. Never add a second copy of that test.
+
 **What's next, in order:** hand-marked chapters for the 88 books that still
 find none (`source='hand'` and `confirmed` already exist in the schema and
 nothing writes them); the real-library sweep promoted to `tools/chapter-sweep.mjs`

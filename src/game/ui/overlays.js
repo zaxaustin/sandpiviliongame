@@ -10,6 +10,7 @@ import { planToLesson } from '../data/plan-to-lesson.js';
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS } from '../data/the-day.js';
+import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
@@ -8015,6 +8016,14 @@ function renderLearningTree(){
         <div style="width:110px"><label>Level</label>
           <input type="number" id="mlLevel" min="101" max="999" step="1" value="${editing?Number(editing.level)||101:101}"></div>
       </div>
+      <label>The set text <span class="badge lic">optional</span></label>
+      <div class="meta">Name the book this lesson is about and every step that mentions a chapter or a page
+        becomes a door straight to it — write it however you like (<code>Read chapters 3–4</code>,
+        <code>pp. 12-18</code>); it is read, not a code you have to learn.</div>
+      <select id="mlBook" style="${NOTE_SELECT_STYLE}">
+        <option value="">— no set text —</option>
+        ${Store.allDocs().map(d=>`<option value="${esc(d.slug)}"${editing&&editing.book&&editing.book.slug===d.slug?' selected':''}>${esc(d.title)}${d.attribution?' — '+esc(d.attribution):''}</option>`).join('')}
+      </select>
       <label>The steps — one per line</label>
       <div class="meta">Optionally put a longer explanation after a <b>|</b> on the same line:
         <code>Tin the tip | Melt a little solder onto the iron before you start; it makes everything after it work.</code></div>
@@ -8040,6 +8049,8 @@ function renderLearningTree(){
     const node=curriculumNode(v.id); if(!node){ return backToTree(); }
     const p=lessonProgress(node.id), done=lessonDone(node);
     const next=allNodes().filter(n=>(n.prereqs||[]).includes(node.id));
+    // the set text, if this lesson names one and it is still on the shelves
+    const setText=(node.book&&node.book.slug) ? Store.getDoc(node.book.slug) : null;
     panel.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>${esc(node.title)}</h2>
@@ -8049,6 +8060,9 @@ function renderLearningTree(){
         <button class="btn ghost" style="font-size:11px;padding:2px 8px" onclick="publishFrom('lesson','${esc(node.id)}')" title="Hand it on — it joins the collective tree">🤝 Publish it</button>
       </div>`:''}
       <div class="meta" style="margin-top:8px">${esc(node.summary)}</div>
+      ${setText?`<div class="row" style="margin-top:6px"><button class="btn ghost" style="font-size:11.5px"
+        onclick="openLessonReading('${jsq(setText.slug)}','page',1)" title="Open the set text">📕 Set text: ${esc(setText.title)}${setText.attribution?' — '+esc(setText.attribution):''}</button></div>`:''}
+      ${(node.book&&node.book.slug&&!setText)?`<div class="meta" style="margin-top:6px;color:#e0a43c">📕 Its set text is no longer on these shelves.</div>`:''}
       ${(function(){
         /* An out-of-order lesson is READ IN FULL, and told plainly where it sits.
            A fact, not a refusal — and it always names the way round, because a
@@ -8077,10 +8091,19 @@ function renderLearningTree(){
       })()}
       <div style="margin-top:14px">${node.steps.map((s,i)=>{
         const on=!!p.steps[i];
+        /* THE READING DOOR. A step that names a chapter or a page of the set
+           text opens it. Detected from what the teacher typed rather than a
+           syntax they had to learn (data/lesson-doc.js) — and absent, never
+           guessed, where the step names nothing. */
+        const r=setText ? readingIn((s.title||'')+' '+(s.body||'')) : null;
         return `<div class="card" style="cursor:pointer" onclick="toggleLessonStep('${node.id}',${i})">
           <div class="t">${on?'☑':'☐'} ${esc(s.title)}</div>
           <div class="s" style="margin-top:5px">${esc(s.body)}</div>
-          ${s.action?`<div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:11.5px" onclick="event.stopPropagation(); ${s.action.fn}()">${esc(s.action.label)} →</button></div>`:''}
+          ${(r||s.action)?`<div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+            ${r?`<button class="btn ghost" style="font-size:11.5px" onclick="event.stopPropagation(); openLessonReading('${jsq(setText.slug)}','${r.kind}',${r.from})"
+                   title="Open ${esc(setText.title)} at ${esc(readingLabel(r))}">📖 ${esc(readingLabel(r))} →</button>`:''}
+            ${s.action?`<button class="btn ghost" style="font-size:11.5px" onclick="event.stopPropagation(); ${s.action.fn}()">${esc(s.action.label)} →</button>`:''}
+          </div>`:''}
         </div>`;
       }).join('')}</div>
       ${done ? `<div class="card" style="cursor:default;margin-top:12px;border-color:#7fb069"><div class="t">✓ Lesson complete</div><div class="s" style="margin-top:5px">${next.length?'You\'ve unlocked: '+next.map(n=>esc(n.title)).join(', ')+'.':'That\'s the end of this branch — for now.'}</div></div>` : ''}
@@ -8088,6 +8111,13 @@ function renderLearningTree(){
       <div class="card" style="cursor:default;margin-top:12px;border-color:#8fb4d9">
         <div class="t">Take this lesson with you</div>
         <div class="s" style="margin-top:5px">Pull it into your Notes to keep and edit, or let your local AI draft a personal, scheduled plan from it. Both land in <b>🗒 Your Notes</b>.</div>
+        <div class="s" style="margin-top:8px">Or take it <b>out</b> of the Pavilion entirely — a handout to print, or one
+          self-contained page you can put on your own website. The file is yours; nothing is uploaded anywhere.</div>
+        <div class="row" style="margin-top:8px;flex-wrap:wrap;gap:8px">
+          <button class="btn ghost" style="font-size:11.5px" onclick="exportLesson('${esc(node.id)}','md')">⤓ Save as Markdown</button>
+          <button class="btn ghost" style="font-size:11.5px" onclick="exportLesson('${esc(node.id)}','html')">⤓ Save as a web page</button>
+        </div>
+        <div class="meta" id="lessonExportMsg" style="margin:6px 0 0"></div>
         <div class="row" id="lessonPlanRow" style="margin-top:10px;flex-wrap:wrap;gap:8px">
           ${(function(){
             /* THE-STUDY-CHAIN-PLAN.md Stage 2 — "I want to be able to go to the
@@ -8370,6 +8400,70 @@ export async function draftLessonWithAI(){
     const b=document.getElementById('mlStopBtn'); if(b) b.style.display='none';
   }
 }
+/* Open the set text at what a step actually asks for. A chapter is resolved
+   through the SAME chapter marks the reader and the notes use, so a lesson
+   citing "ch. 3" lands where a note citing ch. 3 lands. Where the book has no
+   detected chapters this falls back to the page of that number — and says so
+   rather than silently landing somewhere arbitrary. */
+export async function openLessonReading(slug, kind, from){
+  const d=Store.getDoc(slug); if(!d) return;
+  closeUI();
+  openReader(slug);
+  if(!(d.doc&&d.doc.fullText)) return;      // a summary-only book has no page to open
+  await openFullText(slug);
+  const v=state.fullTextView; if(!v) return;
+  let page=null;
+  if(kind==='chapter'){
+    /* "Chapter N" is the Nth MARK, not a stored field — chapterAt() assigns
+       `number` as index+1 and nothing writes it onto the mark itself. Looking
+       for m.number could never match, and the door quietly landed on page 1
+       (caught by test/live/teacher.mjs, which checked where it LANDED rather
+       than that it opened). Indexing keeps a lesson citing ch. 2 in exactly
+       the place a note citing ch. 2 lands. */
+    const marks=chapterPages(v);
+    const mark=marks[Number(from)-1];
+    if(mark) page=mark.page;
+  }
+  if(page==null && kind==='page') page=Math.max(0, Number(from)-1);
+  if(page==null) return;                    // no such chapter — leave them at the top, honestly
+  v.page=Math.max(0, Math.min(v.pages.length-1, page));
+  renderFullTextPage();
+}
+/* ---- A LESSON AS A DOCUMENT — THE-TEACHERS-TREE-PLAN.md gap 2.
+   `🤝 Publish it` makes a PACKET: a .json another Pavilion can open, which is
+   the right thing for the commons and useless in a classroom. A teacher needs
+   a handout to print or a page to put on his own site — so a lesson also
+   leaves as Markdown, and as ONE self-contained HTML file he owns outright.
+   We render the file; the website stays his. */
+function lessonDocOpts(node){
+  const book=(node.book&&node.book.slug) ? Store.getDoc(node.book.slug) : null;
+  return {
+    book: book ? { title:book.title, attribution:book.attribution||'' } : null,
+    prereqTitles: (node.prereqs||[]).map(pid=>{ const q=curriculumNode(pid); return q?q.title:null; }).filter(Boolean),
+    by: ((data.commons&&data.commons.signedAs)||'').trim(),
+  };
+}
+export async function exportLesson(id, kind){
+  const node=curriculumNode(id); if(!node) return;
+  const msg=document.getElementById('lessonExportMsg');
+  const opts=lessonDocOpts(node);
+  const text = kind==='html' ? lessonToHTML(node, opts) : lessonToMarkdown(node, opts);
+  const name = lessonFileName(node, kind==='html' ? 'html' : 'md');
+  const say=t=>{ if(msg) msg.textContent=t; };
+  if(typeof window!=='undefined' && window.desktopBridge?.saveFile){
+    const res=await window.desktopBridge.saveFile(name, text);
+    if(res && res.canceled) return;
+    say((res&&res.ok) ? 'Saved. It is yours — print it, email it, or put it on your own site.' : 'Could not save that file.');
+    if(res&&res.ok) blip(700,.07);
+    return;
+  }
+  const blob=new Blob([text],{type: kind==='html'?'text/html':'text/markdown'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),800);
+  say('Saved to your Downloads folder as '+name+'.');
+}
 export function newLessonForm(id){ state.treeView={mode:'write', id:id||null}; renderLearningTree(); }
 export function saveMyLesson(existingId){
   const g=i=>document.getElementById(i)?.value ?? '';
@@ -8385,6 +8479,12 @@ export function saveMyLesson(existingId){
     track: g('mlTrack').trim() || 'Your own lessons',
     level: Number(g('mlLevel'))||101,
     title, summary:g('mlSummary').trim(), prereqs, steps, mine:true, written:todayKey() };
+  /* THE SET TEXT — THE-TEACHERS-TREE-PLAN.md gap 1. Until this, the lesson
+     node was the ONE artifact in the Pavilion that could not cite a book,
+     while a note has carried chapter and page since this morning. An absent
+     field when there is no book, never an empty object. */
+  const bookSlug=g('mlBook').trim();
+  if(bookSlug) node.book={slug:bookSlug};
   const i=list.findIndex(x=>x.id===existingId);
   if(i>=0) list[i]=node; else list.unshift(node);
   persist(); logActivity((i>=0?'Rewrote':'Wrote')+' a lesson: "'+title+'".'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
@@ -8964,6 +9064,27 @@ export function takePacket(id){
     if(!data.hall) data.hall={investigations:[],experiments:[],dissections:[]};
     if(!data.hall.dissections) data.hall.dissections=[];
     data.hall.dissections.unshift({ id:'d-'+Date.now(), title:p.title, ts:todayKey(), text:(p.body||p.summary||'')+credit });
+  } else if(p.kind==='lesson' && (p.steps||[]).length){
+    /* A LESSON COMES BACK AS A LESSON — THE-TEACHERS-TREE-PLAN.md gap 3.
+       It used to fall through to the `else` below and land in Your Notes as
+       prose, so the collective tree in LIVING-TREE-AND-DISCUSSION-PLAN.md
+       could not grow at all: hand a colleague a lesson and he retyped it.
+
+       Prerequisites travel as TITLES (publishFrom says why: ids are local to
+       one Pavilion). Matched against what THIS Pavilion has, and simply
+       dropped where there is no match — a lesson locked behind something the
+       recipient does not own would be unopenable, and this project does not
+       withhold. A packet with no steps still falls through to a note, because
+       there is nothing there to walk. */
+    const steps=(p.steps||[]).map(l=>{ const [t,...r]=String(l).split('|'); return { title:(t||'').trim(), body:r.join('|').trim() }; })
+      .filter(s=>s.title);
+    const prereqs=(p.needs||[]).map(t=>{
+      const hit=allNodes().find(n=>String(n.title||'').toLowerCase()===String(t).toLowerCase());
+      return hit?hit.id:null;
+    }).filter(Boolean);
+    myLessons().unshift({ id:'mine-'+Date.now().toString(36), track:p.track||'From the Commons',
+      level:Number(p.level)||101, title:p.title, summary:(p.summary||p.why||'')+credit,
+      prereqs, steps, mine:true, written:todayKey(), fromPacket:p.id });
   } else {
     data.notes.unshift({ id:newNoteId(), title:p.title, body:(p.body||p.summary||'')+credit, created:todayKey(), updated:todayKey() });
   }
@@ -12212,6 +12333,7 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
+  openLessonReading, exportLesson,
   openAlexandria, runLibraryTriage, applyTriageMove,
   acceptAllSuggestions, dismissSuggestions, acceptOneSuggestion,
   acceptShelfGroup, rejectShelfGroup, rejectOneSuggestion,
