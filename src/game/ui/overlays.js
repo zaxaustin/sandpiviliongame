@@ -14,7 +14,8 @@ import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName
 import { esc, jsq } from './dom.js';
 import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
          studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache,
-         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply } from './study-table.js';
+         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
+         studyTidyNote, studyToggleHistory, studyRestoreVersion } from './study-table.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
@@ -12599,6 +12600,7 @@ Object.assign(window, {
      one, so the two-directional export check keeps working. */
   studyStep, studyLabelToggle, studyLabelSave, studyUnlabel, studyOpenHere, studyAddNote,
   studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
+  studyTidyNote, studyToggleHistory, studyRestoreVersion,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,

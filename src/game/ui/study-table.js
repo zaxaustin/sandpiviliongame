@@ -33,6 +33,7 @@ import { paginate } from '../data/retrieval.js';
 import { findChapters } from '../data/chapters.js';
 import { mergeMarks, unitsFor, unitAt, unitLabel } from '../data/marks.js';
 import { ROLES, ROLE_KEYS, rosterForVisitor } from '../data/roles.js';
+import { versionsOf, addVersion, restoreVersion, versionSummary, hasHistory, TAG_ORIGINAL } from '../data/note-versions.js';
 
 /* Injected once, at import time in overlays.js. */
 let X = {};
@@ -297,10 +298,17 @@ export function notesInUnit(slug, unit) {
 
 function notesRow(b, unit) {
   const mine = notesInUnit(b.slug, unit);
+  const canTidy = !!(X.askResident && (!X.aiActive || X.aiActive()));
   return `<h4 style="margin:14px 0 4px">Your notes on this one${mine.length ? ' · ' + mine.length : ''}</h4>
     ${mine.length ? mine.map(({ n, i }) => `<div class="card" style="cursor:default">
-        <div class="s">${esc(n.ts || '')} · p. ${(n.page || 0) + 1}</div>
+        <div class="s">${esc(n.ts || '')} · p. ${(n.page || 0) + 1}${hasHistory(n) ? ` · <span style="color:#c9a86a">${versionsOf(n).length} versions</span>` : ''}</div>
         <div style="white-space:pre-wrap">${esc((n.text || '').length > 220 ? n.text.slice(0, 220) + '…' : n.text)}</div>
+        <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">
+          ${canTidy ? `<button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="studyTidyNote(${i})"
+              title="A cleaner version, kept BESIDE yours — nothing you wrote is replaced">✨ Tidy this up</button>` : ''}
+          ${hasHistory(n) ? `<button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="studyToggleHistory(${i})">🕐 ${view().openHistory === i ? 'hide' : 'history'}</button>` : ''}
+        </div>
+        ${view().openHistory === i ? historyStrip(n, i) : ''}
       </div>`).join('') : `<div class="meta">Nothing yet on this one.</div>`}
     <textarea id="studyNoteInput" rows="3" style="margin-top:8px"
       placeholder="What is this story actually saying? Your note keeps this page."></textarea>
@@ -308,6 +316,24 @@ function notesRow(b, unit) {
       <button class="btn" onclick="studyAddNote()">✎ Keep this note</button>
       <span class="meta" id="studyMsg" style="margin:0"></span>
     </div>`;
+}
+
+/* THE HISTORY, shown as what it is: a short list of what this note has been,
+   oldest first, with the current one marked. Every earlier version can be made
+   current again — and doing so APPENDS it, so pressing restore can itself be
+   undone. See data/note-versions.js for why that is the whole design. */
+function historyStrip(n, i) {
+  const rows = versionSummary(n, 90);
+  return `<div style="margin-top:8px;border-top:1px solid #55432e;padding-top:8px">
+    ${rows.map(v => `<div class="s" style="margin-bottom:6px;${v.current ? 'color:#f5e9d4' : 'opacity:.75'}">
+        <span class="badge lic">${esc(v.tag)}${v.by ? ' · ' + esc((ROLES[v.by] || {}).label || v.by) : ''}</span>
+        ${v.current ? '<span class="badge" style="border-color:#7fb069;color:#9fd07f">now</span>' : ''}
+        ${esc(v.ts || '')}
+        <div style="white-space:pre-wrap;margin-top:2px">${esc(v.preview)}</div>
+        ${v.current ? '' : `<button class="btn ghost" style="font-size:10.5px;padding:2px 8px;margin-top:3px" onclick="studyRestoreVersion(${i},${v.i})">↩ make this the one</button>`}
+      </div>`).join('')}
+    <div class="meta" style="margin:0">Nothing here is ever deleted — going back adds to the list rather than cutting it short.</div>
+  </div>`;
 }
 
 /* ---------- the actions ---------- */
@@ -381,6 +407,62 @@ export function studyAddNote() {
     if (msg) msg.textContent = '✓ kept on p. ' + (unit.from + 1);
   });
   blip(700, .06, 'sine', .03);
+}
+
+export function studyToggleHistory(i) {
+  const v = view();
+  v.openHistory = (v.openHistory === i) ? null : i;
+  renderStudyTable();
+}
+export function studyRestoreVersion(noteIndex, versionIndex) {
+  const b = tableBook(); if (!b) return;
+  const n = (data.bookNotes[b.slug] || [])[noteIndex]; if (!n) return;
+  restoreVersion(n, versionIndex);
+  persist();
+  blip(620, .06, 'sine', .03);
+  renderStudyTable();
+}
+/* ✎ TIDY THIS UP — the one place an AI touches the visitor's own writing, and
+   it never touches it. A cleaner version is APPENDED beside theirs, tagged
+   `ai-cleanup` and credited to whoever is at the table; theirs stays tagged
+   `original` and stays readable in the history. There is no press in this
+   panel that can lose a sentence.
+
+   Deliberately asks for the note back and NOTHING else — a model that
+   volunteers "Here's a tidied version:" would put that preamble into the
+   visitor's own note, so the obvious wrappers are stripped on the way in. */
+export async function studyTidyNote(i) {
+  const b = tableBook(); if (!b || !cache) return;
+  const unit = cache.units.find(u => u.idx === view().idx); if (!unit) return;
+  const n = (data.bookNotes[b.slug] || [])[i]; if (!n) return;
+  if (!X.askResident) return;
+  const key = chatState().agent;
+  const say = t => { const el = document.getElementById('studyMsg'); if (el) el.textContent = t; };
+  say('tidying…');
+  try {
+    const asked = 'Here is a note the reader wrote about this part, in their own words:\n\n"'
+      + (n.text || '') + '"\n\n'
+      + 'Give it back tidier — clearer, better ordered, the same length or shorter. Keep THEIR meaning, '
+      + 'THEIR voice and anything they noticed; add no new claims and no flattery. If it is already clear, '
+      + 'return it nearly unchanged. Reply with the tidied note ALONE — no preamble, no quotation marks, '
+      + 'no explanation of what you changed.';
+    let out = await X.askResident(key, [{ role: 'user', content: asked }], grounding(b, unit, cache));
+    out = String(out || '')
+      .replace(/^\s*(?:here(?:'s| is)[^:\n]*:|tidied(?: note)?:|revised:)\s*/i, '')
+      .replace(/^\s*["“”']+|["“”']+\s*$/g, '')
+      .trim();
+    if (!out) { say('nothing came back — try again.'); return; }
+    const before = versionsOf(n).length;
+    addVersion(n, out, 'ai-cleanup', key);
+    persist();
+    const after = versionsOf(n).length;
+    view().openHistory = i;                   // show them what changed, immediately
+    await renderStudyTable();
+    say(after > before ? '✨ tidied — yours is kept below as "original"' : 'it was already clear; nothing changed');
+    blip(700, .06, 'sine', .03);
+  } catch (e) {
+    say('the connection flickered — your note is untouched.');
+  }
 }
 
 /* For the toolbox button, so it names the book you are working through. */
