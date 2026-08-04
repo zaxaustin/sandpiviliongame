@@ -227,6 +227,14 @@ same app to Windows. To try the beta without replacing your own, run
 
 ## The backend — now, next, later
 
+**THE CATALOGUE IN POSTGRES IS A MANUAL SNAPSHOT, and it goes stale.**
+`tools/load-library.mjs` walks MinIO and writes rows; **nothing re-runs it**,
+and it only ever sees MinIO. `shelveAsPersonal()` has THREE storage paths —
+MinIO, a desktop app-data file, and inline in the save — so a book can be on
+the shelf and in none of the database's 294 rows. *The Long Discourses of the
+Buddha* was exactly that on 2026-08-03. **Never quote a database count as if
+it were the library.**
+
 **Now (and for the whole beta): there is no backend.** A Pavilion is a folder
 and a save. Three storage tiers, each degrading honestly:
 

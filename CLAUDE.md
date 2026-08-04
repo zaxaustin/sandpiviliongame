@@ -54,6 +54,58 @@ not aspirational.
 
 ---
 
+## TEST THE PLAYER'S BOOKS, NOT THE SEED. Added 2026-08-03, twice earned.
+
+At the steward's direct instruction, after he watched me do it twice in one
+day:
+
+> *"a few books are seeded correctly and another 100+ books are not seeded
+> correctly but added to the in-game menu by the player himself — that should
+> be the main pathway and also for testing."*
+
+| how it got here | count | shape |
+|---|---|---|
+| shipped in `seed.js` | **27** | 6 with full text, hand-vetted, licence + source, real `doc.sections` |
+| **added by the player** | **270+** | title/author read out of the file, no sections, text in MinIO *or* a desktop file *or* inline in the save |
+
+**The player-added book is the normal case. The seed is the exception**, and
+the gap only widens — a Library "built from scratch by its owner" is the whole
+design.
+
+**Why testing the seed proves almost nothing:** a seed book is *tidier* than a
+real one in every way a test cares about. Clean sections, a known licence, a
+guaranteed shape, text guaranteed present. Every rough edge that actually
+breaks things — a missing author, an OCR scan, no contents block, a title that
+is a filename, text that lives somewhere the backend never indexed — exists
+only on the player's side.
+
+**What that cost, on one day:**
+- the chapter finder passed against six seed texts and was **wrong on 62% of
+  the real 296** — 135 books finding zero chapters, 41 finding "the first
+  four";
+- fixed, and then every *interactive* test that afternoon ran against
+  `dhammapada` and `tao-te-ching` again — the reader, the notes, the drop, the
+  residents. The steward found the next bug himself, on **The Long Discourses
+  of the Buddha**, a book none of it had touched.
+
+**THERE IS A THIRD STORAGE PATH AND NOTHING INDEXES IT.** `shelveAsPersonal()`
+tries MinIO, then a desktop file, then **inline in the save**. The Long
+Discourses is in *neither MinIO nor Postgres* — it is inline. So even "294
+books in the database" is not the library: it is the part the backend has
+seen, because `tools/load-library.mjs` is a **manual snapshot and nothing
+re-runs it**. Never quote a database count as if it were the shelf.
+
+**So, concretely, when testing anything about books:**
+1. Reach for a **player-added** book first — `library-sources/` on this machine,
+   or the excerpts in `test/fixtures/chapters/` which were cut from real ones.
+2. **Sweep the whole library** when changing a rule that applies to all of them
+   (`tools/chapter-sweep.mjs`). "It works on the one I tried" is how both of the
+   above happened.
+3. A seed book is fine for checking a *panel opens*. It is not evidence about
+   **content handling**, ever.
+
+---
+
 ## LOOK AT IT. The single most useful habit here.
 
 Added 2026-08-02, after a day where every serious bug was found by looking and
