@@ -147,6 +147,25 @@ agents without a doubt."* One at a time, chosen for a purpose, each with its own
 thread. Personality is the skin. The Monk always gets the best **local** model
 and real room to think — never a hosted one.
 
+**DON'T FORCE THE MODEL TO CONFORM.** Stated 2026-08-04:
+
+> *"we dont have to force the modles to conform so stricly — thats for fine
+> tuning and having real personal modles which we are not there yet. having the
+> game like format to focus the users intentions is more than enough."*
+
+**The room already does the work.** Someone who walked to the Keep and sat with
+the Monk has already narrowed what they want; the prompt does not have to
+re-narrow it with rules. So: **identity, knowledge, and real grounding** —
+who this resident is, what they actually know, and what is genuinely in front
+of them right now. Not a rulebook.
+
+A thinking model handed a list of constraints audits itself against them
+mid-thought — *"Does this violate any rules? Is it helpful?"* was visible in
+the Monk's own reasoning on 2026-08-04 — which spends the visitor's seconds on
+compliance instead of on them. Every instruction added to a prompt is paid for
+on every message, forever. Grounding earns its place; another rule usually
+does not.
+
 **Two Pavilions.** This machine is the steward's own, maximally rich. The
 shareable version stays lean and neutral. Know which one a change serves.
 
