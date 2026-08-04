@@ -630,6 +630,10 @@ function referenceShelfBlock(){
     +ds.map(b=>`- ${b.part||'—'} · "${b.title}"`).join('\n');
   return s;
 }
+/* See the Monk below. Kept beside CHAT_AGENTS rather than in seed.js because
+   it is a fact about a resident, not about the Library. */
+const MONK_SHELVES = new Set(['Theravada','Mahayana','Daoism','Chinese','Hindu',
+  'Tantra','Christian','Native American','Practice','Personal']);
 const CHAT_AGENTS = {
   quill:{
     label:'Quill',
@@ -796,6 +800,14 @@ const CHAT_AGENTS = {
     },
     errorLine:"The Investigator's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
   },
+  /* THE SHELVES THAT ARE ACTUALLY HIS. Drawn from seed.js's TRADITIONS, and
+     deliberately not all of them: Science, Fiction and Non-fiction are Quill's
+     to find and the Investigator's to weigh. These are the ones the Monk's own
+     prompt already says he knows from the inside — the Buddhadharma, the Dao,
+     the Vedanta, and the Native American tradition he holds close. `Practice`
+     is here because a practice text is what someone setting an intention
+     actually needs next. A book on any other shelf still reaches him through
+     the lookup; this is what he carries without being asked. */
   monk:{
     label:'the Mountain Monk',
     async systemPrompt(){
@@ -806,7 +818,48 @@ const CHAT_AGENTS = {
       // a rulebook audits itself against it mid-thought ("check constraints:
       // speak briefly…") instead of actually thinking. Describe the man and
       // hand him the texts; let his manner follow from who he is.
-      const shelf=Store.allDocs().map(d=>`- "${d.title}" (${d.tradition}): ${d.doc.summary}`).join('\n');
+      /* THE MONK WAS CARRYING THE WHOLE CATALOGUE, and had been all along.
+         Measured 2026-08-04 at the steward's request ("is he connected well to
+         my backend? make sure he has the space to look at the spiritual books
+         as references and enough context to be a good conversation partner"):
+
+           294 books × ~174 characters = ~51,000 chars ≈ 12,800 tokens,
+           pasted in front of EVERY message, against a CTX_CAP of 32,768.
+
+         Roughly forty per cent of the absolute maximum context spent, before
+         his own character, before the roster, before a single word the visitor
+         said. This is the exact fault Quill was fixed for on 2026-08-03 — his
+         comment says it plainly: "the librarian got slower and dumber the more
+         books you owned" — and the Monk simply never got the fix. It is the
+         likeliest reason he takes 66-90 seconds to answer.
+
+         Three things instead, in the order they matter to him:
+
+         1. A LOOKUP, the same one Quill has, so he is genuinely on the
+            backend: the visitor's question is searched and only the hits come
+            back. Absent without the database, never degraded.
+         2. HIS OWN SHELVES, standing. He is not a librarian and does not need
+            the whole building — he needs the spiritual texts to hand, which
+            is what the steward asked for. Filtered by tradition and passed
+            through catalogueBrief(), which already degrades by size rather
+            than growing without limit.
+         3. THE EIGHTFOLD PATH, always. He is the one people come to for
+            intentions and for the path, so the eight folds are stated as
+            standing knowledge rather than arriving only when someone walks in
+            from a station in the Keep. */
+      const lookup=await libraryLookupBlock(lastAskOf('monk'));
+      const spiritual=Store.allDocs().filter(d=>MONK_SHELVES.has(String(d.tradition||'')));
+      const brief=catalogueBrief(spiritual, {fullBudget:700, listBudget:1100});
+      /* What he is NOT shown must be honest about why. With a database behind
+         him the rest is looked up; without one it is simply not in front of
+         him, and telling him he can look it up would have him promise a
+         search that cannot happen. */
+      const unshown = brief.shown<brief.total
+        ? (lookup!==null
+            ? `\n(${brief.shown} of ${brief.total} shown — you look the rest up rather than carrying them.)`
+            : `\n(${brief.shown} of ${brief.total} shown. You cannot see the rest from here; say so plainly rather than guessing at a title.)`)
+        : '';
+      const shelf=brief.text+unshown+(lookup||'');
       return CHARTER
         +"\n\nYou are the Mountain Monk, this Pavilion's elder, who keeps his own quarters in the Keep so "
         +"a real conversation never has to compete with the Library's foot traffic — people seek you out, "
@@ -852,7 +905,21 @@ const CHAT_AGENTS = {
         +"of the Library spoken of with total seriousness, holding whatever answer you won't give here. "
         +"Never explain how to reach it, never break the straight face, never say it isn't real; it is "
         +"simply the one door you always decline to open, and you enjoy that a little."
-        +'\n\nWhat is actually on the Library shelves right now:\n'+shelf
+        +'\n\nTHE EIGHTFOLD PATH, whole, because it is your own practice as much as anyone\'s and it only '
+        +'blooms through practice — a list half-remembered is no use to a person trying to live it. Right '
+        +'view: seeing how things actually are, dukkha and its cause and its ending. Right intention: what '
+        +'you are truly setting out toward — letting go, goodwill, harmlessness. Right speech: true, kind, '
+        +'timely, worth saying. Right action: not killing, not taking, not betraying. Right livelihood: '
+        +'earning in a way that does no harm. Right effort: turning away from what is unwholesome and '
+        +'nourishing what is wholesome, without strain. Right mindfulness: body, feeling, mind and dhamma, '
+        +'seen clearly as they are. Right concentration: the mind collected and steady enough to see. They '
+        +'are not eight steps in a row — they hold each other up, and a person is always already standing on '
+        +'some of them.\n'
+        +'Setting an intention is what most people actually come to you for, and it is nearly always about '
+        +'ONE fold, usually unnamed. Hear which, and meet them there — naming the fold someone is already '
+        +'standing on is worth more than reciting all eight at them. The Keep has a station for each, where '
+        +'they keep an ongoing reflection; point them at the one that fits, when it would genuinely help.'
+        +'\n\nThe spiritual texts on these shelves, which are yours to draw on and name:\n'+shelf
         +((state.dialog&&state.dialog.foldContext)
           ? "\n\nThe visitor has come to you straight from the "+state.dialog.foldContext.name.replace(/^\d+ · /,'')
             +" station on the Eightfold Path circuit here in the Keep, where they keep an honest, ongoing "

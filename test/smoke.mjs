@@ -787,7 +787,20 @@ for (const [key, s] of Object.entries(scenes)) {
      counted commentary as prompt AND swallowed real literals that followed
      an apostrophe. These are the first figures this guard has printed that
      mean what they say. ~10% headroom each. */
-  const BUDGET = { quill: 1100, steward: 820, investigator: 1280, monk: 1950,
+  /* THE MONK'S BUDGET WAS RAISED DELIBERATELY, 2026-08-04, which is what this
+     check asks you to do rather than trimming to fit. He carries the Eightfold
+     Path whole now — each fold with the line that makes it practicable — at the
+     steward's request: "its good for his own pratice as well as mine, it only
+     bllooms through pratice… it takes valuable space in the mind, for me its
+     worth having."
+
+     It is a cheap trade and the numbers say so. The same day, the catalogue
+     paste came out of his prompt: 294 books at ~174 characters each, about
+     12,800 tokens on EVERY message, replaced by his own shelves through
+     catalogueBrief (~159) plus a lookup on what was actually asked. Spending
+     ~90 of the ~12,600 tokens freed on the path he exists to teach is not a
+     budget overrun; it is what the room was cleared for. */
+  const BUDGET = { quill: 1100, steward: 820, investigator: 1280, monk: 2150,
                    computer: 810, tutor: 1100, sebastian: 1470 };
   const STR = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
 
