@@ -60,8 +60,32 @@ ok('the lesson is saved WITH its book', !!written.node && !!written.node.book &&
 ok('the lesson names its set text where you read it', /Set text: Discourses Of Epictetus/.test(written.panel),
   written.panel.slice(0, 140));
 
+/* "needing one and being able to have their assistance are two different
+   things." A teacher must never NEED an AI — this whole suite runs without
+   one — but picking a set text must be enough to ASK for help, without also
+   having to describe the book in a seed box. With no AI connected the
+   drafter should complain about the CONNECTION, not about having no subject. */
+const asking = await p.evaluate(async () => {
+  newLessonForm();
+  await new Promise(r => setTimeout(r, 350));
+  await draftLessonWithAI();                       // nothing filled in at all
+  const withNothing = document.getElementById('mlAiOut').textContent;
+  document.getElementById('mlBook').value = 'personal-discourses';
+  await draftLessonWithAI();                       // a set text, and nothing else
+  return { withNothing, withBook: document.getElementById('mlAiOut').textContent };
+});
+ok('with nothing at all, it asks what the lesson is about',
+  /what the lesson is about/i.test(asking.withNothing), asking.withNothing.slice(0, 70));
+ok('but a set text alone is a subject — it asks only for the connection',
+  /No local AI connected/i.test(asking.withBook), asking.withBook.slice(0, 70));
+
 /* THE DOOR. A step saying "Read chapters 2-3" must open chapter 2 — and the
    whole point is that he wrote that naturally, not in a syntax. */
+await p.evaluate(async () => {              // back to the lesson we saved
+  const save = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
+  openLesson(save.myLessons[0].id);
+  await new Promise(r => setTimeout(r, 300));
+});
 const doors = await p.evaluate(() => {
   const cards = [...document.querySelectorAll('#treePanel .card')];
   return cards.map(c => ({

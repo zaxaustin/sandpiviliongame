@@ -8327,17 +8327,56 @@ export async function draftLessonWithAI(){
   // made the librarian's suggestions look inert, 2026-07-27).
   const say=t=>{ const el=document.getElementById('mlAiOut'); if(el) el.textContent=t; };
   const seedEl=document.getElementById('mlSeed');
-  const seed=(seedEl&&seedEl.value||'').trim() || (document.getElementById('mlTitle')?.value||'').trim();
-  if(!seed) return say('Tell it what the lesson is about first — a few words is enough ("how to meditate", "reading the Dao De Jing").');
+  let seed=(seedEl&&seedEl.value||'').trim() || (document.getElementById('mlTitle')?.value||'').trim();
+  const bookSlug=(document.getElementById('mlBook')?.value||'').trim();
+  if(!seed && !bookSlug) return say('Tell it what the lesson is about first — a few words is enough ("how to meditate", "reading the Dao De Jing") — or pick a set text below and it will work from the book.');
   if(!isAIActive()) return say('No local AI connected (⚙ Manage AI connections). You can still write it by hand.');
   if(state.mlDraft && state.mlDraft.running) return; // never two chains at once
   const job = state.mlDraft = { running:true, stop:false };
   const stopBtn=document.getElementById('mlStopBtn'); if(stopBtn) stopBtn.style.display='';
   const set=(id,val)=>{ const e=document.getElementById(id); if(e&&val) e.value=val; return !!val; };
   const shelf=Store.allDocs().slice(0,20).map(d=>d.title).join(' | ');
+  /* GROUNDED IN THE SET TEXT, if one was chosen. The steward's line:
+     "needing one and being able to have their assistance are two different
+     things" — a teacher must never NEED an AI, and when he wants one it
+     should know the book he is actually teaching. Without this the drafter
+     produced a competent generic lesson about a title it had never read.
+
+     The chapter list is handed over as a CLOSED SET and named as one. That
+     is the whole reason this is worth doing: a step citing a chapter becomes
+     a door (data/lesson-doc.js), and a door to a chapter that does not exist
+     is exactly the confident-wrong-answer this project refuses. Where the
+     text cannot be read, the model is told to cite nothing at all rather
+     than guess. */
+  let bookBlock='';
+  if(bookSlug){
+    const bd=Store.getDoc(bookSlug);
+    if(bd){
+      // picking a book is enough to start — the book IS the subject
+      if(!seed) seed='teaching "'+bd.title+'"'+(bd.attribution?' by '+bd.attribution:'');
+      say('reading the set text first…');
+      let marks=[];
+      try{
+        const text=await loadBookText(bookSlug);
+        if(text) marks=findChapters(paginate(text)).marks;
+      }catch(e){ marks=[]; }
+      const chapters=marks.slice(0,40).map((m,i)=>`${i+1}. ${String(m.label||'').slice(0,70)}`);
+      bookBlock='\n\nTHE SET TEXT this lesson is built on: "'+bd.title+'"'
+        +(bd.attribution?' by '+bd.attribution:'')+'.'
+        +((bd.doc&&bd.doc.summary)?'\nWhat it is: '+bd.doc.summary:'')
+        +(chapters.length
+          ? '\n\nITS CHAPTERS. These are the only ones that exist — refer to them by number, and NEVER '
+            +'invent one that is not on this list:\n'+chapters.join('\n')
+            +(marks.length>40?`\n…and ${marks.length-40} more.`:'')
+            +'\n\nWhere a step asks the learner to read part of the book, say so plainly in the step itself '
+            +'— "Read chapters 3-4", "Read chapter 7" — using only the numbers above. Those become real '
+            +'links to the page.'
+          : '\nIts chapters could not be read, so do NOT cite any chapter or page number anywhere.');
+    }
+  }
   const ask=async(prompt,opts)=>{
     if(job.stop) return '';
-    const reply=await AI.chat([{role:'system',content:WORK_CHARTER+'\n\n'+DRAFT_SYS},{role:'user',content:prompt}]);
+    const reply=await AI.chat([{role:'system',content:WORK_CHARTER+'\n\n'+DRAFT_SYS+bookBlock},{role:'user',content:prompt}]);
     return isEmptyReply(reply) ? '' : cleanAnswer(reply,opts);
   };
   const N=5, total=3+N;

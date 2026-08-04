@@ -782,6 +782,14 @@ parsed. A step that names nothing gets no door, deliberately: a lesson that
 cites the wrong pages is a class that goes wrong on Monday, so where it isn't
 sure it says nothing at all.
 
+**And the AI reads the book before it helps.** With a set text chosen,
+**✨ Draft it** works *from that book* — it's given the real chapter list and
+told plainly that those are the only chapters that exist, so the readings it
+writes into the steps are real ones and become working doors. Picking a book is
+enough on its own; you don't have to describe it as well. None of this is
+required — you can write every word by hand, and the whole Learning Tree works
+with no AI connected at all.
+
 **Take the lesson out of the Pavilion.** On any lesson: **⤓ Save as Markdown**
 for something to paste anywhere, or **⤓ Save as a web page** for one
 self-contained `.html` file — styles inside it, nothing fetched, prints
