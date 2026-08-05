@@ -376,6 +376,17 @@ leave the window-export block in `overlays.js`, which owns it.
 > that check were wrong first**, each found by breaking it on purpose. Do not
 > trust a green suite on a fresh cut until you have opened the app.
 
+> **0.1.0-beta.4 IS BUILT AND VERIFIED, NOT PUBLISHED** (2026-08-04).
+> `release/Sand Pavilion Setup 0.1.0-beta.4.exe`, 101 MB, hash
+> `E2751A93A92CC6557A9D871297EEC7C14C9D08EBF1724A62FD1A60D4BA0C45B9`.
+> `packaged-boot` says SHIPPABLE and `verify:release` says the docs match the
+> artifact. **Publishing is a human action** — the command is in
+> `plans/SHIPPING-THE-BETA.md`, and beta.3 is still the published release.
+>
+> The build number is now **derived** from `package.json` by `vite.config.js`
+> (`__APP_VERSION__`); it had already drifted a version behind as a literal.
+> `verify:release` checks the derived form and was broken on purpose.
+
 **The immediate next three, in the steward's stated order:**
 
 1. **The Learning Tree as a real visual tree** — his words, *"like a visual

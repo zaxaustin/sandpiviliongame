@@ -461,3 +461,75 @@ STILL NOT DONE
   - rewriting the two Caravan scripts against local Postgres + MinIO
   - seven more overlays cuts; the Learning Tree as a visual tree; the
     Course Board; the Monk's role
+
+================================================================
+AND THEN THE BUILD — 0.1.0-beta.4
+================================================================
+
+"lets get the notes and lesson planning to a good stay then lets finnaly
+build the beta build... anyhting glaring to do first?"
+
+Asked what was glaring. Two things, both the house failure mode — a thing
+that looks deliberate rather than broken, so nobody reports it.
+
+STANDING INSTRUCTIONS RENDERED ZERO BUTTONS. The filter asked for
+CHAT_AGENTS[k].name; the entries have only ever had .label. So the resident
+switcher was an empty row, and the heading read the raw key — "Something you
+want quill to remember" — instead of "Quill". Broken since before the
+residents split. A visitor could only set an instruction for whichever
+resident they arrived from and had no way to learn the other six existed.
+Fixed, then LOOKED AT: real Chrome, panel open, screenshot read. Seven
+buttons, current one highlighted.
+
+renderManageLibrary() WAS CALLED AND DEFINED NOWHERE. Nothing passes
+from==='manage' today, so it was a crash waiting for its first caller — the
+exact shape the free-identifier guard was written for, sitting in the tree
+the whole time. Repointed at renderMyLibrary().
+
+THE BUILD NUMBER WAS TYPED TWICE
+
+overlays.js said 'Build: 0.1.0-beta.3' while package.json said beta.4.
+verify:release caught it. Correcting the literal would have been the small
+fix; rule 4 says derive it. vite.config.js now reads package.json and
+defines __APP_VERSION__, so they cannot disagree.
+
+That broke verify:release, which only knew how to read a literal. Taught it
+the derived form rather than weakening either side, and it now checks the
+STRONGER property: overlays.js using __APP_VERSION__ while vite.config.js
+does not define it would stamp every bug report "dev". Broken on purpose —
+removed the define, it failed; restored, it passed.
+
+Worth noting the shape: a fix made a guard obsolete, and the temptation was
+to delete the guard. The guard was re-pointed at the new invariant instead.
+
+A CORRECTION TO MY OWN NUMBER
+
+I had been saying PGlite costs 25 MB in the installer. That is disk after
+install. NSIS compresses it: the download went 99,605,068 -> 106,245,146, so
++6.3 MB. The release notes give both rather than the scarier one.
+
+VERIFIED IN THE ARTIFACT, NOT THE SOURCE TREE
+
+  app.asar              electron/db.cjs, tools/schema.sql, both migrations
+                        (so applySchema finds them via sqlDir's asar branch)
+  app.asar.unpacked     @electric-sql/pglite, 25 MB, where WASM can load
+  packaged-boot.cjs     SHIPPABLE
+  verify:release        docs match artifact, hash verified
+
+  release/Sand Pavilion Setup 0.1.0-beta.4.exe   101 MB
+  E2751A93A92CC6557A9D871297EEC7C14C9D08EBF1724A62FD1A60D4BA0C45B9
+
+MAC-BUILD.md gained the one thing it could not have known: the app ships a
+database now, it needs no Xcode because PGlite is WebAssembly rather than
+compiled code, and there is a specific check (ls the app.asar.unpacked pglite
+dist) because "outside the asar" works on one platform and quietly fails on
+another. An app with no database looks like a working app right up until
+someone searches their notes.
+
+NOT DONE, and deliberately so — the beta was the priority:
+  - Records Hall still a hardcoded 5-entry array frozen at 2026-07-10
+  - notesForBook/notesByPlace, chaptersFor/needsChapters, shelving
+  - migration 004-note-versions.sql
+  - the two Caravan scripts rewritten against local Postgres + MinIO
+  - publishing: the .exe exists and is verified; only a human publishes it,
+    and SHIPPING-THE-BETA.md has the command
