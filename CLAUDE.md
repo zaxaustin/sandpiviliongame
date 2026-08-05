@@ -175,24 +175,39 @@ shareable version stays lean and neutral. Know which one a change serves.
 
 ```
 MinIO (Docker)     book TEXT        big, opaque, written once
-Postgres (Docker)  the KNOWLEDGE    cards, shelves, chapters, notes — small,
-                                    queryable, edited constantly
+Postgres           the KNOWLEDGE    cards, shelves, chapters, notes — small,
+  Docker, or                        queryable, edited constantly
+  PGlite in-app
 localStorage       YOUR day         days, notes, courses, progress
 ```
 
-**This machine: assume the database.** Build features that need it; do not write
-a second implementation for a machine that isn't this one.
+**EVERY DESKTOP INSTALL HAS POSTGRES** (2026-08-04). `electron/db.cjs` picks the
+container when it answers and its own embedded PGlite otherwise — **below** the
+named-query seam, so both run the same SQL against the same schema from the same
+files in `tools/`. The renderer cannot tell which, and must not try. Only
+`dbStatus()` names it, and only so a person can be told.
 
-**A feature that needs it is ABSENT or LOCKED — never DEGRADED**, and it says
-plainly how to turn it on. *"we can encourage that by locking out features that
-are hindering us… but doing as much as we can without a database should be
-good."* One code path plus a visibility check; never two implementations. The
-scar is in `store.js`: *"the fallback path was the only path anyone actually
-ran, which meant it was load-bearing while still being written and tested as a
-fallback."*
+**So "needs Docker" is no longer a reason to lock a feature.** That category is
+retired. Docker is now only about the *book text* (MinIO) and sharing one
+database between machines.
 
-**The shareable beta still runs with nothing.** Seed + localStorage is a
-complete Pavilion. A release gate, with tests run against a stopped container.
+**A feature that genuinely needs something absent is ABSENT or LOCKED — never
+DEGRADED**, and it says plainly how to turn it on. The rule still stands; it just
+has far less to cover. One code path plus a visibility check; never two
+implementations. The scar is in `store.js`: *"the fallback path was the only path
+anyone actually ran, which meant it was load-bearing while still being written
+and tested as a fallback."* **The embedded database is the answer to that scar,
+not another instance of it** — it is not a second implementation, it is the same
+SQL with a different file on disk. And it *is* the common path now, so test it as
+the primary, because for everyone who is not the steward it is.
+
+**Soft failure is unchanged.** "Everyone has a database" must not become
+"everything assumes one": a corrupt data directory, a full disk, a platform where
+the WASM will not load all still return `null`. Break it on purpose.
+
+**The shareable beta still runs with nothing.** Seed + localStorage is a complete
+Pavilion. A release gate — and "with the container stopped" now means "on PGlite"
+rather than "on nothing", so a third case exists: **neither**.
 
 **Storage ceilings, measured 2026-08-04** — real books average 563 KB:
 
@@ -200,9 +215,16 @@ complete Pavilion. A release gate, with tests run against a stopped container.
 |---|---|---|
 | **web build** | **~10–20 books** | text goes inline into a ~5–10 MB localStorage quota |
 | **desktop app** | hundreds | `libraryWrite` puts text in `.txt` under userData; the save keeps only the catalogue row |
-| **+ Docker** | no practical limit | MinIO for text, Postgres for search across every note |
+| **+ Docker** | no practical limit | MinIO holds the text outside the app |
 
-Docker buys **search and sorting**, not capacity. Say so honestly.
+**Docker buys capacity for TEXT, not search** — search comes with the app now.
+That is the reverse of what this table said this morning, and the honest version.
+
+**PGlite, measured:** 25 MB in the installer (all of it `app.asar.unpacked`),
+40 MB for an empty cluster under userData, **1.5 s cold open — do it after the
+title screen, never in front of a visitor** — 90 ms warm, `searchNotes` in
+1–3 ms at 5,000 notes. Full-text search is real: it stems, ranks, and ships 30
+dictionaries.
 
 ---
 

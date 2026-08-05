@@ -961,13 +961,31 @@ export function libraryCeilingLine(){
     : `You have ${n} books here. A browser tab holds roughly a dozen full texts before its storage `
       +`is full; the desktop app keeps them as real files instead.`;
 }
-export function backendStatusLine(){
+/* THE DESKTOP APP HAS A DATABASE. All of them, not just the ones with Docker
+   — the app carries its own Postgres (PGlite) and falls back to it whenever
+   the container is not answering. So this line stopped being "have you
+   installed a container" and became "which home are you on", and the honest
+   answer for a browser is no longer "install Docker" but "use the app".
+
+   `kind` comes from electron/db.cjs and is the only place the difference is
+   ever visible; every other caller asks for a named query and never learns
+   where it ran. */
+export function backendStatusLine(kind){
   const on = Store.dbAvailable && Store.dbAvailable();
   if(!on) return { on:false,
-    text:'○ Running on this device alone — everything works. A local database (Docker + Postgres) '
-        +'is an optional upgrade that adds search across all your notes and faster sorting of a big shelf — '
-        +'it does not change how many books you can keep.' };
-  return { on:true, text:'● Local database connected — your shelves, chapters and notes are indexed.' };
+    text:'○ Running in a browser tab — everything works, but nothing is indexed. '
+        +'The desktop app carries its own database: search across every note you have '
+        +'written, and room for far more books than a tab can hold.' };
+  if(kind === 'docker') return { on:true,
+    text:'● Postgres in Docker — your shelves, chapters and notes are indexed, '
+        +'and the container holds the book text beside it.' };
+  if(kind === 'embedded') return { on:true,
+    text:'● Built-in database — your shelves, chapters and notes are indexed. '
+        +'Nothing to install; Docker is only needed to keep the book text outside the app.' };
+  // bridge present but neither home answered — say so rather than imply health
+  return { on:false,
+    text:'○ The database did not open. Everything still works and nothing is lost; '
+        +'search and sorting are the parts that need it.' };
 }
 /* What a database actually adds, in the visitor's terms rather than ours.
    Kept beside the status so the two can never drift apart. */
@@ -979,7 +997,12 @@ export const BACKEND_UPGRADES = [
 ];
 export async function refreshBackendStatus(){
   const el=document.getElementById('dbMode'); if(!el) return;
-  const s=backendStatusLine();
+  /* Asked, not assumed. dbAvailable() only means "there is a bridge" — it
+     cannot tell a working database from one that failed to open, and before
+     the embedded one existed that gap did not matter because the two were
+     the same thing. Now they are not. */
+  const st = Store.dbStatus ? await Store.dbStatus() : null;
+  const s = backendStatusLine(st && st.up ? st.kind : null);
   /* The ceiling warning rides on the same line, and only when it is true of
      THIS visitor — a browser reader whose shelf is filling up. Silence
      otherwise; a warning everyone sees is a warning nobody reads. */

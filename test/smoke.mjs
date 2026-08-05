@@ -910,9 +910,17 @@ for (const [key, s] of Object.entries(scenes)) {
 
    That is the house failure mode with a new coat, and it is the same shape as
    the window-export bug: a name referenced in one place and defined in
-   another, with nothing checking the join. So it gets checked. */
+   another, with nothing checking the join. So it gets checked.
+
+   COMMENTS ARE STRIPPED FIRST, added 2026-08-04. Writing the sentence
+   "dbAvailable() only means there is a bridge" in a comment failed this check
+   against code that was correct. That is the window-export bug in a mirror —
+   there a comment could SATISFY the guard, here a comment could TRIP it — and
+   both directions send a future session hunting a bug that does not exist.
+   Prose about a function is not a call to it. */
 {
-  const ovSrc = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+  const ovSrc = strip(readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8'));
   const dataDir = new URL('../src/game/data/', import.meta.url);
   const modules = readdirSync(dataDir).filter(f => f.endsWith('.js'));
 

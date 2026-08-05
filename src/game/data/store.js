@@ -103,6 +103,16 @@ export async function dbWrite(name, params){
   try { return await b.dbWrite(name, params); } catch(e){ return null; }
 }
 
+/* WHICH HOME, for the one line that tells the visitor. Everything else in
+   this file deliberately cannot tell the difference — the whole design is
+   that a panel asks for 'searchNotes' and never learns where it ran. This
+   exists so a person can be told, and for nothing else.
+   -> { up, kind:'docker'|'embedded'|null, label, error } or null in a browser. */
+export async function dbStatus(){
+  const b = bridge(); if(!b || !b.dbStatus) return null;
+  try { return await b.dbStatus(); } catch(e){ return null; }
+}
+
 /* A database row -> the shape every panel in this app already expects.
    `doc.fullText.storage` is how the Reader finds the text in MinIO, exactly
    as a hand-shelved book does today. */
@@ -213,8 +223,8 @@ export const Store = (() => {
     libraryReady,
     registerPersonalDocs,
     registerCatalogOverrides,
-    // the local Postgres, when the desktop app has one — see the block above
-    dbAvailable, dbQuery, dbWrite, hydrateFromDb,
+    // the database — Docker Postgres or the built-in one, see the block above
+    dbAvailable, dbQuery, dbWrite, dbStatus, hydrateFromDb,
     allDocs(){ return mergedDocs(); },
     listDocs(tradition){ return mergedDocs().filter(d => d.tradition === tradition); },
     getDoc(slug){ return mergedDocs().find(d => d.slug === slug) || null; },
