@@ -12,8 +12,8 @@ follow a link.
 ## The file
 
 ```
-release/Sand Pavilion Setup 0.1.0-beta.3.exe        95.0 MB
-SHA256  2B4FF1EFA7197433BA5E4BC87CEA8F16A9F97C7683E487712F736C66E4FD9DD3
+release/Sand Pavilion Setup 0.1.0-beta.4.exe        101 MB
+SHA256  E2751A93A92CC6557A9D871297EEC7C14C9D08EBF1724A62FD1A60D4BA0C45B9
 ```
 
 One file. It's a one-click NSIS installer: no options, installs per-user
@@ -76,7 +76,7 @@ Include the SHA-256 above if they're the kind of person who'd check it.
 They can verify with:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.3.exe" -Algorithm SHA256
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.4.exe" -Algorithm SHA256
 ```
 
 ---
@@ -106,9 +106,9 @@ Once that's decided:
 
 ```bash
 gh auth login                      # you are not logged in yet
-gh release create v0.1.0-beta.3 \
-  "release/Sand Pavilion Setup 0.1.0-beta.3.exe" \
-  --title "Sand Pavilion 0.1.0-beta.3" \
+gh release create v0.1.0-beta.4 \
+  "release/Sand Pavilion Setup 0.1.0-beta.4.exe" \
+  --title "Sand Pavilion 0.1.0-beta.4" \
   --notes-file plans/BETA-RELEASE-NOTES.md \
   --prerelease
 ```
@@ -183,7 +183,7 @@ them reading, taking notes, or planning a day.
 for public repos. Nobody has to own one.
 
 ```bash
-git tag v0.1.0-beta.3 && git push --tags
+git tag v0.1.0-beta.4 && git push --tags
 ```
 
 Then the Actions tab, wait a few minutes, download both artifacts, and attach

@@ -42,10 +42,28 @@ const installer = `release/Sand Pavilion Setup ${version}.exe`;
 /* 1 — the in-app build string must match package.json, or a tester's bug
        report is labelled with the wrong build and is worth much less. */
 const overlays = readFileSync('src/game/ui/overlays.js', 'utf8');
-const buildLine = overlays.match(/'Build:\s+([0-9][^']*)'/);
-if (!buildLine) bad("overlays.js: couldn't find the 'Build: …' line the feedback composer stamps on a report");
-else if (buildLine[1].trim() !== version) {
-  bad(`overlays.js says Build: ${buildLine[1].trim()} but package.json says ${version} — every bug report would carry the wrong build number`);
+/* Two legal shapes, and the DERIVED one is the one we want.
+
+   This check used to accept only a literal — `'Build:      0.1.0-beta.3'` —
+   and on 2026-08-04 that literal had drifted a whole version behind
+   package.json. Catching it was the check working. The fix was to stop
+   typing the version twice: vite.config.js reads package.json and defines
+   __APP_VERSION__, so drift is now impossible rather than merely detected.
+
+   So: accept the derived form and stop looking (there is nothing left that
+   CAN disagree), and keep the literal comparison for anyone who types one
+   back in. Rule 4 — derive any list that must match another file. */
+if (/__APP_VERSION__/.test(overlays)) {
+  if (!/define/.test(readFileSync('vite.config.js', 'utf8'))
+      || !/__APP_VERSION__/.test(readFileSync('vite.config.js', 'utf8'))) {
+    bad('overlays.js uses __APP_VERSION__ but vite.config.js does not define it — the build number would read "dev" in the shipped app');
+  }
+} else {
+  const buildLine = overlays.match(/'Build:\s+([0-9][^']*)'/);
+  if (!buildLine) bad("overlays.js: couldn't find the 'Build: …' line the feedback composer stamps on a report");
+  else if (buildLine[1].trim() !== version) {
+    bad(`overlays.js says Build: ${buildLine[1].trim()} but package.json says ${version} — every bug report would carry the wrong build number`);
+  }
 }
 
 /* 2 — the installer the docs describe must exist, and every hash printed

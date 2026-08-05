@@ -40,8 +40,8 @@ npm run electron:build:beta  # the actual build — 5-10 minutes
 The results land in `release/`:
 
 ```
-Sand Pavilion 0.1.0-beta.3 arm64.dmg     ← Apple Silicon (M1/M2/M3/M4)
-Sand Pavilion 0.1.0-beta.3 x64.dmg       ← Intel Macs
+Sand Pavilion 0.1.0-beta.4 arm64.dmg     ← Apple Silicon (M1/M2/M3/M4)
+Sand Pavilion 0.1.0-beta.4 x64.dmg       ← Intel Macs
 ```
 
 **Use `electron:build:beta`, never the plain `electron:build`.** The `:beta`
@@ -56,6 +56,29 @@ this line go past:
 
 If the build stops with **"THIS BUILD MUST NOT BE SHIPPED"**, that's the
 verifier doing its job. Don't work around it — say what it printed.
+
+### One extra check, new since beta.4
+
+The app now carries **its own Postgres** (PGlite), which is WebAssembly rather
+than compiled code — so it needs no Xcode and nothing platform-specific, and
+this recipe is unchanged because of it. But it must be left **outside** the
+`asar` archive or it cannot load at runtime, and that is the kind of thing that
+works on one platform and quietly fails on another.
+
+After the build, confirm it landed:
+
+```bash
+ls "release/mac-arm64/Sand Pavilion.app/Contents/Resources/app.asar.unpacked/node_modules/@electric-sql/pglite/dist" | head
+```
+
+You should see a list of `.tar.gz` files (`btree_gin.tar.gz` and friends — those
+are Postgres extensions). **An empty result or "No such file or directory" means
+the app will open with no database**, which looks like a working app until
+someone searches their notes. Say so rather than shipping it.
+
+Then open the built app and read the **title screen's status line**. It should
+say *"Built-in database — your shelves, chapters and notes are indexed."* If it
+says the database did not open, that is the real answer and worth reporting.
 
 ---
 
@@ -127,7 +150,7 @@ Please also mention:
 - anything that looked wrong, however small
 
 If you'd rather not deal with `git`, the whole thing can also run in CI on
-GitHub's own Macs: push a tag (`git tag v0.1.0-beta.3 && git push --tags`) and
+GitHub's own Macs: push a tag (`git tag v0.1.0-beta.4 && git push --tags`) and
 `.github/workflows/build-installers.yml` builds both platforms. Doing it by hand
 on a real Mac is more useful the first time, though, because you can actually
 *use* the result.

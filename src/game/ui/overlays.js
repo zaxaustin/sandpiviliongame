@@ -5153,7 +5153,12 @@ function reportContext(){
   const nav = (typeof navigator!=='undefined' && navigator.userAgent) || '';
   const os = /Windows/.test(nav) ? 'Windows' : /Mac/.test(nav) ? 'macOS' : /Linux/.test(nav) ? 'Linux' : 'unknown';
   return [
-    'Build:      0.1.0-beta.3',
+    /* Derived from package.json by vite.config.js, never typed here. This
+       line read 0.1.0-beta.3 while package.json said beta.4, which would
+       have put the wrong build number on every bug report from that
+       installer. `typeof` guard so a non-bundled import (the smoke suite)
+       says "dev" rather than throwing. */
+    'Build:      ' + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'),
     'Running as: ' + (desktop ? 'the installed app' : 'a browser'),
     'System:     ' + os,
     'Local AI:   ' + (ai ? 'connected' : 'not connected'),

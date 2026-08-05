@@ -27,7 +27,7 @@ keep your own work — one that belongs entirely to the machine it runs on.
 
 Download `Sand Pavilion Setup ….exe` and run it. That is the entire setup — it
 installs for you only (no administrator password), makes a Start Menu shortcut,
-and opens in its own window. **Windows, 95 MB.**
+and opens in its own window. **Windows, 101 MB.**
 
 > **On a Mac?** Open **[sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app)**
 > instead — the same Pavilion, in Safari or Chrome, nothing to install and

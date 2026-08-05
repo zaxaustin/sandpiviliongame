@@ -1,4 +1,4 @@
-**Sand Pavilion 0.1.0-beta.3** — a small world for reading, thinking, and the
+**Sand Pavilion 0.1.0-beta.4** — a small world for reading, thinking, and the
 quiet work of a day, kept entirely on your own machine.
 
 This is a **beta**. Expect rough edges, and please tell me about them.
@@ -7,7 +7,7 @@ This is a **beta**. Expect rough edges, and please tell me about them.
 
 ### Installing
 
-Download `Sand Pavilion Setup 0.1.0-beta.3.exe` below and run it. It installs
+Download `Sand Pavilion Setup 0.1.0-beta.4.exe` below and run it. It installs
 for you only — no administrator password — and appears in the Start menu.
 
 **Windows will warn you it doesn't recognise the app.** Click **More info**,
@@ -16,8 +16,8 @@ then **Run anyway**. That's because I haven't bought a code-signing certificate
 because anything is wrong. If you'd like to check the download:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.3.exe" -Algorithm SHA256
-# 2B4FF1EFA7197433BA5E4BC87CEA8F16A9F97C7683E487712F736C66E4FD9DD3
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.4.exe" -Algorithm SHA256
+# E2751A93A92CC6557A9D871297EEC7C14C9D08EBF1724A62FD1A60D4BA0C45B9
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -66,6 +66,30 @@ looking after the first sixty books. **That is fixed here**, and it now: only
 touches books you haven't filed yet unless you tick a box, never stops early,
 and always offers an undo. Installing this over beta.2 is safe — your library,
 notes and save carry across untouched.
+
+### New in beta.4 — the app has a real database now, and you install nothing
+
+- **Search every note you have ever written, at once.** The one thing the old
+  save file genuinely could not do. It matches by *meaning* as well as
+  spelling: search `walking` and it finds the note that says `walked`. When it
+  adds notes that way it tells you — *"+2 found by meaning as well as
+  spelling"* — so you're never left wondering why something appeared.
+- **The desktop app now carries its own Postgres.** Nothing to install, no
+  Docker, no account. It costs **6 MB more to download** than beta.3 and about
+  25 MB on disk once installed, and it opens behind the title screen so you
+  never sit waiting for it. Docker used to be the price of having a database at
+  all; now it only matters if you want the *text* of a very large library kept
+  outside the app. The title screen says which one you're on, in one plain line.
+- **Standing instructions finally offer every resident.** That panel has been
+  showing an empty row of buttons since it was built — you could only ever set
+  an instruction for whichever resident you happened to arrive from, and there
+  was no way to discover the other six existed. Seven residents, all reachable.
+- A book removed from Your Shelf no longer risks a dead redraw.
+
+*Your save carries across untouched. The database is an **index** over your
+work, not a second copy of it to keep safe — everything still lives in your
+save, export still carries all of it, and if the database ever fails to open
+the Pavilion says so plainly and keeps working without it.*
 
 ### New in beta.3
 
