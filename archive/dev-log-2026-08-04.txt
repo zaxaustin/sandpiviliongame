@@ -181,6 +181,91 @@ Docker buys SEARCH AND SORTING, not capacity. Say so honestly. The earlier
 depending on which build you meant.
 
 
+SECOND SESSION — THE BACKEND  (d7ecc80, c330c9b, 75e1998, e8929ac)
+------------------------------------------------------------------
+
+The steward took stock and read the audits correctly:
+
+  "trying to do everything without a backend seems to be a problem we need to
+   adress the state of the backend now before we deal with the other things
+   they shuld be pain points to focus on getting a backend setup for"
+
+The evidence was stronger than expected. electron/db.cjs defined 15 named
+queries and 11 writes; the renderer called THREE. Migrations 002 and 003
+shipped complete schema, views and IPC that nothing read. The Records Hall is
+a database with no consumer. And the third copy of the uncapped-catalogue bug
+is live in researchSystemPrompt, because with nothing to query, every
+grounding block gets assembled by hand and each one is written fresh.
+
+EVERY DESKTOP INSTALL NOW HAS POSTGRES. getPool() became getBackend():
+Docker when the container answers, PGlite under userData otherwise.
+
+WHY THAT IS ONE PATH AND NOT TWO, which is the whole design question here.
+store.js carries the scar — "the fallback path was the only path anyone
+actually ran, which meant it was load-bearing while still being written and
+tested as a fallback." The difference is WHERE the choice sits: BELOW the
+named-query seam, so both homes run the same SQL against the same schema from
+the same files in tools/. Nothing to drift. That is also why PGlite and not
+better-sqlite3 — SQLite would mean a second hand-maintained schema.
+
+And the fallback IS the common path now. Everyone who is not the steward runs
+the embedded one, so it gets tested as the primary, because it is.
+
+MEASURED BEFORE COMMITTING, because if full-text search did not really work
+the plan was worth much less:
+
+  package                 25.4 MB (all of it app.asar.unpacked)
+  empty cluster, userData 39.9 MB
+  cold open, first ever   1.5 s  -> behind the title screen, never in front
+  warm open               90 ms
+  schema + 2 migrations   57 ms; 7 ms to re-apply, idempotence holds
+  searchNotes @ 5,002     1.0-2.7 ms
+  title screen paints in  144-173 ms with the open happening behind it
+
+Full-text is real: walked/walking/walks all stem to 'walk', 30 dictionaries,
+quoted phrases and negation parse, ts_rank discriminates.
+
+THE MEASUREMENT WAS THE BROKEN THING. AGAIN. TWICE MORE.
+
+  - The spike's first run said NO-GO on "no stemming" and "ts_rank did not
+    order". Both were the fixture. The stemming probe searched a word that was
+    also in its own seed corpus, so LIMIT 10 buried the row under test; the
+    ranking probe used a two-word AND query no generated row satisfied, then
+    called the empty set unordered. THIS ONE WOULD HAVE CANCELLED THE PLAN.
+  - The note-search suite's deletion check called Store.save(), which writes
+    localStorage without touching the in-memory data the panel reads. Nothing
+    was deleted, so a working prune looked broken.
+
+That is now eight times. When a check fails, suspect the check first.
+
+TWO REAL BUGS, both invisible until the embedded database made the EMPTY
+database the common case:
+
+  1. hydrateFromDb() returned early on zero rows, so nothing was ever written
+     UP. Harmless against the steward's 294-book database, which has never
+     been empty. Fatal for everybody else: books stayed empty forever, and
+     with it every join hanging off it.
+  2. notes.slug is a foreign key into books and writeMany is ONE transaction.
+     A single note on a seed book would have rolled back the entire note
+     index — every note unsearchable because of one.
+
+SEARCH EVERY NOTE YOU HAVE WRITTEN now works. The index WIDENS the existing
+substring filter rather than replacing it: one filter, two inputs, so the two
+can never disagree. It says "+3 found by meaning as well as spelling" when it
+adds something, because a search that quietly returns more than it should
+looks exactly like one that is wrong.
+
+test/live/note-search.cjs is new and has to be Electron — the other live
+suites drive a browser at the preview server, where there is no bridge and a
+stub would prove the wiring but nothing about whether Postgres stems. It
+redirects userData to a temp dir and points the container port at nothing, so
+it always runs the fresh-embedded case and never writes into the real one.
+
+"Needs Docker" is retired as a reason to lock a feature. CLAUDE.md's storage
+table is now the reverse of what it said that morning: Docker buys capacity
+for TEXT, not search. Search comes with the app.
+
+
 WHERE IT STANDS
 ---------------
 

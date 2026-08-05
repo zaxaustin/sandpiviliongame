@@ -239,7 +239,16 @@ node test/live/writing-desk.mjs            # the desk, the picker, one thread ea
 node test/live/study-chain.mjs             # note→lesson→a path you walk→Today
 node test/live/lab.mjs  bench.mjs  bundle.mjs  librarian-safety.mjs  backend.mjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
+env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs
 ```
 
 The `live/` suites need `npm run preview` running. `ELECTRON_RUN_AS_NODE` must
 be unset or `require('electron')` returns a path string.
+
+**The two `.cjs` suites are Electron, not a browser, and that is not optional.**
+A browser tab has no desktop bridge and therefore no database, so a browser
+suite can only *stub* one — which proves the wiring and nothing about whether
+Postgres actually stems. `note-search.cjs` redirects `userData` to a temp
+directory and points the container port at nothing, so it always runs the
+**fresh embedded** case: the one everybody who is not the steward gets, and the
+one where the two 2026-08-04 bugs were hiding.

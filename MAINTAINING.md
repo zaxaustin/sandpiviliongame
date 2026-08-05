@@ -286,6 +286,46 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 **Where things stand, end of 2026-08-04 (FIFTH session) — READ THIS ONE.**
 Full account in [`archive/dev-log-2026-08-04.txt`](archive/dev-log-2026-08-04.txt).
 
+### THE PAVILION HAS A BACKEND ON EVERY MACHINE, not just this one
+
+`electron/db.cjs` picks **Docker Postgres when the container answers and its
+own embedded PGlite otherwise** — the choice sits *below* the named-query seam,
+so both run the same SQL against the same schema from the same files in
+`tools/`. The renderer cannot tell which, and must not try; only `dbStatus()`
+names it, so a person can be told.
+
+**"Needs Docker" is retired as a reason to lock a feature.** Docker now buys
+capacity for the book *text* (MinIO) and sharing one database between machines.
+**Search comes with the app.** That is the reverse of what `CLAUDE.md` said that
+morning, and the honest version.
+
+**Search every note you have ever written now works** — the thing localStorage
+cannot do, and the reason there is a database at all. The index *widens* the
+existing substring filter rather than replacing it (one filter, two inputs, so
+they can never disagree) and says so when it adds something.
+
+> **Before the next cut, know this.** The **empty** database is now the common
+> case, and two bugs hid there for as long as the only database was the
+> steward's 294-book one: `hydrateFromDb()` returned early on zero rows so
+> nothing was ever written *up*, and `notes.slug` is a foreign key into `books`
+> inside a single transaction — one note on a seed book would have made *every*
+> note unsearchable. Test against a **fresh** database, not this one.
+
+**Measured**: 25 MB in the installer, 40 MB for an empty cluster, **1.5 s cold
+open that happens behind the title screen** (painted in ~150 ms), 90 ms warm,
+`searchNotes` in 1–3 ms at 5,000 notes.
+
+**Still unwired — 9 of 15 named queries have no consumer.** In value order:
+`records`/`recordCounts` (the Records Hall is a **hardcoded 5-entry array
+frozen at 2026-07-10** while `archive/` holds 17 dev-logs), `notesForBook` /
+`notesByPlace`, `chaptersFor` / `needsChapters` (18 of 39 books find no
+chapters), `unshelved` / `shelfCounts` / `setShelf`. Then
+`tools/migrations/004-note-versions.sql`, still unwritten.
+
+`test/live/note-search.cjs` is new and **must be run under Electron** —
+`env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs`.
+The browser suites cannot reach a database and can only stub one.
+
 **Built and green today:** the **Study Table** — a toggle on the Writing Desk
 where you work a book one story at a time, naming the units yourself
 (`data/marks.js`, hand marks outrank detection; 18 of 39 books find no chapters
