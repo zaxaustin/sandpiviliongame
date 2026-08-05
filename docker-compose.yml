@@ -44,9 +44,17 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - pavilion-db:/var/lib/postgresql/data
-      # Runs ONCE, only when the volume is empty. Editing this file later
-      # does nothing to a database that already exists — migrations are how
-      # you change an existing one.
+      # Runs ONCE, only when the volume is empty, and it is a CONVENIENCE —
+      # not the thing that keeps this container's schema current.
+      #
+      # Deliberately just schema.sql, with no migrations beside it: this
+      # entrypoint does not recurse into a directory, so listing the
+      # migrations here would mean a hand-maintained list that has to match
+      # tools/migrations/, and every hand-maintained list in this project has
+      # drifted. `electron/db.cjs` applies schema.sql AND every migration, in
+      # order, on every open, to BOTH the container and the built-in
+      # database. That is the authority. Adding a migration means adding a
+      # file to tools/migrations/ and nothing else.
       - ./tools/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pavilion} -d ${POSTGRES_DB:-pavilion}"]

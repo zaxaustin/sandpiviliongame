@@ -63,6 +63,11 @@ let backend = null;      // the resolved adapter
 let opening = null;      // the in-flight open, so concurrent IPC calls share one
 let state = 'unknown';   // 'unknown' | 'up' | 'down'
 let lastError = null;
+/* Set when a backend opened but its schema did not fully apply. Separate from
+   lastError, which means "this home would not open at all" — a connected
+   database that is behind on migrations is a different, quieter problem, and
+   the one most likely to be mistaken for health. */
+let schemaError = null;
 
 /* Credentials come from .env beside the compose file — the same file Docker
    Compose reads, so there is one place to change them and no chance of the
@@ -107,6 +112,22 @@ async function openDocker() {
   // nothing; without this the embedded database would never be reached on a
   // machine where the container is merely stopped.
   await pool.query('SELECT 1');
+
+  /* The container gets the same schema and the same migrations as the
+     embedded one. node-postgres sends a parameterless query to the server
+     whole, so the dollar-quoted function bodies in schema.sql survive — no
+     splitting on semicolons here, which would cut them in half.
+
+     DELIBERATELY NOT FATAL, and deliberately not silent. Throwing here would
+     drop through to the embedded database and split this machine's writes
+     across two stores, which is a worse outcome than a schema that is behind.
+     So: keep the connection the steward asked for, and make status() say what
+     went wrong. */
+  try {
+    await applySchema(sql => pool.query(sql));
+  } catch (e) {
+    schemaError = 'docker schema: ' + e.message;
+  }
   return {
     kind: 'docker',
     label: 'Postgres in Docker',
@@ -137,6 +158,35 @@ function sqlDir() {
   return null;
 }
 
+/* schema.sql, then every migration in numeric order. */
+function schemaFiles() {
+  const d = sqlDir();
+  if (!d) throw new Error('cannot find tools/schema.sql');
+  return [path.join(d, 'schema.sql'),
+    ...fs.readdirSync(path.join(d, 'migrations')).filter(f => f.endsWith('.sql')).sort()
+      .map(f => path.join(d, 'migrations', f))];
+}
+
+/* BOTH HOMES RUN THIS, and that is the whole point of the design.
+
+   Until 2026-08-04 only the embedded one did. The container got `schema.sql`
+   once, from the `docker-entrypoint-initdb.d` mount in docker-compose.yml,
+   which fires ONLY on an empty volume and never mentioned `migrations/` at
+   all — so 002 and 003 reached the container by hand, and 004 would not have
+   reached it at all. The failure mode was the house one: a query naming a
+   table that exists in one home and not the other, on a machine where
+   everything looks healthy.
+
+   "One schema, two homes" has to be enforced by the code that opens them, or
+   it is a sentence in a plan rather than a property of the program.
+
+   Safe to run every time: every statement is IF NOT EXISTS / OR REPLACE, and
+   re-applying measured 7 ms against real Postgres — cheaper than tracking
+   whether it already happened. */
+async function applySchema(runRaw) {
+  for (const f of schemaFiles()) await runRaw(fs.readFileSync(f, 'utf8'));
+}
+
 /* ---------- adapter 2: the one everybody else gets ---------- */
 async function openEmbedded() {
   const { PGlite } = await import('@electric-sql/pglite');
@@ -147,16 +197,15 @@ async function openEmbedded() {
 
   const db = await PGlite.create(dir);
 
-  /* Schema and migrations on every open. They are IF NOT EXISTS / OR REPLACE
-     throughout and were each applied twice against real Postgres to prove it;
-     measured at 57ms to create and 7ms to re-apply, which is cheaper than
-     tracking whether they ran. */
-  const d = sqlDir();
-  if (!d) throw new Error('cannot find tools/schema.sql');
-  const files = [path.join(d, 'schema.sql'),
-    ...fs.readdirSync(path.join(d, 'migrations')).filter(f => f.endsWith('.sql')).sort()
-      .map(f => path.join(d, 'migrations', f))];
-  for (const f of files) await db.exec(fs.readFileSync(f, 'utf8'));
+  /* Schema and migrations on every open — the same files, in the same order,
+     as the container gets in openDocker(). Measured at 57ms to create and 7ms
+     to re-apply.
+
+     Fatal here, unlike on the Docker path: a fresh embedded database with no
+     schema is not a database, and there is no earlier store to split writes
+     away from. Failing sends getBackend() on to its "neither" case, which the
+     Pavilion already survives. */
+  await applySchema(sql => db.exec(sql));
 
   return {
     kind: 'embedded',
@@ -200,7 +249,7 @@ function getBackend() {
    the point is to drop the choice, not to guarantee a clean shutdown. */
 async function reconnect() {
   const old = backend;
-  backend = null; opening = null; state = 'unknown'; lastError = null;
+  backend = null; opening = null; state = 'unknown'; lastError = null; schemaError = null;
   try { if (old && old.close) await old.close(); } catch (e) { /* let it go */ }
   return status();
 }
@@ -387,6 +436,10 @@ async function status() {
     error: rows ? null : lastError,
     kind: rows && b ? b.kind : null,          // 'docker' | 'embedded' | null
     label: rows && b ? b.label : null,
+    // "Open, but behind on its schema." Reported separately from `up` on
+    // purpose: this database answers, so hiding the fault would be exactly
+    // the silent wrong thing the schema change was made to prevent.
+    schemaError: rows ? schemaError : null,
   };
 }
 
