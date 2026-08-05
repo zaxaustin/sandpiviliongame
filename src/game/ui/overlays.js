@@ -9673,7 +9673,12 @@ export function removePersonalBook(slug, from){
   }
   data.personalLibrary=data.personalLibrary.filter(d=>d.slug!==slug);
   persist(); logActivity('Removed "'+b.title+'" from Your Shelf.');
-  if(from==='manage') renderManageLibrary(); else openShelf('Personal');
+  /* renderManageLibrary() did not exist — the old Manage panel was replaced by
+     My Library and its redraw was never repointed. Nothing passes 'manage'
+     today, so this was a crash waiting for its first caller rather than a live
+     bug, which is exactly the shape the free-identifier guard was written for.
+     Redraw whatever is actually open, the same way handleLibraryChanged does. */
+  if(from==='manage') renderMyLibrary(); else openShelf('Personal');
 }
 /* Manage my Library — the cleanup tool for your OWN 👤 books: fix duplicates
    (remove) and misfiled ones (move to the right shelf), in one place, with
@@ -9769,9 +9774,15 @@ function renderStanding(){
   const el=document.getElementById('standingPanel'); if(!el) return;
   const key=state.standingAgent||'quill';
   const agent=CHAT_AGENTS[key]||CHAT_AGENTS.quill;
-  const name=(agent&&agent.name)||key;
+  /* .label, not .name. CHAT_AGENTS entries have only ever had `label` — the
+     filter below asked for `.name`, so it matched nothing and this panel
+     rendered ZERO resident buttons, while the heading above read the raw key
+     ("quill") instead of "Quill". Silent since before the residents split
+     (checked against bb45248^): the panel looked deliberate rather than
+     broken, which is why nobody reported it. */
+  const name=(agent&&agent.label)||key;
   const sugg=[...(STANDING_SUGGESTIONS[key]||[]), ...STANDING_SUGGESTIONS._any];
-  const others=Object.keys(CHAT_AGENTS).filter(k=>CHAT_AGENTS[k]&&CHAT_AGENTS[k].name);
+  const others=Object.keys(CHAT_AGENTS).filter(k=>CHAT_AGENTS[k]&&CHAT_AGENTS[k].label);
   el.innerHTML=`
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>✎ Standing instructions ${visBadge('private')}</h2>
@@ -9780,7 +9791,7 @@ function renderStanding(){
       they are, and if your instruction genuinely clashes with their character they'll say so rather
       than quietly ignore either.</div>
     <div class="row" style="margin:10px 0;gap:6px;flex-wrap:wrap">
-      ${others.map(k=>`<button class="btn ${k===key?'':'ghost'}" style="font-size:11px;padding:3px 10px" onclick="openStanding('${k}')">${esc(CHAT_AGENTS[k].name.split('·')[0].trim())}${standingFor(k)?' •':''}</button>`).join('')}
+      ${others.map(k=>`<button class="btn ${k===key?'':'ghost'}" style="font-size:11px;padding:3px 10px" onclick="openStanding('${k}')">${esc(CHAT_AGENTS[k].label.split('·')[0].trim())}${standingFor(k)?' •':''}</button>`).join('')}
     </div>
     <textarea id="standingBox" rows="5" placeholder="e.g. I'm working through electronics this year — keep that in mind."
       oninput="setStanding('${key}', this.value)">${esc(standingFor(key))}</textarea>
