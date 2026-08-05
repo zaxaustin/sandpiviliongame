@@ -212,7 +212,19 @@ No mystery, and worth knowing before you put real work in:
 | Your days, notes, courses, progress | Your browser's own storage on this device (`sandPavilionSave.v2`) |
 | Books you added — the **text** | A real file in the app's own data folder. (If you run Docker + MinIO, they go there instead — see below.) |
 | The books that shipped with it | Inside the app itself |
+| The **index** over all of it | A real Postgres database inside the desktop app, in its data folder. Nothing to install. |
 | Everything else | Nowhere. There is nowhere else. |
+
+**The desktop app carries its own database, and you install nothing to get
+it.** It is an *index* over your work — your books' cards, shelves and
+chapters, and your notes — which is what makes "search every note I have ever
+written" possible at all, and makes it search by meaning rather than by
+spelling. Your save is still the thing that holds your work; the index is
+rebuilt from it. If the database ever fails to open, the Pavilion says so and
+keeps working without it.
+
+The browser version has no database — that's the real difference between the
+two, along with how many books each can hold.
 
 **Pause menu → Your Data** shows all of it: how big your save is, every kind of
 data in it, and one plain sentence on whether each can ever leave this machine.
@@ -240,6 +252,15 @@ something honest.
 **Docker is not required and never will be.** It earns its place when a shelf
 becomes a library. Setup is in
 [`LIBRARY-SCALING-PLAN.md`](plans/LIBRARY-SCALING-PLAN.md).
+
+**Docker is not how you get a database.** It used to be, and that changed on
+2026-08-04 — the desktop app now carries its own Postgres, so searching your
+notes, shelving, and chapter marks all work on a plain install with nothing
+running beside it. What Docker still buys is **room for the book text** (MinIO
+holds it outside the app, so the ceiling stops being your disk's idea of a
+reasonable folder) and **one database two machines can share**. If you already
+run it, the Pavilion will use it and say so. If you don't, you are not missing
+a feature.
 
 ---
 

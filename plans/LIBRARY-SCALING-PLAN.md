@@ -205,6 +205,15 @@ this bucket.
   `fullText` pointer into Supabase. Needs `SUPABASE_SERVICE_ROLE_KEY`
   set (same as `promote-draft.py`); MinIO's own (non-sensitive)
   connection details are read straight from `.env.local`.
+
+  > **RETIRED 2026-08-02, guarded 2026-08-04.** The paragraph above is
+  > the historical record of what was built, not a working recipe. The
+  > Supabase half was deleted, so the script now stops before it uploads
+  > — deliberately before, so a failed run cannot leave an orphaned
+  > object in the bucket with no catalogue row pointing at it. The MinIO
+  > half and the `host.docker.internal` fix below are still correct and
+  > are what a rewrite should start from; the writes it would need now
+  > exist as named queries in `electron/db.cjs`.
   **Real bug caught and fixed while first testing this script:**
   `mc` runs inside its own throwaway container, so "localhost" from
   in there means the container itself, not this machine — uploads

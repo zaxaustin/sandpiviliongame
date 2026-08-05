@@ -187,6 +187,19 @@ named-query seam, so both run the same SQL against the same schema from the same
 files in `tools/`. The renderer cannot tell which, and must not try. Only
 `dbStatus()` names it, and only so a person can be told.
 
+**`applySchema()` runs `schema.sql` + every migration on BOTH homes, on every
+open.** For half a day it ran on the embedded one only — the container got
+`schema.sql` once from the compose entrypoint, which fires only on an empty
+volume and never mentioned `migrations/`. "One schema, two homes" was a sentence
+in a plan rather than a property of the program, and migration 004 would have
+been missing on Docker with every status line reading healthy. **Adding a
+migration means adding a file to `tools/migrations/` and nothing else** — never
+a list in `docker-compose.yml` (a hand-maintained list that must match a
+directory is rule 4's exact shape). The two homes fail differently on purpose:
+Docker keeps the connection and reports `status().schemaError`, because throwing
+would split this machine's writes across two stores; embedded treats it as
+fatal, because a schema-less fresh database is not a database.
+
 **So "needs Docker" is no longer a reason to lock a feature.** That category is
 retired. Docker is now only about the *book text* (MinIO) and sharing one
 database between machines.

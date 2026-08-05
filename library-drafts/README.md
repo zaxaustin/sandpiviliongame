@@ -1,4 +1,4 @@
-# Library Drafts
+sure w# Library Drafts
 
 A place to draft new Library entries directly in files — no game UI
 required. You're the only steward right now, so working straight in
@@ -28,27 +28,40 @@ there's more than one person submitting things.
    written. Ask me to draft this part with you if you want a first pass
    to react to — reading and summarizing honestly is the one step here
    that isn't just filling in blanks.
-4. **When it's ready**, run
-   `python tools/caravan/promote-draft.py library-drafts/<slug>.md` —
-   it parses the finished draft, refuses if license or tradition is
-   still `TODO`, and inserts it straight into Supabase's
-   `library_documents` table. Live in the game immediately, no code
-   deploy needed. (Needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
-   set as environment variables first — see the script's own docstring;
-   `python tools/caravan/promote-draft.py --help`.)
-5. The script moves the finished draft to `library-drafts/done/`
-   automatically — this folder stays a staging area, not a second copy
-   of the Library.
-6. **Optional: attach the actual full text**, once the raw source is
-   already sitting in `library-sources/` from step 1. Run
-   `python tools/caravan/push-fulltext.py <slug> library-sources/<file>.txt
-   --translator "..." --source-url "..." --license "..."` — uploads the
-   real text to this machine's local Library storage (MinIO) and wires
-   up the Reader's "📖 Read the full text" button, live immediately. See
-   `plans/LIBRARY-SCALING-PLAN.md` for why full text lives in object storage
-   now instead of inline in the shelf entry itself. Same
-   `SUPABASE_SERVICE_ROLE_KEY` requirement as step 4, plus a running
-   local MinIO (`docker ps` should show `sand-pavilion-minio`).
+4. **Check the finished draft**, with
+   `python tools/caravan/promote-draft.py library-drafts/<slug>.md` — it
+   parses the draft, **refuses if license or tradition is still `TODO`**,
+   prints every field the next step needs, and stops. It writes nothing
+   and moves nothing.
+
+   > **Its push step is retired** (2026-08-02). It used to insert straight
+   > into a hosted `library_documents` table; that project was deleted, so
+   > no `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` is needed or possible.
+   > If you find a doc still asking for one, that doc is stale — say so.
+
+5. **Put it on the shelf**, and there are two different shelves:
+   - **Your own Pavilion** — drag the `.txt` or `.epub` onto the window,
+     or use Workshop → Caravan Desk → *"Add a text by hand."* This needs
+     none of this pipeline, and it is what nearly everyone does.
+   - **The catalog that ships with the app** — add the entry to
+     `src/game/data/seed.js` by hand, using the fields step 4 printed,
+     then `npm run build:beta` and `npm test`. The shipped catalog is
+     source code now, so a shelf change is a reviewable, revertable
+     commit. That is a feature, not a downgrade.
+
+   Move the draft to `library-drafts/done/` yourself when you're finished
+   with it — this folder stays a staging area, not a second copy of the
+   Library. (The old script did that move automatically; the checker
+   deliberately does not, since it no longer knows whether you finished.)
+
+6. **Attaching the actual full text has no terminal path right now.**
+   `push-fulltext.py` uploaded to local MinIO *and* updated the same
+   deleted hosted table, so it now stops before doing either — stopping
+   before the upload on purpose, so it can't leave an orphaned object in
+   the bucket with nothing pointing at it. For your own Pavilion, the
+   drag-and-drop in step 5 already stores the full text. See
+   `plans/LIBRARY-SCALING-PLAN.md` for why full text lives in object
+   storage rather than inline in the shelf entry.
 
 ## Why a `tradition` might not fit yet
 

@@ -294,6 +294,25 @@ so both run the same SQL against the same schema from the same files in
 `tools/`. The renderer cannot tell which, and must not try; only `dbStatus()`
 names it, so a person can be told.
 
+**`applySchema()` applies `schema.sql` + every migration to both homes on every
+open** (2026-08-04, later the same day). Until then only the embedded one got
+them: the container was seeded once by the `docker-entrypoint-initdb.d` mount in
+`docker-compose.yml`, which fires only on an empty volume and lists `schema.sql`
+alone. 002 and 003 reached this machine's container by hand; **004 would not
+have reached it at all**, and the symptom would have been a named query failing
+against a table that exists in one home and not the other, with every status
+line green. Verified against the real container: a new migration created its
+table there, invalid SQL surfaced as `status().schemaError` while queries kept
+answering, and re-applying the real schema was a no-op (14 tables and views
+before and after, `notes_fts` intact) — idempotency measured against real
+Postgres, not just PGlite.
+
+**Adding a migration is adding a file to `tools/migrations/`, and nothing
+else.** The compose mount deliberately stays `schema.sql`-only: the entrypoint
+does not recurse into a directory, so listing migrations there would be a
+hand-maintained list that has to match one — rule 4's exact shape, and every
+such list in this project has drifted.
+
 **"Needs Docker" is retired as a reason to lock a feature.** Docker now buys
 capacity for the book *text* (MinIO) and sharing one database between machines.
 **Search comes with the app.** That is the reverse of what `CLAUDE.md` said that
@@ -334,10 +353,13 @@ Notes keep their history (`data/note-versions.js` — restore **appends**, never
 truncates). A resident sits with you who has read the story actually in front
 of you. A lesson drafts out of the work you did.
 
-**`CLAUDE.md` is now 204 lines**, streamlined at the steward's request; the
-long version with the reasoning is at `archive/CLAUDE-full-2026-08-04.md`.
-The storage ceiling in it is **measured, not guessed** — web ~10–20 books,
-desktop hundreds, Docker buys *search*, not capacity.
+**`CLAUDE.md` was streamlined at the steward's request**; the long version with
+the reasoning is at `archive/CLAUDE-full-2026-08-04.md`. The storage ceiling in
+it is **measured, not guessed** — web ~10–20 books, desktop hundreds, and
+**Docker buys capacity for the book TEXT, not search** (search ships with the
+app). This paragraph said the reverse until 2026-08-04 and contradicted the
+table three sections above it; if you find a third phrasing anywhere, the
+measured table in `CLAUDE.md` is the one to trust.
 
 **`overlays.js` is coming apart: 12,726 → 11,138.** Two cuts done
 (`ui/residents.js`, `ui/lesson-tree.js`), **seven to go** — the order and the
@@ -370,6 +392,31 @@ Also open, and named so it is not lost: `tools/migrations/004-note-versions.sql`
 (planned in stage 1c, never written), stage 1d's lecture script / slides /
 personal book of notes, and the beta build — `verify:release` is **correctly**
 failing on an `.exe` older than the source.
+
+**Two Caravan scripts are dead and now say so out loud** (2026-08-04).
+`tools/caravan/promote-draft.py` and `push-fulltext.py` both wrote to the
+Supabase project deleted 2026-08-02, and both still *asked for a
+`SUPABASE_SERVICE_ROLE_KEY`* — sending anyone who ran them off to hunt for a
+credential that cannot exist. They now stop first, with the real reason and the
+path that works. Two details worth keeping:
+
+- **`promote-draft.py` kept its useful half.** It still parses a draft, still
+  refuses one saying `TODO` — the provenance-first rule made executable, and
+  the thing `PROTOCOLS.md` Pathway B step 4 tells you to run — then prints
+  every field and stops without writing or moving anything. Killing the
+  validator along with the dead push would have removed the only automated
+  check on the rule this project cares most about. (I did exactly that first,
+  then put it back.)
+- **`push-fulltext.py` stops before the MinIO upload**, so it cannot leave an
+  orphaned object in the bucket with no catalogue row pointing at it. Its guard
+  originally sat *after* a MinIO credential check, which meant a missing
+  password answered first and blamed the wrong thing.
+
+Rewriting both against local Postgres + MinIO is real, well-scoped work: the
+writes they need already exist as named queries in `electron/db.cjs`. Until
+then the in-game path (drag a `.txt`/`.epub` onto the window, or the Caravan
+Desk) is the only one, and per the steward it is the one that matters:
+*"the books i downloaded will be the main pathway people use."*
 
 ---
 

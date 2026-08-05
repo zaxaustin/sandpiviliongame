@@ -30,7 +30,9 @@ have a stage adjusted — this document is meant to change as you do.
 - [ ] Stage 10 — AI integration, the whole spectrum
 - [ ] Stage 11 — AI as a character, not just an API call
 - [~] Stage 12 — containers: what Docker is and isn't for
-- [ ] Stage 13 — databases & Supabase, concretely
+- [ ] Stage 13 — databases, concretely — the one inside your own app
+  *(rewritten 2026-08-04: the app now carries its own Postgres, so every
+  exercise in this stage runs on your machine)*
 - [x] **Stage 14** — deploying a real app, and debugging one that doesn't work
 - [ ] Stage 15 — adding a real book to the Library, start to finish
 - [~] Stage 16 — what a local AI model actually costs to run *(you have felt this
@@ -733,66 +735,141 @@ the `sand-pavilion-library` bucket by hand. Seeing the actual files
 sitting there, that you can open and read, is the fastest way to make
 "object storage" stop being an abstract term.
 
-## Stage 13 — databases & Supabase, concretely
+## Stage 13 — databases, concretely — the one inside your own app
 
-**Why this stage exists:** on 2026-07-07 the Library and the café's
-notice board both moved onto a real Supabase project — actual tables,
-actual security rules, actual network calls. That's a good excuse to
-build the vocabulary for what a real database actually is, since
-`localStorage` (everything up to now) quietly avoided all of it.
+> **Rewritten 2026-08-04.** This stage used to be "databases & Supabase,"
+> built around a hosted project that was deleted on 2026-08-02. Every
+> exercise in it pointed at a dashboard that no longer exists. That is a
+> better stage now, not a worse one: the database this version teaches is
+> **running on your machine, inside the app you built**, so you can open it,
+> break it, and watch it recover — none of which a hosted dashboard let you
+> do.
 
-**Concept: `localStorage` is a file; Postgres is a filing system with a
-bouncer.** Your save data has always lived as one big JSON blob in your
-own browser — simple, but only one visitor could ever see it, and
-nothing stopped any code on the page from reading or rewriting all of
-it. A real database like Postgres (what Supabase runs) organizes data
-into **tables** (rows and columns, like a spreadsheet with rules), and —
-critically — sits behind an actual security layer, so "can this specific
-request read or write this specific row" is enforced by the database
-itself, not by trusting the code that's asking.
+**Why this stage exists:** on 2026-08-04 the desktop app started carrying a
+real Postgres of its own. Not "can connect to one" — *carries* one, in the
+installer, 25 MB, that opens on first run with nothing installed. Everything
+up to now lived in `localStorage`, which quietly avoided every idea in this
+stage.
 
-**The word for that security layer: RLS — Row Level Security.** Every
-table Phase 3 uses has RLS turned on, plus a short list of **policies**,
-each one a plain rule like "anyone can read a row where `status =
-'approved'`" or "a new row can only be inserted with `status =
-'pending'`." Go read the actual ones for the café's board:
-`exchange_questions`'s policies in the README's café section are the
-real, live rules — not a metaphor. This is the actual mechanism behind
-"nothing goes onto the notice board unmoderated": it's not a promise the
-app's code makes, it's a rule the database itself refuses to break,
-even if someone bypassed the game entirely and called the API directly.
+**Concept: `localStorage` is a file; a database is a filing system.** Your
+save has always been one big JSON blob. To answer "which notes mention
+walking," code has to load *the entire blob* into memory and look at every
+note one at a time. That's fine at 50 notes. At 5,000 it is the reason
+searching never felt like it worked. A database stores the same information
+as **tables** — rows and columns, with rules about what may go in them — and
+can answer that question without reading everything, because it built an
+**index** in advance.
 
-**A related word: migration.** Every schema change (adding a column,
-creating a table, writing a policy) went through Supabase as a named,
-ordered, saved step — `add_category_to_library_documents`,
-`create_exchange_questions`, and so on — the database's equivalent of a
-git commit: a durable record of exactly what changed, in order, that
-could in principle be replayed on a fresh database to reach the same
-state. Contrast this with just clicking around in a spreadsheet-like UI
-and manually editing cells — that leaves no trail.
+**The word that matters most here: index.** An index is a second structure
+the database maintains beside your data, arranged for asking rather than for
+storing — the way a book's index is not a second copy of the book. You pay a
+little on every write to keep it current, and in exchange the question gets
+answered in milliseconds instead of seconds. Everything else in this stage is
+downstream of that trade.
 
-**One more, since it comes up immediately: why is it safe to put an API
-key in `.env.local` and ship it in the browser bundle?** `VITE_SUPABASE_PUBLISHABLE_KEY`
-is a **publishable** key — it's the front door, meant to be public, and
-it can *only* do what RLS policies allow it to do. That's different from
-a **service role** key (never used in this codebase), which bypasses RLS
-entirely and must never appear in anything that reaches a browser. The
-MCP tools used to set all this up (`apply_migration`, `execute_sql`) run
-with that higher trust level, on your behalf, outside the browser — the
-game itself never gets that power, on purpose.
+**Read the actual schema — it is short and it is yours.** Open
+[`tools/schema.sql`](tools/schema.sql) and
+[`tools/migrations/`](tools/migrations/). That is the whole database: books,
+shelves, chapters, notes, records. Not a metaphor, not a sample — the real
+file the app runs on startup.
 
-**Try this:** open your Supabase project's dashboard → Table Editor →
-`exchange_questions`. You're looking at the exact same rows the café's
-Notice Board reads. Then open the SQL Editor and run
-`select * from pg_policies where tablename = 'exchange_questions';` —
-that's the RLS rules above, but as the database sees them, not as prose.
+**A related word: migration.** Notice the migrations are *numbered files* —
+`002-notes.sql`, `003-records.sql`. Each is one ordered, saved schema change,
+the database's equivalent of a git commit: a durable record of exactly what
+changed, in order, replayable on a fresh database to reach the same state.
+That's why a brand-new install and your two-month-old one end up with
+identical tables. The rule that makes it work is that every statement is
+`IF NOT EXISTS`, so running them all again on an existing database changes
+nothing — **idempotent**, the word for "safe to do twice." Worth testing that
+claim yourself rather than believing it.
 
-**You're ready to call this stage done when:** you can explain, in your
-own words, why the café's "approve a submission" step has to happen in
-the Supabase dashboard today instead of a button in the game — and it's
-not "because it wasn't built yet," it's "because there's no real login
-system to prove who's actually a steward," which is a security reason,
-not a laziness one.
+**Now the good part: full-text search, which is why the database is here at
+all.** Open `tools/migrations/002-notes.sql` and find these two lines:
+
+```sql
+CREATE INDEX IF NOT EXISTS notes_fts ON notes
+  USING GIN (to_tsvector('english', COALESCE(title,'') || ' ' || body));
+```
+
+Three ideas in two lines, and they are worth having:
+
+- **`to_tsvector('english', …)`** turns a sentence into the *stems* of its
+  words. `"He walked the whole path"` becomes roughly `walk path whole`. The
+  grammar is thrown away on purpose. This is why searching `walking` finds a
+  note that says `walked` — the two words reduce to the same stem, and the
+  database compares stems, not spellings.
+- **`GIN`** is the index type suited to "this row contains many values"
+  (every stem in the note), as opposed to the usual sorted index for "this
+  row has one value."
+- **`'english'`** is a **dictionary** — the rules for how to stem. Postgres
+  ships about 30 of them. Change that word and you have stemming in another
+  language; that is the entire change.
+
+Then look at `searchNotes` in [`electron/db.cjs`](electron/db.cjs) and find
+`ts_rank`. Matching tells you *which* notes qualify; ranking tells you which
+one to put first. A search that finds the right 40 things and orders them
+badly is, to the person using it, a search that failed.
+
+**Concept: the seam — one schema, two homes.** The app opens Postgres in
+Docker when the container answers and its own embedded copy otherwise. Those
+sound like two implementations to maintain, and the whole design turns on
+their not being that. Look at how `db.cjs` is arranged: the renderer never
+sends SQL. It asks for a **named query** — `'searchNotes'` — and the SQL lives
+in one place, run against one schema, from the same files in `tools/`. The
+choice of *home* sits below that name, so there is no second version of
+anything to drift apart.
+
+That seam is the reusable idea, and it is worth more than the database is:
+**put the thing that varies below a name, and the thing that must stay
+identical above it.** Ask yourself why this is not the same as a "fallback
+path" — the answer is in `CLAUDE.md`, and it is a scar this project earned.
+
+**What about security? Honestly: this database has none, and that is
+correct.** The old version of this stage taught **RLS** (Row Level Security),
+Postgres's mechanism for enforcing "can this specific request read this
+specific row" inside the database itself, so the rule holds even if someone
+bypasses the app entirely. That is essential for a database on the internet
+that many strangers share, and irrelevant for one in a folder on your own
+computer that only you can reach — there, the operating system's file
+permissions *are* the security layer. RLS is still the right idea, and it is
+what a shared Pavilion would need on the day one exists. Knowing *why* it is
+absent is the actual lesson: **security controls answer a threat, and a
+control with no threat behind it is cargo.**
+
+**Try this — all of it runs on your machine, today:**
+
+1. **Look at your own notes as rows.** Write two or three notes in the game
+   (desktop app, not a browser tab), then in the Notes Log search for a word
+   you used — but a *different form* of it. Write "walked", search "walking".
+   Watch it appear, and watch the line that says *"found by meaning as well as
+   spelling."* That line is `to_tsvector` doing its job.
+2. **Prove the index is real, not a substring match.** Search for a word that
+   appears in *no* note but shares a stem with one you wrote. If it comes back,
+   you are looking at stemming. If plain substring matching were doing the
+   work, it could not.
+3. **Break it on purpose.** Stop the Docker container if you run one
+   (`docker compose stop postgres`), restart the app, and read the title
+   screen. It should say **built-in database** rather than pretending nothing
+   changed. That is the two-homes seam, visible from the outside.
+4. **Read the migrations twice.** Run the app, close it, run it again. The
+   migrations execute both times and the second run changes nothing — that is
+   `IF NOT EXISTS` earning its keep. Then go find a statement in those files
+   that is *not* guarded that way, if there is one. Being the person who
+   checks is the skill.
+5. **With Docker, get a real SQL prompt:**
+   ```
+   docker compose up -d postgres
+   docker exec -it sand-pavilion-postgres psql -U pavilion -d pavilion
+   ```
+   Then `\dt` to list tables, `\d notes` to see one table's shape, and
+   `SELECT count(*) FROM notes;`. Type `\q` to leave. Ten minutes here is
+   worth more than an hour of reading about databases.
+
+**You're ready to call this stage done when:** you can explain, in your own
+words, why searching `walking` finds `walked` — and it isn't "the search is
+smart," it's "both words reduce to the same stem before either is compared,
+and the index stores stems." And, separately, why the app having two homes for
+its database is not the same thing as having two implementations of it.
 
 ## Stage 14 — deploying a real app, and debugging one that doesn't work
 
@@ -867,22 +944,42 @@ a real one, in your own words, the same way every existing shelf entry
 was written. This is the one step that can't be automated away, on
 purpose — see Stage 9 for why.
 
-**Step 3 — put it on the shelf:**
-```
-python tools/caravan/promote-draft.py library-drafts/<the-file>.md
-```
-Needs `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` set first (see the
-script's own `--help`). This inserts the real row — live in the game
-immediately, no rebuild, no redeploy.
+**Step 3 — put it on the shelf. This is where the path changed, and the
+new one is the easier one.**
 
-**Step 4 (optional) — attach the actual full text**, so the Reader's
-"📖 Read the full text" button appears, instead of just the summary:
-```
-python tools/caravan/push-fulltext.py <slug> library-sources/<the-file>.txt --translator "..." --source-url "https://www.gutenberg.org/ebooks/1080" --license "Public Domain (Project Gutenberg)"
-```
-This needs Docker running and `sand-pavilion-minio` up (`docker ps`
-should show it) — it uploads the real text into local object storage
-and wires up the pointer, all in one command.
+**Drag the `.txt` (or an `.epub`) from `library-sources/` straight onto
+the Pavilion's window.** That's the whole step. It lands on Your Shelf
+and is readable immediately — no dialog, no import wizard, no terminal.
+In the desktop app the text is written as a real file in the app's own
+data folder, and the catalogue row goes into the database from Stage 13.
+
+For more control — picking the shelf, editing the attribution, adding a
+pile at once — use **Workshop → the Caravan Desk → "Add a text by
+hand."**
+
+> **⚠ The two scripts that used to be Steps 3 and 4 do not work, and
+> have not since 2026-08-02.**
+>
+> `tools/caravan/promote-draft.py` and `tools/caravan/push-fulltext.py`
+> both write to a **Supabase** project that was deleted that day. They
+> still sit in `tools/caravan/` and still print instructions about
+> `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, so they *look* alive.
+> Run one and it will fail at the network call, or worse, look like it
+> is your key that is wrong.
+>
+> They are on the cleanup list, not the working list. Rewriting them
+> against the local Postgres + MinIO stack is a real, well-scoped job —
+> the SQL they need already exists as named writes in `electron/db.cjs`
+> — but until someone does it, **the in-game path above is the only one
+> that works**, and it is the one everybody actually uses anyway.
+
+**Step 4 (optional) — the full text in local object storage.** If you
+run MinIO (`docker ps` should show `sand-pavilion-minio`), that is where
+the *text* of a large library belongs, so it lives outside the app and
+stops competing with your disk's idea of a reasonable folder. The
+in-game path already stores the text as a real file without it; MinIO is
+what you add when a shelf becomes a library. See Stage 12 and
+`plans/LIBRARY-SCALING-PLAN.md`.
 
 **A faster path that skips the terminal for one specific source:** open
 the Caravan Desk (Workshop, in-game) and use **🔍 Browse SuttaCentral** —
@@ -891,9 +988,10 @@ scripts at all. Worth doing once too, since it's a genuinely different
 (and, for that one source, easier) way in.
 
 **You're ready to call this stage done when:** you've done this once,
-for a book you actually chose, and can walk someone else through the
-same four commands from memory — not because you memorized them, but
-because you understand what each one is actually for.
+for a book you actually chose, and can explain what each of Steps 0–2
+is for — and, separately, why a tool that still prints confident
+instructions for a service that no longer exists is more dangerous than
+one that is obviously missing.
 
 ## Stage 16 — what a local AI model actually costs to run
 

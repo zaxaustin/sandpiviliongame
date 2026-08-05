@@ -175,16 +175,28 @@ is the shape:
    The filled-in draft from step 3 has every field you need; this step is
    mostly transcription.
 
-   `python tools/caravan/promote-draft.py` still parses a draft and refuses one
-   that says `TODO`, which is a useful check to run first — but **its push step
-   is retired** and writes nowhere the app reads. See its own header.
+   `python tools/caravan/promote-draft.py <draft>` is worth running first. Its
+   push step is retired, but the **draft checker survives**: it refuses a draft
+   still saying `TODO`, then prints every field this step needs and stops
+   without writing or moving anything. Use it as the transcription source.
 
 5. **Optional — attach the full text** so the Reader's "📖 Read the full text"
-   button works:
-   `python tools/caravan/push-fulltext.py <slug> library-sources/<file>.txt --translator "..." --source-url "..." --license "..."`
-   — uploads the real text to this machine's **local MinIO** (needs Docker's
-   `sand-pavilion-minio` running). Until this step, the book is readable as
-   its summary card only.
+   button works.
+
+   > **`push-fulltext.py` does not work.** Its second half updated the hosted
+   > database deleted on 2026-08-02. It now exits immediately, *before* the
+   > MinIO upload, so it cannot leave an orphaned object in the bucket with no
+   > catalogue row pointing at it. Rewriting it against local Postgres + MinIO
+   > is a real, well-scoped job — the writes it needs already exist as named
+   > queries in `electron/db.cjs` — and until someone does it, this step has no
+   > terminal path.
+
+   **What works today:** drag the `.txt` or `.epub` onto the Pavilion's window.
+   The desktop app writes the text as a real file in its own data folder and
+   the catalogue row into the local database. That covers your own Pavilion
+   completely; it is only the *shipped* catalog's full text that is waiting on
+   the rewrite above. Until then, a shipped book is readable as its summary
+   card only, which ten of them do deliberately and say so in the Reader.
 
 6. **Rebuild** — `npm run build:beta`, and `npm test` to be sure. The catalog
    is source code now, so a shelf change is a commit: reviewable, revertable,
@@ -324,9 +336,44 @@ rather than a command. **No key, no account and no secret is involved anywhere**
 | `curl http://localhost:11434/api/tags` | Confirm the game can reach it (should print your models) |
 | `setx OLLAMA_ORIGINS "http://localhost:5173,http://localhost:5174"` | Let a *browser* build reach Ollama (desktop app doesn't need this) |
 
-### The local Library store — Docker + MinIO (only for the certified full-text pipeline)
+### The database — you already have one
+
+**Since 2026-08-04 the desktop app carries its own Postgres.** Nothing to
+install, nothing to start. There is no command to run and no setup step; this
+section exists so you can *look at* it, not so you can turn it on.
+
+- **Where it is:** a `db/` folder inside the app's own data folder — the same
+  folder that holds `library/`, where your shelved books' `.txt` files go. On
+  Windows that is `%APPDATA%/sand-pavilion`. It appears the first time the app
+  opens *without* a Docker container answering, so on a machine running the
+  container you will not have one, and that is correct.
+- **Which one you're on:** the title screen says — *built-in database*,
+  *Postgres in Docker*, or *running in a browser tab* (the only case with no
+  database at all).
+- **The schema is `tools/schema.sql` plus `tools/migrations/*.sql`**, and
+  `electron/db.cjs` applies all of them, in order, on every open, to **both**
+  homes. Adding a migration means adding a file to `tools/migrations/` and
+  nothing else.
+
+### Postgres in Docker — optional, and only if you want the container
+
+You do **not** need this for the database. It is for keeping one database
+that two machines can share, and it sits beside MinIO.
+
+| Command | What it does |
+| --- | --- |
+| `docker compose up -d postgres` | Start the container (needs `POSTGRES_PASSWORD` in `.env`) |
+| `docker compose stop postgres` | Stop it — the app falls back to its built-in database |
+| `docker exec -it sand-pavilion-postgres psql -U pavilion -d pavilion` | A real SQL prompt: `\dt` lists tables, `\q` leaves |
+
+When the container answers, the app uses it and says so. When it doesn't, the
+app uses its own. You do not have to do anything either way.
+
+### The local Library store — Docker + MinIO (for the book TEXT, not the database)
 
 Beta testers never need this; it's for your own machine's certified library.
+MinIO holds the **text** of books, which is the big opaque part — the
+catalogue and your notes live in the database above, container or not.
 
 | Command | What it does |
 | --- | --- |

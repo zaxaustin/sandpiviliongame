@@ -13,32 +13,24 @@ then add the entry to src/game/data/seed.js by hand and rebuild — see
 PROTOCOLS.md, Protocol 1, Pathway B. The catalog is source code now, so
 a shelf change is a reviewable commit.
 
-tools/caravan/promote-draft.py — the last mile of the Caravan pipeline.
+tools/caravan/promote-draft.py — now a draft CHECKER, not a publisher.
 
 Takes a completed library-drafts/*.md file (see library-drafts/README.md
-and _TEMPLATE.md for the exact shape) and inserts it as a real row in
-Supabase's library_documents table — the shared Library shelves, live in
-the game immediately, no code deploy needed.
+and _TEMPLATE.md for the exact shape), parses it, prints the fields you
+will need, and stops. It writes nothing and moves nothing.
 
-Refuses to run if license or tradition is still literally "TODO" — the
-one non-negotiable check this project's own rules already state in the
-in-game Steward Review Queue. Every other judgment (does this actually
-belong on a shelf, is the summary honest) is yours, made before you ever
-run this script — it does the mechanical part, never the reading.
+Refuses a draft whose license or tradition is still literally "TODO" —
+the one non-negotiable check this project's own rules already state in
+the in-game Steward Review Queue. Every other judgment (does this
+actually belong on a shelf, is the summary honest) is yours, made before
+you ever run this — it does the mechanical part, never the reading.
 
-Needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as environment
-variables — the *service role* key (Settings -> API in your Supabase
-dashboard), not the publishable/anon key .env.local uses for the game
-itself. The service role key bypasses row-level security entirely, the
-same elevated access a real steward action needs — this script runs on
-your own machine, as the steward, not in the browser. It must never be
-committed, shared, put in .env.local, or pasted anywhere the game's
-client-side code could reach it. Treat it like a password.
-
-Usage (PowerShell):
-    $env:SUPABASE_URL = "https://xxxx.supabase.co"
-    $env:SUPABASE_SERVICE_ROLE_KEY = "eyJ..."
+Usage:
     python tools/caravan/promote-draft.py library-drafts/lieh-tzu.md
+
+NO KEYS, NO ACCOUNT, NO NETWORK. The SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY
+this file used to demand are gone along with the service they named. If you
+find a doc still asking for them, that doc is stale — say so.
 
 No third-party packages required — just Python 3's standard library,
 same as every other Caravan connector.
@@ -140,29 +132,47 @@ def main():
     ap.add_argument("--done-dir", default="library-drafts/done", help="Where the draft moves once promoted")
     args = ap.parse_args()
 
-    base_url = os.environ.get("SUPABASE_URL")
-    service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    if not base_url or not service_key:
-        sys.exit("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as environment variables first — "
-                  "the service role key from Settings -> API in your Supabase dashboard, not the "
-                  "publishable key .env.local uses. See this script's own docstring (python "
-                  "tools/caravan/promote-draft.py --help).")
-
+    # THE PUSH STEP IS RETIRED; THE CHECKING STEP IS NOT.
+    #
+    # This script used to end by inserting a row into a Supabase project,
+    # deleted 2026-08-02. What survives is the half worth keeping: parse_draft()
+    # refuses a draft that still says TODO in its license or attribution, which
+    # is the provenance-first rule made executable, and PROTOCOLS.md Pathway B
+    # step 4 tells people to run it for exactly that.
+    #
+    # So: validate loudly, then stop honestly and say where the row goes now.
+    # Killing the validator along with the dead push would have removed the one
+    # automated check on the rule this project cares most about.
     with open(args.draft, "r", encoding="utf-8") as f:
         text = f.read()
 
-    row = parse_draft(text)
-    print(f"Promoting: {row['title']}  ({row['tradition']}, {row['license']})")
-    result = insert(row, base_url, service_key)
-    slug = result[0]["slug"] if result else row["slug"]
-    print(f"Inserted into library_documents: {slug}")
+    row = parse_draft(text)          # raises/exits if the draft still says TODO
+    print(f"Draft parses clean: {row['title']}  ({row['tradition']}, {row['license']})")
+    print(f"  slug:        {row['slug']}")
+    print(f"  source_url:  {row.get('source_url') or '(none)'}")
+    print(f"  attribution: {row.get('attribution') or '(none)'}")
 
-    os.makedirs(args.done_dir, exist_ok=True)
-    done_path = os.path.join(args.done_dir, os.path.basename(args.draft))
-    os.replace(args.draft, done_path)
-    print(f"Moved draft to: {done_path}")
-    print("\nLive immediately — the shelf reads from Supabase now, no deploy needed. "
-          "Refresh the game to see it.")
+    sys.exit(
+        "\nTHAT IS AS FAR AS THIS SCRIPT GOES, and the draft above is fine.\n"
+        "\n"
+        "The push step is retired. It wrote to Supabase, which this project\n"
+        "deleted on 2026-08-02; no environment variable brings it back, and\n"
+        "the draft has deliberately NOT been moved to done/.\n"
+        "\n"
+        "To finish, pick the one that matches what you are doing:\n"
+        "\n"
+        "  a book for YOUR Pavilion  ->  drag the .txt or .epub onto the\n"
+        "     window, or Workshop -> Caravan Desk -> 'Add a text by hand'.\n"
+        "     This is the real path and needs none of this pipeline.\n"
+        "\n"
+        "  a book for the SHIPPED catalog  ->  add the entry to\n"
+        "     src/game/data/seed.js by hand, then `npm run build:beta` and\n"
+        "     `npm test`. The fields above are every field you need.\n"
+        "     PROTOCOLS.md Pathway B step 4 is the long version.\n"
+        "\n"
+        "The shipped catalog is source code now, so shelving a book is a\n"
+        "commit someone can read, review and revert. That is the feature."
+    )
 
 
 if __name__ == "__main__":

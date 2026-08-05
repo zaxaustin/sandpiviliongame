@@ -282,3 +282,182 @@ NOT done, and named so it is not lost:
   - tools/migrations/004-note-versions.sql, planned in 1c and never written
   - stage 1d remainder: lecture script, slides, the personal book of notes
   - the beta build; verify:release is correctly failing on a stale .exe
+
+================================================================
+LATER THE SAME DAY — "make sure our documentation is solid so we
+know whats going on before we execute this backend plan"
+================================================================
+
+The steward's framing, and it set the whole session:
+
+  "if we have to give up on docker we can but i like it to have security
+   features for peoples local setup in the future. if its not needed the
+   less people have to install the better. i think the original books
+   seeded where a problem and the books i downloaded will be the main
+   paithpay people use that feature in the future. l would rather replace
+   the full backend now than wait till this game gets more complex even
+   if thiings break lets make sure our documention is solid so we know
+   whats going on before we execute this backend plan"
+
+Three instructions in that: keep Docker but stop requiring it, treat the
+player's downloaded books as the real pathway, and get the docs honest
+BEFORE building further. The doc audit is what found the bug below, which
+is the argument for doing it in that order.
+
+
+THE BUG THE DOC PASS FOUND
+--------------------------
+
+Reading MANUAL.md against the code to see what was stale, I went to check
+what "the same schema, both homes" actually meant in db.cjs.
+
+The Docker adapter never ran schema.sql. It never ran the migrations
+either. Only openEmbedded() did.
+
+The container got schema.sql exactly once, from the
+docker-entrypoint-initdb.d mount in docker-compose.yml — which fires only
+when the volume is empty and lists schema.sql alone, no migrations/. So
+002 and 003 reached this machine's container BY HAND, months ago, and
+nobody wrote that down. 004 — the next thing on the plan — would not have
+reached it at all.
+
+The design's whole claim is "one schema, two homes, nothing to drift."
+That claim was true of one home. The waiting failure was the house one:
+a named query referring to a table that exists in one home and not the
+other, on a machine where every status line reads healthy.
+
+applySchema() now runs the same files, in the same order, on both. The
+two homes fail differently, on purpose:
+
+  docker    NOT fatal. Throwing would drop through to the embedded
+            database and split this machine's writes across two stores,
+            which is worse than a schema that is behind. Keep the
+            connection; report it. status() gained schemaError, kept
+            SEPARATE from error, because a database that answers while
+            being behind is the quiet fault most easily read as health.
+  embedded  fatal. A schema-less fresh database is not a database, and
+            there is no earlier store to split away from.
+
+Broken on purpose, against the steward's REAL running container — the
+first time the Docker path has been tested directly rather than by
+pointing at a dead port:
+
+  - new migration 999-proof.sql -> zz_proof appeared in the container.
+    Could not have happened before this change. That is the positive
+    proof, not an argument.
+  - invalid SQL in it -> up:true, kind:docker, searchNotes still answers,
+    schemaError: 'syntax error at or near "A"'.
+  - same invalid SQL on the embedded path -> up:false, the error names
+    BOTH homes, queries return null, the Pavilion carries on.
+  - re-applying the real schema + both migrations to the live database:
+    14 tables and views before, 14 after, notes_fts intact. Idempotency
+    measured against real Postgres, not just PGlite.
+
+The compose mount stays schema.sql-only. The entrypoint does not recurse
+into a directory, so listing migrations there means a hand-maintained
+list that has to match tools/migrations/ — rule 4's exact shape, and
+every hand-maintained list in this project has drifted. Its comment now
+points at db.cjs as the authority. Adding a migration is adding a file.
+
+
+TWO TOOLS THAT LIED
+-------------------
+
+tools/caravan/promote-draft.py and push-fulltext.py both write to the
+Supabase project deleted on 2026-08-02. Neither had been touched since.
+Both still printed:
+
+  "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as environment
+   variables first"
+
+which is worse than a crash. It sends the reader off to hunt for a
+credential that cannot be created, and makes them think the failure is
+theirs. A tool that is obviously missing is safer than one that lies.
+LEARNING-PATH.md Stage 15 and PROTOCOLS.md Pathway B both documented
+them as the way to shelve a book.
+
+Both now stop first, with the real reason and the path that works. Two
+things went wrong while fixing it, both worth keeping:
+
+  1. I killed the useful half. promote-draft.py's draft PARSER still
+     works and still refuses a draft saying TODO — the provenance-first
+     rule made executable, and precisely what PROTOCOLS.md Pathway B
+     step 4 tells you to run. My first guard exited at the top of main()
+     and took the validator with it. Put back: it now validates, prints
+     every field, and stops without writing or moving anything. The dead
+     half is the push, not the checking.
+
+  2. The guard answered second. push-fulltext.py's stop sat AFTER its
+     MinIO credential check, so someone without MINIO_ROOT_PASSWORD got
+     told to fix a credential that was never the problem. Moved to the
+     first line after parse_args(). The real reason has to be the first
+     thing said. (It still stops before the upload, so it cannot leave an
+     orphaned object in the bucket with no catalogue row pointing at it.)
+
+Rewriting both against local Postgres + MinIO is real, well-scoped work —
+the writes already exist as named queries in db.cjs. Until then the
+in-game path is the only one, which matches what the steward said the
+real pathway is anyway.
+
+
+DOCS
+----
+
+MANUAL.md §8 said "An optional local database (Docker + Postgres) is an
+optional upgrade" and quoted a title-screen string that no longer exists.
+Rewritten around the three things the status line can actually say, with
+the note that a database is an INDEX over the save rather than a second
+copy to keep safe.
+
+MANUAL.md also never mentioned that the Notes Log gained search — a
+shipped feature with no user-facing doc, which is the "built but not
+displayed" category the steward asked to hunt for, appearing the same day
+it was built.
+
+README.md never mentioned the database AT ALL. Storage table gained a
+row; a new paragraph says Docker is no longer how you get one, and what
+it does still buy (text capacity, one database shared between machines).
+
+LEARNING-PATH.md Stage 13 was "databases & Supabase, concretely" — every
+exercise pointed at a deleted dashboard. Rewritten as "the one inside
+your own app," and it is a better stage now: the database is on the
+steward's machine, so every exercise RUNS. Teaches index, migration,
+idempotence, to_tsvector/GIN/dictionaries, ts_rank, and the named-query
+seam. RLS is kept as a concept with the honest reason it is absent:
+a control with no threat behind it is cargo.
+
+MAINTAINING.md contradicted itself — one paragraph still said "Docker
+buys search, not capacity," the exact reverse of the measured table three
+sections above. Fixed, and it now names which one to trust if a third
+phrasing turns up.
+
+
+WHAT THIS SESSION IS AN ARGUMENT FOR
+------------------------------------
+
+The doc pass was supposed to be bookkeeping before the real work. It
+found a load-bearing bug in the thing it was documenting, because
+"write down what this does" and "check what this does" are the same
+action. That is now nine times on this project that the measurement or
+the description was the broken part.
+
+
+GREEN
+-----
+
+npm test, build:beta, note-search 11/11 (embedded), packaged-boot,
+backend 12/12 (against the real container), preflight with zero network.
+
+
+STILL NOT DONE
+--------------
+  - Phase 2c: the Records Hall, still a hardcoded 5-entry array frozen at
+    2026-07-10 while archive/ holds 17 dev-logs. records/recordCounts
+    exist and have no consumer.
+  - Phase 2d: notesForBook/notesByPlace, chaptersFor/needsChapters,
+    unshelved/shelfCounts/setShelf
+  - Phase 2e: tools/migrations/004-note-versions.sql — and now it will
+    actually reach both homes when it is written
+  - rewriting the two Caravan scripts against local Postgres + MinIO
+  - seven more overlays cuts; the Learning Tree as a visual tree; the
+    Course Board; the Monk's role

@@ -537,6 +537,12 @@ of the day, not three.
   documents) is gathered here, with folders and tags and a scoped "have
   Sebastian look over this folder" review. It's also a real **workspace**, not
   just a viewer:
+    - **Search across all of them at once** — the search box matches the words
+      you typed, and in the desktop app it also matches by *meaning*: searching
+      `walking` finds a note that says `walked`. When it adds notes that way it
+      says so — *"+2 found by meaning as well as spelling"* — so you are never
+      wondering why something appeared. In a browser tab you get the plain
+      word match, which is the same search minus that extra help.
     - **＋ New note** starts a fresh note right here (the same note also appears
       in the Writing Desk's My Notes drawer — one store, two doors).
     - Open one of your own notes and **✏ Open to edit / link a book** to edit its
@@ -643,28 +649,45 @@ memory footprint, and a "today's session" count of asks and timings.
   politely when there isn't one — the beta build is deliberately
   local-only.
 
-**An optional local database — and everything works without it.** The title
-screen says which you are running:
+**The desktop app carries its own database. You install nothing.** This
+changed on 2026-08-04; if you read an older version of this page saying a
+database was an optional Docker upgrade, that is no longer true.
 
-> ○ Running on this device alone — everything works. A local database
-> (Docker + Postgres) is an optional upgrade…
+The title screen tells you which one you are on, and there are only three
+things it can say:
 
-That is the honest state, not a warning. The Pavilion is complete on its own:
-your save holds your days, notes, courses and progress, and it always will.
+> ● **Built-in database** — your shelves, chapters and notes are indexed.
+> Nothing to install; Docker is only needed to keep the book text outside
+> the app.
 
-If you do set one up (Docker, then `docker compose up -d postgres`), it holds
-what the Pavilion knows *about* your books — their cards, their shelves, their
-chapters — and that buys four things a browser cannot do on its own:
+> ● **Postgres in Docker** — your shelves, chapters and notes are indexed,
+> and the container holds the book text beside it.
 
-- search **every note you have ever written**, at once;
+> ○ **Running in a browser tab** — everything works, but nothing is indexed.
+
+The first is what almost everyone gets. The second is for someone who
+already runs Docker and wants the book text kept outside the app. The third
+is the browser version, which is the only place there is no database at all.
+
+**What the database is for.** It holds what the Pavilion knows *about* your
+books — their cards, their shelves, their chapters — and your notes. That
+buys four things a plain save file cannot do:
+
+- search **every note you have ever written**, at once, and by *meaning* as
+  well as spelling: searching `walking` finds a note that says `walked`;
 - see everything you wrote about one book, grouped by its real chapters;
 - sort a big shelf twenty at a time and pick up where you left off;
 - chapter marks you correct by hand, that stay corrected.
 
 Residents can also *look things up* rather than being handed a list — so
-"no, that is not on these shelves" becomes something Quill can actually check
-instead of guess. **Nothing about this is required, and nothing you already
-have moves into it without you.**
+"no, that is not on these shelves" becomes something Quill can check instead
+of guess.
+
+**Your save is still the thing that matters.** The database is an index over
+your work, not a second copy of it that you have to keep safe. Everything
+still lives in your save, exporting still carries all of it, and if the
+database ever fails to open the Pavilion says so plainly and keeps working
+without it. Nothing you have moves anywhere without you.
 
 ---
 

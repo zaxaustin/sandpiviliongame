@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 """
+RETIRED 2026-08-02 — THIS SCRIPT DOES NOT WORK. It stops before doing
+anything, on purpose. Everything below the next paragraph describes how it
+worked when it worked, and is kept only because rewriting it is a real job
+someone may take on.
+
+Its second half merged into a Supabase JSONB column, and that project was
+deleted outright rather than left dormant. It exits BEFORE the MinIO upload,
+so it cannot leave an orphaned object in the bucket with no catalogue row
+pointing at it. To get a book's full text in today: drag the .txt or .epub
+onto the Pavilion's window — the desktop app writes the text as a real file
+and the catalogue row into the local database. To rewrite this properly, the
+writes it needs already exist as named queries in electron/db.cjs.
+
+--- how it worked, for whoever rebuilds it -------------------------------
+
 tools/caravan/push-fulltext.py — attach a full book's text to an existing
 Library shelf entry, the streamlined way.
 
@@ -134,6 +149,25 @@ def main():
     ap.add_argument("--license", required=True, help="e.g. 'Public Domain (Project Gutenberg)', 'CC0 1.0'")
     args = ap.parse_args()
 
+    # STOP FIRST, before every other check. This script updates a Supabase
+    # project deleted on 2026-08-02, so it cannot finish no matter what else
+    # is configured. Sitting further down, this guard let a missing MinIO
+    # password answer first — sending the reader off to fix a credential that
+    # was never the problem. The real reason has to be the first thing said.
+    sys.exit(
+        "push-fulltext.py DOES NOT WORK. Its second half updates Supabase,\n"
+        "which this project deleted on 2026-08-02. No environment variable\n"
+        "will fix it, and it stops before uploading so it cannot leave an\n"
+        "orphaned object in MinIO.\n"
+        "\n"
+        "To get a book's full text in today: drag the .txt or .epub onto the\n"
+        "Pavilion's window. The desktop app stores the text as a real file\n"
+        "and the catalogue row goes to the local database.\n"
+        "\n"
+        "Rewriting this against local Postgres + MinIO is a real job worth\n"
+        "doing. See LEARNING-PATH.md Stage 15."
+    )
+
     if "TODO" in args.license or "TODO" in args.translator:
         sys.exit("License/translator still says TODO — confirm it's real before running this.")
 
@@ -147,9 +181,6 @@ def main():
 
     base_url = os.environ.get("SUPABASE_URL")
     service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    if not base_url or not service_key:
-        sys.exit("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY as environment variables first — "
-                  "see this script's own docstring (python tools/caravan/push-fulltext.py --help).")
 
     bucket, key = upload_to_minio(args.text_file, args.slug, endpoint, bucket, user, password)
 
