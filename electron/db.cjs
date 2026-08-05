@@ -18,14 +18,49 @@
       on its own. `npm run electron:dev` with the container stopped must
       behave exactly as it did before any of this existed.
 
+      This rule is UNCHANGED by the embedded database below, and deliberately
+      so. "Everyone has Postgres now" must not quietly become "everything
+      assumes Postgres" — a corrupt data directory, a disk with no room, a
+      platform where the WASM will not load, all still land here and still
+      return null. The soft path is the one that was load-bearing before and
+      it stays tested.
+
    The connection is lazy: nothing is attempted until something actually
    asks a question, so a Pavilion that never touches the database never
    pays for it.
-   ================================================================ */
+
+   ----------------------------------------------------------------
+   TWO HOMES, ONE DATABASE (2026-08-04, plans/EMBEDDED-BACKEND-PLAN.md)
+
+     Docker Postgres answering?  --yes-->  pg Pool          (this machine)
+               |
+               no
+               v
+     PGlite in userData/db       ------->  embedded Postgres (everyone else)
+
+   WHY THIS IS ONE PATH AND NOT TWO — and the reason has a scar behind it.
+   store.js records what went wrong last time: "the fallback path was the
+   only path anyone actually ran, which meant it was load-bearing while
+   still being written and tested as a fallback."
+
+   The difference here is WHERE the choice sits. It is BELOW the named-query
+   seam, so both homes run the SAME SQL against the SAME schema from the
+   SAME files in tools/. There is no second implementation to drift — which
+   is exactly why PGlite and not better-sqlite3, since SQLite would mean a
+   second hand-maintained schema and that is the rot CLAUDE.md forbids.
+
+   And the fallback IS the common path now: everyone who is not the steward
+   runs the embedded one. So test it as the primary, because it is.
+
+   What this deletes is the real second path — "no database at all", where
+   features were absent or locked and every resident's grounding had to be
+   assembled by hand in JS. After this, every install has Postgres.
+   ---------------------------------------------------------------- */
 const path = require('path');
 const fs = require('fs');
 
-let pool = null;
+let backend = null;      // the resolved adapter
+let opening = null;      // the in-flight open, so concurrent IPC calls share one
 let state = 'unknown';   // 'unknown' | 'up' | 'down'
 let lastError = null;
 
@@ -49,15 +84,13 @@ function readEnv() {
   return out;
 }
 
-function getPool() {
-  if (pool) return pool;
+/* ---------- adapter 1: the container on this machine ---------- */
+async function openDocker() {
   const env = readEnv();
   const password = process.env.POSTGRES_PASSWORD || env.POSTGRES_PASSWORD;
-  if (!password) { state = 'down'; lastError = 'no POSTGRES_PASSWORD'; return null; }
-  let Pool;
-  try { ({ Pool } = require('pg')); }
-  catch (e) { state = 'down'; lastError = 'pg not installed'; return null; }
-  pool = new Pool({
+  if (!password) throw new Error('no POSTGRES_PASSWORD');
+  const { Pool } = require('pg');
+  const pool = new Pool({
     host: process.env.POSTGRES_HOST || env.POSTGRES_HOST || '127.0.0.1',
     port: Number(process.env.POSTGRES_PORT || env.POSTGRES_PORT || 5432),
     database: process.env.POSTGRES_DB || env.POSTGRES_DB || 'pavilion',
@@ -70,7 +103,106 @@ function getPool() {
     idleTimeoutMillis: 10000,
   });
   pool.on('error', () => { /* a dropped idle client is not a crash */ });
-  return pool;
+  // PROVE it answers before claiming it. Constructing a Pool connects to
+  // nothing; without this the embedded database would never be reached on a
+  // machine where the container is merely stopped.
+  await pool.query('SELECT 1');
+  return {
+    kind: 'docker',
+    label: 'Postgres in Docker',
+    query: (sql, params) => pool.query(sql, params || []),
+    async tx(each) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await each((sql, params) => client.query(sql, params || []));
+        await client.query('COMMIT');
+      } catch (e) {
+        try { await client.query('ROLLBACK'); } catch (_) { /* already gone */ }
+        throw e;
+      } finally { client.release(); }
+    },
+  };
+}
+
+/* Where the SQL lives. ONE copy, shared by both homes — in a packaged app
+   `tools/` rides along inside the asar (see build.files in package.json).
+   A second copy of the schema is the thing this design exists to avoid. */
+function sqlDir() {
+  for (const d of [path.join(__dirname, '..', 'tools'),
+                   path.join(process.resourcesPath || '', 'app.asar', 'tools'),
+                   path.join(process.cwd(), 'tools')]) {
+    try { if (fs.statSync(path.join(d, 'schema.sql')).isFile()) return d; } catch (e) { /* next */ }
+  }
+  return null;
+}
+
+/* ---------- adapter 2: the one everybody else gets ---------- */
+async function openEmbedded() {
+  const { PGlite } = await import('@electric-sql/pglite');
+
+  let dir;
+  try { dir = path.join(require('electron').app.getPath('userData'), 'db'); }
+  catch (e) { dir = path.join(process.cwd(), '.pglite'); }   // outside Electron (tests)
+
+  const db = await PGlite.create(dir);
+
+  /* Schema and migrations on every open. They are IF NOT EXISTS / OR REPLACE
+     throughout and were each applied twice against real Postgres to prove it;
+     measured at 57ms to create and 7ms to re-apply, which is cheaper than
+     tracking whether they ran. */
+  const d = sqlDir();
+  if (!d) throw new Error('cannot find tools/schema.sql');
+  const files = [path.join(d, 'schema.sql'),
+    ...fs.readdirSync(path.join(d, 'migrations')).filter(f => f.endsWith('.sql')).sort()
+      .map(f => path.join(d, 'migrations', f))];
+  for (const f of files) await db.exec(fs.readFileSync(f, 'utf8'));
+
+  return {
+    kind: 'embedded',
+    label: 'built-in database',
+    query: (sql, params) => db.query(sql, params || []),
+    tx: (each) => db.transaction(t => each((sql, params) => t.query(sql, params || []))),
+  };
+}
+
+/* Chosen ONCE, lazily, then kept — never per query. A mid-session switch
+   would split writes across two stores, so the only way to re-decide is
+   reconnect() below, which a person has to ask for. */
+function getBackend() {
+  if (backend) return Promise.resolve(backend);
+  if (opening) return opening;
+  opening = (async () => {
+    try {
+      backend = await openDocker();          // the container wins when present:
+      state = 'up'; lastError = null;        // on this machine it is the real
+      return backend;                        // thing, with MinIO beside it
+    } catch (e) {
+      lastError = 'docker: ' + e.message;
+    }
+    try {
+      backend = await openEmbedded();
+      state = 'up'; lastError = null;
+      return backend;
+    } catch (e) {
+      // Both failed. Still soft: every call returns null and the Pavilion
+      // carries on with seed + localStorage, exactly as it always could.
+      state = 'down';
+      lastError = (lastError ? lastError + ' | ' : '') + 'embedded: ' + e.message;
+      opening = null;                        // let a later call try again
+      return null;
+    }
+  })();
+  return opening;
+}
+
+/* The explicit re-decide, for the Connections panel. Closing is best-effort:
+   the point is to drop the choice, not to guarantee a clean shutdown. */
+async function reconnect() {
+  const old = backend;
+  backend = null; opening = null; state = 'unknown'; lastError = null;
+  try { if (old && old.close) await old.close(); } catch (e) { /* let it go */ }
+  return status();
 }
 
 /* Every statement the renderer may ask for. Add here, never inline. */
@@ -189,10 +321,10 @@ const WRITES = {
 };
 
 async function run(sql, params) {
-  const p = getPool();
-  if (!p) return null;
+  const b = await getBackend();
+  if (!b) return null;
   try {
-    const res = await p.query(sql, params || []);
+    const res = await b.query(sql, params || []);
     state = 'up'; lastError = null;
     return res.rows;
   } catch (e) {
@@ -219,26 +351,33 @@ async function write(name, params) {
 async function writeMany(name, rowsOfParams) {
   const sql = WRITES[name];
   if (!sql || !Array.isArray(rowsOfParams)) return null;
-  const p = getPool();
-  if (!p) return null;
-  const client = await p.connect().catch(() => null);
-  if (!client) { state = 'down'; return null; }
+  const b = await getBackend();
+  if (!b) return null;
   try {
-    await client.query('BEGIN');
-    for (const params of rowsOfParams) await client.query(sql, params);
-    await client.query('COMMIT');
-    state = 'up';
+    // The transaction belongs to the adapter: a pg client does BEGIN/COMMIT
+    // by hand, PGlite has its own. Both arrive here as the same `each`.
+    await b.tx(async (q) => { for (const params of rowsOfParams) await q(sql, params); });
+    state = 'up'; lastError = null;
     return { ok: true, n: rowsOfParams.length };
   } catch (e) {
-    try { await client.query('ROLLBACK'); } catch (_) { /* already gone */ }
     state = 'down'; lastError = e.message;
     return null;
-  } finally { client.release(); }
+  }
 }
 
+/* WHICH HOME YOU ARE ON IS VISIBLE. Before this, "database" meant "Docker",
+   and a visitor had no way to tell a working built-in database from none at
+   all. `kind` and `label` are additions — `up` and `error` keep their old
+   meaning so nothing that already reads this has to change. */
 async function status() {
   const rows = await query('ping');
-  return { up: !!rows, error: rows ? null : lastError };
+  const b = backend;
+  return {
+    up: !!rows,
+    error: rows ? null : lastError,
+    kind: rows && b ? b.kind : null,          // 'docker' | 'embedded' | null
+    label: rows && b ? b.label : null,
+  };
 }
 
-module.exports = { query, write, writeMany, status, QUERIES, WRITES };
+module.exports = { query, write, writeMany, status, reconnect, QUERIES, WRITES };

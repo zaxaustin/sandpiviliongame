@@ -50,17 +50,22 @@ contextBridge.exposeInMainWorld('desktopBridge', {
       id, url, method: opts.method || 'POST', headers: opts.headers || {}, body: opts.body, timeoutMs: opts.signalMs,
     }).finally(() => ipcRenderer.removeListener(channel, listener));
   },
-  /* The local Postgres — the KNOWLEDGE half of the backend (MinIO keeps the
-     text). A browser cannot speak Postgres's binary protocol, so the main
-     process holds the connection and the renderer asks by NAME: dbQuery
-     ('unshelved', [20, 0]), never a string of SQL. See electron/db.cjs for
-     every statement that exists.
+  /* The database — the KNOWLEDGE half of the backend (MinIO keeps the text).
+     A browser cannot speak Postgres's binary protocol, so the main process
+     holds the connection and the renderer asks by NAME: dbQuery('unshelved',
+     [20, 0]), never a string of SQL. See electron/db.cjs for every statement
+     that exists.
 
-     ALL FOUR RETURN null WHEN THERE IS NO DATABASE — not an error, not a
-     hang (measured at 27ms to give up). The web build has none of this and
-     must keep working; so must the desktop app with the container stopped. */
+     THE RENDERER CANNOT TELL WHICH HOME IT IS TALKING TO, and must not try.
+     Docker Postgres when the container is up, the built-in database
+     otherwise — same SQL, same schema, same files. Only dbStatus() names it,
+     and only so a person can be told.
+
+     THEY ALL STILL RETURN null WHEN THERE IS NO DATABASE — not an error, not
+     a hang. The web build has none of this and must keep working. */
   dbStatus: () => ipcRenderer.invoke('desktop-db-status'),
   dbQuery: (name, params) => ipcRenderer.invoke('desktop-db-query', { name, params }),
   dbWrite: (name, params) => ipcRenderer.invoke('desktop-db-write', { name, params }),
   dbWriteMany: (name, rows) => ipcRenderer.invoke('desktop-db-write-many', { name, rows }),
+  dbReconnect: () => ipcRenderer.invoke('desktop-db-reconnect'),
 });

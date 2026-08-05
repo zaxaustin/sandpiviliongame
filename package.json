@@ -32,7 +32,12 @@
     "productName": "Sand Pavilion",
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "tools/schema.sql",
+      "tools/migrations/*.sql"
+    ],
+    "asarUnpack": [
+      "**/node_modules/@electric-sql/pglite/**"
     ],
     "directories": {
       "output": "release"

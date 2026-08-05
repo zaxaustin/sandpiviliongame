@@ -284,15 +284,20 @@ ipcMain.handle('desktop-minio-delete', async (event, { key }) => {
   return mcRun(cfg, `mc rm local/${cfg.bucket}/${key}`);
 });
 
-/* ----- The local Postgres, if there is one (electron/db.cjs).
-   Named queries only — the renderer asks for 'unshelved', never for SQL —
-   and every one of these returns null rather than throwing when the
-   container is stopped, because the app has to be complete without it. */
+/* ----- The database (electron/db.cjs). Docker Postgres when it is running,
+   the built-in one otherwise — the renderer cannot tell which, and that is
+   the point. Named queries only — it asks for 'unshelved', never for SQL —
+   and every one of these still returns null rather than throwing, because
+   the app has to be complete even when both homes are unavailable. */
 const db = require('./db.cjs');
 ipcMain.handle('desktop-db-status', async () => db.status());
 ipcMain.handle('desktop-db-query', async (event, { name, params }) => db.query(name, params));
 ipcMain.handle('desktop-db-write', async (event, { name, params }) => db.write(name, params));
 ipcMain.handle('desktop-db-write-many', async (event, { name, rows }) => db.writeMany(name, rows));
+// Which home you are on is decided once and kept, so that writes cannot be
+// split across two stores mid-session. This is the only way to re-decide,
+// and a person has to ask for it.
+ipcMain.handle('desktop-db-reconnect', async () => db.reconnect());
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if(process.platform !== 'darwin') app.quit(); });
