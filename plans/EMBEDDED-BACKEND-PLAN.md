@@ -96,6 +96,44 @@ already `IF NOT EXISTS` throughout and already proven re-runnable.
   if it does not work, this plan is worth much less and we should know that on
   day one rather than after the swap.
 
+---
+
+## MEASURED 2026-08-04 — **GO**, 19/19
+
+The spike ran `tools/schema.sql` and both migrations **unchanged**, twice, on
+`@electric-sql/pglite` 0.5.4. Not a simplified copy of the schema — the real
+files, the real `searchNotes` query out of `electron/db.cjs`.
+
+| | |
+|---|---|
+| package, unpacked | **25.4 MB** (installer figure still to be taken from the built .exe) |
+| empty cluster on disk, under userData | **39.9 MB** |
+| with 5,002 notes | 59.3 MB (≈4 KB/note, index included) |
+| cold open, first ever | **1.5 s** — *do this after the title screen, not in front of it* |
+| warm open | **90 ms** |
+| schema + 2 migrations, first apply | 57 ms |
+| re-applying them | 7 ms, harmless — the idempotence property holds |
+| `searchNotes`, 500 notes | 0.6–0.9 ms |
+| `searchNotes`, 5,002 notes | 1.0–2.7 ms |
+
+**Full-text search is real, not a `LIKE` in disguise.** Asked directly, PGlite
+stems `walked` / `walking` / `walks` → `walk`, `teachings` → `teach`, and ships
+**30 dictionaries**. `websearch_to_tsquery` handles quoted phrases and `-`
+negation; `ts_rank` discriminates properly (0.6035 / 0.0991 / 0.0991 on rows of
+differing density). All eight views create, the `plpgsql` trigger fires, `TEXT[]`
+round-trips as an array, GIN indexes build, and aggregate `FILTER (WHERE …)`
+works.
+
+**A caution recorded because it nearly killed this plan:** the spike's first run
+reported NO-GO on two counts — "no stemming" and "ts_rank did not order". Both
+were the *fixture*, not the database. The stemming probe searched for a word
+that was also in the seeded corpus, so `LIMIT 10` buried the row under test; the
+ranking probe used a two-word AND query that none of the generated rows
+satisfied, then declared an empty set unordered. Asked directly instead of
+through the fixture, both features were flawless. Same shape as the five other
+times this project has been misled by its own measurement — **when a check fails,
+suspect the check.**
+
 ## What this does NOT change
 
 - **MinIO stays a Docker thing.** Book text is big and opaque; object storage is
