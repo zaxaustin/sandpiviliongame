@@ -258,7 +258,10 @@ const QUERIES = {
      websearch_to_tsquery, not plainto_tsquery - it understands quoted
      phrases and OR, where plainto_ ANDs every word and quietly returns
      nothing for a two-word search whose terms sit in different notes. */
-  searchNotes: `SELECT n.id, n.source, n.slug, b.title AS book_title,
+  // save_key is what the panel matches on: the save owns these notes and the
+  // index only points at them, so a hit has to name the note in the save's
+  // own terms or it cannot be opened.
+  searchNotes: `SELECT n.id, n.save_key, n.source, n.slug, b.title AS book_title,
                        n.chapter_idx, n.page, n.title, n.body,
                        ts_rank(to_tsvector('english', COALESCE(n.title,'') || ' ' || n.body),
                                websearch_to_tsquery('english', $1)) AS rank
@@ -306,6 +309,13 @@ const WRITES = {
                  page = EXCLUDED.page, title = EXCLUDED.title, body = EXCLUDED.body,
                  tags = EXCLUDED.tags, folder = EXCLUDED.folder`,
   deleteNote: 'DELETE FROM notes WHERE save_key = $1',
+  /* Everything the save no longer has. The save owns identity and the
+     database only indexes it, so a note deleted there must not survive here
+     — a search that returns a note you already threw away is exactly the
+     silent wrong answer this project refuses. Passing an empty list DOES
+     clear the mirror, which is correct when the visitor has no notes left;
+     the mirror is derived and rebuilds on the next sync either way. */
+  pruneNotes: 'DELETE FROM notes WHERE save_key IS NULL OR save_key <> ALL($1::TEXT[])',
 
   // ---- the Records Hall ----
   upsertRecord: `INSERT INTO records (kind, title, detail, happened, ref, opener, slug, tags, source_key)

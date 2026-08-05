@@ -142,8 +142,19 @@ function docFromRow(r, bucket){
 export async function hydrateFromDb(opts = {}){
   const bucket = opts.bucket || 'sand-pavilion-library';
   const rows = await dbQuery('catalogue');
-  if(!rows || !rows.length) return { ok:false, books:0, pushed:0 };
+  if(!rows) return { ok:false, books:0, pushed:0 };     // no database at all
 
+  /* AN EMPTY DATABASE IS NOT THE SAME AS NO DATABASE, and until 2026-08-04
+     this function could not tell the difference — it returned early on zero
+     rows, so nothing was ever written UP. That was invisible while the only
+     database was the steward's, which has had 294 books in it since the day
+     it was created. The embedded one starts empty on every machine, which
+     makes the empty case the COMMON case: books stayed empty forever, and
+     with it every join that hangs off books — notes (slug is a foreign key
+     into it), v_notes_by_book, v_note_counts.
+
+     So the push below happens either way, and it carries the books the save
+     has that the database does not. */
   const mine = personalDocs();
   const bySlug = new Map(mine.map(d => [d.slug, d]));
 
@@ -167,25 +178,111 @@ export async function hydrateFromDb(opts = {}){
     };
   });
 
-  libraryDocs = SEED_LIBRARY.concat(merged);
-  librarySource = 'postgres';
+  /* Only claim the library came from the database when it actually did.
+     An empty database leaves the seed + save exactly as they were.
+
+     The seed is concatenated, never merged, so a seed book arriving back
+     from the database would appear TWICE. It can arrive now: the push below
+     sends the seed up as well, because notes.slug is a foreign key into
+     books and a note on a seed book has to have somewhere to point. Filtered
+     by slug rather than trusted not to happen. */
+  const seedSlugs = new Set(SEED_LIBRARY.map(d => d.slug));
+  if(rows.length){
+    libraryDocs = SEED_LIBRARY.concat(merged.filter(d => !seedSlugs.has(d.slug)));
+    librarySource = 'postgres';
+  }
 
   /* Carry the save's real cards back UP, so the database stops being wrong
      and the next run needs none of this. Best-effort: if the write fails the
-     app is unaffected, because the in-memory merge above already happened. */
-  const pushed = merged.filter(d => d.tradition && d.tradition !== 'Personal').length;
+     app is unaffected, because the in-memory merge above already happened.
+
+     `bySlug` still holds every book the save has that the database has NOT —
+     on a first run against the embedded database, that is all of them. They
+     go up too, or the database can never learn about a book the visitor
+     added, and notes about it have nowhere to hang.
+
+     THE SEED GOES UP AS WELL, and that is not tidiness. `notes.slug` is a
+     foreign key into books, writeMany is one transaction, and a single note
+     on a seed book would therefore roll back the entire note index — every
+     note unsearchable because of one. The seed books are real books on the
+     visitor's shelf; the database may as well know them. Their double is
+     filtered on the way back down, just above. */
+  const outgoing = merged
+    .concat([...bySlug.values()])
+    .concat(SEED_LIBRARY.filter(d => !merged.some(m => m.slug === d.slug)
+                                  && !bySlug.has(d.slug)));
+  const pushed = outgoing.filter(d => d.tradition && d.tradition !== 'Personal').length;
   const b = bridge();
-  if(b && b.dbWriteMany){
-    const params = merged.map(d => [
+  if(b && b.dbWriteMany && outgoing.length){
+    const params = outgoing.map(d => [
       d.slug, d.title || '', d.attribution || '', d.license || '', d.source_url || '',
       (d.tradition && d.tradition !== 'Personal') ? d.tradition : null,
       d.kind || 'book', d.part || null,
-      (d.doc.fullText && d.doc.fullText.storage && d.doc.fullText.storage.key) || null,
+      (d.doc && d.doc.fullText && d.doc.fullText.storage && d.doc.fullText.storage.key) || null,
       null,
     ]);
     try { await b.dbWriteMany('upsertCard', params); } catch(e){ /* best effort */ }
   }
-  return { ok:true, books: merged.length, pushed, unmatched: bySlug.size };
+  return { ok: rows.length > 0, books: merged.length, pushed,
+           seeded: bySlug.size, unmatched: bySlug.size };
+}
+
+/* MIRROR THE NOTES, so they can be searched as one body of text.
+
+   The save owns them; the database indexes them. That direction never
+   reverses — `notes.save_key` is UNIQUE precisely so a note can be carried
+   up repeatedly without ever being duplicated, and nothing down here is
+   read back into the save.
+
+   Takes the output of gatherNotes(), which already unifies the six separate
+   stores (data.notes, bookNotes, chatNotes, research, grant, hall) into one
+   shape with a stable key. That function existed before this did; migration
+   002 was written against its key format on purpose.
+
+   PRUNING IS PART OF SYNCING, not an extra. A note deleted from the save
+   that survives in the index is a search result you cannot open — the silent
+   wrong answer, which is worse here than showing nothing.
+
+   Best-effort throughout: this is derived data. If it fails, search is stale
+   until the next sync and nothing else notices. */
+let lastNoteSig = null;
+export async function syncNotes(notes, opts = {}){
+  const b = bridge();
+  if(!b || !b.dbWriteMany || !Array.isArray(notes)) return null;
+
+  /* Callers sync before searching, which means on every keystroke. Re-writing
+     three hundred unchanged notes each time is work nobody asked for, so the
+     set is fingerprinted first: the keys, and the length of what is in them.
+     Not a hash of the text — this only has to notice CHANGE, and any edit
+     moves either a key or a length. */
+  const sig = notes.length + '|' + notes.map(n => n.key + ':' + (n.text||'').length).join(',');
+  if(!opts.force && sig === lastNoteSig) return { ok:true, n:notes.length, skipped:true };
+
+  const rows = notes.map(n => {
+    // book notes carry a 0-based chapter index and page; the others carry
+    // neither, and an ABSENT field beats a guessed one (the reader's rule)
+    const ch   = Number.isInteger(n.ch)   ? n.ch   : null;
+    const page = Number.isInteger(n.page) ? n.page : null;
+    return [
+      n.source || 'mynotes',
+      n.slug || null,
+      ch, page,
+      (n.title || '').slice(0, 300),
+      n.text || '',
+      null,                                   // tags: not in the save yet
+      n.folder || null,
+      (n.date || '').slice(0, 10) || null,    // DATE column wants YYYY-MM-DD
+      n.key,
+    ];
+  }).filter(r => r[9] && r[5]);               // a note with no key or no body
+                                              // cannot be indexed or found
+
+  try {
+    if(rows.length) await b.dbWriteMany('upsertNote', rows);
+    if(b.dbWrite) await b.dbWrite('pruneNotes', [rows.map(r => r[9])]);
+    lastNoteSig = sig;                    // only after it actually landed
+    return { ok:true, n: rows.length };
+  } catch(e){ return null; }
 }
 
 /* ================================================================
@@ -224,7 +321,7 @@ export const Store = (() => {
     registerPersonalDocs,
     registerCatalogOverrides,
     // the database — Docker Postgres or the built-in one, see the block above
-    dbAvailable, dbQuery, dbWrite, dbStatus, hydrateFromDb,
+    dbAvailable, dbQuery, dbWrite, dbStatus, hydrateFromDb, syncNotes,
     allDocs(){ return mergedDocs(); },
     listDocs(tradition){ return mergedDocs().filter(d => d.tradition === tradition); },
     getDoc(slug){ return mergedDocs().find(d => d.slug === slug) || null; },

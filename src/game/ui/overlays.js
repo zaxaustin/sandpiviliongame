@@ -2107,6 +2107,10 @@ export function returnToBook(){
 }
 function notesLogFiltered(){
   const v=state.notesLogView, q=v.q.trim().toLowerCase();
+  /* Only trust the index if it answered THIS question — the term is carried
+     with the keys so a stale set from the previous keystroke can never widen
+     the wrong search. */
+  const fts = (v.fts && v.fts.term === v.q.trim()) ? v.fts.keys : null;
   return gatherNotes().filter(n=>{
     if(v.source!=='all' && n.source!==v.source) return false;
     // "everything I wrote about THIS book" (#42) — the one question the hub
@@ -2115,7 +2119,12 @@ function notesLogFiltered(){
     const folder=noteFolderOf(n.key);
     if(v.folder==='__unfiled'){ if(folder) return false; }
     else if(v.folder && v.folder!=='all'){ if(folder!==v.folder) return false; }
-    if(q){ const hay=(n.title+' '+n.text+' '+n.where+' '+noteTagsOf(n.key).join(' ')).toLowerCase(); if(!hay.includes(q)) return false; }
+    if(q){
+      const hay=(n.title+' '+n.text+' '+n.where+' '+noteTagsOf(n.key).join(' ')).toLowerCase();
+      // substring OR the index — the index knows word forms the substring
+      // cannot see, and every other filter above still applies to both
+      if(!hay.includes(q) && !(fts && fts.has(n.key))) return false;
+    }
     return true;
   });
 }
@@ -2228,7 +2237,22 @@ function renderNotesLogList(){
   const el=document.getElementById('notesLogList'); if(!el) return;
   const v=state.notesLogView, folders=allFolders();
   let list=notesLogFiltered();
+  /* SAY WHEN THE INDEX EARNED ITS KEEP. A search that quietly returns more
+     than it should is indistinguishable from a search that is wrong, and the
+     visitor has no way to tell that "walking" found "walked" on purpose. Only
+     shown when the index actually added something a plain match missed —
+     otherwise it is noise on every keystroke. */
+  let ftsLine = '';
+  if(v.fts && v.fts.term === v.q.trim() && v.fts.keys.size){
+    const q = v.q.trim().toLowerCase();
+    const extra = list.filter(n =>
+      v.fts.keys.has(n.key) &&
+      !(n.title+' '+n.text+' '+n.where).toLowerCase().includes(q)).length;
+    if(extra) ftsLine = `<div class="meta" style="margin:-4px 0 8px;color:#8fbf8f">`
+      + `＋${extra} found by meaning as well as spelling — related word forms, not just “${esc(v.q.trim())}”.</div>`;
+  }
   if(!list.length){ el.innerHTML='<p style="color:#9c8b74">No notes here yet. Anything you write — beside a book, in a conversation, or at a desk — will gather here.</p>'; return; }
+  el.dataset.fts = ftsLine ? '1' : '';
   /* Narrowed to ONE book, the useful order is the BOOK's, not the diary's:
      notes follow the text, grouped under the chapter they were taken in.
      That is what makes "everything I wrote about this book" a re-readable
@@ -2239,7 +2263,7 @@ function renderNotesLogList(){
   if(byBook) list=list.slice().sort((a,b)=>
     pos(a,'ch')-pos(b,'ch') || pos(a,'page')-pos(b,'page') || String(a.date||'').localeCompare(String(b.date||'')));
   let lastCh;
-  el.innerHTML=list.map(n=>{
+  el.innerHTML=ftsLine+list.map(n=>{
     let header='';
     if(byBook && n.ch!==lastCh){
       lastCh=n.ch;
@@ -2349,7 +2373,44 @@ function notesLogCard(n, v, folders){
 export { sortNotes };
 export function setNotesLogSource(id){ state.notesLogView.source=id; state.notesLogView.expanded=null; renderNotesLog(); }
 export function setNotesLogFolder(id){ state.notesLogView.folder=id; state.notesLogView.expanded=null; renderNotesLog(); }
-export function setNotesLogSearch(val){ state.notesLogView.q=val; state.notesLogView.expanded=null; renderNotesLogList(); }
+export function setNotesLogSearch(val){
+  state.notesLogView.q=val; state.notesLogView.expanded=null;
+  state.notesLogView.fts=null;            // the old answer is not this question's
+  renderNotesLogList();
+  askTheIndex(val);                       // and see if the database knows more
+}
+
+/* THE ONE THING localStorage CANNOT DO. The filter below is a substring
+   match, and it always runs — it is what a browser tab has and it is honest.
+   What it cannot do is find "walked" when you typed "walking", or rank a
+   hundred hits by how well they match.
+
+   So the database WIDENS the existing filter rather than replacing it: it
+   returns the keys of notes that match by meaning, and a note is shown if
+   EITHER test passes. One filter, two inputs — not two searches whose answers
+   could disagree.
+
+   Debounced, because this runs on every keystroke and a sync rides in front
+   of it. `seq` guards against an early query answering after a later one and
+   putting stale results on screen. */
+let ftsSeq = 0, ftsTimer = null;
+function askTheIndex(q){
+  if(!(Store.dbAvailable && Store.dbAvailable())) return;
+  clearTimeout(ftsTimer);
+  const term = String(q||'').trim();
+  if(term.length < 2) return;
+  const mine = ++ftsSeq;
+  ftsTimer = setTimeout(async () => {
+    // The index is only as fresh as the last sync, and a note written a
+    // moment ago must be findable now. Cheap: one transaction.
+    try { await Store.syncNotes(gatherNotes()); } catch(e){ /* stale, not broken */ }
+    const rows = await Store.dbQuery('searchNotes', [term, 200]);
+    if(mine !== ftsSeq || !rows) return;          // a newer query already ran
+    const keys = new Set(rows.map(r => r.save_key).filter(Boolean));
+    state.notesLogView.fts = { term, keys, n: rows.length };
+    renderNotesLogList();
+  }, 180);
+}
 export function toggleNotesLogItem(key){
   const v=state.notesLogView;
   v.expanded = v.expanded===key ? null : key;
