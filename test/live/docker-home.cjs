@@ -122,11 +122,34 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ok   ' : '  FAIL
   ok(hits && hits.some(h => h.save_key === 'probe:docker:note'),
      'a note saying "walked" is found by searching "walking"');
 
+  console.log(String.fromCharCode(10) + '--- 5. a note knows WHERE in the book and WHEN ---');
+  /* Asked 2026-08-07: page number and date added, for organising later. Both
+     are columns already (migration 002) and syncNotes sends both. What this
+     checks is that they survive the round trip and come back through
+     notesForBook in the BOOK's order rather than the diary's - which is the
+     whole reason to store a page rather than only a date. */
+  await db.write('upsertCard', ['probe-book', 'A Probe Book', null, null, null, null, 'book', null, null, 40]);
+  for (const [key, ch, page, title] of [
+        ['probe:docker:p2', 2, 11, 'Later, chapter two'],
+        ['probe:docker:p1', 1,  2, 'Earlier, chapter one'],
+        ['probe:docker:p0', null, null, 'No page at all']]) {
+    await db.write('upsertNote', ['mynotes', 'probe-book', ch, page, title,
+      'body for ' + title, null, null, '2026-08-07', key]);
+  }
+  const forBook = await db.query('notesForBook', ['probe-book']);
+  console.log('   ' + JSON.stringify((forBook || []).map(r => [r.chapter_idx, r.page, r.title])));
+  ok(forBook && forBook.length === 3, 'all three notes came back for the book');
+  ok(forBook && forBook[0] && forBook[0].page === 2, 'they arrive in the BOOK order, earliest page first');
+  ok(forBook && forBook[1] && forBook[1].page === 11, 'then the later page');
+  ok(forBook && forBook[2] && forBook[2].page === null, 'and a note belonging to no page sorts LAST, not at page 1');
+  ok(forBook && forBook.every(r => r.created), 'every note carries the date it was added');
+
   const st2 = await db.status();
   ok(!st2.writeError, 'no writeError after all of that (got ' + st2.writeError + ')');
 
   await pool.query('DELETE FROM records WHERE source_key LIKE $1', ['probe:docker:%']);
   await pool.query('DELETE FROM notes   WHERE save_key   LIKE $1', ['probe:docker:%']);
+  await pool.query("DELETE FROM books WHERE slug = 'probe-book'");
   await pool.end();
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

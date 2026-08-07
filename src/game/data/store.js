@@ -259,8 +259,25 @@ export async function syncNotes(notes, opts = {}){
   if(!opts.force && sig === lastNoteSig) return { ok:true, n:notes.length, skipped:true };
 
   const rows = notes.map(n => {
-    // book notes carry a 0-based chapter index and page; the others carry
-    // neither, and an ABSENT field beats a guessed one (the reader's rule)
+    /* WHERE IN THE BOOK, AND WHEN — the two fields that make a pile of notes
+       organisable later, asked for 2026-08-07: "for the backend we should have
+       something like page number and date added or something to help with
+       orgnization later".
+
+       Both already exist as columns (migration 002: chapter_idx, page,
+       created) and both are sent here. What changed today is WHICH notes carry
+       them: this comment used to say "book notes carry a chapter index and
+       page; the others carry neither", and that was true until gatherNotes()
+       learned to convert a My Note's 1-based `book.page` into the same 0-based
+       `page` a book note uses. So a note written at the Writing Desk ABOUT
+       page 12 of a book now indexes at page 12 instead of NULL.
+
+       ONE BASE REACHES THE DATABASE, and it is the reader's. Two bases in one
+       column would make every ORDER BY quietly wrong by one.
+
+       An ABSENT field still beats a guessed one (the reader's rule): a note
+       that genuinely belongs to no page sends null and sorts last, rather than
+       being filed at page 1. */
     const ch   = Number.isInteger(n.ch)   ? n.ch   : null;
     const page = Number.isInteger(n.page) ? n.page : null;
     return [
