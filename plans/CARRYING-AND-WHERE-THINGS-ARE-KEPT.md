@@ -399,6 +399,77 @@ resident grounded in a thing that does not exist yet cannot be tested.
 
 ---
 
+## 7 · Two commitments to hold while the rest is built
+
+Stated 2026-08-07, ahead of any security work:
+
+> *"the app function has alot of data save locally on the computer, thats fine
+> and the pavalino is gona see that, lets make sure cloude modles cant in the
+> furtre and that personal info is not linked to a server if we connect on in
+> the future. as long as we do that i dont wana restrict the user and the ai."*
+
+Both halves matter, and the second is what makes the first affordable: **the
+constraint is on what LEAVES, never on what the visitor and their own resident
+may do together.** A local model reading your whole backpack is the Pavilion
+working. The same bytes going to someone else's server is a different act.
+
+### Where this already stands, honestly
+
+- **The carry-only rule is provider-blind, and that is correct.**
+  `data/lookup.js` says notes are never reached for, whichever model is
+  answering. That holds today for Ollama, LM Studio, OpenAI-compatible and
+  Anthropic alike.
+- **The build refuses to ship a cloud host or anything key-shaped.**
+  `scripts/verify-beta-build.mjs` *fails the build*, and `preflight.mjs`
+  asserts zero network requests. Both are green today.
+- **The Monk is already local-only** by standing decision.
+
+### What is NOT yet true, and should not be pretended
+
+**There is no provider-aware grounding rule.** A hosted resident and a local one
+are handed the same block. The steward's ask is stricter than what exists:
+
+> a hosted model should see *less* than a local one, by construction.
+
+That is a real piece of work — a `reach` tier per provider, so `lookup.js`
+answers differently for a hosted transport, and a **derived guard** that no
+grounding path can hand a hosted provider anything from the private side. It
+belongs with the security pass, not before it, but it must not be described as
+done in the meantime.
+
+**And "personal info is not linked to a server"** is currently true by the
+strongest possible means — there is no server. The commitment is that when one
+arrives it stays that way, which
+`COMMONS-SERVER-TIGHTENING.md` already designs for: allowlists keyed on public
+keys, no user database, no sessions. **A profile name is not an identity
+record**, and the moment it becomes one linked to reading history, this
+commitment is broken regardless of what the privacy page says.
+
+### The log, in a git shape
+
+> *"we should have a git format in the backend where things are loggned in a
+> list and that data can live locally on the device. if docker is set up mabie
+> there."*
+
+Right instinct, and it is close to what already exists rather than new: the
+Records Hall is an append-only list of what happened, and the Commons packet
+format is already content-addressed (SHA-256 of the payload as the id), which
+is the half of git that matters here. What a git shape would add is
+**parentage** — each entry naming what it came from — which is exactly the
+`supersedes` / `builds-on` field `COMMONS-SERVER-TIGHTENING.md` already says to
+add early.
+
+So: **not a new store.** A `parent` on the entries that have one, and the
+Records Hall becomes a history you can walk backwards. Local by default; on
+Postgres when Docker is up, because that is the same row either way — the home
+choice sits below the named-query seam and the renderer cannot tell.
+
+**Ordered after the library, notes and lesson planning**, at the steward's
+word, and this section exists so the constraints are already written down when
+that work starts.
+
+---
+
 ## What would tell us this was wrong
 
 - Carrying gets used once and then everyone goes back to the bespoke buttons.

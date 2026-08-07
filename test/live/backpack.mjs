@@ -19,10 +19,24 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const R = [];
 const check = (name, ok, detail) => R.push([name, !!ok, detail || '']);
 
-// An OLD save: books in `inventory`, no `carrying` key at all.
+/* An OLD save: books in `inventory`, no `carrying` key at all.
+
+   RULE 1 - TEST THE PLAYER'S BOOKS, NOT THE SEED. The first version of this
+   fixture carried two seed slugs, which is exactly what CLAUDE.md warns
+   against: a seed book resolves through seed.js, a book you dragged in
+   resolves through data.personalLibrary and registerPersonalDocs(), and the
+   migration calls Store.getDoc() for both. Only one of those paths was being
+   exercised. So: one seed book, one book added the way a real person adds
+   them, and one slug that resolves to NOTHING - which is the case that turned
+   out to be silently dropped. */
 const OLD_SAVE = {
   saveVersion: 1, seenWelcome: true,
-  inventory: ['dhammapada', 'gita'],
+  personalLibrary: [{
+    slug: 'personal-epub-import', title: 'A Book You Dragged In', tradition: 'Personal',
+    personal: true, license: '', added: '2026-08-07', category: 'personal', attribution: 'Someone',
+    doc: { summary: '', sections: [], fullText: { text: 'A paragraph.' + String.fromCharCode(10,10) + 'And another one.' } },
+  }],
+  inventory: ['dhammapada', 'personal-epub-import', 'no-such-book'],
 };
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
@@ -48,11 +62,15 @@ const after = await p.evaluate(() => {
   return { carrying: saved.carrying || [], inventory: saved.inventory || [],
            list: (window.carryList && window.carryList()) || [] };
 });
-check('two books came across the migration', after.carrying.length === 2,
-      JSON.stringify(after.carrying));
-check('they came across as books, with their real titles',
-      after.carrying.every(e => e.kind === 'book') && after.carrying.some(e => /Dhammapada/i.test(e.label || '')),
+check('all three entries came across the migration', after.carrying.length === 3,
       JSON.stringify(after.carrying.map(e => e.label)));
+check('A SEED book kept its real title',
+      after.carrying.some(e => /Dhammapada/i.test(e.label || '')),
+      JSON.stringify(after.carrying.map(e => e.label)));
+check('A BOOK YOU ADDED YOURSELF kept its real title too - the two resolve by different paths',
+      after.carrying.some(e => /Dragged In/i.test(e.label || '')),
+      JSON.stringify(after.carrying.map(e => e.label)));
+check('all of them came across as books', after.carrying.every(e => e.kind === 'book'));
 check('the old list was emptied, so it cannot be lifted twice', after.inventory.length === 0);
 
 // ---- 2 · it is idempotent ---------------------------------------------
@@ -60,7 +78,7 @@ const again = await p.evaluate(() => {
   window.carryMigrate();
   return (JSON.parse(localStorage.getItem('sandPavilionSave.v2') || '{}').carrying || []).length;
 });
-check('running the migration again changes nothing', again === 2, 'now ' + again);
+check('running the migration again changes nothing', again === 3, 'now ' + again);
 
 // ---- 3 · the panel shows them, and the reader agrees -------------------
 const panel = await p.evaluate(() => {
