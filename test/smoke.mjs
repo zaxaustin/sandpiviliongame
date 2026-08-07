@@ -2208,6 +2208,113 @@ for (const d of SEED_LIBRARY) {
 }
 
 /* ---------- report ---------- */
+/* ---------- carrying ----------
+   The one verb for "I found this here, I need it there." Pure, so the rules
+   that make it worth having are held to account here rather than trusted:
+
+     - a reference, never a copy
+     - a cap on ATTENTION, and meeting it is not a silent failure
+     - ONE table saying both what can be carried and where it goes down;
+       two hand-written lists that must agree is rule 4's exact shape
+
+   See plans/CARRYING-AND-WHERE-THINGS-ARE-KEPT.md. */
+{
+  const C = await import('../src/game/data/carrying.js');
+  const bk = { kind: 'book', ref: 'dhammapada', label: 'The Dhammapada' };
+
+  let r = C.pickUp([], bk, '2026-08-07');
+  if (!r.ok || r.list.length !== 1) fail('carrying: could not pick up a book');
+  if (r.list[0].label !== 'The Dhammapada') fail('carrying: the label was not kept');
+  if (!C.isCarrying(r.list, 'book', 'dhammapada')) fail('carrying: isCarrying did not find what was just picked up');
+
+  // twice is not a failure, and not two copies
+  const twice = C.pickUp(r.list, bk, '2026-08-07');
+  if (!twice.ok) fail('carrying: picking up something already held reported failure - a button that does nothing');
+  if (twice.list.length !== 1) fail('carrying: picking up twice put two copies in the bag');
+
+  // kind AND ref are the identity - a note and a book may share a string
+  const withNote = C.pickUp(r.list, { kind: 'note', ref: 'dhammapada', label: 'A note' }, '').list;
+  if (withNote.length !== 2) fail('carrying: a note was mistaken for the book of the same ref');
+  const afterDown = C.setDown(withNote, 'book', 'dhammapada');
+  if (afterDown.length !== 1 || afterDown[0].kind !== 'note') fail('carrying: setting down a book also set down the note');
+
+  // rubbish is refused with a sentence, not a code
+  const bad = C.pickUp([], { kind: 'sandwich', ref: 'x' }, '');
+  if (bad.ok) fail('carrying: it accepted a kind that does not exist');
+  if (!/[a-z]/.test(bad.reason || '')) fail('carrying: refusing something gave no sentence to put on screen');
+  if (!C.pickUp([], { kind: 'book', ref: '' }, '').reason) fail('carrying: an empty ref was accepted or refused silently');
+
+  // the cap is real, and says so
+  let full = [];
+  for (let i = 0; i < C.CARRY_CAP; i++) full = C.pickUp(full, { kind: 'book', ref: 'b' + i, label: 'B' + i }, '').list;
+  if (full.length !== C.CARRY_CAP) fail('carrying: filled to ' + full.length + ', expected ' + C.CARRY_CAP);
+  const over = C.pickUp(full, { kind: 'book', ref: 'one-too-many', label: 'X' }, '');
+  if (over.ok) fail('carrying: the cap was not enforced');
+  if (over.list.length !== C.CARRY_CAP) fail('carrying: a refused pick-up still changed the bag');
+  if (!/set something down/i.test(over.reason || '')) fail('carrying: a full backpack did not say what to do about it');
+  /* It must REASSURE, not threaten. Checking for the WORD "lost" is not the
+     same check - this message says "nothing is lost", which is the point of
+     it, and the first version of this assertion failed the correct wording. */
+  if (!/nothing is lost|goes back|still (there|yours)/i.test(over.reason || '')) {
+    fail('carrying: a full backpack said "' + over.reason + '" without saying nothing is lost');
+  }
+
+  // stale entries are REPORTED, never silently dropped
+  const held = C.pickUp([], bk, '').list;
+  if (C.stale(held, () => false).length !== 1) fail('carrying: a reference to something deleted was not reported as stale');
+  if (C.stale(held, () => true).length !== 0) fail('carrying: something that still exists was called stale');
+
+  // the HUD line is a sentence, not a count
+  if (C.carryLine([]) !== '') fail('carrying: an empty backpack still said something');
+  if (!/Dhammapada/.test(C.carryLine(held))) fail('carrying: one carried thing should be named, not counted');
+  if (!/2 things/.test(C.carryLine(withNote))) fail('carrying: carryLine gave "' + C.carryLine(withNote) + '"');
+
+  /* ONE TABLE, DERIVED BOTH WAYS. canAccept must answer from KINDS itself, so
+     a new kind works everywhere its places already exist with nothing else
+     edited. And PLACES must be DERIVED from KINDS rather than listed beside
+     it, or the two drift - which is how hideAllOv(), the window exports and
+     the resident roster each broke. Broken on purpose 2026-08-07 by replacing
+     PLACES with a hand-written list missing one entry. */
+  for (const k of C.KIND_KEYS) {
+    if (!C.KINDS[k].places.length) fail('carrying: kind ' + k + ' can be put down nowhere - a dead end');
+    for (const pl of C.KINDS[k].places) {
+      if (!C.canAccept(pl, k)) fail('carrying: KINDS says ' + k + ' goes to ' + pl + ', canAccept disagrees');
+      if (!C.PLACES.includes(pl)) fail('carrying: ' + pl + ' is a place no PLACES list knows - derived from what?');
+    }
+    if (!C.KINDS[k].icon || !C.KINDS[k].label) fail('carrying: kind ' + k + ' has no icon or label to show');
+  }
+  if (C.canAccept('studyTable', 'sandwich')) fail('carrying: canAccept said yes to a kind that does not exist');
+  if (C.canAccept('nowhere', 'book')) fail('carrying: canAccept said yes to a place no kind names');
+
+  // grounding is the carried set, filtered - never more than you are holding
+  const g = C.groundingFor(withNote, ['book']);
+  if (g.length !== 1 || g[0].kind !== 'book') fail('carrying: groundingFor did not narrow to the asked kinds');
+  if (C.groundingFor(withNote).length !== withNote.length) fail('carrying: grounding with no filter changed the set');
+  if (C.groundingFor(null).length !== 0) fail('carrying: groundingFor threw on an empty backpack');
+}
+
+/* ---------- nothing may be checked after the verdict ----------
+   THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
+   this file therefore runs after the verdict, and its failures go into a list
+   nobody reads again - so it reports PASS while testing nothing at all.
+
+   Not hypothetical: the whole carrying block above was first appended to the
+   end of the file on 2026-08-07, reported clean twice, and was only caught
+   when its subject was deliberately broken and the suite still said "all
+   checks clean". Two guards written the same day were born dead; that one was
+   born invisible, which is worse - a dead guard fails to catch a bug, an
+   invisible one also certifies that there is none.
+
+   So: the report must be the last thing in this file. */
+{
+  const selfSrc = readFileSync(new URL('./smoke.mjs', import.meta.url), 'utf8');
+  const after = selfSrc.slice(selfSrc.indexOf('if (failures.length)'));
+  if (/\n\{\s*\n/.test(after) || /\nconst \w+ = await import/.test(after)) {
+    fail('smoke: there are checks AFTER the verdict is printed - they can never fail. '
+       + 'Move them above `if (failures.length)`.');
+  }
+}
+
 if (failures.length) {
   console.error(`✗ ${failures.length} smoke-test failure(s):\n`);
   for (const f of failures) console.error('  - ' + f);

@@ -187,7 +187,7 @@ job without a user database. Noted in `THE-TUTORIAL-AND-SIGNING-IN.md`.
 
 > *"redoing the backend to be proper is gona cause some issues but lets make
 > sure we build up that solid foundation now so we dont run into these isuuses
-> when we make something even more comlecated lol."*
+> when we make something even more complecated lol."*
 
 Correct, and the evidence is already in the log: today's four "hand marks never
 reach the reader" failures were a one-page test fixture, and the day before that
@@ -281,6 +281,95 @@ up. Which means:
   the book in your backpack and I will read it with you"* — a real next step
   instead of a guess. Rule 6 stops being a discipline and becomes the obvious
   path.
+
+### Can a resident go and look something up?
+
+Asked 2026-08-07: *"can the ai use the backend to pull info like a book im
+refrencing or older notes if they need to?"*
+
+**Yes — and one of them already does.** `residents.js:103` searches the
+catalogue with `searchBooks` and injects a `YOU LOOKED THIS UP` block, with an
+honest branch for a search that finds nothing: *"That is a real answer, not a
+gap in what you were shown… do not guess at a title that might be close."* That
+is already the right shape and does not need rebuilding.
+
+**Two facts about what the backend can actually serve:**
+
+- **It holds the catalogue, not the text.** `books.text_key` is a *pointer*; the
+  words live in MinIO or in a `.txt` under userData. So a lookup answers *which
+  book, and where it sits* — the passage comes from `retrieval.js` (BM25, inside
+  one book). Two systems, both already built, and confusing them would have a
+  resident quoting a book it never opened.
+- **`searchNotes` is the one that earns its place**, and it is unused. It stems
+  — `walking` finds `walked` — which JS genuinely cannot do, and "what did I
+  write about this before" is the question a resident most needs and cannot
+  currently ask.
+
+**But a lookup must not become invisible grounding**, or §0 has been quietly
+reversed and we are back to the uncapped-prompt bug in a new costume. So:
+
+1. **A lookup happens because you asked**, or because the resident says it is
+   going to look — never silently in the background of a reply.
+2. **What it found goes into the backpack.** This is the important one: a
+   resident's search is the *fastest way to fill the backpack*, not a private
+   channel around it. You end up holding what it found, so you can see it, carry
+   it elsewhere, or put it down.
+3. **What was searched and what came back is stated**, as `searchBooks` already
+   does — including "nothing", which is a real answer.
+
+That keeps one rule for everything: **what the resident sees is what you are
+carrying.** A lookup adds to it in the open rather than bypassing it.
+
+### A gap in what a resident knows is a REQUEST, not an apology
+
+Asked 2026-08-07, and it is the best idea of the session:
+
+> *"lets have the resedends when they dont know whats going on or have a hole
+> in knolege to ask the user to get more data on that topic lol to have the
+> user get more books to complete there knolege and to be more helpfull lol."*
+
+This closes a loop the project has had open since the beginning, and it turns
+the *weakest* thing about a small local model into the thing that grows the
+Library.
+
+Rule 6 says say "I don't know", and until now that was where it stopped — an
+honest dead end, and a dead end is the one thing nothing here may be. This
+makes the not-knowing **actionable**:
+
+> *"There is nothing on these shelves about Kalman filters. If you bring one
+> in, I can work from it — the Request Board is in the Study, and dragging a
+> file onto the window is the fastest way."*
+
+**Why this is right and not a trick:**
+
+- **The gap is real and already detected.** `residents.js:107` has the branch
+  today: a search that finds nothing already produces *"say plainly that it is
+  not on these shelves, and offer the Request Board"*. What is missing is that
+  it only fires for a **title** search. It should fire for a gap in *what the
+  resident could answer with*, which is a wider and more honest question.
+- **It is the ownership principle, arriving from the other side.** *"filling up
+  your own library makes one have a sence of ownerhip"* — and a book you
+  fetched because a resident could not answer without it is the most owned book
+  there is. The seed shelf is an on-ramp; this is the on-ramp doing its job.
+- **It makes the model's real limit useful.** A small local model has thin
+  recall and will invent a chapter number sooner than admit it lacks one. This
+  gives it somewhere to put the admission that is not an apology.
+
+**Three rules, or it becomes nagging:**
+
+1. **Name the gap, not the feeling.** *"Nothing here covers X"* — a specific,
+   checkable claim about the shelves, which the visitor can verify and the
+   resident can be wrong about out loud. Never *"I'm not sure"*.
+2. **Ask once, and only when it blocks the actual question.** A resident that
+   ends every reply with a book request is an upsell. The test: would the
+   answer have been genuinely better with that book? If not, say nothing.
+3. **Offer the shortest real path.** The Request Board, or drag a file onto the
+   window — both already exist. Never *"go and find something"*.
+
+**And it lands in the backpack.** A request the visitor acts on ends with a book
+carried in, which is the same loop as a lookup: the resident's limits are filled
+by the visitor, deliberately, and everything the resident then sees is something
+a person chose to hand it.
 
 ### Notes from Quill and the Monk
 
