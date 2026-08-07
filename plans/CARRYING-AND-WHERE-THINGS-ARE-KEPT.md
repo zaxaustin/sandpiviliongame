@@ -213,6 +213,103 @@ Writing that guard first means the plan cannot repeat the mistake it just found.
 
 ---
 
+## 6 · The table is not a person — the people are
+
+Set 2026-08-07:
+
+> *"the people in the pavilion can refrences material, mabie each speclize on
+> how but the study table is not a person and the ai can help with notes but
+> wont know much, notes from quill or the moutian monk might be a nice feature
+> to add."*
+
+This is the cleanest line yet between the two halves of the Pavilion, and it
+settles what each part of the pathway above is allowed to do.
+
+### The rule
+
+**A surface holds. A person knows.** The Study Table, the Writing Desk, the
+Records Hall and the backpack are surfaces: they arrange what you put on them
+and they never volunteer. Anything that *references*, *compares* or *suggests*
+is a resident — with a name, a duty, and a room you walked to.
+
+The practical test: if a panel produces a sentence nobody asked it for, that
+sentence should have a face attached, or it should not exist.
+
+### Each specialises in HOW, and roles.js already says so
+
+The roster has carried this since it was written; it just was not being used as
+a design constraint:
+
+| resident | how they reference | `sendMe` |
+|---|---|---|
+| **Quill** | *"knows what is actually on the shelves… **speaks only of texts genuinely shelved here**"* | finding a book, what one is about, a summary |
+| **the Monk** | *"not information — **orientation**"* | what a thing is *for*, how to live with it |
+| **the Tutor** | breaks a hard thing down until it is genuinely understood | first principles, small steps |
+| **the Computer** | *"most of what it does **needs no AI at all**, which is the point of it"* | listing, searching, opening |
+
+So "reference this material" is **four different acts**, not one feature with a
+dropdown. Ask Quill and you get *where it sits and what else is like it*. Ask
+the Monk and you get *what it is for* — and if you ask him what page something
+is on, the honest answer is that this is Quill's question.
+
+### The constraint, said plainly: the model will not know much
+
+> *"the ai can help with notes but wont know much"*
+
+Correct, and it is the most useful sentence for building this. A model small
+enough to run on this machine has thin recall and will invent a chapter number
+sooner than admit it does not have one. So **its value is never recall — it is
+work on what is in front of it.**
+
+**And that is what carrying is for.** This is the part that makes the whole plan
+hold together rather than being two plans:
+
+> **The backpack is the grounding.**
+
+What you carried in is what the resident can see. Not a heuristic guessing at
+relevance, not the whole catalogue — the specific things you deliberately picked
+up. Which means:
+
+- **The uncapped-prompt bug cannot recur.** It has been fixed three times
+  (Quill, the Monk, and a third site still open at `overlays.js:5748`) because
+  every grounding block is assembled by hand and each one is written fresh. A
+  carried list is *already* capped, by a person, on purpose — and rule 7 says
+  the deterministic answer beats the approximate one.
+- **The visitor can see exactly what the resident can see**, which is the only
+  honest version of "grounded".
+- **"I don't know" gets easy.** With nothing carried, a resident can say *"put
+  the book in your backpack and I will read it with you"* — a real next step
+  instead of a guess. Rule 6 stops being a discipline and becomes the obvious
+  path.
+
+### Notes from Quill and the Monk
+
+A resident's note is **the same kind of thing as yours** — it lands in the Notes
+Log, it is carryable, it can go on the Study Table. It differs in exactly one
+way: **it is attributed and it is obvious.** The `✨` convention already exists
+for AI-written notes and already survives sorting; this extends it from "an AI
+wrote this" to *which* resident, because a note from the Monk and a note from
+Quill are different kinds of claim and should not wear one badge.
+
+Two rules, both of which follow from things already decided:
+
+1. **A resident writes a note only when asked.** Nothing in the Pavilion happens
+   in the background, and a note that appeared by itself is the automatic
+   behaviour §0 rules out.
+2. **A resident's note says what it was looking at.** Attribution without
+   grounding is just a byline. If Quill wrote it from three carried books, the
+   note names them — that is the provenance rule the Commons already uses,
+   applied inward.
+
+### Where this lands in the order
+
+It does **not** become a seventh step. It is a constraint on steps 1–4: the
+Study Table's tray stays dumb, the Computer stays mostly AI-free, and the first
+resident to read from the backpack comes after carrying works — because a
+resident grounded in a thing that does not exist yet cannot be tested.
+
+---
+
 ## What would tell us this was wrong
 
 - Carrying gets used once and then everyone goes back to the bespoke buttons.
@@ -221,3 +318,7 @@ Writing that guard first means the plan cannot repeat the mistake it just found.
 - "Manual" turns into "tedious" — if putting a book on the table takes more than
   one press from where you already are, the principle is being used as an
   excuse for a missing shortcut.
+- A surface starts volunteering. The first unprompted sentence on the Study
+  Table with no face attached is the rule in §6 going.
+- A resident answers from recall instead of from what was carried. The tell is a
+  confident chapter number for a book that is not in the backpack.
