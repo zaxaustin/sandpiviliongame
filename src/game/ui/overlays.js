@@ -10,6 +10,8 @@ import { planToLesson } from '../data/plan-to-lesson.js';
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS } from '../data/the-day.js';
+import { gatherRecords, recordSummary, RECORD_LOOK } from '../data/records.js';
+import { backendTrouble } from '../data/backend-trouble.js';
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
 import { esc, jsq, NOTE_SELECT_STYLE } from './dom.js';
 import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
@@ -805,6 +807,17 @@ export function showBadgeToast(b){
   badgeToastTimer=setTimeout(()=>el.classList.remove('show'),4200);
   blip(880,.07); setTimeout(()=>blip(1100,.09),80);
 }
+/* The same strip, carrying a plain sentence instead of a badge. Added for the
+   Records Hall, which can hold a door written by an older build whose function
+   has since been renamed — a card that silently does nothing when clicked is
+   the house failure mode, and this is the cheapest loud alternative. */
+export function showToast(text){
+  const el=document.getElementById('badgeToast'); if(!el) return;
+  el.innerHTML = `<div class="bIcon">•</div><div><div class="bS">${esc(text)}</div></div>`;
+  el.classList.add('show');
+  clearTimeout(badgeToastTimer);
+  badgeToastTimer=setTimeout(()=>el.classList.remove('show'),3200);
+}
 /* WHO DOES WHAT, for the person — 2026-08-03. The residents' duties were
    cleaned up the same day so a small local model would stop being handed two
    different org charts; this is the other half of that, and arguably the
@@ -872,28 +885,82 @@ function renderBadges(){
    real, hand-written timeline for now, not yet reading the actual
    archive files live — the backend connection is real future work, not
    this pass. ----- */
-const PAVILION_TIMELINE=[
-  {date:'2026-07-06', text:'The original module split — a real Store adapter contract, and the first sketch of a hosted backend (removed again 2026-08-02).'},
-  {date:'2026-07-07', text:'The Workshop and the first AI agents, through git and GitHub — the Cafe, real accounts, steward auth, an AI-backed Steward, the agent-notes commons, the Research Desk, the first Vercel deploy.'},
-  {date:'2026-07-08', text:'Reading notes in the Reader, local object storage (Docker and MinIO), the Classics and Science shelves, the arXiv/Semantic Scholar/SuttaCentral connectors, live SuttaCentral search from inside the game.'},
-  {date:'2026-07-09', text:"The Keep's Ganesha statue, the Native American shelf, the reading-to-doing sparks system closing out, the Monk and Quill's roles split for real, the Writing Desk rebuilt around a real page instead of a stacked panel."},
-  {date:'2026-07-10', text:"A dropped session's beta notes triaged and fixed, the Eightfold Path Temple and the Tool Commons written down as real long-term plans, and the Workshop itself grew these very floors you're standing in."},
-];
-export function openRecordsHall(){ state.ui='records'; hideAllOv(); renderRecordsHall(); showOv('recordsOv'); }
-function renderRecordsHall(){
+export function openRecordsHall(){ state.ui='records'; hideAllOv(); renderRecordsHall(); showOv('recordsOv'); refreshRecordsHall(); }
+
+/* ONE WALK, TWO READERS. gatherRecords() produces the history from the save
+   and is the only thing that decides what counts as a record. The database
+   is asked second, and only to ADD what the save can no longer see (older
+   rows, and anything hidden staying hidden) — it is never a separate
+   implementation of the same idea, which is the store.js scar.
+
+   So with no database this room is complete and correct; with one it is the
+   same room, longer. */
+async function refreshRecordsHall(){
+  const local = gatherRecords(data, s => { const d = Store.getDoc(s); return d && d.title; });
+  Store.syncRecords(local);                        // fire and forget; it soft-fails
+  let rows = null;
+  try { rows = await Store.dbQuery('records', [400]); } catch(e){ rows = null; }
+  if(state.ui !== 'records') return;               // they walked out while we asked
+  renderRecordsHall(rows);
+}
+
+function renderRecordsHall(dbRows){
+  const local = gatherRecords(data, s => { const d = Store.getDoc(s); return d && d.title; });
+  /* The database's answer wins where it exists, because it is the one that
+     knows about hiding. Merge on source_key so a row the save no longer
+     produces still shows, rather than vanishing the day a book is removed. */
+  let list = local, indexed = false;
+  if(Array.isArray(dbRows) && dbRows.length){
+    const bySrc = new Map(local.map(r => [r.source_key, r]));
+    for(const r of dbRows){
+      bySrc.set(r.source_key || (r.kind + ':' + r.id), {
+        kind:r.kind, title:r.title, detail:r.detail, ref:r.ref, opener:r.opener,
+        slug:r.slug, tags:r.tags || [],
+        happened:(typeof r.happened === 'string' ? r.happened : new Date(r.happened).toISOString()).slice(0,10),
+        source_key:r.source_key || (r.kind + ':' + r.id),
+      });
+    }
+    list = [...bySrc.values()].sort((a,b)=> a.happened<b.happened?1:a.happened>b.happened?-1:0);
+    indexed = true;
+  }
+
+  const counts = recordSummary(list);
+  const summary = counts.map(([k,n]) => {
+    const L = RECORD_LOOK[k] || { icon:'•', label:k };
+    return `${L.icon} ${n} ${esc(L.label)}`;
+  }).join(' · ');
+
   document.getElementById('recordsPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>The Records Hall</h2>
-    <div class="meta">The Pavilion's own memory, made walkable instead of just
-      committed. The full, real version lives in <code>archive/dev-log-*.txt</code>
-      — this hall doesn't read those files live yet, on purpose (visuals
-      first, the actual backend connection later); everything below is
-      real and accurate, just hand-kept for now, not auto-generated.</div>
-    ${PAVILION_TIMELINE.map(t=>`
-      <div class="card" style="cursor:default">
-        <div class="t">${esc(t.date)}</div>
-        <div class="s">${esc(t.text)}</div>
-      </div>`).join('')}`;
+    <div class="meta">Everything you have done here, newest first, beside the
+      Pavilion's own history. This room <b>owns nothing</b> — every line points
+      back at where the real thing lives, so nothing here is a dead end.
+      ${indexed ? '' : '<br><b>Not indexed on this device</b> — a browser tab has no database, so this is built from your save each time you open it. Everything you have done still shows; older entries you have since removed do not.'}</div>
+    ${summary ? `<div class="meta" style="color:#c9a227">${summary}</div>` : ''}
+    ${list.length ? list.map(r => {
+      const L = RECORD_LOOK[r.kind] || { icon:'•' };
+      /* A record with an opener is a door; one without is a line of history.
+         Never render a button that goes nowhere — the whole point of `opener`
+         living in the schema is that the Hall cannot become a dead end. */
+      const go = r.opener && window[r.opener]
+        ? ` onclick="recordOpen('${jsq(r.opener)}','${jsq(r.ref||'')}')" style="cursor:pointer"`
+        : ' style="cursor:default"';
+      return `<div class="card"${go}>
+        <div class="t">${L.icon} ${esc(r.happened)}${r.kind!=='milestone'?' · '+esc((RECORD_LOOK[r.kind]||{}).label||r.kind):''}</div>
+        <div class="s">${esc(r.title)}</div>
+      </div>`;
+    }).join('') : `<div class="meta">Nothing recorded yet. Read a book, run an
+      experiment, or make something at the Bench and it will show up here.</div>`}`;
+}
+
+/* The door. Openers are stored as plain names in the database, so this
+   checks the function actually exists before calling it — a record written
+   by an older build must never crash the room it is listed in. */
+export function recordOpen(opener, ref){
+  const fn = window[opener];
+  if(typeof fn !== 'function'){ showToast('That door has moved since this was recorded.'); return; }
+  try { ref ? fn(ref) : fn(); } catch(e){ showToast('Could not open that.'); }
 }
 
 /* ----- Local Library storage status — same passive-status-line pattern
@@ -1007,6 +1074,15 @@ export async function refreshBackendStatus(){
      THIS visitor — a browser reader whose shelf is filling up. Silence
      otherwise; a warning everyone sees is a warning nobody reads. */
   const ceiling=libraryCeilingLine();
+  /* A DATABASE THAT READS FINE BUT DOES NOT SAVE MUST NOT LOOK HEALTHY.
+     The wording and the precedence live in data/backend-trouble.js, which
+     is DOM-free so npm test can hold it to account without a browser. */
+  const trouble = backendTrouble(st);
+  if(trouble){
+    el.textContent = trouble.text;
+    el.style.color = '#e0a43c';
+    return;
+  }
   el.textContent = ceiling ? s.text+'  '+ceiling : s.text;
   el.style.color = ceiling ? '#e0a43c' : (s.on ? '#8fbf8f' : '#9c8b74');
 }
@@ -11159,7 +11235,7 @@ Object.assign(window, {
   forgetMemoryItem, forgetAllMemory,
   openLocalAIPanel, renderLocalAIPanel,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
-  openBadges, openRecordsHall, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
+  openBadges, openRecordsHall, recordOpen, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openCatalog, catalogOpen,
   openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
   openNotesLog, openNotesWhileListening, returnToBook, setNotesLogSource, setNotesLogFolder, setNotesLogSearch, toggleNotesLogItem,

@@ -285,6 +285,40 @@ export async function syncNotes(notes, opts = {}){
   } catch(e){ return null; }
 }
 
+let lastRecordSig = null;
+/* Mirror the visitor's own history into the records index.
+
+   Same shape as syncNotes above and for the same reason: the Records Hall
+   opens often, and re-writing an unchanged history every time is work
+   nobody asked for. Fingerprinted on the source_keys, which is exactly what
+   changes when something is added or removed.
+
+   NO PRUNE, unlike notes, and the difference is deliberate. A note that is
+   deleted should leave the index — a hit you cannot open is a silent wrong
+   answer. But `records` also carries the `hidden` flag the visitor sets
+   themselves, and a prune keyed on "what the save currently produces" would
+   erase that choice the first time it ran. Hiding never deletes; neither
+   does this. */
+export async function syncRecords(records, opts = {}){
+  const b = bridge();
+  if(!b || !b.dbWriteMany || !Array.isArray(records)) return null;
+
+  const sig = records.length + '|' + records.map(r => r.source_key).join(',');
+  if(!opts.force && sig === lastRecordSig) return { ok:true, n:records.length, skipped:true };
+
+  const rows = records.map(r => ([
+    r.kind, (r.title || '').slice(0, 300), r.detail || null, r.happened,
+    r.ref || null, r.opener || null, r.slug || null,
+    Array.isArray(r.tags) ? r.tags : [], r.source_key,
+  ])).filter(r => r[0] && r[1] && r[3] && r[8]);   // kind, title, date, key are
+                                                   // all NOT NULL in the schema
+  try {
+    if(rows.length) await b.dbWriteMany('upsertRecord', rows);
+    lastRecordSig = sig;
+    return { ok:true, n: rows.length };
+  } catch(e){ return null; }
+}
+
 /* ================================================================
    [STORE] — the adapter. Player save data (load/save/reset) stays
    local-only — there's no account system yet to hang a network save
@@ -321,7 +355,7 @@ export const Store = (() => {
     registerPersonalDocs,
     registerCatalogOverrides,
     // the database — Docker Postgres or the built-in one, see the block above
-    dbAvailable, dbQuery, dbWrite, dbStatus, hydrateFromDb, syncNotes,
+    dbAvailable, dbQuery, dbWrite, dbStatus, hydrateFromDb, syncNotes, syncRecords,
     allDocs(){ return mergedDocs(); },
     listDocs(tradition){ return mergedDocs().filter(d => d.tradition === tradition); },
     getDoc(slug){ return mergedDocs().find(d => d.slug === slug) || null; },

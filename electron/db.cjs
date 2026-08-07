@@ -68,6 +68,19 @@ let lastError = null;
    database that is behind on migrations is a different, quieter problem, and
    the one most likely to be mistaken for health. */
 let schemaError = null;
+/* THE LAST WRITE THAT FAILED, AND IT STICKS.
+
+   `lastError` is wiped by the next successful call, and `status()` runs a
+   ping first — so a write that failed a moment ago reported a perfectly
+   healthy database. Finding the array bug above took a hand-written probe
+   for exactly that reason: writeMany returned null, and null is also what
+   "no bridge" returns, so there was nothing to tell them apart.
+
+   A read that fails shows up immediately — the panel is empty. A WRITE that
+   fails shows nothing at all until much later, when something is missing
+   that nobody watched being saved. That is the house failure mode, so this
+   one is kept until it is explicitly cleared. */
+let lastWriteError = null;
 
 /* Credentials come from .env beside the compose file — the same file Docker
    Compose reads, so there is one place to change them and no chance of the
@@ -249,7 +262,8 @@ function getBackend() {
    the point is to drop the choice, not to guarantee a clean shutdown. */
 async function reconnect() {
   const old = backend;
-  backend = null; opening = null; state = 'unknown'; lastError = null; schemaError = null;
+  backend = null; opening = null; state = 'unknown';
+  lastError = null; schemaError = null; lastWriteError = null;
   try { if (old && old.close) await old.close(); } catch (e) { /* let it go */ }
   return status();
 }
@@ -379,15 +393,54 @@ const WRITES = {
   hideNote:     'UPDATE notes   SET hidden = $2    WHERE save_key = $1',
 };
 
+/* ---------- one shape of parameter, both homes ----------
+
+   A JS array passed for a TEXT[] column WRITES on node-postgres, which
+   serialises it, and FAILS on PGlite, which does not. Measured 2026-08-04
+   against the embedded home:
+
+     []            failed        null        wrote
+     ['a']         failed        '{}'        wrote
+     ['a','b']     failed        '{a,b}'     wrote
+
+   Nothing had ever caught it because `tags` is the only array column the
+   app writes and syncNotes passes null for it — so the first real array
+   parameter in the project's history was the Records Hall's, and it
+   silently wrote nothing at all.
+
+   That is precisely the divergence this design exists to not have: the
+   renderer asks for a named write and must not care which home answers.
+   So the normalising happens HERE, below the seam and above both
+   adapters, and a Postgres array literal is what actually leaves — a form
+   both accept.
+
+   HONEST LIMIT: the node-postgres half of that table is from its
+   documented behaviour, not from a run. Docker Desktop was stopped when
+   this was written, so the Docker home is untested for arrays. The fix
+   does not depend on which way that goes — a literal works on both — but
+   the claim "they used to differ" is one measurement short, and
+   test/live/records.cjs only covers the embedded home. */
+function pgArray(a) {
+  return '{' + a.map(v => {
+    if (v === null || v === undefined) return 'NULL';
+    return '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }).join(',') + '}';
+}
+function normalizeParams(params) {
+  if (!Array.isArray(params)) return params;
+  return params.map(p => (Array.isArray(p) ? pgArray(p) : p));
+}
+
 async function run(sql, params) {
   const b = await getBackend();
   if (!b) return null;
   try {
-    const res = await b.query(sql, params || []);
+    const res = await b.query(sql, normalizeParams(params) || []);
     state = 'up'; lastError = null;
     return res.rows;
   } catch (e) {
     state = 'down'; lastError = e.message;
+    lastWriteError = e.message;
     return null;                       // never throws at the renderer
   }
 }
@@ -415,11 +468,12 @@ async function writeMany(name, rowsOfParams) {
   try {
     // The transaction belongs to the adapter: a pg client does BEGIN/COMMIT
     // by hand, PGlite has its own. Both arrive here as the same `each`.
-    await b.tx(async (q) => { for (const params of rowsOfParams) await q(sql, params); });
+    await b.tx(async (q) => { for (const params of rowsOfParams) await q(sql, normalizeParams(params)); });
     state = 'up'; lastError = null;
     return { ok: true, n: rowsOfParams.length };
   } catch (e) {
     state = 'down'; lastError = e.message;
+    lastWriteError = e.message;
     return null;
   }
 }
@@ -440,6 +494,9 @@ async function status() {
     // purpose: this database answers, so hiding the fault would be exactly
     // the silent wrong thing the schema change was made to prevent.
     schemaError: rows ? schemaError : null,
+    // "Open, and reading fine, but something did not save." Survives the
+    // ping above, which is the whole point — see lastWriteError.
+    writeError: lastWriteError,
   };
 }
 

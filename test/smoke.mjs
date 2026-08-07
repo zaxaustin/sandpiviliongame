@@ -179,6 +179,28 @@ for (const [key, s] of Object.entries(scenes)) {
     if (n === 'window' || n === 'Object' || n === 'assign' || defined.has(n)) continue;
     fail(`overlays.js: the window export list names '${n}', which is not defined anywhere — that ReferenceError aborts the entire export block at load time, so nothing listed after it reaches window either`);
   }
+
+  /* ---- and every DOOR a record names must be one of those exports ----
+     data/records.js stores an `opener` as a plain string, because the
+     Records Hall reads rows out of a database where a function cannot
+     live. That string is only a promise until something checks it.
+
+     The first version named openInvestigation, openExperiment and
+     openBuild. None exist. 14 of the room's 16 cards were dead ends —
+     found by opening the room and COUNTING the clickable ones, not by
+     reading the code, and forbidden outright by the standing rule that
+     nothing may be a dead end. This is rule 4's shape: a list in one
+     file that must match a list in another. */
+  const recSrc = readFileSync(new URL('../src/game/data/records.js', import.meta.url), 'utf8');
+  const recNoComments = recSrc.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+  const openers = new Set();
+  for (const m of recNoComments.matchAll(/opener\s*:\s*'([A-Za-z_$][\w$]*)'/g)) openers.add(m[1]);
+  for (const m of recNoComments.matchAll(/'(open[A-Z][\w$]*)'/g)) openers.add(m[1]);
+  for (const o of openers) {
+    if (!names.has(o)) {
+      fail(`data/records.js names '${o}' as a record's opener, but it is not in the window export block — every card using it would be a dead end (the Records Hall reads openers out of the database as strings, so nothing else can catch this)`);
+    }
+  }
 }
 
 /* ---------- a moved panel must resolve every name it executes ----------
@@ -2063,6 +2085,42 @@ for (const d of SEED_LIBRARY) {
   const strip = versionSummary(n);
   if (!strip[strip.length - 1].current) fail('note-versions: the history strip does not mark which version is current');
   if (strip.filter(x => x.current).length !== 1) fail('note-versions: more than one version is marked current');
+}
+
+/* ---------- a database that reads but does not write must say so ----------
+   The most expensive fault class this project has: on 2026-08-04 an array
+   parameter made every Records Hall write fail on the embedded home while
+   the title screen showed a healthy green line the whole time, because a
+   read-only ping is all it ever asked. Finding it took a hand-written probe.
+
+   The words and the precedence are pure, so they are held to account here
+   rather than through a browser. */
+{
+  const { backendTrouble } = await import('../src/game/data/backend-trouble.js');
+  const base = { up: true, kind: 'embedded', label: 'built-in database', error: null };
+
+  if (backendTrouble({ ...base }) !== null) fail('backend-trouble: a healthy database was reported as troubled');
+  if (backendTrouble(null) !== null) fail('backend-trouble: a null status threw or reported trouble');
+  if (backendTrouble({ up: false, writeError: 'x' }) !== null) {
+    fail('backend-trouble: a database that is not open reported a WRITE problem — "it never opened" is a different message, and naming the write sends someone to fix the wrong thing');
+  }
+
+  const w = backendTrouble({ ...base, writeError: 'null value in column "happened"' });
+  if (!w || w.kind !== 'write') fail('backend-trouble: a failed write was not reported at all — this is the silent failure the whole file exists for');
+  else {
+    if (!/did not save/.test(w.text)) fail('backend-trouble: the write message does not say plainly that something did not save');
+    if (!/happened/.test(w.text)) fail('backend-trouble: the write message drops the actual database error, leaving nothing to act on');
+    if (!/still in your save/.test(w.text)) fail('backend-trouble: the write message does not reassure that the work itself is safe — it is, and a visitor reading "did not save" will assume otherwise');
+  }
+
+  const s = backendTrouble({ ...base, schemaError: 'relation "records" does not exist' });
+  if (!s || s.kind !== 'schema') fail('backend-trouble: a behind schema was not reported');
+
+  /* PRECEDENCE. A behind-schema database usually cannot write either, so if
+     both are set the write must win — naming the schema first sends someone
+     to run migrations when the real fault is elsewhere. */
+  const both = backendTrouble({ ...base, writeError: 'W', schemaError: 'S' });
+  if (!both || both.kind !== 'write') fail('backend-trouble: with both faults set, the SCHEMA was named first — the write is the more urgent and more specific of the two');
 }
 
 /* ---------- report ---------- */
