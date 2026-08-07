@@ -1628,7 +1628,7 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
    tests rather than intentions: never empty, never a wall, one press per item,
    and it notices rather than nags. */
 {
-  const { theDayItems, theDayLine, daysBetween } = await import('../src/game/data/the-day.js');
+  const { theDayItems, theDayLine, daysBetween, ICON } = await import('../src/game/data/the-day.js');
   const TODAY = '2026-07-28';
   const bk = (slug, title, extra = {}) => ({ slug, title, ...extra });
 
@@ -1671,12 +1671,57 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
     if (!it.title || !it.note) fail(`the-day: item "${it.key}" is missing its title or its note`);
   }
 
-  // overdue outranks everything, and says how late in plain words
-  const late = theDayItems({ today: TODAY, upcoming: [{ kind: 'course', id: 'c1', title: 'Late thing', due: '2026-07-26' }] });
-  if (late[0].icon !== '⏳') fail('the-day: an overdue thing should come first');
-  if (!/2 days ago/.test(late[0].note)) fail(`the-day: overdue note read "${late[0].note}" — it should say how late`);
+  /* WHAT IS IN FRONT OF YOU LEADS; WHAT YOU SET DOWN IS AN OFFER.
+     Reversed 2026-08-07 at the steward's word — these checks used to assert
+     the opposite, that a late thing outranked everything, which meant one
+     week-old item pushed the thing you were in the middle of off the end of a
+     five-item list. Kept as checks rather than deleted, because the new rule
+     is just as easy to erode as the old one was. */
   const dueToday = theDayItems({ today: TODAY, upcoming: [{ kind: 'course', id: 'c2', title: 'Today thing', due: TODAY }] });
-  if (!/due today/.test(dueToday[0].note)) fail('the-day: a thing due today should say so');
+  if (dueToday[0].icon !== '📌') fail('the-day: a thing due TODAY is what is in front of you and should come first');
+  if (!/today/.test(dueToday[0].note)) fail('the-day: a thing due today should say so');
+
+  // a past-due thing is still offered — but as a pick-up, never as a clock
+  const late = theDayItems({ today: TODAY, upcoming: [{ kind: 'course', id: 'c1', title: 'Late thing', due: '2026-07-26' }] });
+  const setDown = late.find(i => i.icon === '🌾');
+  if (!setDown) fail('the-day: a project past its date vanished — it should still be offered, lower down');
+  else {
+    if (!/pick it back up/.test(setDown.note)) fail(`the-day: set-down note read "${setDown.note}" — it should invite, not report`);
+    if (/overdue|late|behind/i.test(setDown.note)) fail(`the-day: set-down note read "${setDown.note}" — no debt language`);
+  }
+
+  // ...and it must NOT outrank the thing you are in the middle of
+  const bothL = [{ id: 'l9', title: 'Half done', steps: [{ title: 'A' }, { title: 'B' }] }];
+  const both = theDayItems({ today: TODAY, lessons: bothL, curriculum: { l9: { steps: { 0: true } } },
+    upcoming: [{ kind: 'course', id: 'c3', title: 'Old thing', due: '2026-07-01' }] });
+  const iStep = both.findIndex(i => i.fn === 'openLesson');
+  const iSet = both.findIndex(i => i.icon === '🌾');
+  if (iStep < 0) fail('the-day: the half-finished lesson was crowded out entirely');
+  else if (iSet >= 0 && iSet < iStep) fail('the-day: a project set down outranked what you are in the middle of');
+
+  // one set-down item, never a column — a list of six is the overdue panel moved
+  const manySet = theDayItems({ today: TODAY,
+    upcoming: Array.from({ length: 6 }, (_, i) => ({ kind: 'course', id: 'z' + i, title: 'Z' + i, due: '2026-07-0' + (i + 1) })) });
+  const setCount = manySet.filter(i => i.icon === '🌾').length;
+  if (setCount > 1) fail(`the-day: offered ${setCount} set-down projects — one at a time, or it is a guilt inventory again`);
+
+  /* THE DOOR LINE READS ICONS THE PANEL OWNS, so a renamed icon makes a branch
+     unreachable in silence. That is exactly what happened on 2026-08-07: the
+     ⏳ branch survived the rewrite that deleted ⏳ and the menu would have gone
+     on saying the second-best thing forever. Every icon theDayLine tests for
+     must be an icon theDayItems can actually emit.
+
+     The first version of this check scanned the source for emoji in a
+     codepoint range — and ⏳ is U+23F3, outside it, so the guard would have
+     missed the exact icon that caused the bug. Born dead, found by breaking
+     it on purpose. So it reads the REAL exported values instead, and there is
+     no range to be wrong about. */
+  const daySrc = readFileSync(new URL('../src/game/data/the-day.js', import.meta.url), 'utf8');
+  for (const [name, glyph] of Object.entries(ICON)) {
+    if (!daySrc.includes("icon: '" + glyph + "'")) {
+      fail(`the-day: theDayLine keys on ICON.${name} (${glyph}), which theDayItems never emits — a dead branch`);
+    }
+  }
 
   // the half-walked lesson is offered as its NEXT STEP, not as a lesson to choose
   const lessons = [{ id: 'l1', title: 'Coding 101', steps: [{ title: 'One' }, { title: 'Two' }, { title: 'Three' }] }];
@@ -1780,7 +1825,9 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
   if (done.some(i => i.fn === 'openScienceHall')) fail('the-day: it re-offered a paper already pulled apart');
 
   // the door's sentence is a sentence, not a count
-  if (theDayLine(late) !== 'one thing is overdue') fail(`the-day: theDayLine gave "${theDayLine(late)}"`);
+  if (theDayLine(dueToday) !== 'one thing is due today') fail(`the-day: theDayLine gave "${theDayLine(dueToday)}"`);
+  if (theDayLine(late) !== 'something waiting to be picked back up') fail(`the-day: theDayLine gave "${theDayLine(late)}"`);
+  if (/overdue|behind|late/i.test(theDayLine(late))) fail('the-day: the door sentence is still keeping score');
   if (theDayLine(mid) !== 'carry on where you left off') fail(`the-day: theDayLine for a half-lesson gave "${theDayLine(mid)}"`);
   if (theDayLine([]) !== '') fail('the-day: an empty list should give no sentence at all');
 }

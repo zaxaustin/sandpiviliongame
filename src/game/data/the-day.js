@@ -83,14 +83,32 @@ export function theDayItems(ctx = {}) {
   const out = [];
   const push = it => { if (out.length < MAX && it) out.push(it); };
 
-  /* 1 — overdue, then due today. The only genuinely time-bound things
-        here, so they come first; everything else is an invitation. */
+  /* 1 — TODAY, and nothing older. Changed 2026-08-07 at the steward's word:
+
+       "the users priority shuold be whats in front of them and there shuold
+        be a way to lookc back and pick up a stagnant project instead of an
+        overdue timer."
+
+     Two changes follow, and they are both about what a list is FOR.
+
+     ORDER. This block used to run first and carried everything late, so on
+     any day with a week-old item the panel opened with a column of things
+     you had failed to do, and the thing you were actually in the middle of —
+     section 2, the one most likely to build a habit — was pushed down or off
+     the end by MAX. That is a debt statement wearing the costume of a plan
+     for the day. Due TODAY still leads, because a date you set for today is
+     exactly "what is in front of you". Everything older moves to section 6.
+
+     WORDS. "was due 3 days ago" is a clock with an opinion. Nothing in the
+     Pavilion runs in the background, nothing counts against you, and a date
+     you set yourself is information, not a debt — the same reason reminders
+     here are a glanceable badge and never a popup. */
   const dated = upcoming.filter(u => u.due).slice().sort((a, b) => String(a.due).localeCompare(String(b.due)));
+  const setDown = [];
   for (const u of dated) {
     const d = daysBetween(u.due, today);
-    if (d > 0) push({ key: 'late-' + u.id, icon: '⏳', title: u.title,
-      note: d === 1 ? 'was due yesterday' : 'was due ' + d + ' days ago', fn: 'openUpcoming' });
-    else if (d === 0) push({ key: 'due-' + u.id, icon: '📌', title: u.title, note: 'due today', fn: 'openUpcoming' });
+    if (d > 0) setDown.push({ u, d });
+    else if (d === 0) push({ key: 'due-' + u.id, icon: '📌', title: u.title, note: 'today', fn: 'openUpcoming' });
   }
 
   /* 2 — the next step of something already begun. This is the item most
@@ -143,6 +161,25 @@ export function theDayItems(ctx = {}) {
     .sort((a, b) => b.age - a.age)[0];
   if (stale) push({ key: 'stale', icon: '🔁', title: stale.s.text || 'Something you keep carrying',
     note: 'carried for ' + stale.age + ' days — still want it?', fn: 'openStillOpen' });
+
+  /* 3b — A PROJECT YOU SET DOWN. This is where everything past its date
+        went (see section 1), and the move is the point.
+
+        Up top and counting, it read "you are behind." Down here in the same
+        voice as the line above it, it reads "this is still here if you want
+        it" — which is the true statement, because nothing in the Pavilion
+        was ever going to do it for you and no clock was ever running.
+
+        ONE, never a column, and the oldest first — the one most likely to be
+        genuinely finished or genuinely abandoned, and either answer is a good
+        outcome. A list of six would just be the overdue panel again, moved. */
+  if (setDown.length) {
+    const s = setDown.sort((a, b) => b.d - a.d)[0];
+    const more = setDown.length > 1 ? ' · ' + (setDown.length - 1) + ' more set down' : '';
+    push({ key: 'late-' + s.u.id, icon: '🌾', title: s.u.title,
+      note: 'set down ' + (s.d === 1 ? 'yesterday' : s.d + ' days ago')
+            + ' — pick it back up?' + more, fn: 'openUpcoming' });
+  }
 
   /* 4 — a paper you brought in and never pulled apart. The Hall exists
         for exactly this and nobody could find it. */
@@ -233,13 +270,24 @@ export function theDayItems(ctx = {}) {
 /* A single plain sentence for the menu, so the door says something true
    before it is opened. Deliberately not a count badge: a number with no
    context reads as a demand, and this is meant to notice, not nag. */
+/* THE ORDER HERE IS THE PRIORITY, and it changed 2026-08-07 with the panel it
+   describes. It used to lead on a count of overdue things — the ⏳ icon, which
+   no longer exists, so that branch had become unreachable the moment section 1
+   was rewritten and the door would have quietly gone on saying the second-best
+   thing forever. A list keyed to an icon another file owns is rule 4's shape;
+   the icons are named here on purpose, beside the only reader of them.
+
+   What leads now is what is in front of you: today, then the thing you are
+   already in the middle of. A project you set down is mentioned LAST and
+   without a number, because "3 things are overdue" is a demand and "something
+   waiting to be picked up" is an offer. */
+export const ICON = { due: '📌', step: '🌱', setDown: '🌾' };
 export function theDayLine(items) {
   if (!items || !items.length) return '';
-  const late = items.filter(i => i.icon === '⏳').length;
-  if (late) return late === 1 ? 'one thing is overdue' : late + ' things are overdue';
-  const due = items.filter(i => i.icon === '📌').length;
+  const due = items.filter(i => i.icon === ICON.due).length;
   if (due) return due === 1 ? 'one thing is due today' : due + ' due today';
-  const step = items.find(i => i.icon === '🌱');
+  const step = items.find(i => i.icon === ICON.step);
   if (step) return 'carry on where you left off';
+  if (items.some(i => i.icon === ICON.setDown)) return 'something waiting to be picked back up';
   return items.length === 1 ? 'one thing waiting' : items.length + ' things waiting';
 }
