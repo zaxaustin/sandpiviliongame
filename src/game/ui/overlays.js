@@ -2104,10 +2104,37 @@ function bookSlugOf(link){
   if(typeof link==='string') return link;
   return link.slug||null;
 }
+/* WHERE IN THE BOOK, IN ONE BASE.
+
+   A book note's `page` is 0-BASED (it indexes the paginated text and is shown
+   as page+1). A My Note's link records `book.page` 1-BASED, because it was
+   written from what the reader displayed. Both are correct where they live and
+   they must not both be called `page`.
+
+   Until 2026-08-07 the Notes Log only ever read the book-note fields, so a My
+   Note about page 12 of chapter 2 was grouped under "No page — from the
+   summary" and its card said "from the summary" — about a note that knew
+   exactly where it was. Seen in a screenshot, and deliberately NOT fixed that
+   morning: hoisting the number without converting the base would have put a
+   WRONG page on a note, and a note gets cited. Rule 6 — record it, then do it
+   properly.
+
+   So the conversion happens once, here, beside bookSlugOf(), and everything
+   downstream keeps reading one 0-based `page`. */
+function bookPageOf(link){
+  if(!link || typeof link!=='object') return undefined;
+  const p=Number(link.page);
+  return Number.isFinite(p) && p>=1 ? p-1 : undefined;   // 1-based in, 0-based out
+}
+function bookChapterOf(link){
+  if(!link || typeof link!=='object') return undefined;
+  const c=Number(link.chapter);
+  return Number.isFinite(c) ? c : undefined;
+}
 function gatherNotes(){
   const out=[];
   for(const n of (data.notes||[]))
-    out.push({source:'mynotes', icon:'📓', where:'My Notes', title:n.title||'Untitled note', text:n.body||'', date:n.updated||n.created||'', key:'mynotes:'+n.id, id:n.id, book:n.book||null, slug:bookSlugOf(n.book)});
+    out.push({source:'mynotes', icon:'📓', where:'My Notes', title:n.title||'Untitled note', text:n.body||'', date:n.updated||n.created||'', key:'mynotes:'+n.id, id:n.id, book:n.book||null, slug:bookSlugOf(n.book), ch:bookChapterOf(n.book), page:bookPageOf(n.book)});
   const titleFor={}; try{ Store.allDocs().forEach(d=>{ titleFor[d.slug]=d.title; }); }catch(e){}
   for(const slug of Object.keys(data.bookNotes||{})){
     const bookTitle=titleFor[slug]||slug;
@@ -3904,8 +3931,17 @@ const TOOLBOX_TITLES = {book:'The book in front of you',
   blocks:'Rhythm blocks — tap to cycle: waiting → tended → rested',
   sparks:'Sparks from reading', notes:'Your notes — lately, and worth another look',
   assist:'Call someone over', past:'Past days'};
+/* THE HEADING NAMES WHAT IS ON THE TABLE. Found 2026-08-07 by a live test
+   arriving at the Study Table through the reader's "mark the chapters
+   yourself" door: the toolbox BUTTON already said "Work through The
+   Dhammapada" (studyTableLabel), while the panel HEADING above the work
+   surface said the generic "Work through a book, one story at a time" — so
+   the one place you are actually looking never told you which book you had.
+   The `book` tool has named its book since it was written; this is the same
+   rule, applied to the tool beside it. */
 function toolTitle(id){
   if(id==='book'){ const b=deskBook(); return b ? b.doc.title : TOOLBOX_TITLES.book; }
+  if(id==='study'){ const b=deskBook(); return b ? 'Working through '+b.doc.title : TOOLBOX_TITLES.study; }
   return TOOLBOX_TITLES[id];
 }
 /* The toolbox button for the chat says WHO is at the desk, not a fixed

@@ -102,6 +102,22 @@ check('the reader-written ✨ note about the book is listed',
       res.text.includes('The chapter turns here'));
 check('a My Note about NOTHING is NOT listed',
       !res.text.includes('Buy more tea'));
+/* A My NOTE KNOWS WHERE IT IS. Its link records a 1-BASED page while a book
+   note's `page` is 0-based, so the Notes Log — which only read the book-note
+   fields — filed both My Notes under "No page - from the summary" and printed
+   that on their cards. Seen in a screenshot 2026-08-07 and fixed by converting
+   the base once, in gatherNotes(). n1 is page 3 chapter 1, n2 is page 12
+   chapter 2; neither is from any summary. */
+check('a My Note about a page is NOT filed under "no page"',
+      !/On the twin verses[\s\S]{0,120}from the summary/.test(res.text),
+      JSON.stringify((res.text.match(/No page[^\r\n]*/g) || [])));
+const pagesShown = res.text.match(/page [0-9]+/g) || [];
+check('and its real page is shown, in the base the reader used',
+      pagesShown.includes('page 3') && pagesShown.includes('page 12'),
+      JSON.stringify(pagesShown));
+check('the note genuinely from the summary still says so',
+      /A note taken while reading/.test(res.text));
+
 check('no console errors', errs.length === 0, errs.join(' | '));
 
 await p.screenshot({ path: 'test/live/_notes-by-book.png' });
