@@ -26,10 +26,18 @@ const check = (name, ok, detail) => R.push([name, !!ok, detail || '']);
 // A book with NO detectable chapters, added by the player — rule 1, not a
 // seed book. Plain prose, no contents block, no headings, no numerals.
 const SLUG = 'personal-plain-account';
-// Plain prose: no contents block, no keyword headings, no bare numerals, so
-// every route in findChapters() comes back empty. Long enough to paginate.
-const PLAIN = ('It simply runs on in ordinary sentences so that no route in the finder has '
-  + 'anything at all to catch, and the page turns without ever announcing itself. ').repeat(400);
+/* Plain prose: no contents block, no keyword headings, no bare numerals, so
+   every route in findChapters() comes back empty.
+
+   PARAGRAPH BREAKS ARE LOAD-BEARING. paginate() splits on blank lines, so one
+   unbroken string is ONE page however long it is — and then realPage() in
+   marks.js correctly rejects a hand mark on page 2 as past the end of the
+   book. The first version of this fixture had no blank lines, and the four
+   failures it produced looked exactly like "hand marks never reach the
+   reader". They were the guard doing its job on a one-page book. */
+const PARA = 'It simply runs on in ordinary sentences so that no route in the finder has '
+  + 'anything at all to catch, and the page turns without ever announcing itself. ';
+const PLAIN = Array.from({ length: 60 }, () => PARA.repeat(8)).join('\n\n');
 
 const MARKED = 'personal-marked-account';
 const book = (slug, title) => ({
@@ -108,14 +116,23 @@ const after = await p.evaluate(async (slug) => {
   window.closeUI();
   window.openReader(slug);
   await window.openFullText(slug);
+  await new Promise(r => setTimeout(r, 400));
+  /* NOT `open` — that is window.open, a function, and therefore always
+     truthy. This check passed on nothing at all until it was named. */
+  const ov = document.getElementById('readerOv');
+  const isOpen = !!ov && ov.classList.contains('open');
   const note = document.getElementById('rdChapNote');
   const prev = document.getElementById('rdChapPrev');
-  return { open, text: note ? note.innerText : '',
+  return { open: isOpen, text: note ? note.innerText : '',
            navShown: !!prev && prev.style.display !== 'none' };
 }, MARKED);
 
 check('the reader is genuinely open on the marked book', after.open);
-check('a chapter you marked by hand reaches the reader', /of 2/i.test(after.text),
+/* Either "2 chapters" or "ch. N of 2" is correct — which one depends on
+   whether the open page sits after the first mark, and page 0 does not. The
+   claim under test is that the reader KNOWS ABOUT TWO, not how it phrases it. */
+check('a chapter you marked by hand reaches the reader',
+      /\b2 chapters\b/i.test(after.text) || /of 2\b/i.test(after.text),
       JSON.stringify(after.text));
 // `· yours`, anchored — plain /yours/i also matches "mark the chapters
 // YOURSELF", so it passed on the undivided book's text and would have called
@@ -125,14 +142,27 @@ check('and the reader says the divisions are YOURS', /·\s*yours\b/i.test(after.
 check('the chapter nav appears for a book only YOU divided', after.navShown);
 
 // ---- 4 · the door goes to the right book -------------------------------
-const door = await p.evaluate(() => {
+const door = await p.evaluate(async () => {
   window.markChaptersHere();
+  await new Promise(r => setTimeout(r, 700));      // the desk renders, then the tool
+  // The book's name is in the tool's HEADING, one level up from planToolBody.
   const body = document.getElementById('planToolBody');
-  return { studyOpen: !!body && !!body.innerText.trim(), text: body ? body.innerText : '' };
+  const panel = document.getElementById('planToolPanel');
+  return { studyOpen: !!body && !!body.innerText.trim(),
+           text: panel ? panel.innerText : '' };
 });
+/* "1 of 3" is the discriminating signal: the marked book has two hand marks
+   and therefore three units, and the undivided book would say "1 of 1". So
+   this proves the door landed on the RIGHT book, and that the Study Table is
+   reading the same marks the reader now does.
+
+   It cannot check the title, because THE STUDY TABLE NEVER NAMES THE BOOK —
+   its heading is the generic "Work through a book, one story at a time".
+   Arriving there from a door in the reader, there is nothing on screen saying
+   which book is on the table. Recorded 2026-08-07, not fixed here. */
 check('"mark the chapters yourself" lands on THIS book',
-      door.studyOpen && /Marked Account/i.test(door.text),
-      JSON.stringify((door.text || '').slice(0, 90)));
+      door.studyOpen && /1 of 3/.test(door.text),
+      JSON.stringify((door.text || '').slice(0, 110)));
 check('no console errors', errs.length === 0, errs.join(' | '));
 
 await p.screenshot({ path: 'test/live/_reader-chapters.png' });
