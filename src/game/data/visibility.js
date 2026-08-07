@@ -86,6 +86,11 @@ export const DATA_MAP = [
      — so it was in neither list, which is precisely the gap the older guard
      could not see. */
   { key:'study',        name:'The path you picked up',  state:'private', leaves:'Never. What you chose to work on is yours.' },
+  /* The backpack. It holds REFERENCES to things you already own, so it can
+     never leak anything the thing itself would not — but it is also the one
+     store a resident is allowed to read (data/lookup.js), which is exactly
+     why it has to be listed and said plainly. */
+  { key:'carrying',     name:'Your backpack',           state:'private', leaves:'Never on its own. What you carry is what a resident may see — and only while you carry it.' },
   { key:'activityLog',  name:'Activity log',            state:'private', leaves:'Never.' },
   { key:'badges',       name:'Badges',                  state:'private', leaves:'Never.' },
   { key:'aiConnections',name:'Your AI connections',     state:'private', leaves:'Never. Keys and addresses stay on this device.' },

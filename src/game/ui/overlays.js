@@ -26,6 +26,7 @@ import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data
 import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
 import { findChapters, chapterAt } from '../data/chapters.js';
 import { mergeMarks } from '../data/marks.js';
+import { pickUp, setDown, isCarrying, carriedOf, carryLine, CARRY_CAP } from '../data/carrying.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel } from '../ai/provider.js';
@@ -2835,7 +2836,7 @@ export function openReader(slug){
   // (see aiBookImpression) rather than the button silently not existing.
   { const ib=document.getElementById('rdImpressionBtn'); if(ib) ib.style.display='inline-block'; }
   const carryBtn=document.getElementById('rdCarryBtn');
-  if(carryBtn) carryBtn.textContent = data.inventory.includes(slug) ? '🎒 Carrying' : '🎒 Take with you';
+  if(carryBtn) carryBtn.textContent = isCarrying(carryList(),'book',slug) ? '🎒 Carrying' : '🎒 Take with you';
   document.getElementById('rdFullTextBtn').style.display = d.doc.fullText ? 'inline-block' : 'none';
   document.getElementById('rdSummaryView').style.display='block';
   document.getElementById('rdFullTextView').style.display='none';
@@ -4463,7 +4464,7 @@ export function removeNoteLogItem(noteId,id){
    note editors via noteBookLinkHtml so the feature is identical wherever you
    edit. Reading and note-taking stop being separate rooms. */
 function noteBookLinkHtml(note){
-  const inv=data.inventory.map(slug=>Store.getDoc(slug)).filter(Boolean);
+  const inv=carriedOf(carryList(),'book').map(e=>Store.getDoc(e.ref)).filter(Boolean);
   if(note.book && note.book.slug){
     const d=Store.getDoc(note.book.slug);
     const title=d?d.title:note.book.slug;
@@ -11195,16 +11196,49 @@ export function markBatchExported(){
    is depleted); it's a personal "currently carrying" list. The AI
    categorization suggestion is human-in-the-loop, same as Quill's memory
    report — a suggestion to look at, never applied on its own. */
+/* THE BACKPACK IS `data.carrying` NOW (2026-08-07). `data.inventory` was a
+   list of slugs and therefore could only ever hold books; carrying holds a
+   {kind, ref} so a note, a chapter or a lesson travels the same way. The rules
+   — the cap, the identity, what may be put down where — are in
+   data/carrying.js, pure and tested, rather than inlined here.
+
+   The old list is MIGRATED, not read: see carryMigrate() below. */
+export function carryList(){
+  if(!Array.isArray(data.carrying)) data.carrying=[];
+  return data.carrying;
+}
+/* One-time lift of the old book-only backpack. Kept rather than dropped
+   because someone has books in there right now, and a save that quietly
+   empties your bag on upgrade is exactly the silent wrong thing. */
+export function carryMigrate(){
+  if(!Array.isArray(data.inventory) || !data.inventory.length) return;
+  let list=carryList();
+  for(const slug of data.inventory){
+    const d=Store.getDoc(slug);
+    list=pickUp(list, {kind:'book', ref:slug, label:(d&&d.title)||slug}, todayKey()).list;
+  }
+  data.carrying=list; data.inventory=[]; persist();
+}
 export function toggleInventory(slug){
-  const i=data.inventory.indexOf(slug);
-  if(i>=0) data.inventory.splice(i,1);
-  else { data.inventory.push(slug); awardBadge('first-carry'); logActivity('Packed a book to carry with you.'); }
+  const d=Store.getDoc(slug);
+  const held=isCarrying(carryList(),'book',slug);
+  if(held){ data.carrying=setDown(carryList(),'book',slug); }
+  else {
+    const r=pickUp(carryList(), {kind:'book', ref:slug, label:(d&&d.title)||slug}, todayKey());
+    /* A FULL BACKPACK SAYS SO. Before carrying there was no cap and so no way
+       to fail; now there is, and a button that silently does nothing is the
+       house failure mode. The reason is already a sentence fit for a screen. */
+    if(!r.ok){ showToast(r.reason); return; }
+    data.carrying=r.list;
+    if(!r.already){ awardBadge('first-carry'); logActivity('Packed a book to carry with you.'); }
+  }
   persist();
-  const btn=document.getElementById('rdCarryBtn'); if(btn) btn.textContent = data.inventory.includes(slug) ? '🎒 Carrying' : '🎒 Take with you';
+  const btn=document.getElementById('rdCarryBtn');
+  if(btn) btn.textContent = isCarrying(carryList(),'book',slug) ? '🎒 Carrying' : '🎒 Take with you';
 }
 export function openInventory(){ state.ui='inventory'; hideAllOv(); renderInventory(); showOv('inventoryOv'); }
 function renderInventory(){
-  const docs=data.inventory.map(slug=>Store.getDoc(slug)).filter(Boolean);
+  const docs=carriedOf(carryList(),'book').map(e=>Store.getDoc(e.ref)).filter(Boolean);
   const log=data.fishLog||[];
   document.getElementById('inventoryPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
@@ -11233,7 +11267,7 @@ function renderInventory(){
     : '<p>Nothing caught yet — face the pond and press E to cast a line.</p>'}`;
 }
 export async function suggestInventoryCategories(){
-  const docs=data.inventory.map(slug=>Store.getDoc(slug)).filter(Boolean);
+  const docs=carriedOf(carryList(),'book').map(e=>Store.getDoc(e.ref)).filter(Boolean);
   const box=document.getElementById('invSuggestion'); if(!box) return;
   if(!docs.length) return;
   if(!isAIActive()){ box.textContent='No local AI connected right now (⚙ Manage AI connections) — nothing to ask.'; return; }
@@ -11382,7 +11416,7 @@ Object.assign(window, {
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
-  markChaptersHere,
+  markChaptersHere, carryMigrate, carryList,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,
   openAlexandria, runLibraryTriage, applyTriageMove,

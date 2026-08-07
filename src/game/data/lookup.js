@@ -36,6 +36,20 @@
                              commons packet and behaves like a book,
                              because you already decided that.
 
+   THE THIRD STATE IS THE POINT, not an exception (steward, 2026-08-07):
+   "there should be public lessons and a place to put public notes for
+   example if i wana do commentarty on a dhamma book or something like
+   that, and people can do that for the bible."
+
+   Commentary is the oldest form this Library has — a tradition of
+   people writing beside a text for other people to read. So `published`
+   is not "a note that leaked"; it is a first-class kind, and the
+   private/shared/commons vocabulary in data/visibility.js already has
+   the word for it. What makes it public is CURATION AND REVIEW by the
+   person who wrote it, never a default, never a sync, and never the
+   act of a resident. Private is the resting state; publishing is a
+   decision, and until that decision the line above holds absolutely.
+
    The point of putting this in code rather than in a prompt: a prompt
    is a request and a function is a boundary. `searchNotes` exists and
    works — it stems, it ranks — and it is for the VISITOR searching
