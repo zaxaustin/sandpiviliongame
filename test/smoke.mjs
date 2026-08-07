@@ -2293,6 +2293,76 @@ for (const d of SEED_LIBRARY) {
   if (C.groundingFor(null).length !== 0) fail('carrying: groundingFor threw on an empty backpack');
 }
 
+/* ---------- lookup: one road, and the line no resident crosses ----------
+   Set 2026-08-07: books may be looked up, notes may not. A note reaches a
+   resident ONLY because a person put it in the backpack, or because it was
+   curated and published.
+
+   This is held in a test rather than in a prompt on purpose: a prompt is a
+   request and a function is a boundary. searchNotes stems and ranks and is
+   genuinely good - and it is for the VISITOR searching their own Notes Log.
+   The same query on a resident's behalf is a different act. */
+{
+  const L = await import('../src/game/data/lookup.js');
+
+  // terms are deterministic and shared, so "why did it find that" has an answer
+  const t = L.lookupTerms('What does the book say about impermanence and craving?');
+  if (!t.includes('impermanence') || !t.includes('craving')) fail('lookup: real terms were dropped');
+  if (t.includes('what') || t.includes('does') || t.includes('book')) fail('lookup: a stopword survived');
+  if (L.lookupTerms('').length) fail('lookup: an empty question produced terms');
+  if (L.lookupTerms(null).length) fail('lookup: a null question threw or produced terms');
+  if (L.lookupTerms('a b c the of').length) fail('lookup: short words and stopwords produced terms');
+  const many = L.lookupTerms('alpha bravo charlie delta echo foxtrot golf hotel');
+  if (many.length > 4) fail('lookup: terms are uncapped - ' + many.length);
+
+  // THE LINE
+  if (!L.maySearch('book')) fail('lookup: books must be searchable - that is the whole pathway');
+  if (!L.maySearch('published')) fail('lookup: a note you published should behave like a book');
+  if (L.maySearch('note')) fail('lookup: A RESIDENT MAY NOT SEARCH YOUR NOTES');
+  if (!L.mustBeCarried('note')) fail('lookup: notes must arrive only from the backpack');
+  if (!L.mustBeCarried('chapter')) fail('lookup: chapter marks are your words too');
+
+  // the plan reaches for books, never for notes
+  const plan = L.groundingPlan('tell me about impermanence', []);
+  if (!plan.search.includes('book')) fail('lookup: the plan did not reach for books');
+  if (plan.search.includes('note')) fail('lookup: THE PLAN REACHED FOR NOTES');
+  if (!/private/i.test(plan.withheld || '')) fail('lookup: with nothing carried it did not say why notes are absent');
+  const carried = [{ kind: 'note', ref: 'n1', label: 'A note' }];
+  const plan2 = L.groundingPlan('impermanence', carried);
+  if (plan2.carried.length !== 1) fail('lookup: a carried note was not offered to the resident');
+
+  // the runtime guard: anything about to reach a model that should not be there
+  const leaks = L.privacyLeaks([
+    { kind: 'book', ref: 'dhammapada' },          // fine, searchable
+    { kind: 'published', ref: 'p1' },             // fine, you published it
+    { kind: 'note', ref: 'n1' },                  // fine, it is carried
+    { kind: 'note', ref: 'SECRET' },              // NOT fine - never carried
+  ], carried);
+  if (leaks.length !== 1 || leaks[0].ref !== 'SECRET') {
+    fail('lookup: privacyLeaks let an uncarried note through, or flagged something legitimate - '
+       + JSON.stringify(leaks));
+  }
+  if (L.privacyLeaks([{ kind: 'sandwich', ref: 'x' }], []).length !== 1) {
+    fail('lookup: an unknown kind was treated as a licence rather than a leak');
+  }
+  if (L.privacyLeaks([], []).length) fail('lookup: an empty set leaked');
+  if (L.privacyLeaks(null, null).length) fail('lookup: privacyLeaks threw on nothing');
+
+  // the visitor is TOLD, in the interface, not only in a prompt
+  if (!/backpack/i.test(L.LOOKUP_NOTICE) || !/notes/i.test(L.LOOKUP_NOTICE)) {
+    fail('lookup: the notice does not explain the rule to the person it protects');
+  }
+
+  /* ONE PATHWAY FOR EVERY PLUGIN. residents.js had its own private stopword
+     list and term extraction; a second copy of "how do I find a book" is the
+     drift this project keeps paying for, so it must import these. */
+  const rsrc = readFileSync(new URL('../src/game/ui/residents.js', import.meta.url), 'utf8');
+  if (/const LOOKUP_STOP\s*=\s*new Set/.test(rsrc)) {
+    fail('residents.js: still has its own LOOKUP_STOP - the lookup pathway must be shared, '
+       + 'or a new plugin either re-implements it or goes without');
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list

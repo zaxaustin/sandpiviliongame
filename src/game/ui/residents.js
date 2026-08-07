@@ -32,6 +32,7 @@ import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { rosterBlock } from '../data/roles.js';
 import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { referenceBlock } from '../data/reference.js';
+import { lookupTerms } from '../data/lookup.js';
 
 /* Filled in once by overlays.js. Every name below is a function that lives
    over there and is called from a prompt-builder in here. */
@@ -87,16 +88,24 @@ function lastAskOf(agent){
 
    Returns null when there is no database, and the caller falls back to the
    catalogue brief exactly as before. */
-const LOOKUP_STOP = new Set(('a an the and or but if of in on at to for from by with is are was were be '
-  + 'do does did have has had i you we they it that this these those what which who whom whose when where '
-  + 'why how can could will would should about any some my your our me us book books read about got here'
-  ).split(' '));
+/* ONE ROAD TO KNOWLEDGE, FOR EVERY PLUGIN. The stopword list and the term
+   extraction moved to data/lookup.js on 2026-08-07 at the steward's word:
+   "the lookup for ai can be the library database how they handle that data
+   should depend on there role so we can leave the pathway to knolege the same
+   for all ai plugins."
+
+   They were private to this file, which meant a new resident either
+   re-implemented "how do I find a book" or went without — and a second copy
+   of that is the drift this project keeps paying for. What stays here is the
+   only part that should differ: how the RESULT is framed for the role.
+
+   The line lookup.js draws, and this function honours: BOOKS ARE LOOKED UP,
+   NOTES ARE CARRIED. Nothing below searches a note, ever. */
 async function libraryLookupBlock(question){
   if(!(Store.dbAvailable && Store.dbAvailable())) return null;
   const q=String(question||'').trim();
   if(!q) return '';
-  const terms=[...new Set(q.toLowerCase().replace(/[^a-z0-9' ]+/g,' ').split(/\s+/)
-    .filter(w=>w.length>3 && !LOOKUP_STOP.has(w)))].slice(0,4);
+  const terms=lookupTerms(q);
   if(!terms.length) return '';
   const seen=new Map();
   for(const t of terms){
