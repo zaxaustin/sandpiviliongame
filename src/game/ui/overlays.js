@@ -25,6 +25,7 @@ import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data/reference.js';
 import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
 import { findChapters, chapterAt } from '../data/chapters.js';
+import { mergeMarks } from '../data/marks.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel } from '../ai/provider.js';
@@ -2083,10 +2084,29 @@ function setNoteMeta(key, patch){
    two copies of a hash recipe is precisely the drift this project keeps
    paying for. */
 function bookNoteKey(slug, n){ return 'book:'+slug+':'+noteHash((n.ts||'')+'|'+(n.text||'')); }
+/* ONE FIELD MEANS ONE THING: `slug` is "which book is this note about",
+   whatever kind of note it is.
+
+   Before 2026-08-07 only source:'book' notes carried it, and the Notes Log's
+   book filter (`n.slug !== v.book`) reads exactly that field — so filtering by
+   a book silently DROPPED every My Note linked to it, including the ✨ AI
+   notes the reader itself writes there (`note.book = {slug, page, chapter}`).
+   The one question the book row exists to answer was answering it short, and
+   the count on the chip was short by the same amount, so nothing looked wrong.
+
+   A note's link to a book is written two ways for good reason — a book note is
+   OF a page, a My Note is ABOUT a book and keeps page/chapter beside the slug —
+   and old saves may carry a bare string. This normalises all three at the one
+   place that already exists to put notes in one shape. */
+function bookSlugOf(link){
+  if(!link) return null;
+  if(typeof link==='string') return link;
+  return link.slug||null;
+}
 function gatherNotes(){
   const out=[];
   for(const n of (data.notes||[]))
-    out.push({source:'mynotes', icon:'📓', where:'My Notes', title:n.title||'Untitled note', text:n.body||'', date:n.updated||n.created||'', key:'mynotes:'+n.id, id:n.id, book:n.book||null});
+    out.push({source:'mynotes', icon:'📓', where:'My Notes', title:n.title||'Untitled note', text:n.body||'', date:n.updated||n.created||'', key:'mynotes:'+n.id, id:n.id, book:n.book||null, slug:bookSlugOf(n.book)});
   const titleFor={}; try{ Store.allDocs().forEach(d=>{ titleFor[d.slug]=d.title; }); }catch(e){}
   for(const slug of Object.keys(data.bookNotes||{})){
     const bookTitle=titleFor[slug]||slug;
@@ -2145,7 +2165,15 @@ export function setNotesLogSort(how){ state.notesLogView.sort=how; state.notesLo
    visitor's. */
 export function openNotesForBook(slug){
   state.notesLogView=state.notesLogView||{source:'all',folder:'all',q:'',expanded:null};
-  Object.assign(state.notesLogView, {source:'book', book:slug||null, folder:'all', q:'', expanded:null});
+  /* SOURCE STAYS 'all', AND THE BOOK IS THE WHOLE QUESTION.
+     This pinned source:'book' until 2026-08-07, which is a second filter
+     nobody asked for: "everything I wrote about this book" then meant "every
+     note I wrote INSIDE this book", silently excluding My Notes linked to it
+     — including the ✨ notes the reader itself files there. The two are
+     different axes (where a note was written vs which book it is about) and
+     collapsing them answered a narrower question under the wider one's name.
+     The source chips are still right there if you want to narrow it. */
+  Object.assign(state.notesLogView, {source:'all', book:slug||null, folder:'all', q:'', expanded:null});
   state.notesLogEdit=null;
   state.ui='notesLog'; hideAllOv(); renderNotesLog(); showOv('notesLogOv');
 }
@@ -2261,9 +2289,14 @@ function renderNotesLog(){
      with the Books filter on, or already narrowed to one — so the general
      view does not grow a fourth row of chips nobody pressed for. */
   const books=[];
-  all.forEach(n=>{ if(n.source==='book' && n.slug){
+  // Any note that names a book, not only the ones written IN one — otherwise
+  // the chip's count disagrees with the list the chip opens. See bookSlugOf().
+  all.forEach(n=>{ if(n.slug){
     const hit=books.find(b=>b.slug===n.slug);
-    if(hit) hit.n++; else books.push({slug:n.slug, title:n.bookTitle||n.slug, n:1});
+    if(hit) hit.n++;
+    // A My Note carries no bookTitle — it links by slug — so look it up.
+    else { let t=n.bookTitle; if(!t){ try{ const d=Store.getDoc(n.slug); t=d&&d.title; }catch(e){} }
+           books.push({slug:n.slug, title:t||n.slug, n:1}); }
   }});
   books.sort((a,b)=>b.n-a.n || String(a.title).localeCompare(b.title));
   const bookRow = (v.source==='book' || v.book) && books.length
@@ -3214,15 +3247,51 @@ function updateChapterRow(){
      books have no chapter marks — the four suttas in the seed, and anything
      converted from a PDF with no contents block — and "the buttons are gone"
      reads as breakage. Silent failure is this project's house failure mode. */
+  /* SAY WHOSE DIVISIONS THESE ARE, AND NEVER LEAVE IT A DEAD END.
+
+     "no chapter marks in this text" was true and useless — a statement with
+     nowhere to go, on the third of the library the detector cannot read.
+     Asked for 2026-08-07: "it would be nice to have a tag like this book is
+     not wired and for the community to tag the chapters."
+
+     So the row now says one of three honest things, and the first two are
+     doors: this book has none *yet*, these are the ones you marked, or these
+     were found for you. No AI, no guessing a date, no pretending. */
   const note=document.getElementById('rdChapNote');
   if(note){
-    if(!v) note.textContent='';
-    else if(!info.marks.length) note.textContent='no chapter marks in this text';
-    else {
+    if(!v) note.innerHTML='';
+    else if(!info.marks.length){
+      note.innerHTML = 'not divided yet — '
+        + '<a class="link" href="#" onclick="markChaptersHere();return false">mark the chapters yourself</a>';
+    } else {
       const cur=currentChapter(v);
-      note.textContent = cur ? 'ch. '+cur.number+' of '+info.marks.length : info.marks.length+' chapters';
+      const where = cur ? 'ch. '+cur.number+' of '+info.marks.length : info.marks.length+' chapters';
+      const whose = info.how==='hand' ? ' · yours' : '';
+      note.innerHTML = esc(where+whose)
+        + ' · <a class="link" href="#" onclick="markChaptersHere();return false">edit</a>';
     }
   }
+}
+/* The door from the reader to the place marks are actually made. The Study
+   Table is where labelling lives (`data.bookMarks`), and it opens on the book
+   and page you are looking at, so "mark the chapters yourself" lands on the
+   one you meant rather than at the top of a list. */
+export function markChaptersHere(){
+  const v=state.fullTextView; if(!v) return;
+  // Point the Study Table at THIS book before opening it, or it lands on
+  // whatever was last open and the door goes somewhere you didn't ask for.
+  state.studyView = state.studyView || { slug:null, idx:1, labelling:false };
+  state.studyView.slug = v.slug;
+  state.studyView.labelling = true;      // arrive ready to type a name
+  invalidateStudyCache();
+  /* THE TABLE WORKS ON THE POCKETED BOOK, not the open one — without this the
+     door lands on "Nothing on the table yet", which is a dead end reached by
+     pressing a button that promised the opposite. */
+  minimizeReader();
+  // openPlanner() resets plannerTool, so the tool is chosen AFTER it, not
+  // before — setting it first opens the desk with no tool showing at all.
+  openPlanner();
+  togglePlannerTool('study');
 }
 export function toggleReadingPause(){
   if(isPaused()) resumeSpeaking(); else pauseSpeaking();
@@ -3289,10 +3358,40 @@ export function toggleFullTextReadAloud(){
    chapters and 0 of the Gita's 18. Both shipped in the seed; both showed no
    chapter controls at all. The rule is real enough to erode quietly, so it
    is pure logic with real books as its test now. */
+/* A MARK YOU MADE OUTRANKS ONE WE GUESSED — in the reader too, from
+   2026-08-07.
+
+   `marks.js` has said this since it was written, and `tools/schema.sql` since
+   the chapters table went in. But it was only ever true at the Study Table:
+   the reader called findChapters() raw, so you could sit and label a book's
+   chapters by hand, walk to the reader, and find every one of them ignored.
+   Labelling that changes nothing where you actually read is a dead end of the
+   most discouraging kind — the work was done and the program threw it away.
+
+   mergeMarks() is pure and already tested, and it is the same call the Study
+   Table makes, so the two cannot disagree about what a book's divisions are. */
+function handMarks(slug){
+  const all = (data.bookMarks && data.bookMarks[slug]) || [];
+  return Array.isArray(all) ? all : [];
+}
 function chapterInfo(v){
   if(!v) return {marks:[], how:'none'};
-  if(!v._chapterInfo) v._chapterInfo = findChapters(v.pages);
+  if(!v._chapterInfo){
+    const found = findChapters(v.pages);
+    const hand = handMarks(v.slug);
+    v._chapterInfo = hand.length
+      // `how` becomes 'hand' the moment you have touched it: the row below
+      // says where the divisions came from, and "you" is the honest answer.
+      ? { marks: mergeMarks(found.marks, hand, v.pages.length), how:'hand' }
+      : found;
+  }
   return v._chapterInfo;
+}
+/* Marking a chapter has to be visible immediately, so the cache cannot
+   outlive an edit. Cheap: findChapters re-runs only for the open book. */
+export function forgetChapterCache(slug){
+  const v=state.fullTextView;
+  if(v && (!slug || v.slug===slug)) v._chapterInfo=null;
 }
 function chapterPages(v){ return chapterInfo(v).marks; }
 /* Which chapter the reader is actually in — the lookup behind "ch. 4, p. 61"
@@ -11283,6 +11382,7 @@ Object.assign(window, {
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
+  markChaptersHere,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,
   openAlexandria, runLibraryTriage, applyTriageMove,

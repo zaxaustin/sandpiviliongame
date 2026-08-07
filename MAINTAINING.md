@@ -334,20 +334,41 @@ they can never disagree) and says so when it adds something.
 open that happens behind the title screen** (painted in ~150 ms), 90 ms warm,
 `searchNotes` in 1–3 ms at 5,000 notes.
 
-**Still unwired — 6 of 15 named queries have no consumer.** `records`,
-`recordCounts` and `upsertRecord` were wired 2026-08-04 (`data/records.js` +
-`test/live/records.cjs`). Remaining, in value order: `notesForBook` /
-`notesByPlace`, `chaptersFor` / `needsChapters` (18 of 39 books find no
-chapters), `unshelved` / `shelfCounts` / `setShelf`. Then
-`tools/migrations/004-note-versions.sql`, still unwritten.
+**"6 of 15 named queries have no consumer" WAS BEING CARRIED AS A DEBT. IT IS
+NOT ONE** (checked 2026-08-07, one query at a time, against rule 7). Four of the
+six should **stay unwired**: `notesForBook`, `notesByPlace`, `noteCounts`,
+`unshelved` / `shelfCounts` all buy nothing over deterministic JS on the save —
+`gatherNotes()` already unions all six note sources exactly, instantly, and on
+the web build too. Wiring them is a second path over data the save already
+holds: the `store.js` scar through a new door. `searchNotes` (stemming) and
+`records` (it holds `hidden`, which is the visitor's own choice) earn their
+place; those two are wired.
+
+**`chaptersFor` / `needsChapters` are BLOCKED, not unwired.** Nothing anywhere
+writes `chapters` or `chapter_scans` — the only writer is
+`tools/load-library.mjs`, the MinIO loader (Docker, manual, this machine only).
+In the app `findChapters()` runs on open (`overlays.js:3294`) and the answer is
+discarded on close. And `v_needs_chapters` gates on `text_key IS NOT NULL`, also
+loader-only, **so on every machine that is not this one the view returns zero
+rows, always.** Wiring a panel today would say *"0 books need chapters"* while
+18 of 39 do — a confident wrong answer, worse than the current silence, because
+a panel saying zero gets believed. Doing it properly is three pieces in order,
+written up in `plans/NEW-PLANS-RECONCILED-2026-08-07.md`.
+
+Then `tools/migrations/004-note-versions.sql`, still unwritten.
 
 > **A JS ARRAY IS NOT A VALID PARAMETER — normalizeParams() handles it now.**
 > `[]`, `['a']` and `['a','b']` all FAILED on PGlite; `null`, `'{}'` and
 > `'{a,b}'` all wrote. `tags` is the only array column the app writes and
 > `syncNotes` passes null for it, so the Records Hall's was the first real
 > array parameter in this project's history — and it silently wrote nothing.
-> Fixed below the seam so both homes get a Postgres array literal. **Untested
-> against Docker** (the container was stopped); that measurement is still owed.
+> Fixed below the seam so both homes get a Postgres array literal.
+>
+> **Both halves measured now (2026-08-07, container up).** Every one of those
+> six forms WROTE on the Docker home. So the two homes genuinely disagreed
+> about the same named write — which is the one thing this design exists to
+> prevent, and the reason the normalising has to live below the seam rather
+> than at either adapter.
 >
 > It took a hand-written probe because `writeMany` returns `null` for both
 > "failed" and "no bridge", and `status()` pings before reporting, so the
@@ -359,6 +380,17 @@ chapters), `unshelved` / `shelfCounts` / `setShelf`. Then
 `test/live/note-search.cjs` is new and **must be run under Electron** —
 `env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs`.
 The browser suites cannot reach a database and can only stub one.
+
+**The two homes have two suites, and neither can stand in for the other.**
+`records.cjs` and `note-search.cjs` redirect `userData` to a temp directory and
+point `POSTGRES_PORT` at nothing, so they are always the **fresh embedded**
+case. `test/live/docker-home.cjs` is always the **container** case — plain
+`node test/live/docker-home.cjs`, no Electron, because `db.cjs` only requires
+`electron` on the embedded path. It **skips loudly and exits 0** when the
+container is not answering, and proves it does: run it with
+`POSTGRES_PORT=5999` and it says so rather than quietly testing the other home.
+A suite that goes green because the thing it tests is switched off is the house
+failure mode wearing a tick.
 
 **Built and green today:** the **Study Table** — a toggle on the Writing Desk
 where you work a book one story at a time, naming the units yourself

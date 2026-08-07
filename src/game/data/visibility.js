@@ -76,6 +76,11 @@ export const DATA_MAP = [
   { key:'catalogEdits', name:'Your corrections to library cards', state:'private', leaves:'Only if you export them from the Steward’s Index to fold back into the source.' },
   { key:'myShelves',    name:'Your own shelf names',     state:'private', leaves:'Never. How you organise your library is nobody else’s business.' },
   { key:'commons',      name:'The Commons Table',       state:'commons', leaves:'This is the shared shelf: what you received, and what you published.' },
+  /* The chapter names you typed yourself. Added to this map 2026-08-07: it
+     had been saved since the Study Table was built and listed nowhere, so
+     the privacy line was short by one store — and by the one holding your
+     own words about how a book is divided. */
+  { key:'bookMarks',    name:'Chapters you marked yourself', state:'private', leaves:'Never — not unless you hand a book on with them.' },
   { key:'activityLog',  name:'Activity log',            state:'private', leaves:'Never.' },
   { key:'badges',       name:'Badges',                  state:'private', leaves:'Never.' },
   { key:'aiConnections',name:'Your AI connections',     state:'private', leaves:'Never. Keys and addresses stay on this device.' },

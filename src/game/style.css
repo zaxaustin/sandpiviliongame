@@ -477,6 +477,34 @@ input[type=time]:focus, input[type=date]:focus { outline:none; border-color:#e0a
   }
   #rdNotesHead { margin-top:0; }
 }
+
+/* THE READER GROWS WITH THE SCREEN — the notes column especially.
+
+   Asked for 2026-08-07, after reading a book and taking notes beside it:
+   "the note section was a bit narrow i dont wana narrow the reading area but
+   perhaps make the game window wider for certian parts."
+
+   Both halves of that matter. The reading column keeps `flex:1 1 52%`, so
+   every pixel the PANEL gains, the reading area gains 52% of — it never
+   narrows to pay for the notes. The notes column's `max-width:320px` was the
+   real cap: without lifting it the column stays 320px however wide the window
+   gets, and the extra space goes to margins.
+
+   Only the panel is widened, never the world. The map behind it is drawn to a
+   tile grid and is not a layout that stretches. */
+@media (min-width:1280px) {
+  #readerOv .panel { width:min(1280px, 100%); }
+  #readerOv #rdNotesView { flex:1 1 380px; max-width:420px; }
+}
+@media (min-width:1600px) {
+  #readerOv .panel { width:min(1500px, 100%); }
+  #readerOv #rdNotesView { flex:1 1 440px; max-width:480px; }
+}
+/* Tall screens too: the note box is what you actually type into, and it was
+   sized by the page beside it rather than by the room available. */
+@media (min-width:1280px) and (min-height:900px) {
+  #readerOv .fullTextPage { max-height:66vh; }
+}
 @keyframes bookOpen {
   0% { transform:perspective(900px) rotateY(50deg) scaleX(.55); opacity:0; }
   60% { opacity:1; }

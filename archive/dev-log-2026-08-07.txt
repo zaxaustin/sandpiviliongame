@@ -1,0 +1,434 @@
+================================================================
+DEV LOG — 2026-08-07
+Closing a debt, and filing five plans against the code
+================================================================
+
+The steward turned Docker on and said: don't cut another beta yet, here
+are five plans I wrote, and here is the advice I took about the backend.
+Then, mid-turn, a sixth thing — architecture notes for the Commons
+server.
+
+Two jobs, then. Pay the measurement owed from three days ago, and make
+the plans legible against what actually exists.
+
+
+----------------------------------------------------------------
+1. THE DEBT: arrays on the Docker home
+----------------------------------------------------------------
+
+On 2026-08-04 a real, pre-existing bug was found and fixed: a JS array
+passed for a TEXT[] parameter FAILS on PGlite. `tags` is the only array
+column the app writes and syncNotes has always passed null for it, so
+the Records Hall's was the first real array parameter in this project's
+history, and it silently wrote nothing at all.
+
+The fix normalises to a Postgres array literal below the named-query
+seam, so both homes get the same form. But Docker Desktop was stopped
+that day, so half the claim — "the two homes differ" — came from
+node-postgres's documentation rather than from a run. That was written
+down as an HONEST LIMIT in db.cjs rather than glossed.
+
+Measured today, container up. All six forms, raw through node-postgres:
+
+                embedded (08-04)   docker (08-07)
+  []            failed             wrote
+  ['a']         failed             wrote
+  ['a','b']     failed             wrote
+  null          wrote              wrote
+  '{}'          wrote              wrote
+  '{a,b}'       wrote              wrote
+
+So the disagreement was real, and it was exactly the shape this design
+exists to prevent: the renderer asks for a named write and must not care
+which home answers. Confirmed too that the literal the fix now sends
+works on Docker, that a tag with a space and a tag containing a `"` both
+survive the round trip, and that [] arrives as an empty TEXT[] rather
+than NULL.
+
+Also confirmed, and this is the bigger one: applySchema() genuinely
+reached the container. All 14 relations present — notes, records, the
+four v_* views — and notes_fts intact. That was previously verified by
+creating a test migration; today it was verified by looking at what is
+actually in the running database, which is a different question.
+
+
+----------------------------------------------------------------
+2. THE PROBE BECAME A SUITE, AND CAUGHT ME
+----------------------------------------------------------------
+
+The throwaway probe was promoted to test/live/docker-home.cjs rather
+than deleted, because the coverage gap it filled is permanent: the two
+existing database suites (note-search.cjs, records.cjs) both redirect
+userData and point POSTGRES_PORT at nothing on purpose, so they are
+ALWAYS the fresh-embedded case. Nothing covered the container.
+
+Before promoting it I wrote into db.cjs's comment that "the Docker half
+is covered by test/live/backend.mjs." That was false. backend.mjs stubs
+the desktop bridge so it can run in a plain browser — it has never
+touched Docker. Caught by opening the file instead of trusting the
+memory of it. The comment now points at the suite that actually exists.
+
+The suite then caught bad test data of mine: notes.source carries a
+CHECK constraint (mynotes|book|chat|research|grant|hall) and I passed
+'probe'. Which is the point — db.write() returned its usual null, and
+the only reason the failure was visible at all is status().writeError,
+added three days ago precisely because a failed write does not announce
+itself.
+
+Broken on purpose (rule 3): POSTGRES_PORT=5999 makes it SKIP, print why,
+and exit 0 — without falling through to the embedded home and reporting
+on a database nobody asked about. It also had to be taught to read
+process.env before .env, or it would have connected somewhere db.cjs was
+not and agreed with itself.
+
+  15 passed, 0 failed.
+
+
+----------------------------------------------------------------
+3. FIVE PLANS, FILED AND RECONCILED
+----------------------------------------------------------------
+
+Filed to plans/ unchanged (mojibake cleaned):
+
+  MISSION-SYSTEM-PLAN.md               F→E→D→C→B→A→S
+  INDEPENDENT-COURSE-GRADUATION.md     what F-rank requires
+  MISSION-WORKSPACE-PLAN.md            "GitHub for quests"
+  COURSE-PROGRESSION-AND-DISPLAY-PLAN.md   a big calm work surface
+  PRIVACY-AND-WEBSITE-PATHWAY-PLAN.md  privacy + website↔game
+  COMMONS-SERVER-TIGHTENING.md         the mid-turn architecture advice
+
+Two versions of MISSION-SYSTEM arrived; the later one (with E and D
+ranks, and the Buddhist framing stated outright) supersedes the earlier
+five-rank draft. The editorial note at the bottom of the filed version
+says why the gap mattered: the first draft went from "get your own life
+in order" straight to "redesign a bioregion", with nothing in between a
+person could start on a Saturday.
+
+Then plans/NEW-PLANS-RECONCILED-2026-08-07.md, which is the other half —
+what each plan already has in the tree. Findings worth carrying:
+
+  * FOUR OF THE FIVE ARE ONE DEPENDENCY CHAIN, and it runs backwards
+    from the filing order:
+        COURSE-PROGRESSION-AND-DISPLAY  (the surface)
+          → INDEPENDENT-COURSE-GRADUATION  (the gate)
+            → MISSION-SYSTEM  (the ranks)
+              → MISSION-WORKSPACE  (the same surface, third time)
+    MISSION-WORKSPACE says so itself. The work surface gets built once
+    and reused three times, or built three times and drifts.
+
+  * THE PRIVACY PLAN IS ROUGHLY 80% ALREADY TRUE. Its Phase A
+    centrepiece — "a My Ledger surface showing everything the app knows
+    about you" — is the Your Data panel at overlays.js:1698, and it is
+    written better than the spec: it names the localStorage key, says
+    where book text goes, and has an "☁ Anywhere else → Nowhere" card
+    explaining "not as a policy, but because none of it is built."
+    exportSave() is genuinely complete (it reads desktop book text back
+    off disk and inlines it). visibility.js already maps activityLog
+    private / "Never." preflight.mjs already asserts zero network.
+
+    What's actually missing is small and one item is half an hour:
+    data.commons {received, published, taken} exists in freshData() and
+    is NOT surfaced in Your Data — so a person can see every private
+    store itemised and cannot see the one category that DID leave.
+
+  * A NAMED DEPENDENCY DOES NOT EXIST HERE.
+    PAVILION-TIERS-AND-COMMONS-SERVER-PLAN.md is not in plans/ or
+    plans/done/. And Outer/Inner/Core is not vocabulary this codebase
+    uses — the code says private/shared/commons (VIS in visibility.js).
+    Two vocabularies for one idea is how a manual starts lying. Flagged
+    as an open question rather than guessed at.
+
+  * ON THE COMMONS ADVICE: strong agreement on content addressing, the
+    two-layer server, allowlists-not-accounts, and especially "never let
+    a database become the source of truth" — which is the same sentence
+    the beta release notes already use about the local database being an
+    INDEX over your work, not a second copy.
+
+    One phrase rejected: "network features must FAIL SILENTLY." Rule 5
+    is written in scars. The intent is right — a failed network call
+    must never block offline work — but the implementation is FAIL
+    VISIBLY, PROCEED ANYWAY. Same distinction status().error already
+    makes.
+
+    One unknown named as the largest in the document: signature
+    verification means key management, and the same plan promises "no
+    terminal required, no config file." A keypair a lay person can lose,
+    and a signature they cannot inspect, is a real cost that should be
+    designed before it is specified.
+
+    And "type" is a hand-maintained list that must match the code
+    reading it — rule 4's exact shape.
+
+
+----------------------------------------------------------------
+4. WHAT ELSE THE READING TURNED UP
+----------------------------------------------------------------
+
+CLAUDE.md's test-suite block was missing records.cjs entirely and said
+"the two .cjs suites" when there were three. Fixed, plus the new one.
+This is the fourth time a hand-maintained list in this project has
+drifted, and it is a list of TESTS, which is a particularly bad one to
+be wrong about.
+
+Still true from the earlier audit, unchanged today:
+  - data.study is missing from BOTH freshData() and visibility.js's
+    DATA_MAP. Any new save field the graduation flag needs must go in
+    both, or the privacy line is incomplete.
+  - renderTreeGraph() is only ever called for the collective tab; the
+    personal tree has never been drawn as a graph.
+  - graphDepths matches parents by TITLE, right for packets and wrong
+    for allNodes() where prereqs are ids.
+
+
+----------------------------------------------------------------
+5. GREEN
+----------------------------------------------------------------
+
+  npm test                    11 scenes, 27 docs, clean
+  records.cjs                 all pass (embedded, with the container up)
+  docker-home.cjs             15/15
+  docker-home.cjs, broken     SKIPPED, exit 0
+
+Nothing shipped. beta.5 remains built and unpublished at the steward's
+word: "lets not worry about another beta build until we are ready."
+
+
+----------------------------------------------------------------
+6. WHAT'S NEXT, RECOMMENDED
+----------------------------------------------------------------
+
+The new plans do NOT supersede the backend plan's remaining phases —
+they assume them. Every one of the five takes for granted that notes and
+books are findable.
+
+  1. Finish 2d/2e. Six named queries still have no consumer, and 18 of
+     39 books find no chapters — a rule-6 gap in front of a real person.
+  2. Surface published/pulled packets in Your Data (half an hour).
+  3. data/graduation.js — pure, DOM-free, testable by npm test, unblocks
+     the whole Mission chain and needs no new UI to be correct.
+  4. The Learning Work Surface. The big one; everything is drawn on it.
+  5. Missions, after.
+
+Not yet: the Commons server. Downstream of graduation packets, which are
+downstream of (3), and it has an unanswered usability question first.
+
+
+================================================================
+SECOND HALF — the courts, and Phase 2d turns out to be the wrong
+shape
+================================================================
+
+7. THE THREE COURTS, SETTLED
+----------------------------------------------------------------
+
+Asked where PAVILION-TIERS-AND-COMMONS-SERVER-PLAN.md was, the steward
+answered that it isn't a file — the courts are new thinking:
+
+  Outer = everyone, the whole public. ALL OF IT IS HERE TODAY.
+  Inner = contributors.
+  Core  = those on the path; a layman's sangha.
+
+The earlier worry — that Outer/Inner/Core was a second vocabulary
+competing with private/shared/commons — was WRONG, and saying so matters
+because the two now have to coexist on the same screens.
+
+  private/shared/commons is about a THING: where it is, whether it left.
+  Outer/Inner/Core is about a PERSON: which circle they stand in.
+
+A commons packet is commons whichever court you are in. They cross, they
+don't compete. Recorded in NEW-PLANS-RECONCILED with two consequences:
+everything today being Outer is the correct default rather than a gap
+(the beta ships to strangers; nothing may require a court to work), and
+the Core is NOT a higher rank than the Inner — the Mission ranks measure
+work, the courts describe company, and rendering them as one ladder
+would turn a practice into a score.
+
+The Core's entry condition is deliberately left unspecified. It is the
+steward's to say and the one place a guess would be disrespectful of
+what the room is for.
+
+
+8. PHASE 2d WAS THE WRONG SHAPE
+----------------------------------------------------------------
+
+"6 of 15 named queries have no consumer" had been carried as a debt.
+Checked one at a time against rule 7 (deterministic code first), it is
+not a debt — it is a design question, and four of the six should stay
+unwired:
+
+  searchNotes    stemming and ranking. JS cannot. WIRED, RIGHT.
+  records        holds `hidden`, the visitor's own choice. WIRED, RIGHT.
+  notesForBook   nothing gatherNotes() doesn't already do exactly and
+                 instantly, in the renderer, on the web build too.
+  notesByPlace   grouping and counting — rule 7 names counting as the
+  noteCounts     thing code does exactly.
+  unshelved      `books` mirrors personalLibrary, already in the save.
+  shelfCounts
+
+Wiring the middle four would be a second path over data the save already
+holds. That is the store.js scar arriving through a new door.
+
+THE CHAPTER QUERIES ARE NOT UNWIRED, THEY ARE BLOCKED. Nothing anywhere
+writes `chapters` or `chapter_scans` — the only writer is
+tools/load-library.mjs, the MinIO loader, Docker + manual + this machine
+only. In the app findChapters() runs on open and the answer is discarded
+on close. Worse, v_needs_chapters gates on `text_key IS NOT NULL`, also
+loader-only, so on every machine that is not the steward's the view
+returns ZERO ROWS ALWAYS.
+
+Wiring it today would render "0 books need chapters" while 18 of 39
+actually do. A specific, confident, wrong answer — rule 6's exact
+prohibition, and worse than the current silence, because a panel saying
+zero gets believed.
+
+Doing it properly is three pieces (syncChapters + a new detected-chapter
+WRITE, a migration to un-MinIO the view, then the panel), and piece 1
+only learns about books already opened — so it must say so or offer a
+deliberate sweep. Written up in NEW-PLANS-RECONCILED rather than half
+built.
+
+
+9. WHAT THE AUDIT WAS ACTUALLY POINTING AT — AND IT WAS A REAL BUG
+----------------------------------------------------------------
+
+notesForBook existed because the Reader can't see notes about a book
+that were written elsewhere. That gap is real. The fix is JS, not SQL —
+and hunting it turned up something worse in the Notes Log itself.
+
+The book row exists to answer ONE question: "everything I wrote about
+THIS book." It was answering it short, two ways:
+
+  1. gatherNotes() gave `slug` only to source:'book' notes. The filter
+     reads `n.slug !== v.book`. So a My Note LINKED to a book —
+     note.book = {slug, page, chapter}, which is EXACTLY the shape the
+     reader writes when it saves an AI analysis to My Notes — was
+     dropped.
+  2. openNotesForBook() pinned source:'book' as well as the slug. That
+     is a second filter nobody asked for: "about this book" quietly
+     meant "written INSIDE this book."
+
+Nothing looked wrong because the chip's COUNT was short by the same
+amount as the list. The measurement and the thing measured were wrong
+together — the eleventh instance of that pattern in this project.
+
+Fixed: bookSlugOf() normalises the three shapes a book link has ever had
+(object, bare string, null) at the one place that already exists to put
+notes in one shape; the chip counts any note naming a book; and
+openNotesForBook leaves source at 'all', because where a note was
+written and which book it is about are different axes.
+
+Mid-fix I wrote `titleOfBook(n.slug)` — a function that does not exist.
+Caught by grepping for it before building, which is exactly the
+free-identifier crash the guard was written for, authored by the person
+who wrote the guard.
+
+
+10. LOOK AT IT — TWICE, AND THE SECOND TIME MATTERED
+----------------------------------------------------------------
+
+test/live/notes-by-book.mjs, 7 checks. Two things the assertions could
+not have told me:
+
+  * FIRST RUN: all text assertions passed while the screenshot showed
+    the TITLE SCREEN covering the whole panel. innerText does not care
+    what is on top of it. The test now clicks Enter the Grounds, and the
+    visibility check uses elementFromPoint instead of `style.display`,
+    which a covered panel satisfies happily.
+
+  * The chip assertion initially read "1" and I nearly filed it as a
+    second bug. The regex /📖[^\n·]*·\s*(\d+)/ was matching the SOURCE
+    chip ("📖 Book · 1") before the book chip. A test that reads the
+    wrong element and then agrees with the bug is worse than no test.
+    It now finds the button by its onclick.
+
+  * STILL OPEN, seen in the .png and not fixed: the two My Notes group
+    under "No page — from the summary" though both carry a page. The
+    grouping reads n.page, which My Notes carry inside n.book instead.
+    NOT fixed on purpose: gatherNotes' own comment records that a My
+    Note's page is 1-BASED and a book note's is 0-BASED, so hoisting it
+    without the conversion would put a wrong page number on a note, and
+    a note gets cited. Rule 6 — recorded rather than guessed.
+
+Green: npm test, preflight (zero network), study-chain 39/39,
+notes-by-book 7/7, docker-home 15/15, records.cjs.
+
+
+================================================================
+THIRD ROUND — the reader widens; the hand-marks wiring does NOT
+work yet
+================================================================
+
+11. THE READER GROWS WITH THE SCREEN — DONE, MEASURED
+----------------------------------------------------------------
+
+  "the note section was a bit narrow i dont wana narrow the reading
+   area but perhaps make the game window wider for certian parts."
+
+Both halves honoured. The cap was never the panel alone — the notes
+column carried max-width:320px, so it stayed 320px however wide the
+window got and the rest went to margins. Two new tiers (1280px, 1600px),
+plus a taller page on tall screens.
+
+Measured in Chrome at 1700x1000:
+
+  panel    1000 -> 1467 px
+  notes     320 ->  464 px
+  reading   ~500 ->  922 px      <- it GREW; it did not pay for the notes
+
+Only the panel widens, never the world — the map is a tile grid and is
+not a layout that stretches.
+
+
+12. THE "NOT WIRED" TAG — DONE
+----------------------------------------------------------------
+
+Was: "no chapter marks in this text" — true, and a dead end, on the
+third of the library the detector cannot read.
+
+Now: "not divided yet — mark the chapters yourself" (a door), or
+"ch. 3 of 9 · yours · edit" when you divided it, or "ch. 3 of 9 · edit"
+when it was found for you. Whose divisions these are is now on screen.
+
+
+13. WHAT IS *NOT* DONE, AND IT IS THE INTERESTING HALF
+----------------------------------------------------------------
+
+THE READER STILL IGNORES THE MARKS YOU MAKE. chapterInfo() now calls
+mergeMarks() with data.bookMarks[slug], the reader has forgetChapterCache(),
+markChaptersHere() pockets the book and opens the Study Table on it —
+and test/live/reader-chapters.mjs still says no. 9 of 13 pass; the four
+that matter for hand marks fail.
+
+LEFT FAILING ON PURPOSE. The suite is the record of the gap. Do not
+delete it to make the run green.
+
+Underneath it, found on the way and worth more than the feature:
+
+  * data.bookMarks was in NEITHER freshData() NOR visibility.js's
+    DATA_MAP. It has been saved since the Study Table was built and
+    listed nowhere, so the privacy line was short by one store — and by
+    the one holding the visitor's OWN WORDS about how a book divides.
+    Both added. That is the same gap flagged this morning on data.study,
+    on a second field, which makes it a pattern rather than an oversight:
+    a new save key needs BOTH, and nothing checks that it got them.
+    A derived guard for this is the obvious next rule-4 job.
+
+FOUR HARNESS BUGS OF MINE, all of the same family — the test agreeing
+with the bug:
+
+  1. /yours/i matched "mark the chapters YOURSELF", so the assertion
+     PASSED on the undivided book. A green tick on the exact text that
+     proves the failure. Anchored to /·\s*yours\b/.
+  2. #rdChapNote lives in index.html permanently, so every text
+     assertion passed just as happily on a reader that never opened.
+     The panel measured 312px and I nearly filed it as a CSS bug; it
+     was an unopened reader. There is now an explicit "the reader is
+     genuinely open" check, and the widths only became real once it
+     passed.
+  3. openPlanner() RESETS plannerTool, so setting it before the call
+     opened the desk with no tool at all.
+  4. The Study Table works on the POCKETED book, not the open one.
+
+Two of those four are the same lesson as this morning's title-screen
+screenshot: innerText does not care what is on top of it, or whether the
+thing was ever opened.

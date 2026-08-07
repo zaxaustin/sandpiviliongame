@@ -253,15 +253,29 @@ node test/live/study-chain.mjs             # note→lesson→a path you walk→T
 node test/live/lab.mjs  bench.mjs  bundle.mjs  librarian-safety.mjs  backend.mjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs
+env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/records.cjs
+node test/live/docker-home.cjs              # the container half; skips if it's down
 ```
 
 The `live/` suites need `npm run preview` running. `ELECTRON_RUN_AS_NODE` must
 be unset or `require('electron')` returns a path string.
 
-**The two `.cjs` suites are Electron, not a browser, and that is not optional.**
-A browser tab has no desktop bridge and therefore no database, so a browser
-suite can only *stub* one — which proves the wiring and nothing about whether
-Postgres actually stems. `note-search.cjs` redirects `userData` to a temp
-directory and points the container port at nothing, so it always runs the
-**fresh embedded** case: the one everybody who is not the steward gets, and the
-one where the two 2026-08-04 bugs were hiding.
+**The three Electron suites are Electron, not a browser, and that is not
+optional.** A browser tab has no desktop bridge and therefore no database, so a
+browser suite can only *stub* one — which proves the wiring and nothing about
+whether Postgres actually stems.
+
+**THE TWO HOMES NEED TWO SUITES.** `note-search.cjs` and `records.cjs` redirect
+`userData` to a temp directory and point the container port at nothing, so they
+always run the **fresh embedded** case: the one everybody who is not the steward
+gets, and the one where the two 2026-08-04 bugs were hiding. `docker-home.cjs`
+is plain node — `db.cjs` only requires `electron` on the embedded path — and is
+always the **container** case. It **skips loudly and exits 0** when the
+container is down, because a suite that goes green because the thing it tests is
+switched off is rule 5 wearing a tick. Break it on purpose with
+`POSTGRES_PORT=5999`.
+
+Neither can stand in for the other, and that is not caution — the two homes have
+**already disagreed twice** about the same named write: migrations reached only
+one of them until 2026-08-04, and a JS array for a `TEXT[]` parameter wrote on
+Docker and failed on PGlite.

@@ -396,12 +396,19 @@ const WRITES = {
 /* ---------- one shape of parameter, both homes ----------
 
    A JS array passed for a TEXT[] column WRITES on node-postgres, which
-   serialises it, and FAILS on PGlite, which does not. Measured 2026-08-04
-   against the embedded home:
+   serialises it, and FAILS on PGlite, which does not. Both halves measured,
+   the embedded one 2026-08-04 and the Docker one 2026-08-07:
 
-     []            failed        null        wrote
-     ['a']         failed        '{}'        wrote
-     ['a','b']     failed        '{a,b}'     wrote
+                   embedded      docker
+     []            failed        wrote
+     ['a']         failed        wrote
+     ['a','b']     failed        wrote
+     null          wrote         wrote
+     '{}'          wrote         wrote
+     '{a,b}'       wrote         wrote
+
+   So the two homes genuinely disagreed about the same named write, which is
+   the one thing this design exists to prevent.
 
    Nothing had ever caught it because `tags` is the only array column the
    app writes and syncNotes passes null for it — so the first real array
@@ -414,12 +421,15 @@ const WRITES = {
    adapters, and a Postgres array literal is what actually leaves — a form
    both accept.
 
-   HONEST LIMIT: the node-postgres half of that table is from its
-   documented behaviour, not from a run. Docker Desktop was stopped when
-   this was written, so the Docker home is untested for arrays. The fix
-   does not depend on which way that goes — a literal works on both — but
-   the claim "they used to differ" is one measurement short, and
-   test/live/records.cjs only covers the embedded home. */
+   Measured against the real container 2026-08-07: an array with a space in
+   a tag and an array with a `"` in a tag both survive the round trip, and
+   [] arrives as an empty TEXT[] rather than NULL.
+
+   The two homes are covered by two suites, on purpose. records.cjs
+   redirects userData and points the port at nothing, so it is always the
+   fresh-embedded case; docker-home.cjs runs only when the container
+   answers and skips loudly when it does not. Neither can stand in for
+   the other, which is the lesson this comment is made of. */
 function pgArray(a) {
   return '{' + a.map(v => {
     if (v === null || v === undefined) return 'NULL';
