@@ -69,6 +69,13 @@ const panel = await p.evaluate(() => {
   return el ? el.innerText : '';
 });
 check('the backpack panel lists what is carried', /Dhammapada/i.test(panel), JSON.stringify(panel.slice(0, 80)));
+/* THE COUNT AND THE LIST MUST AGREE. `gita` is a slug that does not resolve —
+   deliberately, in the fixture — and before 2026-08-07 it was counted in the
+   heading and silently dropped from the list, so the panel read "carrying 2
+   things" above one card. Found by reading the .png, not by an assertion. */
+check('a carried thing that no longer exists is SHOWN, not silently dropped',
+      /no longer exist/i.test(panel), JSON.stringify(panel.slice(0, 200)));
+check('and it offers a way to set it down', /set (it|them) down/i.test(panel));
 
 // ---- 4 · the cap is real, and says so instead of doing nothing ---------
 const capped = await p.evaluate(async () => {

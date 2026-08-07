@@ -26,7 +26,7 @@ import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data
 import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
 import { findChapters, chapterAt } from '../data/chapters.js';
 import { mergeMarks } from '../data/marks.js';
-import { pickUp, setDown, isCarrying, carriedOf, carryLine, CARRY_CAP } from '../data/carrying.js';
+import { pickUp, setDown, isCarrying, carriedOf, carryLine, stale, CARRY_CAP } from '../data/carrying.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel } from '../ai/provider.js';
@@ -11236,15 +11236,38 @@ export function toggleInventory(slug){
   const btn=document.getElementById('rdCarryBtn');
   if(btn) btn.textContent = isCarrying(carryList(),'book',slug) ? '🎒 Carrying' : '🎒 Take with you';
 }
+/* Set down everything whose thing is gone. One press, and it says what it did
+   rather than tidying up behind your back. */
+export function dropStaleCarried(){
+  const gone=stale(carryList(), (kind,ref)=> kind!=='book' || !!Store.getDoc(ref));
+  if(!gone.length) return;
+  let list=carryList();
+  for(const g of gone) list=setDown(list,g.kind,g.ref);
+  data.carrying=list; persist();
+  showToast('Set down '+gone.length+' thing'+(gone.length===1?'':'s')+' that no longer exists.');
+  renderInventory();
+}
 export function openInventory(){ state.ui='inventory'; hideAllOv(); renderInventory(); showOv('inventoryOv'); }
 function renderInventory(){
   const docs=carriedOf(carryList(),'book').map(e=>Store.getDoc(e.ref)).filter(Boolean);
+  /* WHAT YOU ARE CARRYING THAT NO LONGER EXISTS — shown, never silently
+     dropped. Caught 2026-08-07 by reading the screenshot rather than the
+     assertions: the heading said "carrying 2 things" above a list of one,
+     because `.filter(Boolean)` quietly discarded a book whose slug no longer
+     resolves. That is the count-disagrees-with-the-list shape found in the
+     Notes Log the same morning, and it is worse in a bag: a backpack that
+     silently empties itself is one you stop trusting. carrying.js has
+     stale() for exactly this. */
+  const gone=stale(carryList(), (kind,ref)=> kind!=='book' || !!Store.getDoc(ref));
   const log=data.fishLog||[];
   document.getElementById('inventoryPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-    <h2>Your Inventory</h2>
-    <div class="meta">Books you're carrying — read any of these from anywhere, no walk back to the
-      shelf required. Nothing is missing from the Library; this is just your own copy in hand.</div>
+    <h2>Your Backpack</h2>
+    <div class="meta">${docs.length ? esc(carryLine(carryList()))+' — ' : ''}read any of these from anywhere,
+      no walk back to the shelf required. Nothing is missing from the Library; this is just your own
+      copy in hand, and <b>what you carry is what a resident can see</b> — your notes stay private
+      unless you put one in here yourself.
+      ${carryList().length >= CARRY_CAP ? '<br><b>Full at '+CARRY_CAP+'.</b> Set something down to pick up something else — it goes back to where it lives.' : ''}</div>
     ${docs.length ? `
       <div id="invList">${docs.map(d=>`
         <div class="card" onclick="openReader('${d.slug}')">
@@ -11252,6 +11275,12 @@ function renderInventory(){
           <div class="s">${esc(d.tradition)}</div>
           <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="event.stopPropagation();toggleInventory('${d.slug}');openInventory()">Put it back</button></div>
         </div>`).join('')}</div>
+      ${gone.length ? `<div class="card" style="cursor:default;border-color:#b56f6f">
+        <div class="t" style="color:#e0a0a0">⚠ ${gone.length} thing${gone.length===1?'':'s'} you are carrying no longer exist${gone.length===1?'s':''}</div>
+        <div class="s">${gone.map(g=>esc(g.label||g.ref)).join(', ')} — removed from the Library since you picked
+          ${gone.length===1?'it':'them'} up. Nothing of yours was lost; the backpack just still has the pointer.</div>
+        <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="dropStaleCarried()">Set ${gone.length===1?'it':'them'} down</button></div>
+      </div>` : ''}
       <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="suggestInventoryCategories()">🪄 Ask the Computer to organize this</button></div>
       <div id="invSuggestion" class="meta"></div>`
     : '<p>Not carrying anything yet — in the Reader, "🎒 Take with you" adds a book here.</p>'}
@@ -11416,7 +11445,7 @@ Object.assign(window, {
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
-  markChaptersHere, carryMigrate, carryList,
+  markChaptersHere, carryMigrate, carryList, dropStaleCarried,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,
   openAlexandria, runLibraryTriage, applyTriageMove,

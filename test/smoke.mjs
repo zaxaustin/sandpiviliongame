@@ -2363,6 +2363,29 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- one backpack, not three ----------
+   data.inventory is VESTIGIAL: read once by carryMigrate() and emptied. It has
+   to stay in freshData() so an old save still has the shape the migration
+   reads, which means the next person to open that file finds an empty list
+   that looks available - and builds a third carry system on it.
+
+   There were already TWO (data.inventory and state.readerPocket) and that is
+   the whole reason for data/carrying.js. So: nothing may WRITE data.inventory
+   except the migration that retires it. */
+{
+  const uiDir2 = new URL('../src/game/ui/', import.meta.url);
+  for (const f of readdirSync(uiDir2).filter(x => x.endsWith('.js'))) {
+    const text = readFileSync(new URL(f, uiDir2), 'utf8');
+    for (const m of text.matchAll(/\bdata\.inventory\s*(?:=[^=]|\.push|\.splice|\.pop|\.shift|\.unshift)/g)) {
+      // the migration itself is the one legitimate writer
+      const around = text.slice(Math.max(0, m.index - 700), m.index);
+      if (/function carryMigrate/.test(around)) continue;
+      fail('ui/' + f + ' writes data.inventory, which is vestigial - the backpack is data.carrying. '
+         + 'Two carry systems is what data/carrying.js exists to end.');
+    }
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list
