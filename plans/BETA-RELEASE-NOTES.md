@@ -1,4 +1,4 @@
-**Sand Pavilion 0.1.0-beta.4** — a small world for reading, thinking, and the
+**Sand Pavilion 0.1.0-beta.5** — a small world for reading, thinking, and the
 quiet work of a day, kept entirely on your own machine.
 
 This is a **beta**. Expect rough edges, and please tell me about them.
@@ -7,7 +7,7 @@ This is a **beta**. Expect rough edges, and please tell me about them.
 
 ### Installing
 
-Download `Sand Pavilion Setup 0.1.0-beta.4.exe` below and run it. It installs
+Download `Sand Pavilion Setup 0.1.0-beta.5.exe` below and run it. It installs
 for you only — no administrator password — and appears in the Start menu.
 
 **Windows will warn you it doesn't recognise the app.** Click **More info**,
@@ -16,8 +16,8 @@ then **Run anyway**. That's because I haven't bought a code-signing certificate
 because anything is wrong. If you'd like to check the download:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.4.exe" -Algorithm SHA256
-# E2751A93A92CC6557A9D871297EEC7C14C9D08EBF1724A62FD1A60D4BA0C45B9
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.5.exe" -Algorithm SHA256
+# E955FBE6A75B1219F83ED45287375C91E7602EF575D27BD71138E86D0AA72A28
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -67,7 +67,16 @@ touches books you haven't filed yet unless you tick a box, never stops early,
 and always offers an undo. Installing this over beta.2 is safe — your library,
 notes and save carry across untouched.
 
-### New in beta.4 — the app has a real database now, and you install nothing
+### New in beta.5 — the app has a real database now, and you install nothing
+
+- **The Records Hall keeps your history, and it is finally yours.** It used to
+  show five hand-written lines about the Pavilion itself, frozen last July.
+  Now it lists what *you* have done — books you finished, things you built at
+  the Bench, claims you investigated, experiments you ran, work you published
+  — newest first, alongside the Pavilion's own history. **Every entry is a
+  door**: click it and you land where the real thing lives. It stores no
+  copies; if it can't establish when something happened, it leaves it out
+  rather than guessing a date.
 
 - **Search every note you have ever written, at once.** The one thing the old
   save file genuinely could not do. It matches by *meaning* as well as

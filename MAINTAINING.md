@@ -334,12 +334,27 @@ they can never disagree) and says so when it adds something.
 open that happens behind the title screen** (painted in ~150 ms), 90 ms warm,
 `searchNotes` in 1–3 ms at 5,000 notes.
 
-**Still unwired — 9 of 15 named queries have no consumer.** In value order:
-`records`/`recordCounts` (the Records Hall is a **hardcoded 5-entry array
-frozen at 2026-07-10** while `archive/` holds 17 dev-logs), `notesForBook` /
+**Still unwired — 6 of 15 named queries have no consumer.** `records`,
+`recordCounts` and `upsertRecord` were wired 2026-08-04 (`data/records.js` +
+`test/live/records.cjs`). Remaining, in value order: `notesForBook` /
 `notesByPlace`, `chaptersFor` / `needsChapters` (18 of 39 books find no
 chapters), `unshelved` / `shelfCounts` / `setShelf`. Then
 `tools/migrations/004-note-versions.sql`, still unwritten.
+
+> **A JS ARRAY IS NOT A VALID PARAMETER — normalizeParams() handles it now.**
+> `[]`, `['a']` and `['a','b']` all FAILED on PGlite; `null`, `'{}'` and
+> `'{a,b}'` all wrote. `tags` is the only array column the app writes and
+> `syncNotes` passes null for it, so the Records Hall's was the first real
+> array parameter in this project's history — and it silently wrote nothing.
+> Fixed below the seam so both homes get a Postgres array literal. **Untested
+> against Docker** (the container was stopped); that measurement is still owed.
+>
+> It took a hand-written probe because `writeMany` returns `null` for both
+> "failed" and "no bridge", and `status()` pings before reporting, so the
+> successful ping wiped the evidence. `status().writeError` now SURVIVES a
+> later good read, and `data/backend-trouble.js` owns the wording (DOM-free,
+> unit-tested, write outranks schema). **A failed read is self-reporting; a
+> failed write is not.**
 
 `test/live/note-search.cjs` is new and **must be run under Electron** —
 `env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs`.
@@ -376,9 +391,11 @@ leave the window-export block in `overlays.js`, which owns it.
 > that check were wrong first**, each found by breaking it on purpose. Do not
 > trust a green suite on a fresh cut until you have opened the app.
 
-> **0.1.0-beta.4 IS BUILT AND VERIFIED, NOT PUBLISHED** (2026-08-04).
-> `release/Sand Pavilion Setup 0.1.0-beta.4.exe`, 101 MB, hash
-> `E2751A93A92CC6557A9D871297EEC7C14C9D08EBF1724A62FD1A60D4BA0C45B9`.
+> **0.1.0-beta.5 IS BUILT AND VERIFIED, NOT PUBLISHED** (2026-08-04).
+> `release/Sand Pavilion Setup 0.1.0-beta.5.exe`, 101 MB, hash
+> `E955FBE6A75B1219F83ED45287375C91E7602EF575D27BD71138E86D0AA72A28`.
+> beta.4 was built earlier the same day and **never published or tagged**; its
+> `.exe` is still in `release/` and is now STALE — do not publish that one.
 > `packaged-boot` says SHIPPABLE and `verify:release` says the docs match the
 > artifact. **Publishing is a human action** — the command is in
 > `plans/SHIPPING-THE-BETA.md`, and beta.3 is still the published release.

@@ -1,7 +1,7 @@
 {
   "name": "sand-pavilion",
   "private": true,
-  "version": "0.1.0-beta.4",
+  "version": "0.1.0-beta.5",
   "description": "The Sand Pavilion — a small walkable world for reading, planning, and working, with AI residents that run on your own machine. Local-first; nothing phones home.",
   "author": "The Sand Pavilion stewards",
   "type": "module",

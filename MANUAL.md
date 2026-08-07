@@ -530,8 +530,13 @@ of the day, not three.
   the format most free-book sites give you — is unpacked right in the game,
   no conversion), paste-in of Caravan tool output, a live SuttaCentral
   search, and the review queue where *you* stand behind what you shelve.
-- **The Records Hall** (one floor up) — the Pavilion's own hand-kept
-  timeline.
+- **The Records Hall** (one floor up) — your own history, newest first:
+  books you finished, things you built at the Bench, claims you
+  investigated, experiments you ran, work you published — beside the
+  Pavilion's own milestones. **Every line is a door**; clicking one takes
+  you to where the real thing lives. It keeps no copies of anything, and
+  if it cannot tell *when* something happened it leaves it out rather
+  than guessing a date.
 - **🗒 Your Notes** (pause menu) — the one home for notes. Every note you've
   taken *anywhere* (book notes, chat notes, desk notes, research, grant
   documents) is gathered here, with folders and tags and a scoped "have

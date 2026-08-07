@@ -533,3 +533,96 @@ NOT DONE, and deliberately so — the beta was the priority:
   - the two Caravan scripts rewritten against local Postgres + MinIO
   - publishing: the .exe exists and is verified; only a human publishes it,
     and SHIPPING-THE-BETA.md has the command
+
+================================================================
+PHASE 2c — THE RECORDS HALL, AND THE BUG IT UNCOVERED
+================================================================
+
+"lets take our time and work on the things left undone"
+
+THE ROOM
+
+Was a hardcoded five-entry array frozen at 2026-07-10, while `records`,
+`recordCounts` and `upsertRecord` sat in db.cjs with nothing calling them.
+data/records.js now walks the save: books read, the Bench's builds,
+investigations, experiments, packets given and received, and the Pavilion's
+own milestones. Pure and deterministic - no model, no bridge, no clock it
+was not handed.
+
+ONE WALK, TWO READERS. The same gatherRecords() feeds both cases. With no
+database the room is complete from the save and says outright that it is not
+indexed; with one it is the same room, longer, merged on source_key so a row
+the save no longer produces still shows. Not a second implementation of the
+same idea - that is the store.js scar.
+
+WHAT IT REFUSES. An undated build is skipped rather than dated today: a
+record in the wrong year is a lie a note can cite. Notes, lessons and days
+are deliberately absent and the file says why - notes already have their own
+table and index, and "a lesson is finished" needs the lesson graph, which is
+not reachable from the save. Guessing would put work in the visitor's history
+that they never did.
+
+14 OF 16 CARDS WERE DEAD ENDS
+
+The first version named openInvestigation, openExperiment and openBuild as
+the doors. None of the three exist. Found by opening the room and COUNTING
+the clickable cards - not by reading the code, and not by any test that
+existed. The standing rule is that nothing may be a dead end.
+
+They point at openLab and openCommonsTable now, and npm test checks every
+opener named in records.js against the window export block. That check earns
+its place: openers live in the DATABASE as plain strings, so no amount of
+static analysis of the calling code could ever catch a bad one.
+
+THEN THE ACTUAL BUG, AND IT WAS NOT MINE
+
+Nothing reached the database at all. Measured against the embedded home:
+
+    []          failed        null      wrote
+    ['a']       failed        '{}'      wrote
+    ['a','b']   failed        '{a,b}'   wrote
+
+A JS array passed for a TEXT[] parameter fails on PGlite. `tags` is the only
+array column this app writes, and syncNotes passes null for it - so the
+Records Hall's was the FIRST REAL ARRAY PARAMETER IN THE PROJECT'S HISTORY,
+and it silently wrote nothing.
+
+Fixed in normalizeParams(), below the named-query seam, so both homes get the
+same Postgres array literal and the renderer still cannot tell them apart.
+Arrays round-trip with contents intact now.
+
+HONEST LIMIT: Docker Desktop was stopped, so the node-postgres half of that
+table is documented behaviour rather than a measurement, and records.cjs
+covers the embedded home only. Worth closing with the container up.
+
+WHY IT TOOK A HAND-WRITTEN PROBE
+
+writeMany returned null. So does "no bridge". And status() pings BEFORE
+reporting, so the successful ping wiped lastError - the title screen read
+"* Built-in database - your shelves, chapters and notes are indexed" the
+entire time it was saving nothing. It was telling the truth about the only
+thing it asked.
+
+  - lastWriteError survives a later successful read
+  - status() reports it as `writeError`, separate from `error`
+  - data/backend-trouble.js owns the wording, DOM-free so npm test can hold
+    it to account in a second without a browser - including the precedence:
+    a write failure outranks a behind schema, because a behind-schema
+    database usually cannot write either, and naming the schema would send
+    someone to run migrations when the fault is elsewhere
+
+THE PRINCIPLE, worth keeping: A FAILED READ IS SELF-REPORTING - the panel is
+empty and you go looking. A FAILED WRITE IS NOT. It surfaces weeks later as
+something missing that nobody watched being saved. The status line has to
+work harder for writes than for reads, because reality does not report them.
+
+That is ten times now that the measurement, the description, or the check
+was the broken thing.
+
+STILL NOT DONE
+  - notesForBook / notesByPlace in the Reader and Study Table
+  - chaptersFor / needsChapters (18 of 39 books find no chapters)
+  - unshelved / shelfCounts / setShelf for Library shelving
+  - migration 004-note-versions.sql
+  - the two Caravan scripts, rewritten against local Postgres + MinIO
+  - the array fix, measured against Docker rather than reasoned about
