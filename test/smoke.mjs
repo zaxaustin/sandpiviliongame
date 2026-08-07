@@ -110,6 +110,43 @@ for (const [key, s] of Object.entries(scenes)) {
       fail(`visibility.js: save store '${k}' has no DATA_MAP entry — Your Data can't say whether it ever leaves this machine`);
     }
     if (keys.length < 10) fail(`smoke: only parsed ${keys.length} top-level save stores — the freshData() reader has drifted`);
+
+    /* THE OTHER DIRECTION, and it is the one that was missing.
+
+       The check above asks "is every declared store described?" — which is
+       blind to a store that is in NEITHER list. That is not hypothetical: on
+       2026-08-07 `data.bookMarks` turned out to be written by study-table.js
+       (`data.bookMarks = data.bookMarks || {}`, self-creating), absent from
+       freshData(), and therefore absent from DATA_MAP too — so the privacy
+       line was short by one store, and by the one holding the visitor's own
+       chapter names. `data.study` is the same shape. The guard existed and
+       had nothing to say about either, because it only ever looked one way.
+
+       So: anything the code actually WRITES to `data.` must be declared. A
+       store nobody declared is a store nobody can see, back up, or reason
+       about — and it will not survive a save migration that rebuilds from
+       freshData(). */
+    const declared = new Set([...keys, ...ignore]);
+    const writes = new Map();       // key -> first file that writes it
+    const walk = (dirUrl, label) => {
+      for (const e of readdirSync(dirUrl, { withFileTypes: true })) {
+        if (e.isDirectory()) { walk(new URL(e.name + '/', dirUrl), label + e.name + '/'); continue; }
+        if (!e.name.endsWith('.js')) continue;
+        const text = readFileSync(new URL(e.name, dirUrl), 'utf8');
+        // an ASSIGNMENT to data.<key>, not a read — reads of a stale key are a
+        // bug of their own, but they cannot invent an undeclared store.
+        for (const mm of text.matchAll(/\bdata\.([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=[^=]|\|\|=|\?\?=)/g)) {
+          if (!writes.has(mm[1])) writes.set(mm[1], label + e.name);
+        }
+      }
+    };
+    walk(new URL('../src/game/', import.meta.url), 'src/game/');
+    for (const [k, where] of writes) {
+      if (declared.has(k)) continue;
+      fail(`entities.js: ${where} writes data.${k}, which freshData() never declares `
+         + `— an undeclared store is invisible to Your Data and does not survive a rebuild`);
+    }
+    if (writes.size < 5) fail(`smoke: only found ${writes.size} data.* writes — the source scan has drifted`);
   }
 }
 

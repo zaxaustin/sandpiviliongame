@@ -81,6 +81,11 @@ export const DATA_MAP = [
      the privacy line was short by one store — and by the one holding your
      own words about how a book is divided. */
   { key:'bookMarks',    name:'Chapters you marked yourself', state:'private', leaves:'Never — not unless you hand a book on with them.' },
+  /* The path you picked up. Declared 2026-08-07, when a new guard found that
+     lesson-tree.js had been writing it to a store freshData() never mentioned
+     — so it was in neither list, which is precisely the gap the older guard
+     could not see. */
+  { key:'study',        name:'The path you picked up',  state:'private', leaves:'Never. What you chose to work on is yours.' },
   { key:'activityLog',  name:'Activity log',            state:'private', leaves:'Never.' },
   { key:'badges',       name:'Badges',                  state:'private', leaves:'Never.' },
   { key:'aiConnections',name:'Your AI connections',     state:'private', leaves:'Never. Keys and addresses stay on this device.' },
