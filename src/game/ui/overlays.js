@@ -3178,27 +3178,50 @@ function paginateFullText(text){ return paginate(text); }
    copy inside openFullText() writes its progress and its failures into reader
    elements, which is right there and useless anywhere else. Returns the text
    or null; the caller says what a null means in its own words. */
-export async function loadBookText(slug){
+/* WHY THERE IS NO TEXT IS NOT ONE ANSWER. Split 2026-08-08 after the steward
+   closed Docker and asked why none of his books were loading.
+
+   The reader already said the honest thing ("the local Library storage (MinIO)
+   doesn't seem to be running"). This function did not: it returned a bare
+   `null` for every reason, and the Study Table's message for null is "<title>
+   is a summary rather than the full text". So with the container stopped, the
+   table told him a 900-page book was a summary. A confident wrong answer,
+   which is worse than the silence it replaced.
+
+   `reason` is the fix, and every caller that shows a message must read it:
+
+     'none'        this book genuinely has no full text (a summary card)
+     'unreachable' the text lives in MinIO and MinIO did not answer
+     'no-bridge'   the text is a file in the desktop app, opened in a browser
+     'unreadable'  the desktop file is there and would not read
+
+   loadBookText() keeps its old shape so the callers that only need the string
+   are untouched. */
+export async function loadBookTextResult(slug){
   const d=Store.getDoc(slug); const ft=d && d.doc && d.doc.fullText;
-  if(!ft) return null;
-  if(ft.text) return ft.text;
+  if(!ft) return { text:null, reason:'none' };
+  if(ft.text) return { text:ft.text, reason:null };
   if(ft.storage && ft.storage.personal){
     const bridge=window.desktopBridge;
-    if(bridge && bridge.libraryRead){
-      try{ const res=await bridge.libraryRead(ft.storage.personal); if(res && res.ok) return res.text; }
-      catch(e){ return null; }
-    }
-    return null;
+    if(!(bridge && bridge.libraryRead)) return { text:null, reason:'no-bridge' };
+    try{
+      const res=await bridge.libraryRead(ft.storage.personal);
+      if(res && res.ok) return { text:res.text, reason:null };
+      return { text:null, reason:'unreadable' };
+    }catch(e){ return { text:null, reason:'unreadable' }; }
   }
   if(ft.storage && ft.storage.bucket){
     try{
       const base=(import.meta.env && import.meta.env.VITE_MINIO_ENDPOINT) || 'http://localhost:9000';
       const res=await fetch(`${base}/${ft.storage.bucket}/${ft.storage.key}`);
-      if(!res.ok) return null;
-      return await res.text();
-    }catch(e){ return null; }
+      if(!res.ok) return { text:null, reason:'unreachable' };
+      return { text:await res.text(), reason:null };
+    }catch(e){ return { text:null, reason:'unreachable' }; }
   }
-  return null;
+  return { text:null, reason:'none' };
+}
+export async function loadBookText(slug){
+  return (await loadBookTextResult(slug)).text;
 }
 export async function openFullText(slug, landOnPage){
   const d=Store.getDoc(slug); if(!d||!d.doc.fullText) return;
@@ -4073,7 +4096,7 @@ function toolLabel(t){
    import backwards, so there is no cycle to reason about. */
 initLessonTree({
   closeUI, hideAllOv, showOv, openReader, openFullText, renderFullTextPage,
-  chapterPages, loadBookText, currentDocSlug, newNoteId, openChatDialog,
+  chapterPages, loadBookText, loadBookTextResult, currentDocSlug, newNoteId, openChatDialog,
   renderChatView, openIndex, openCourses, openCommonsTable, openPacket,
   publishFrom, commonsStore, cleanAnswer, visBadge, openNotesLog,
   refreshNoteEditors, setHud,
@@ -4093,6 +4116,7 @@ initStudyTable({
   // elsewhere reads correctly here, and a deletion simply stops appearing.
   noteByKey: (key) => { try { return gatherNotes().find(n => n.key === key) || null; } catch(e){ return null; } },
   loadBookText,
+  loadBookTextResult,
   writeBookNote: (slug, text, page) => {
     /* The Reader's own path, so a note written at the table is identical to
        one written mid-page: same shape, same chapter, same four doors. The
@@ -11819,7 +11843,7 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage, openNeedsChapters, carryNote,
-  studySetBook, studyCarryBook,
+  studySetBook, studyCarryBook, renderStudyTable,
   shelveRefused, takeUpLater, shelveCarried,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,

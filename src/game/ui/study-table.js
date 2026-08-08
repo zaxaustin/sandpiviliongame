@@ -218,12 +218,30 @@ export async function renderStudyTable() {
       </div>`;
     return;
   }
-  const text = X.loadBookText ? await X.loadBookText(b.slug) : null;
+  /* WHY there is no text, not just that there is none. Until 2026-08-08 this
+     called loadBookText(), got a bare null, and said "is a summary rather than
+     the full text" for EVERY reason — so with the container stopped it told
+     the steward a 900-page book was a summary. That is a confident wrong
+     answer, and the reader one room away was already saying the true one. */
+  const got = X.loadBookTextResult ? await X.loadBookTextResult(b.slug)
+            : { text: (X.loadBookText ? await X.loadBookText(b.slug) : null), reason: 'none' };
+  const text = got.text;
   if (!text) {
-    /* A summary-only book has no pages to divide. Say so once, plainly,
-       rather than showing an empty workroom that looks broken. */
-    el.innerHTML = `<div class="meta"><b>${esc(b.doc.title)}</b> is a summary rather than the full text, so there
-      is nothing here to work through page by page. Notes on it still work everywhere else.</div>`;
+    const WHY = {
+      unreachable: `<b>${esc(b.doc.title)}</b> is here, but its text lives in the local Library storage
+        (MinIO) and that is not answering right now. Start Docker and open this again — nothing is lost,
+        and your notes on it work either way.`,
+      'no-bridge': `<b>${esc(b.doc.title)}</b> was shelved in the desktop app, where its file lives. Open it
+        there to work through it — a browser tab cannot reach that folder.`,
+      unreadable: `<b>${esc(b.doc.title)}</b> has a file on this device that would not read. It may have been
+        moved or renamed. Adding the text again fixes it, and your notes are untouched.`,
+      none: `<b>${esc(b.doc.title)}</b> is a summary rather than the full text, so there is nothing here to
+        work through page by page. Notes on it still work everywhere else.`,
+    };
+    el.innerHTML = `<div class="meta">${WHY[got.reason] || WHY.none}</div>`
+      + (got.reason === 'unreachable'
+          ? `<div class="row" style="margin-top:8px"><button class="btn ghost" onclick="renderStudyTable()">\u21bb Try again</button></div>`
+          : '');
     return;
   }
   const v = view();
