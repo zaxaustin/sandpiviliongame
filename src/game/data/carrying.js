@@ -78,12 +78,74 @@ export function canAccept(place, kind) {
    Dhammapada" should not also put down the note about it. */
 const same = (a, kind, ref) => a && a.kind === kind && String(a.ref) === String(ref);
 
+/* ---- IN HAND, OR ON THE SHELF FOR LATER -------------------------------
+
+   Asked for 2026-08-07, when the cap was settled as a hard refusal:
+
+     "make sure there is a place to put notes and books that say something
+      like pick up later, i dont want people to feel like trhere not able to
+      hold somthing just that to focus them in whats in the invitoruy."
+
+   Exactly right, and it is what makes a hard cap kind instead of mean. The
+   cap exists to focus attention, not to ration what you own — so a full
+   backpack must never be a wall. It is a redirection: "not now, but here."
+
+   ONE STORE, A FLAG. `later:true` on the same entry rather than a second
+   array — this project spent a day removing a second carry system and is not
+   adding one back. The flag means everything downstream keeps one identity,
+   one set of rules, and one place to look.
+
+   THE SHELF IS NOT THE BAG, AND THAT IS LOAD-BEARING. `carried()` excludes
+   it, so the cap only counts what is in hand, and groundingFor() excludes it
+   too — a note you set aside for later is NOT something a resident may see.
+   "What you carry is what a resident can see" stays literally true, which it
+   would not if the shelf were quietly part of the bag.                     */
+const inHand = e => e && !e.later;
+
+/* What is actually IN THE BAG — the cap, the grounding and every count use
+   this, never the raw array. */
+export function carried(list) { return (list || []).filter(inHand); }
+export function setAsideList(list) { return (list || []).filter(e => e && e.later); }
+
 export function isCarrying(list, kind, ref) {
-  return (list || []).some(e => same(e, kind, ref));
+  return (list || []).some(e => same(e, kind, ref) && inHand(e));
+}
+export function isSetAside(list, kind, ref) {
+  return (list || []).some(e => same(e, kind, ref) && e.later);
 }
 
 export function carriedOf(list, kind) {
-  return (list || []).filter(e => e && e.kind === kind);
+  return (list || []).filter(e => inHand(e) && e.kind === kind);
+}
+
+/* SET ASIDE — "pick up later". No cap: this is a shelf, and a shelf that
+   fills up would be the same wall wearing a different label. */
+export function setAside(list, entry, now) {
+  const cur = Array.isArray(list) ? list.slice() : [];
+  if (!entry || !KINDS[entry.kind] || entry.ref == null || entry.ref === '') {
+    return { list: cur, ok: false, reason: 'That is not something you can set aside.' };
+  }
+  const at = cur.findIndex(e => same(e, entry.kind, entry.ref));
+  if (at >= 0) { cur[at] = { ...cur[at], later: true }; return { list: cur, ok: true, moved: true }; }
+  cur.push({ kind: entry.kind, ref: String(entry.ref),
+             label: String(entry.label || entry.ref), since: now || '', later: true });
+  return { list: cur, ok: true };
+}
+
+/* TAKE IT UP AGAIN — off the shelf and into the bag, cap and all. The one
+   place the cap can bite twice, so it says the same thing it said the first
+   time rather than inventing a second wording. */
+export function takeUp(list, kind, ref) {
+  const cur = Array.isArray(list) ? list.slice() : [];
+  const at = cur.findIndex(e => same(e, kind, ref));
+  if (at < 0) return { list: cur, ok: false, reason: 'That is not on your shelf.' };
+  if (carried(cur).length >= CARRY_CAP) {
+    return { list: cur, ok: false, full: true,
+      reason: 'Your backpack is full (' + CARRY_CAP + '). Set something down to make room — '
+            + 'it goes back to where it lives, nothing is lost.' };
+  }
+  cur[at] = { ...cur[at] }; delete cur[at].later;
+  return { list: cur, ok: true };
 }
 
 /* PICK UP. Returns {list, ok, reason} — never throws, and never
@@ -100,10 +162,18 @@ export function pickUp(list, entry, now) {
     // failure, and must not put a second copy in the bag.
     return { list: cur, ok: true, already: true, reason: 'Already in your backpack.' };
   }
-  if (cur.length >= CARRY_CAP) {
-    return { list: cur, ok: false, full: true,
-      reason: 'Your backpack is full (' + CARRY_CAP + '). Set something down first — '
-            + 'it goes back to where it lives, nothing is lost.' };
+  /* THE CAP COUNTS WHAT IS IN HAND, not what you own. The shelf is
+     deliberately outside it — see setAside() above. */
+  if (carried(cur).length >= CARRY_CAP) {
+    /* A FULL BACKPACK IS A REDIRECTION, NOT A WALL. The cap exists to focus
+       attention on what is in front of you; it is not a limit on what you
+       may keep. So the refusal names the way through in the same breath, and
+       `canSetAside` tells the caller to offer it as one press — a message
+       that only says no is the same dead end this project keeps removing. */
+    return { list: cur, ok: false, full: true, canSetAside: true,
+      reason: 'Your backpack is full (' + CARRY_CAP + ') — that keeps it to what you are '
+            + 'actually working on. Put this on your "pick up later" shelf instead, or set '
+            + 'something down to make room. Nothing is ever lost either way.' };
   }
   cur.unshift({ kind: entry.kind, ref: String(entry.ref),
                 label: String(entry.label || entry.ref), since: now || '' });
@@ -134,10 +204,11 @@ export function stale(list, exists) {
 /* A short line for the HUD. Never a bare number — "3" reads as a demand,
    the same reason theDayLine is a sentence. */
 export function carryLine(list) {
-  const n = (list || []).length;
-  if (!n) return '';
-  if (n === 1) return 'carrying ' + ((list[0] && list[0].label) || 'one thing');
-  return 'carrying ' + n + ' things';
+  const held = carried(list), shelf = setAsideList(list).length;
+  const tail = shelf ? ' · ' + shelf + ' to pick up later' : '';
+  if (!held.length) return shelf ? shelf + ' waiting on your shelf' : '';
+  if (held.length === 1) return 'carrying ' + (held[0].label || 'one thing') + tail;
+  return 'carrying ' + held.length + ' things' + tail;
 }
 
 /* GROUNDING: what a resident is allowed to see, in one place.
@@ -153,5 +224,8 @@ export function carryLine(list) {
    a discipline anyone has to remember here. */
 export function groundingFor(list, kinds) {
   const want = kinds && kinds.length ? kinds : KIND_KEYS;
-  return (list || []).filter(e => e && want.includes(e.kind));
+  /* carried(), NOT the raw list. Something set aside for later is on a shelf,
+     not in your hands, and "what you carry is what a resident can see" has to
+     stay literally true or it is just a slogan. */
+  return carried(list).filter(e => want.includes(e.kind));
 }

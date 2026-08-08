@@ -105,14 +105,59 @@ const capped = await p.evaluate(async () => {
   // showToast() writes into #badgeToast, not #dropToast — the first version of
   // this check read an element that is never touched and reported "" forever.
   const t = document.getElementById('badgeToast');
-  return { n: window.carryList().length,
+  /* THE BAG, not the bag plus the shelf. carryList() is the raw store and
+     since the shelf landed it holds both — this read 29 and failed while the
+     bag was correctly at 20. Count what the cap counts. */
+  return { n: window.carryList().filter(e => !e.later).length,
+           shelved: window.carryList().filter(e => e.later).length,
            shown: !!t && t.classList.contains('show'),
            toast: t ? t.innerText : '' };
 });
-check('the backpack never grows past its cap', capped.n <= 20, 'held ' + capped.n);
+check('the backpack never grows past its cap', capped.n <= 20, 'held ' + capped.n + ', shelved ' + capped.shelved);
 check('and a full backpack SAYS so rather than silently refusing',
       capped.shown && /full|set something down/i.test(capped.toast),
       'shown=' + capped.shown + ' ' + JSON.stringify(capped.toast.slice(0, 90)));
+
+/* ---- 5 . a full backpack offers a shelf, not a wall -------------------
+   The cap focuses attention; it does not ration what you own. Asked for
+   2026-08-07: "i dont want people to feel like trhere not able to hold
+   somthing just that to focus them in whats in the invitoruy."
+
+   Step 4 above already walked 40 books through the real door, so the overflow
+   has ALREADY been shelved by the time we get here - which is the behaviour
+   under test. Before today those 20 were simply refused and went nowhere. */
+const shelf = await p.evaluate(() => {
+  window.openInventory();
+  const el = document.getElementById('inventoryPanel');
+  const list = window.carryList();
+  return { text: el ? el.innerText : '',
+           held: list.filter(e => !e.later).length,
+           onShelf: list.filter(e => e.later).length };
+});
+check('the books the cap refused went ONTO THE SHELF, not nowhere',
+      shelf.onShelf > 0, 'shelf holds ' + shelf.onShelf);
+check('and none of them snuck into the bag past the cap', shelf.held === 20, 'held ' + shelf.held);
+check('the shelf is visible in the panel', /pick up later/i.test(shelf.text),
+      JSON.stringify(shelf.text.slice(0, 140)));
+check('the panel says the shelf is unlimited and unseen by residents',
+      /no limit/i.test(shelf.text) && /cannot see/i.test(shelf.text));
+check('and the cap explains itself rather than just refusing',
+      /nothing is ever lost/i.test(shelf.text),
+      JSON.stringify((shelf.text.match(/Full at[^\r\n]*/) || [])[0] || ''));
+
+// and something can come back OFF the shelf once there is room
+const back = await p.evaluate(() => {
+  const held = window.carryList().filter(e => !e.later);
+  const shelved = window.carryList().filter(e => e.later)[0];
+  window.toggleInventory(held[0].ref);        // set one down -> room for one
+  window.takeUpLater(shelved.ref);
+  const list = window.carryList();
+  return { ref: shelved.ref,
+           nowHeld: list.some(e => e.ref === shelved.ref && !e.later),
+           stillShelved: list.some(e => e.ref === shelved.ref && e.later) };
+});
+check('a shelved book comes back into the bag once there is room', back.nowHeld);
+check('and it is not on the shelf AND in the bag at once', !back.stillShelved);
 
 check('no console errors', errs.length === 0, errs.join(' | '));
 

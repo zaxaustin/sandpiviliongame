@@ -2251,11 +2251,11 @@ for (const d of SEED_LIBRARY) {
   const over = C.pickUp(full, { kind: 'book', ref: 'one-too-many', label: 'X' }, '');
   if (over.ok) fail('carrying: the cap was not enforced');
   if (over.list.length !== C.CARRY_CAP) fail('carrying: a refused pick-up still changed the bag');
-  if (!/set something down/i.test(over.reason || '')) fail('carrying: a full backpack did not say what to do about it');
+  if (!/set something down|pick up later/i.test(over.reason || '')) fail('carrying: a full backpack did not say what to do about it');
   /* It must REASSURE, not threaten. Checking for the WORD "lost" is not the
      same check - this message says "nothing is lost", which is the point of
      it, and the first version of this assertion failed the correct wording. */
-  if (!/nothing is lost|goes back|still (there|yours)/i.test(over.reason || '')) {
+  if (!/nothing is (ever )?lost|goes back|still (there|yours)/i.test(over.reason || '')) {
     fail('carrying: a full backpack said "' + over.reason + '" without saying nothing is lost');
   }
 
@@ -2268,6 +2268,62 @@ for (const d of SEED_LIBRARY) {
   if (C.carryLine([]) !== '') fail('carrying: an empty backpack still said something');
   if (!/Dhammapada/.test(C.carryLine(held))) fail('carrying: one carried thing should be named, not counted');
   if (!/2 things/.test(C.carryLine(withNote))) fail('carrying: carryLine gave "' + C.carryLine(withNote) + '"');
+
+  /* ---- "PICK UP LATER" ----------------------------------------------
+     A hard cap that only ever says no is a wall. The shelf is what makes it
+     a redirection instead: the cap focuses attention, it does not ration
+     what you own.
+
+     THE SHELF IS NOT THE BAG. It is outside the cap, and it is outside the
+     grounding - a note set aside for later is NOT something a resident may
+     see. "What you carry is what a resident can see" has to stay literally
+     true or it is a slogan. */
+  let bag = [];
+  for (let i = 0; i < C.CARRY_CAP; i++) bag = C.pickUp(bag, { kind: 'book', ref: 'f' + i, label: 'F' + i }, '').list;
+  const refused = C.pickUp(bag, { kind: 'book', ref: 'extra', label: 'Extra' }, '');
+  if (refused.ok) fail('carrying: the cap did not hold');
+  if (!refused.canSetAside) fail('carrying: a full backpack refused without offering the shelf - that is a wall');
+  if (!/pick up later/i.test(refused.reason || '')) fail('carrying: the refusal never mentions the shelf');
+  if (!/nothing is ever lost|nothing is lost/i.test(refused.reason || '')) fail('carrying: the refusal does not reassure');
+
+  const shelved = C.setAside(bag, { kind: 'book', ref: 'extra', label: 'Extra' }, '');
+  if (!shelved.ok) fail('carrying: could not set something aside when the bag was full');
+  if (C.carried(shelved.list).length !== C.CARRY_CAP) fail('carrying: the shelf counted against the cap');
+  if (C.setAsideList(shelved.list).length !== 1) fail('carrying: the shelved thing is not on the shelf');
+  /* THE CAP MUST *USE* carried(), not the raw array. Checking carried() here
+     proves nothing about pickUp - broken on purpose 2026-08-07 by pointing
+     the cap at the raw list, and the first version of these checks passed
+     anyway. So: with things ON the shelf, a bag with room must still accept. */
+  let mixed = [];
+  for (let i = 0; i < C.CARRY_CAP - 1; i++) mixed = C.pickUp(mixed, { kind: 'book', ref: 'm' + i, label: 'M' + i }, '').list;
+  for (let i = 0; i < 5; i++) mixed = C.setAside(mixed, { kind: 'book', ref: 's' + i, label: 'S' + i }, '').list;
+  const lastSlot = C.pickUp(mixed, { kind: 'book', ref: 'final', label: 'Final' }, '');
+  if (!lastSlot.ok) fail('carrying: a shelf of 5 stole the last slot in the bag - the cap is counting the shelf');
+  if (C.carried(lastSlot.list).length !== C.CARRY_CAP) fail('carrying: the bag did not fill to the cap');
+  if (C.isCarrying(shelved.list, 'book', 'extra')) fail('carrying: something on the shelf reported as IN HAND');
+  if (!C.isSetAside(shelved.list, 'book', 'extra')) fail('carrying: isSetAside cannot find what was just shelved');
+
+  // THE PRIVACY CONSEQUENCE, and it is the one that matters
+  const shelvedNote = C.setAside([], { kind: 'note', ref: 'private-one', label: 'A note' }, '').list;
+  if (C.groundingFor(shelvedNote).length !== 0) {
+    fail('carrying: A NOTE ON THE SHELF REACHED THE GROUNDING - what you carry is what a resident sees');
+  }
+  if (C.carriedOf(shelvedNote, 'note').length !== 0) fail('carrying: carriedOf counted a shelved note');
+
+  // and back off the shelf again
+  const roomy = C.setDown(shelved.list, 'book', 'f0');
+  const took = C.takeUp(roomy, 'book', 'extra');
+  if (!took.ok) fail('carrying: could not take something back off the shelf once there was room: ' + took.reason);
+  if (!C.isCarrying(took.list, 'book', 'extra')) fail('carrying: it came off the shelf but not into the bag');
+  if (C.setAsideList(took.list).length !== 0) fail('carrying: it is on the shelf AND in the bag');
+  const stillFull = C.takeUp(shelved.list, 'book', 'extra');
+  if (stillFull.ok) fail('carrying: taking something up ignored the cap');
+  if (!/full/i.test(stillFull.reason || '')) fail('carrying: taking up past the cap gave no reason');
+  if (!C.takeUp([], 'book', 'nope').reason) fail('carrying: taking up something not on the shelf said nothing');
+
+  // the line mentions the shelf only when there is something on it
+  if (/pick up later/i.test(C.carryLine(bag))) fail('carrying: an empty shelf was announced');
+  if (!/to pick up later/i.test(C.carryLine(shelved.list))) fail('carrying: a full shelf went unmentioned');
 
   /* ONE TABLE, DERIVED BOTH WAYS. canAccept must answer from KINDS itself, so
      a new kind works everywhere its places already exist with nothing else

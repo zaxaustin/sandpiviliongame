@@ -26,7 +26,8 @@ import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data
 import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
 import { findChapters, chapterAt } from '../data/chapters.js';
 import { mergeMarks } from '../data/marks.js';
-import { pickUp, setDown, isCarrying, carriedOf, carryLine, stale, CARRY_CAP } from '../data/carrying.js';
+import { pickUp, setDown, isCarrying, carriedOf, carryLine, stale, carried,
+         setAside, setAsideList, takeUp, CARRY_CAP } from '../data/carrying.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel } from '../ai/provider.js';
@@ -11264,7 +11265,16 @@ export function toggleInventory(slug){
     /* A FULL BACKPACK SAYS SO. Before carrying there was no cap and so no way
        to fail; now there is, and a button that silently does nothing is the
        house failure mode. The reason is already a sentence fit for a screen. */
-    if(!r.ok){ showToast(r.reason); return; }
+    /* A FULL BACKPACK OFFERS THE SHELF, in one press, from where you are.
+       The cap is there to focus you on what you are working on — it is not a
+       limit on what you may keep, and a message that only says no would make
+       it feel like one. Asked for 2026-08-07: "i dont want people to feel like
+       trhere not able to hold somthing just that to focus them in whats in the
+       invitoruy." */
+    if(!r.ok){
+      if(r.canSetAside){ shelveRefused(slug, (d&&d.title)||slug); return; }
+      showToast(r.reason); return;
+    }
     data.carrying=r.list;
     if(!r.already){ awardBadge('first-carry'); logActivity('Packed a book to carry with you.'); }
   }
@@ -11274,7 +11284,41 @@ export function toggleInventory(slug){
 }
 /* Set down everything whose thing is gone. One press, and it says what it did
    rather than tidying up behind your back. */
+/* "NOT NOW, BUT HERE." The bag REFUSES when it is full — the steward's call,
+   and one rule with no exceptions. But refusing the bag is not refusing YOU:
+   the thing goes on the shelf, and the message says so and where to find it.
+
+   Deliberately not a confirm() dialog. A modal for this would block the page
+   to ask a question whose answer is always yes — nobody presses "take with
+   you" and then wants the thing dropped on the floor — and it turns one press
+   into two. It also hangs the live suite, which is a fair warning about how it
+   feels.
+
+   Nor is anything of YOURS displaced: the steward rejected setting down the
+   oldest for exactly that reason. The bag is untouched; only the new thing
+   moves, to a place with no limit, named in the message. */
+export function shelveRefused(slug, title){
+  const r = setAside(carryList(), {kind:'book', ref:slug, label:title}, todayKey());
+  if(!r.ok){ showToast(r.reason); return; }
+  data.carrying = r.list; persist();
+  showToast('Backpack full at ' + CARRY_CAP + ' — "' + title + '" is on your "pick up later" shelf. '
+          + 'Open your backpack to take it up. Nothing is lost.');
+}
+/* Off the shelf and into the bag — subject to the cap, which is the one place
+   it can bite twice, so it says the same thing rather than a second wording. */
+export function takeUpLater(slug){
+  const r = takeUp(carryList(), 'book', slug);
+  if(!r.ok){ showToast(r.reason); return; }
+  data.carrying = r.list; persist(); renderInventory();
+}
+export function shelveCarried(slug){
+  const d=Store.getDoc(slug);
+  const r = setAside(carryList(), {kind:'book', ref:slug, label:(d&&d.title)||slug}, todayKey());
+  if(!r.ok){ showToast(r.reason); return; }
+  data.carrying = r.list; persist(); renderInventory();
+}
 export function dropStaleCarried(){
+  // the whole bag AND the shelf: a book deleted while set aside is just as gone
   const gone=stale(carryList(), (kind,ref)=> kind!=='book' || !!Store.getDoc(ref));
   if(!gone.length) return;
   let list=carryList();
@@ -11295,6 +11339,7 @@ function renderInventory(){
      silently empties itself is one you stop trusting. carrying.js has
      stale() for exactly this. */
   const gone=stale(carryList(), (kind,ref)=> kind!=='book' || !!Store.getDoc(ref));
+  const later=setAsideList(carryList());
   const log=data.fishLog||[];
   document.getElementById('inventoryPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
@@ -11303,13 +11348,16 @@ function renderInventory(){
       no walk back to the shelf required. Nothing is missing from the Library; this is just your own
       copy in hand, and <b>what you carry is what a resident can see</b> — your notes stay private
       unless you put one in here yourself.
-      ${carryList().length >= CARRY_CAP ? '<br><b>Full at '+CARRY_CAP+'.</b> Set something down to pick up something else — it goes back to where it lives.' : ''}</div>
+      ${carried(carryList()).length >= CARRY_CAP ? '<br><b>Full at '+CARRY_CAP+'.</b> That is on purpose — it keeps this to what you are actually working on. Set something down, or put things on the shelf below for later. <b>Nothing is ever lost.</b>' : ''}</div>
     ${docs.length ? `
       <div id="invList">${docs.map(d=>`
         <div class="card" onclick="openReader('${d.slug}')">
           <div class="t">${esc(d.title)}</div>
           <div class="s">${esc(d.tradition)}</div>
-          <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="event.stopPropagation();toggleInventory('${d.slug}');openInventory()">Put it back</button></div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn ghost" onclick="event.stopPropagation();toggleInventory('${d.slug}');openInventory()">Put it back</button>
+            <button class="btn ghost" onclick="event.stopPropagation();shelveCarried('${d.slug}')">↓ Pick up later</button>
+          </div>
         </div>`).join('')}</div>
       ${gone.length ? `<div class="card" style="cursor:default;border-color:#b56f6f">
         <div class="t" style="color:#e0a0a0">⚠ ${gone.length} thing${gone.length===1?'':'s'} you are carrying no longer exist${gone.length===1?'s':''}</div>
@@ -11318,6 +11366,20 @@ function renderInventory(){
         <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="dropStaleCarried()">Set ${gone.length===1?'it':'them'} down</button></div>
       </div>` : ''}
       <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="suggestInventoryCategories()">🪄 Ask the Computer to organize this</button></div>
+    ${later.length ? `
+      <h3 style="margin-top:20px">↓ Pick up later</h3>
+      <div class="meta">Yours, waiting. Not in your hands, so a resident cannot see these — and they
+        do not count against the ${CARRY_CAP}. There is no limit here.</div>
+      ${later.map(e=>{ const d=Store.getDoc(e.ref); return `
+        <div class="card" style="cursor:default">
+          <div class="t">${esc((d&&d.title)||e.label||e.ref)}</div>
+          <div class="s">set aside${e.since?' on '+esc(e.since):''}</div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn ghost" onclick="takeUpLater('${esc(e.ref)}')">↑ Take it up</button>
+            ${d?`<button class="btn ghost" onclick="openReader('${esc(e.ref)}')">Read it</button>`:''}
+          </div>
+        </div>`; }).join('')}` : ''}
+
       <div id="invSuggestion" class="meta"></div>`
     : '<p>Not carrying anything yet — in the Reader, "🎒 Take with you" adds a book here.</p>'}
 
@@ -11482,6 +11544,7 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   markChaptersHere, carryMigrate, carryList, dropStaleCarried,
+  shelveRefused, takeUpLater, shelveCarried,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,
   openAlexandria, runLibraryTriage, applyTriageMove,
