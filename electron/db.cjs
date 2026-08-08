@@ -289,7 +289,10 @@ const QUERIES = {
   chaptersFor: `SELECT idx, page, label, source, confirmed
                   FROM chapters WHERE slug = $1 ORDER BY idx`,
 
-  needsChapters: 'SELECT slug, title, pages, how, found FROM v_needs_chapters LIMIT $1',
+  needsChapters: 'SELECT slug, title, pages, how, found, scanned_at FROM v_needs_chapters LIMIT $1',
+  // so a panel can say "of the 12 books you have opened" rather than implying
+  // it swept a library it has never read
+  chapterCoverage: 'SELECT books_known, books_scanned, books_divided, marks_by_hand FROM v_chapter_coverage',
 
   // what a resident can ASK, instead of being handed the whole shelf
   searchBooks: `SELECT slug, title, attribution, shelf
@@ -361,6 +364,42 @@ const WRITES = {
                   page = EXCLUDED.page, label = EXCLUDED.label,
                   source = 'hand', confirmed = TRUE`,
   clearHandChapters: "DELETE FROM chapters WHERE slug = $1 AND source = 'hand'",
+
+  /* ---- what the READER found, kept ------------------------------------
+
+     The app has always computed a book's chapters on open and thrown the
+     answer away on close, so `chapters` and `chapter_scans` were written by
+     nothing but the MinIO loader and were empty on every install that is not
+     the steward's. These three make the reader's own work durable.
+
+     A DETECTION IS NOT A HAND MARK, and the difference is the whole reason
+     for two writes rather than one. `markChapter` sets source:'hand',
+     confirmed:TRUE — the steward, who outranks every heuristic. These carry
+     the route findChapters() actually used, and confirmed stays FALSE until a
+     person says otherwise. */
+
+  // Everything the detector last found for this book, cleared before the new
+  // set goes in. NEVER touches source='hand': a mark you made outranks one we
+  // guessed, and re-opening a book must not quietly delete your own labels.
+  clearDetectedChapters: "DELETE FROM chapters WHERE slug = $1 AND source <> 'hand'",
+
+  /* ON CONFLICT DO NOTHING, not DO UPDATE. The primary key is (slug, idx),
+     and a hand mark may already own that index — it survived the delete
+     above precisely because it is yours. Overwriting it here would undo, in
+     the second statement, what the first was careful not to do. */
+  addDetectedChapter: `INSERT INTO chapters (slug, idx, page, label, source, confirmed)
+                       VALUES ($1,$2,$3,$4,$5,FALSE)
+                       ON CONFLICT (slug, idx) DO NOTHING`,
+
+  // "This book was looked at, this is how, and this is what came back." The
+  // row exists even when nothing was found — `how:'none'` with found:0 is a
+  // real answer and the only thing that separates "no chapters" from "never
+  // opened". v_needs_chapters is built on exactly that distinction.
+  recordChapterScan: `INSERT INTO chapter_scans (slug, how, found, scanned_at)
+                      VALUES ($1,$2,$3, now())
+                      ON CONFLICT (slug) DO UPDATE SET
+                        how = EXCLUDED.how, found = EXCLUDED.found,
+                        scanned_at = EXCLUDED.scanned_at`,
 
   /* A note carried up from the save. Keyed by the save's own key so syncing
      twice updates rather than duplicates - the save stays the place a note

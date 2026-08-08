@@ -316,6 +316,62 @@ let lastRecordSig = null;
    themselves, and a prune keyed on "what the save currently produces" would
    erase that choice the first time it ran. Hiding never deletes; neither
    does this. */
+/* ---- WHAT THE READER FOUND, KEPT --------------------------------------
+
+   The app has computed a book's chapters on every open since findChapters()
+   was written, and thrown the answer away on close. So `chapters` and
+   `chapter_scans` — in the schema from the start, with views and named
+   queries built on them — were written by nothing but the MinIO loader, and
+   were empty on every install that is not the steward's.
+
+   This is what makes "which of my books have no chapters?" answerable at all,
+   and it is deliberately the ONLY way that question gets an answer: it learns
+   from books you have actually opened, and any panel over it must say so
+   rather than implying it swept a library it has never read.
+
+   ONE BOOK AT A TIME, on purpose. notes.slug and chapters.slug are both
+   foreign keys into `books`, and syncNotes writes every note in a single
+   transaction — so one note on a book the database has never heard of takes
+   the whole batch down with it (MAINTAINING.md, the fresh-database bugs).
+   Here the unit is one book, so a book that cannot be written cannot poison
+   anyone else's chapters.
+
+   THE CARD GOES FIRST for that same reason: the FK needs the row to exist,
+   and on a fresh database it will not yet.
+
+   `marks` is findChapters(pages).marks — [{page, label}] — and `how` is its
+   route: 'toc' | 'headings' | 'numerals' | 'none'. A scan that found nothing
+   IS RECORDED, with how:'none'. That row is the only thing separating "this
+   book has no chapters" from "nobody has opened it", and the whole honesty of
+   v_needs_chapters rests on it. */
+let lastChapterSig = {};
+export async function syncChapters(slug, marks, how, doc, opts = {}){
+  const b = bridge();
+  if(!b || !b.dbWrite || !slug) return null;
+  const list = Array.isArray(marks) ? marks : [];
+
+  // re-writing an unchanged division on every open is work nobody asked for
+  const sig = how + '|' + list.map(m => m.page + ':' + m.label).join(',');
+  if(!opts.force && lastChapterSig[slug] === sig) return { ok:true, n:list.length, skipped:true };
+
+  try {
+    if(doc){
+      await b.dbWrite('upsertCard', [slug, doc.title || slug, doc.attribution || null,
+        doc.license || null, doc.source_url || null, doc.shelf || null,
+        doc.kind || 'book', doc.part || null, null, doc.pages || null]);
+    }
+    await b.dbWrite('clearDetectedChapters', [slug]);
+    if(list.length && b.dbWriteMany){
+      const source = (how === 'none') ? 'headings' : how;   // CHECK has no 'none'
+      await b.dbWriteMany('addDetectedChapter',
+        list.map((m, i) => [slug, i + 1, m.page, String(m.label || '').slice(0, 300), source]));
+    }
+    await b.dbWrite('recordChapterScan', [slug, how || 'none', list.length]);
+    lastChapterSig[slug] = sig;          // only after it actually landed
+    return { ok:true, n:list.length };
+  } catch(e){ return null; }
+}
+
 export async function syncRecords(records, opts = {}){
   const b = bridge();
   if(!b || !b.dbWriteMany || !Array.isArray(records)) return null;
@@ -372,7 +428,7 @@ export const Store = (() => {
     registerPersonalDocs,
     registerCatalogOverrides,
     // the database — Docker Postgres or the built-in one, see the block above
-    dbAvailable, dbQuery, dbWrite, dbStatus, hydrateFromDb, syncNotes, syncRecords,
+    dbAvailable, dbQuery, dbWrite, dbStatus, hydrateFromDb, syncNotes, syncRecords, syncChapters,
     allDocs(){ return mergedDocs(); },
     listDocs(tradition){ return mergedDocs().filter(d => d.tradition === tradition); },
     getDoc(slug){ return mergedDocs().find(d => d.slug === slug) || null; },

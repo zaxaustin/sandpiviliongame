@@ -144,12 +144,62 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ok   ' : '  FAIL
   ok(forBook && forBook[2] && forBook[2].page === null, 'and a note belonging to no page sorts LAST, not at page 1');
   ok(forBook && forBook.every(r => r.created), 'every note carries the date it was added');
 
+  console.log(String.fromCharCode(10) + '--- 6. chapters: what the reader found, kept ---');
+  /* `chapters` and `chapter_scans` were in the schema from the start and
+     written by NOTHING in the app until 2026-08-07 - only the MinIO loader,
+     which needs Docker and a manual run. So on every other install both were
+     permanently empty while views and named queries sat on top of them. */
+  await db.write('upsertCard', ['probe-ch', 'A Probe Book With Chapters', null, null, null, null, 'book', null, null, 60]);
+  await db.write('clearDetectedChapters', ['probe-ch']);
+  await db.write('addDetectedChapter', ['probe-ch', 1, 0,  'The Opening', 'toc']);
+  await db.write('addDetectedChapter', ['probe-ch', 2, 12, 'The Turn',    'toc']);
+  await db.write('recordChapterScan',  ['probe-ch', 'toc', 2]);
+  const chs = await db.query('chaptersFor', ['probe-ch']);
+  ok(chs && chs.length === 2, 'chaptersFor returns what the reader found');
+  ok(chs && chs[0] && chs[0].confirmed === false, 'a DETECTION is not confirmed - only a person can do that');
+  ok(chs && chs[0] && chs[0].source === 'toc', 'and it records HOW it was found');
+
+  /* A MARK YOU MADE OUTRANKS ONE WE GUESSED, in the database too. Re-opening
+     a book runs clearDetectedChapters, which must never touch source='hand'. */
+  await db.write('markChapter', ['probe-ch', 3, 30, 'One I named myself']);
+  await db.write('clearDetectedChapters', ['probe-ch']);
+  const afterClear = await db.query('chaptersFor', ['probe-ch']);
+  ok(afterClear && afterClear.length === 1, 'clearing detections left exactly the hand mark');
+  ok(afterClear && afterClear[0] && afterClear[0].source === 'hand' && afterClear[0].confirmed === true,
+     'and it is still yours, still confirmed');
+
+  /* v_needs_chapters used to gate on text_key - a MinIO key - so it could
+     never return a row anywhere but this machine. Migration 004 drives it off
+     what was actually SCANNED instead. */
+  await db.write('upsertCard', ['probe-none', 'A Book With No Divisions', null, null, null, null, 'book', null, null, 20]);
+  await db.write('recordChapterScan', ['probe-none', 'none', 0]);
+  /* Asked of the VIEW directly, not through needsChapters' LIMIT. On this
+     machine 296 books are already scanned, so a 20-page probe never reaches
+     the top 50 by page count - the first version of this check failed for
+     that reason and would have looked like a broken view. */
+  const inView = async (slug) => (await pool.query(
+    'SELECT 1 FROM v_needs_chapters WHERE slug = $1', [slug])).rows.length > 0;
+  ok(await inView('probe-none'), 'a scanned book with no chapters IS listed as needing them');
+  ok(!(await inView('probe-ch')), 'a book with two chapters is NOT listed');
+  const needs = await db.query('needsChapters', [50]);
+  ok(Array.isArray(needs) && needs.length > 0 && needs[0].how,
+     'needsChapters answers, and every row says HOW the scan went');
+  const unopened = 'probe-never-opened';
+  await db.write('upsertCard', [unopened, 'Never Opened', null, null, null, null, 'book', null, null, 99999]);
+  ok(!(await inView(unopened)),
+     'a book NOBODY HAS OPENED is unknown, not "needs chapters" - the absent-field rule, on a whole row');
+
+  const cov = await db.query('chapterCoverage', []);
+  console.log('   coverage: ' + JSON.stringify(cov && cov[0]));
+  ok(cov && cov[0] && Number(cov[0].books_scanned) >= 2, 'coverage can say how much of the shelf was looked at');
+  ok(cov && cov[0] && Number(cov[0].marks_by_hand) >= 1, 'and how many marks are the visitor\u2019s own');
+
   const st2 = await db.status();
   ok(!st2.writeError, 'no writeError after all of that (got ' + st2.writeError + ')');
 
   await pool.query('DELETE FROM records WHERE source_key LIKE $1', ['probe:docker:%']);
   await pool.query('DELETE FROM notes   WHERE save_key   LIKE $1', ['probe:docker:%']);
-  await pool.query("DELETE FROM books WHERE slug = 'probe-book'");
+  await pool.query("DELETE FROM books WHERE slug LIKE 'probe-%'");
   await pool.end();
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

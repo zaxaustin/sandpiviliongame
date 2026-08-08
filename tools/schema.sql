@@ -103,14 +103,30 @@ CREATE OR REPLACE VIEW v_shelf_counts AS
 
 -- Books whose chapters nobody has confirmed - the honest work queue for
 -- "mark chapters by hand", and the list the reader can offer you.
+-- KEPT IN STEP WITH tools/migrations/004-chapters-honest.sql, and it has to
+-- be: applySchema() runs THIS FILE FIRST and then every migration, on every
+-- open. If this still held the old five-column shape it would try to replace
+-- 004's six-column view on the second open and fail with "cannot drop columns
+-- from view" — before the migration that fixes it ever ran. Caught exactly
+-- that way 2026-08-07.
+--
+-- Driven by what was actually SCANNED, not by where the text happens to live.
+-- The old version gated on `b.text_key IS NOT NULL` — a MinIO object key,
+-- written only by tools/load-library.mjs — so it could never return a row on
+-- any machine but the steward's. A book nobody has opened is UNKNOWN, not
+-- "needs chapters": the reader's own absent-beats-guessed rule, on a row.
 CREATE OR REPLACE VIEW v_needs_chapters AS
-  SELECT b.slug, b.title, b.pages, COALESCE(s.how, 'never scanned') AS how,
-         COALESCE(s.found, 0) AS found
-    FROM books b
-    LEFT JOIN chapter_scans s ON s.slug = b.slug
-   WHERE b.text_key IS NOT NULL
-     AND COALESCE(s.found, 0) < 2
+  SELECT b.slug, b.title, b.pages, s.how, s.found, s.scanned_at
+    FROM chapter_scans s
+    JOIN books b ON b.slug = s.slug
+   WHERE s.found < 2
    ORDER BY b.pages DESC NULLS LAST;
+
+CREATE OR REPLACE VIEW v_chapter_coverage AS
+  SELECT (SELECT count(*) FROM books)                             AS books_known,
+         (SELECT count(*) FROM chapter_scans)                     AS books_scanned,
+         (SELECT count(*) FROM chapter_scans WHERE found >= 2)    AS books_divided,
+         (SELECT count(*) FROM chapters WHERE source = 'hand')    AS marks_by_hand;
 
 -- ---------- keep updated_at honest ----------
 CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS TRIGGER AS $$

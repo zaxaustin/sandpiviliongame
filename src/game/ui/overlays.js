@@ -3396,6 +3396,24 @@ function chapterInfo(v){
   if(!v) return {marks:[], how:'none'};
   if(!v._chapterInfo){
     const found = findChapters(v.pages);
+    /* KEEP WHAT WE JUST FOUND. Until 2026-08-07 this answer was computed on
+       every open and thrown away on close, so `chapters` and `chapter_scans`
+       were written by nothing but the MinIO loader and were empty on every
+       install that is not the steward's — while views and named queries sat
+       on top of them. Fire-and-forget: nothing waits on it, and a browser
+       (which has no database at all) simply never gets past the first line.
+
+       The DETECTION is what is kept, deliberately, not the merge below — the
+       database records what the finder saw, and a hand mark is a separate
+       source with its own write. Mixing them here would make "how did we
+       learn this" unanswerable. */
+    try {
+      const d = Store.getDoc(v.slug);
+      Store.syncChapters(v.slug, found.marks, found.how,
+        d ? { title:d.title, attribution:d.attribution, license:d.license,
+              source_url:d.source_url, shelf:d.tradition, kind:d.kind,
+              part:d.part, pages:v.pages.length } : null);
+    } catch(e){ /* the Pavilion reads perfectly well without a database */ }
     const hand = handMarks(v.slug);
     v._chapterInfo = hand.length
       // `how` becomes 'hand' the moment you have touched it: the row below
