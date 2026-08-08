@@ -27,10 +27,33 @@
                              it freely and say plainly what is not
                              there.
 
-     NOTES ARE CARRIED.      What you wrote is yours. NO resident may
-                             search your notes, ever. If you want one
-                             discussed, you put it in the backpack —
-                             a deliberate act, by you, every time.
+     NOTES ARE NOT SEARCHED UNASKED.  What you wrote is yours. No
+                             resident goes looking through your notes on
+                             its own initiative — not as background
+                             grounding, not to seem clever.
+
+                             BUT IF YOU ASK, IT LOOKS. Narrowed
+                             2026-08-07, at the steward's word:
+
+                               "lets put functionality over privacy the
+                                backend should help people"
+
+                             The first version of this rule said NEVER,
+                             and never was too strong: it meant "Quill,
+                             what did I write about impermanence?" could
+                             not be answered at all, which is one of the
+                             most useful things a resident could do with
+                             a local index that already stems. Refusing
+                             that is not privacy, it is a missing
+                             feature wearing privacy's coat.
+
+                             So the line moved from WHO to WHY. Asked:
+                             yes. Unasked: no. That keeps the property
+                             that actually mattered — nothing about you
+                             is gathered up and handed to a model
+                             because it happened to be lying around —
+                             while the visitor can hand over anything
+                             they like, which was always their right.
 
      PUBLISHED IS PUBLIC.    A note you curated and published is a
                              commons packet and behaves like a book,
@@ -104,18 +127,25 @@ export function lookupTerms(question, max) {
 
    `carrying` is the backpack (see data/carrying.js). Notes in it are
    fair game precisely because a person put them there. */
-export function groundingPlan(question, carrying) {
+export function groundingPlan(question, carrying, opts) {
   const terms = lookupTerms(question);
   const held = Array.isArray(carrying) ? carrying : [];
+  /* `asked` is the visitor deliberately saying "look through my notes" — a
+     button pressed, or a question that plainly asks it. It is NEVER inferred
+     from the wording alone: a question that merely mentions notes is not
+     permission, and guessing would put the boundary back in the model's
+     judgement, which is exactly where it must not live. */
+  const asked = !!(opts && opts.searchMyNotes);
   return {
     terms,
-    // may be searched in the Library
-    search: terms.length ? ['book'] : [],
-    // arrives only from the backpack, never from a query
+    // may be searched in the Library — plus your own notes, but only on request
+    search: terms.length ? (asked ? ['book', 'note'] : ['book']) : [],
+    // arrives from the backpack whether or not anything was asked
     carried: held.filter(e => e && REACH[e.kind]),
+    asked,
     // stated so the visitor can be told, in the panel, what was reached for
-    withheld: held.length === 0 && terms.length
-      ? 'Your notes are private. Put one in your backpack to talk about it.'
+    withheld: !asked && held.length === 0 && terms.length
+      ? 'Your own notes were not searched. Ask, or put one in your backpack.'
       : '',
   };
 }
@@ -126,12 +156,15 @@ export function groundingPlan(question, carrying) {
    should not be there. Empty means the line held. A caller that ignores
    this is the silent-failure shape, so it returns the offending items
    rather than a boolean. */
-export function privacyLeaks(items, carrying) {
+export function privacyLeaks(items, carrying, opts) {
   const held = Array.isArray(carrying) ? carrying : [];
+  // if the visitor asked for their notes to be searched, a note is not a leak
+  const asked = !!(opts && opts.searchMyNotes);
   const isHeld = (it) => held.some(e => e && e.kind === it.kind && String(e.ref) === String(it.ref));
   return (items || []).filter(it => {
     if (!it || !REACH[it.kind]) return true;      // an unknown kind is not a licence
     if (maySearch(it.kind)) return false;         // books and published things are fine
+    if (asked && it.kind === 'note') return false; // you asked; it looked
     return !isHeld(it);                           // everything else must have been carried
   });
 }

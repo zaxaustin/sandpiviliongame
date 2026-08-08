@@ -9496,6 +9496,82 @@ export function unfileShelf(name){
   dismissDropToast();
   state.ui='mylib'; hideAllOv(); state.myLibView={ q:'', sel:{}, show:'unfiled' }; renderMyLibrary(); showOv('myLibOv');
 }
+/* ---- BOOKS THAT ARE NOT DIVIDED YET ----------------------------------
+
+   The first thing built on the chapter tables, which until 2026-08-07 were
+   in the schema and written by nothing. It answers the one question plain JS
+   genuinely cannot: which of my books have no chapters — WITHOUT opening all
+   of them, which on a 296-book shelf means paginating 160 MB of text.
+
+   IT ONLY KNOWS BOOKS YOU HAVE OPENED, and it says so in the first line
+   rather than implying it swept the shelf. The steward, on that being fine:
+
+     "one step at a time is fine lets a user feel like he is contributing."
+
+   So there is NO "scan everything" button, deliberately. A count that climbs
+   because you opened a book and named its divisions is yours in a way a bulk
+   sweep never is — the same reason the seed shelf is small and carrying is
+   manual. Every row here is one press to the book itself. */
+export async function openNeedsChapters(){
+  state.ui='chapters'; hideAllOv(); showOv('chaptersOv');
+  document.getElementById('chaptersPanel').innerHTML =
+    '<button class="xbtn" onclick="closeUI()">Esc ✕</button><h2>Books not divided yet</h2>'
+    + '<div class="meta">Looking…</div>';
+  const [rows, cov] = await Promise.all([
+    Store.dbQuery('needsChapters', [200]),
+    Store.dbQuery('chapterCoverage', []),
+  ]);
+  renderNeedsChapters(rows, cov && cov[0]);
+}
+function renderNeedsChapters(rows, cov){
+  const el=document.getElementById('chaptersPanel'); if(!el) return;
+  /* NO DATABASE IS A REAL ANSWER, not an empty list. A browser tab has none,
+     and saying "0 books need chapters" there would be the confident wrong
+     answer this whole feature was rebuilt to avoid. */
+  if(rows===null){
+    el.innerHTML = `<button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Books not divided yet</h2>
+      <div class="meta">This needs the desktop app's own index, and a browser tab has none.
+        Everything else about your books works here — this one question is the exception.</div>`;
+    return;
+  }
+  const list=rows||[];
+  const scanned=cov?Number(cov.books_scanned):0, divided=cov?Number(cov.books_divided):0;
+  const byHand=cov?Number(cov.marks_by_hand):0;
+  const HOW={ toc:'from its contents page', headings:'from its headings',
+              numerals:'from numbered breaks', none:'nothing the finder could read' };
+  /* A HANDFUL, NOT A WALL. The screenshot of the first version showed SIXTY
+     rows scrolled off the viewport on the steward's real library — a list
+     that long is a guilt inventory, which is the same reason ☀ Today caps at
+     five. "one step at a time is fine lets a user feel like he is
+     contributing": offer the next few, say how many more there are, and let
+     the number move. Longest first, because a 900-page book with no
+     divisions is the one worth dividing. */
+  const SHOW_MAX=6;
+  const SHOWN=list.slice(0,SHOW_MAX), more=Math.max(0,list.length-SHOW_MAX);
+  el.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>Books not divided yet</h2>
+    <div class="meta">Chapters make a book navigable, quotable and worth working through.
+      ${scanned ? `Of the <b>${scanned}</b> book${scanned===1?'':'s'} you have opened,
+        <b>${divided}</b> ${divided===1?'has':'have'} divisions the finder could see${byHand?`,
+        and <b>${byHand}</b> mark${byHand===1?' is':'s are'} yours`:''}.` : ''}
+      <br><b>This only knows books you have actually opened</b> — nothing is scanned behind your
+      back, and there is no button to sweep the shelf. Open one, name its parts, and the number moves.</div>
+    ${SHOWN.map(r=>`
+      <div class="card" onclick="openReader('${esc(r.slug)}')">
+        <div class="t">${esc(r.title||r.slug)}</div>
+        <div class="s">${r.pages?esc(String(r.pages))+' pages · ':''}${esc(HOW[r.how]||r.how||'not scanned')}${r.found?` · ${r.found} mark${r.found===1?'':'s'} found, which is not a division`:''}</div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost" onclick="event.stopPropagation();openReader('${esc(r.slug)}')">Open it</button>
+        </div>
+      </div>`).join('')}
+    ${more ? `<div class="meta" style="margin-top:10px">…and <b>${more}</b> more.
+      They are not going anywhere — this list is here when you want the next one.</div>` : ''}
+    ${list.length ? '' : `<p>${scanned
+        ? 'Every book you have opened has chapters. Nothing to do here.'
+        : 'Open a book and its divisions are read and kept — this fills itself as you read.'}</p>`}`;
+}
 export function openReviewQueue(){ state.ui='review'; hideAllOv(); state.reviewView=state.reviewView||{mode:'list'}; renderReviewQueue(); showOv('reviewOv'); }
 export function newReviewImportForm(){ state.reviewView={mode:'import'}; renderReviewQueue(); }
 export function newReviewManualForm(){ state.reviewView={mode:'manual'}; renderReviewQueue(); }
@@ -10893,6 +10969,10 @@ function renderMyLibrary(keepFocus){
     </div>
     <div class="row" style="gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
       <button class="btn ghost" onclick="suggestShelvesWithAI()">✨ Have the librarian sort these</button>
+      <!-- NOTHING MAY BE A DEAD END, and a panel with no door is unbuilt (the
+           Lab's lesson). This is where books already are, so this is where the
+           question about them belongs. Needs no AI. -->
+      <button class="btn ghost" onclick="openNeedsChapters()">🔖 Books not divided yet</button>
       <label class="s" style="display:flex;align-items:center;gap:5px;opacity:.85;cursor:pointer" title="Off by default: a book you filed yourself was filed on purpose">
         <input type="checkbox" ${v.refileFiled?'checked':''} onchange="toggleRefileFiled()" style="width:auto;margin:0">
         also re-file books I've already placed
@@ -11612,7 +11692,7 @@ Object.assign(window, {
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
-  markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage,
+  markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage, openNeedsChapters,
   shelveRefused, takeUpLater, shelveCarried,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,

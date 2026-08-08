@@ -2382,7 +2382,25 @@ for (const d of SEED_LIBRARY) {
   const plan = L.groundingPlan('tell me about impermanence', []);
   if (!plan.search.includes('book')) fail('lookup: the plan did not reach for books');
   if (plan.search.includes('note')) fail('lookup: THE PLAN REACHED FOR NOTES');
-  if (!/private/i.test(plan.withheld || '')) fail('lookup: with nothing carried it did not say why notes are absent');
+  if (!/not searched/i.test(plan.withheld || '')) fail('lookup: with nothing carried it did not say why notes are absent');
+
+  /* ASKED IS DIFFERENT FROM UNASKED, and that is the whole rule since it was
+     narrowed 2026-08-07 ("lets put functionality over privacy"). NEVER was too
+     strong: it made "what did I write about impermanence?" unanswerable, which
+     is not privacy, it is a missing feature wearing privacy's coat. */
+  const asked = L.groundingPlan('impermanence', [], { searchMyNotes: true });
+  if (!asked.search.includes('note')) fail('lookup: the visitor ASKED and their notes were still not searched');
+  if (!asked.asked) fail('lookup: the plan does not record that it was asked');
+  if (asked.withheld) fail('lookup: it said notes were withheld when they were not');
+  // ...and it must never be INFERRED from the wording
+  const merelyMentions = L.groundingPlan('search my notes about impermanence', []);
+  if (merelyMentions.search.includes('note')) {
+    fail('lookup: a question that MENTIONS notes was treated as permission - the boundary must not sit in the model judgement');
+  }
+  const leakAsked = L.privacyLeaks([{ kind:'note', ref:'n9' }], [], { searchMyNotes: true });
+  if (leakAsked.length) fail('lookup: a note the visitor asked for was still flagged a leak');
+  const leakUnasked = L.privacyLeaks([{ kind:'note', ref:'n9' }], []);
+  if (leakUnasked.length !== 1) fail('lookup: an UNASKED note stopped being a leak');
   const carried = [{ kind: 'note', ref: 'n1', label: 'A note' }];
   const plan2 = L.groundingPlan('impermanence', carried);
   if (plan2.carried.length !== 1) fail('lookup: a carried note was not offered to the resident');

@@ -46,7 +46,9 @@ and **Paths** (ideas you pick up and walk — deliberately no due dates).
 
 **The Writing Desk is the editor pane** (2026-08-03, `plans/WRITING-DESK-PLAN.md`
 steps 1–4). Four things sit on one surface: **the pocketed book** you walked
-over with (`state.readerPocket` → `deskBook()`), notes on it written through the
+over with (`state.pocketSlug` + `data.readingPos` → `deskBook()`; the old
+`state.readerPocket` was retired 2026-08-07 and the page it held is now saved),
+notes on it written through the
 Reader's own `writeBookNote()`; **a resident picker** derived from `roles.js`
 (`deskResidents()`) where each keeps a separate thread in `state.plannerChat.byAgent`
 and answers through the same `CHAT_AGENTS[key].systemPrompt()` as in their own
@@ -113,8 +115,10 @@ in Your Data. **`npm test` fails if a save store has no `DATA_MAP` entry.**
 
 - **The Temple (Eightfold Path) and the Library stay, always, in every tier.**
 - **Three residents, three roles:** Quill teaches, the Monk guides, Sebastian
-  works with you. The Monk always gets the best local model and real room to
-  think.
+  works with you. **The Monk is no longer given a bigger model** (retired
+  2026-08-07 — see `CLAUDE.md`); he is still **local-only**, which is a
+  separate rule enforced by the transport layer's cloud guard, not by
+  `chatOptsFor()`. Losing the first must not quietly lose the second.
 - **Three charters, don't cross them:** `CHARTER` (in-world residents,
   devotional), `WORK_CHARTER` (work tools — neutral, serves any goal),
   `BUTLER_CHARTER` (Sebastian). Never skew a secular goal toward the dharma.
@@ -334,26 +338,36 @@ they can never disagree) and says so when it adds something.
 open that happens behind the title screen** (painted in ~150 ms), 90 ms warm,
 `searchNotes` in 1–3 ms at 5,000 notes.
 
-**"6 of 15 named queries have no consumer" WAS BEING CARRIED AS A DEBT. IT IS
-NOT ONE** (checked 2026-08-07, one query at a time, against rule 7). Four of the
-six should **stay unwired**: `notesForBook`, `notesByPlace`, `noteCounts`,
-`unshelved` / `shelfCounts` all buy nothing over deterministic JS on the save —
-`gatherNotes()` already unions all six note sources exactly, instantly, and on
-the web build too. Wiring them is a second path over data the save already
-holds: the `store.js` scar through a new door. `searchNotes` (stemming) and
-`records` (it holds `hidden`, which is the visitor's own choice) earn their
-place; those two are wired.
+### THE NAMED QUERIES WITH NO CONSUMER, AND WHICH ARE DELIBERATE
 
-**`chaptersFor` / `needsChapters` are BLOCKED, not unwired.** Nothing anywhere
-writes `chapters` or `chapter_scans` — the only writer is
-`tools/load-library.mjs`, the MinIO loader (Docker, manual, this machine only).
-In the app `findChapters()` runs on open (`overlays.js:3294`) and the answer is
-discarded on close. And `v_needs_chapters` gates on `text_key IS NOT NULL`, also
-loader-only, **so on every machine that is not this one the view returns zero
-rows, always.** Wiring a panel today would say *"0 books need chapters"* while
-18 of 39 do — a confident wrong answer, worse than the current silence, because
-a panel saying zero gets believed. Doing it properly is three pieces in order,
-written up in `plans/NEW-PLANS-RECONCILED-2026-08-07.md`.
+A list of unwired queries reads as debt. Most of it is not, and the ones that
+are have a reason. Settled 2026-08-07 — **check this before "fixing" any of
+them**, because wiring the wrong ones puts a second path over data the save
+already owns, which is the `store.js` scar.
+
+| query | verdict |
+|---|---|
+| `catalogue`, `searchBooks`, `searchNotes`, `records`, `upsertCard`, `upsertNote`, `upsertRecord`, `pruneNotes`, `ping` | **wired, and right** |
+| `notesForBook`, `notesByPlace`, `noteCounts` | **LEAVE UNWIRED.** `gatherNotes()` already unions all six note sources exactly, instantly, and on the web build too. Rule 7: counting and grouping are what code does exactly |
+| `unshelved`, `unshelvedCount`, `shelfCounts` | **LEAVE UNWIRED.** `books` mirrors `personalLibrary`, which is already in the save |
+| `recordCounts` | **leave unwired unless the Records Hall grows a summary.** It answers a question nothing asks yet |
+| `chaptersFor`, `needsChapters`, `chapterCoverage` | **BUILDABLE NOW, and worth it.** They were blocked until 2026-08-07 because nothing wrote `chapters` or `chapter_scans`; `syncChapters()` fixed that. These answer the one question JS genuinely cannot: *which of my books have no divisions* — **without opening all of them** |
+
+**The test for "should this be wired":** can plain JS over the save answer it
+exactly and instantly? If yes, leave it — a query is then a second path, not a
+feature. If no — stemming, or knowing something about a book you have not
+opened — it earns its place.
+
+### `book_health` IS STILL A TABLE NOTHING WRITES
+
+`v_unshelved` joins it (`COALESCE(h.status,'ok') <> 'dead'`), so that filter is
+inert: the status is always absent, so the clause is always true. Not harmful
+today, and honest to say rather than leave looking load-bearing.
+
+It becomes real when something can mark a book dead — the obvious writer is the
+reader failing to load a book's text, which is a real event with no record. Not
+built. **Do not build a panel on `v_unshelved`'s health filter believing it
+filters anything.**
 
 Then `tools/migrations/004-note-versions.sql`, still unwritten.
 
