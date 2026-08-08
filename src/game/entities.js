@@ -16,12 +16,13 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[] /* VESTIGIAL - the old book-only backpack. Read ONCE by carryMigrate() and emptied; data.carrying is the backpack now. Do not write to it. */, reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[],builds:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, bookMarks:{}, study:null, carrying:[], catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[] /* VESTIGIAL - the old book-only backpack. Read ONCE by carryMigrate() and emptied; data.carrying is the backpack now. Do not write to it. */, reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[],builds:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, bookMarks:{}, study:null, carrying:[], readingPos:{}, catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
 // wholesale, silently dropping the new `research` field. Patch it back in.
 if(!data.workshop.research) data.workshop.research=[];
+if(!data.readingPos) data.readingPos={};   // where you are in each book — older saves lost this on every reload
 if(!Array.isArray(data.carrying)) data.carrying=[]; // the backpack — older saves carried books in `inventory`, lifted across by carryMigrate()
 if(!data.ttsSettings) data.ttsSettings={voiceURI:null,rate:0.98}; // older saves predate this field
 if(!data.settings) data.settings={carryForwardSparks:false}; // older saves predate this field
@@ -100,6 +101,12 @@ export const state = {
   dialog:null, fishing:null, ui:null, time:0,
   shelfTradition:null, currentDoc:null, courseView:{mode:'list',id:null},
   archiveView:{mode:'list',slug:null},
+  /* WHICH book the phone is showing, if you walked off with one. Genuinely a
+     session question — "is the reader minimised" has no meaning after you
+     close. Where you ARE in that book is `data.readingPos`, which is saved.
+     Together these replaced state.readerPocket, which conflated the two and
+     lost the page on every reload. */
+  pocketSlug:null,
 };
 
 /* ---- A DEBT, WRITTEN DOWN. Not a design. --------------------------------
@@ -126,7 +133,7 @@ export const UNDECLARED_STATE = [
   'indexSearch', 'indexSearchResults', 'indexSearching', 'lastFiling',
   'logKind', 'mlDraft', 'myLibView', 'noteLogKind', 'notesLogEdit',
   'notesLogView', 'pathView', 'planLogKind', 'plannerChat',
-  'plannerNoteView', 'plannerTool', 'promptAgent', 'readerPocket',
+  'plannerNoteView', 'plannerTool', 'promptAgent',
   'researchView', 'reviewView', 'shelfDocs', 'shelfIndex', 'sidxView',
   'standUp', 'standingAgent', 'studyChat', 'studyView', 'termLast',
   'termLines', 'treeView',

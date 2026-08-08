@@ -1579,7 +1579,7 @@ function yieldBookAudio(){
 }
 export function closeUI(){
   state.ui=null; hideAllOv(); stopTyping();
-  if(state.readerPocket){ /* the book is pocketed — never interrupt it */ }
+  if(state.pocketSlug){ /* the book is pocketed — never interrupt it */ }
   else if(state.bookAudio && isSpeaking()){ pauseSpeaking(); showBookPocketFor(state.bookAudio); }
   else stopSpeaking();
   state.audioReturnSlug=null; state.notesLogEdit=null; persist();
@@ -2802,7 +2802,7 @@ window.addEventListener('keydown',e=>{
 });
 export function openReader(slug){
   const d=Store.getDoc(slug); if(!d) return;
-  if(state.readerPocket && state.readerPocket.slug!==slug){ state.readerPocket=null; } // opening a different book retires any stale pocket
+  if(state.pocketSlug && state.pocketSlug!==slug){ state.pocketSlug=null; } // opening a different book retires any stale pocket
   hideBookPhone(); // the card belongs to the pocketed state, not the open reader
   state.ui='reader'; state.currentDoc=slug; state.fullTextView=null; state.bookNotesShowAll=false; hideAllOv();
   document.getElementById('rdTitle').textContent=d.title;
@@ -3361,7 +3361,7 @@ function speakPage(){
          everything you had just listened to. Two records of "where we are",
          and while pocketed the VOICE'S is the true one. */
       state.bookAudio.page=cur.page;
-      if(state.readerPocket && state.readerPocket.slug===v.slug) state.readerPocket.page=cur.page;
+      if(state.pocketSlug===v.slug) rememberPage(v.slug, cur.page);
       if(state.ui==='reader') renderFullTextPage(); else { renderBookPhone(); speakPage(); }
       return;
     }
@@ -3465,6 +3465,42 @@ export function backToShelf(){ stopSpeaking(); openShelf(state.shelfTradition||'
    hidden — the read-aloud is NEVER stopped here, and state.ui is cleared so
    the player is free to move (movement is gated on state.ui in main.js). */
 let bookPhoneTimer=null;
+/* ---- THE POCKET, RETIRED — 2026-08-07 ---------------------------------
+
+   `state.readerPocket` was {slug, page} and did two unrelated jobs badly:
+   it was a SECOND record of which book you are holding (the backpack is the
+   first), and the only record of where you had got to — which, being session
+   state, was thrown away every time you closed the app.
+
+   Split into the two honest things it was standing in for:
+
+     data.readingPos[slug]   WHERE YOU ARE in a book. Saved, so it survives
+                             a reload — which the pocket never did. This is
+                             new capability, not a rename.
+     state.pocketSlug        WHICH book the phone is showing right now.
+                             Genuinely a session question: "is the reader
+                             minimised" has no meaning after you close.
+
+   Neither duplicates the backpack, which is the point: `carrying` says what
+   you are holding, and these two say where you are in it and whether you
+   walked off with it. */
+export function rememberPage(slug, page){
+  if(!slug || page==null) return;
+  if(!data.readingPos) data.readingPos={};
+  if(data.readingPos[slug]===page) return;        // no write for no change
+  data.readingPos[slug]=page; persist();
+}
+export function pageIn(slug){
+  const p=data.readingPos && data.readingPos[slug];
+  return Number.isInteger(p) ? p : null;
+}
+/* The pocketed book, in the shape the old field had, so every caller reads
+   the same thing it always did. */
+function pocketed(){
+  const slug=state.pocketSlug;
+  return slug ? { slug, page: pageIn(slug) } : null;
+}
+
 /* Pocketing used to remember only the slug, so coming back dumped you at the
    summary and lost the page you were on ("if I pocket it, it will leave the
    page I was on"). It now carries the page too, and restores you exactly
@@ -3472,23 +3508,24 @@ let bookPhoneTimer=null;
 export function minimizeReader(){
   const slug=state.currentDoc; if(!slug) return;
   const v=state.fullTextView;
-  state.readerPocket={ slug, page:(v&&v.slug===slug)?v.page:null };
+  rememberPage(slug, (v&&v.slug===slug)?v.page:null);
+  state.pocketSlug=slug;
   state.ui=null;                                  // free to walk
   document.getElementById('readerOv').classList.remove('open');
-  showBookPocketFor(state.readerPocket);
+  showBookPocketFor({slug});
   blip(520,.05,'sine',.03);
 }
 /* Also used when a book is left reading and you close the panel some other
    way — the pocket card is where a running book always lives. */
 function showBookPocketFor(p){
-  state.readerPocket = p && p.slug ? { slug:p.slug, page:(p.page ?? null) } : state.readerPocket;
-  if(!state.readerPocket) return;
+  if(p && p.slug){ state.pocketSlug=p.slug; if(p.page!=null) rememberPage(p.slug,p.page); }
+  if(!state.pocketSlug) return;
   renderBookPhone();
   clearInterval(bookPhoneTimer);
   bookPhoneTimer=setInterval(renderBookPhone,1000); // keep the status honest as speech starts/ends
 }
 export function restoreReader(){
-  const p=state.readerPocket; if(!p) return;
+  const p=pocketed(); if(!p) return;
   /* Land where the VOICE is, not where you closed it. If the book has been
      reading while you walked, state.bookAudio.page is the honest answer and
      the pocket's own page is a stale snapshot. Falls back to the pocket for a
@@ -3496,13 +3533,13 @@ export function restoreReader(){
      closed on is still the page you want. */
   const speaking = state.bookAudio && state.bookAudio.slug===p.slug ? state.bookAudio.page : null;
   const page = speaking != null ? speaking : p.page;
-  state.readerPocket=null; hideBookPhone();
+  state.pocketSlug=null; hideBookPhone();
   openReader(p.slug);                             // openReader never stops speech — audio carries straight through
   if(page!=null) openFullText(p.slug, page);
   blip(700,.05,'square',.03);
 }
 export function dismissReaderPocket(){
-  state.readerPocket=null; state.bookAudio=null; stopSpeaking(); clearPaused(); hideBookPhone();
+  state.pocketSlug=null; state.bookAudio=null; stopSpeaking(); clearPaused(); hideBookPhone();
   blip(392,.05,'sine',.03);
 }
 /* Pause/resume straight from the pocket card, so a book you're listening to
@@ -3512,7 +3549,7 @@ export function togglePocketAudio(ev){
   if(isPaused()) resumeSpeaking();
   else if(isSpeaking()) pauseSpeaking();
   else { // nothing parked — start reading the pocketed page
-    const p=state.readerPocket; if(!p) return;
+    const p=pocketed(); if(!p) return;
     const d=Store.getDoc(p.slug); if(!d) return;
     restoreReader(); return;
   }
@@ -3524,7 +3561,7 @@ function hideBookPhone(){
 }
 function renderBookPhone(){
   const el=document.getElementById('bookPhone'); if(!el) return;
-  const p=state.readerPocket;
+  const p=pocketed();
   if(!p){ hideBookPhone(); return; }
   const d=Store.getDoc(p.slug);
   document.getElementById('bookPhoneName').textContent = d ? d.title : 'Book';
@@ -4100,7 +4137,7 @@ function renderToolPanel(){
 /* ----- THE BOOK IN FRONT OF YOU — WRITING-DESK-PLAN.md step 3.
 
    The mechanism already existed and was used nowhere near here:
-   state.readerPocket, a book you pocketed and walked off with. That IS
+   the pocketed book you walked off with (see pocketed()). That IS
    "the book in front of you", so the desk shows it.
 
    WHAT THIS CLOSES. You could already take a note IN the Reader, and plan
@@ -4113,7 +4150,7 @@ function renderToolPanel(){
    know is fine, it leaves the user space to also contribute." A note that
    cites a guessed chapter is worse than one that cites none. */
 function deskBook(){
-  const p=state.readerPocket; if(!p||!p.slug) return null;
+  const p=pocketed(); if(!p||!p.slug) return null;
   let d=null; try{ d=Store.getDoc(p.slug); }catch(e){ d=null; }
   if(!d) return null;
   /* Land where the VOICE is, not where you closed it — the same honesty
@@ -11543,7 +11580,7 @@ Object.assign(window, {
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
-  markChaptersHere, carryMigrate, carryList, dropStaleCarried,
+  markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage,
   shelveRefused, takeUpLater, shelveCarried,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,

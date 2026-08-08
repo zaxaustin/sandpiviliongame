@@ -90,6 +90,7 @@ export const DATA_MAP = [
      never leak anything the thing itself would not — but it is also the one
      store a resident is allowed to read (data/lookup.js), which is exactly
      why it has to be listed and said plainly. */
+  { key:'readingPos',   name:'Where you are in each book', state:'private', leaves:'Never. How far you have read is nobody else’s business.' },
   { key:'carrying',     name:'Your backpack',           state:'private', leaves:'Never on its own. What you carry is what a resident may see — and only while you carry it.' },
   { key:'activityLog',  name:'Activity log',            state:'private', leaves:'Never.' },
   { key:'badges',       name:'Badges',                  state:'private', leaves:'Never.' },

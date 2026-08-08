@@ -46,6 +46,29 @@ await p.evaluate(()=>{
 await p.evaluate(()=>window.restoreReader()); await new Promise(r=>setTimeout(r,600));
 R.push(['still lands correctly after a second pocket', (await pageNum())===advanced]);
 
+/* ---- WHERE YOU ARE NOW SURVIVES A RELOAD -----------------------------
+   The old pocket was session state, so closing the app threw the page away
+   and you came back to page 1. Split 2026-08-07: data.readingPos[slug] is
+   SAVED, state.pocketSlug is not. That split is the whole reason to do this
+   work, so it gets a check rather than a claim.
+
+   A SECOND PAGE, not a reload — evaluateOnNewDocument re-fires on reload and
+   would overwrite the save we are about to read (MAINTAINING.md gotcha). */
+const saved = await p.evaluate(() =>
+  JSON.parse(localStorage.getItem('sandPavilionSave.v2') || '{}').readingPos || {});
+R.push(['the page you reached is written to the SAVE, not only the session',
+        Object.values(saved).some(v => v > 0)]);
+
+const p2 = await b.newPage();
+p2.on('pageerror', e => errs.push('p2: ' + e.message));
+await p2.goto('http://localhost:4173/', { waitUntil: 'networkidle0' });
+await new Promise(r => setTimeout(r, 900));
+const reloaded = await p2.evaluate(() =>
+  JSON.parse(localStorage.getItem('sandPavilionSave.v2') || '{}').readingPos || {});
+R.push(['and a fresh page still has it — the pocket never managed this',
+        JSON.stringify(reloaded) === JSON.stringify(saved) && Object.keys(reloaded).length > 0]);
+console.log('  readingPos:', JSON.stringify(saved), '-> fresh page:', JSON.stringify(reloaded));
+
 let bad=0; for(const [n,ok] of R){ console.log((ok?'  PASS  ':'  FAIL  ')+n); if(!ok) bad++; }
 console.log('  page after advancing:', advanced, '| after reopening:', back);
 console.log('page errors:', errs.length?errs.slice(0,3):'none');

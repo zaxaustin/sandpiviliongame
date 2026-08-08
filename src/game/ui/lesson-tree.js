@@ -1017,7 +1017,7 @@ export function newLessonForm(id, bookSlug){ state.treeView={mode:'write', id:id
    looking at, which is exactly the "nothing may be a dead end / one keystroke
    to anywhere" bar in CLAUDE.md, failed. */
 export function writeLessonOnThisBook(){
-  const slug=currentDocSlug()||(state.readerPocket&&state.readerPocket.slug);
+  const slug=currentDocSlug()||state.pocketSlug;
   if(!slug) return;
   stopSpeaking();
   state.ui='tree'; hideAllOv();
