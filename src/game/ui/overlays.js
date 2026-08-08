@@ -16,7 +16,7 @@ import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName
 import { esc, jsq, NOTE_SELECT_STYLE } from './dom.js';
 import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
          studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache,
-         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply, studySetBook, tableBook,
+         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply, studySetBook, studyCarryBook, tableBook,
          studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson } from './study-table.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
@@ -27,7 +27,7 @@ import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrie
 import { findChapters, chapterAt } from '../data/chapters.js';
 import { mergeMarks } from '../data/marks.js';
 import { pickUp, setDown, isCarrying, carriedOf, carryLine, stale, carried,
-         setAside, setAsideList, takeUp, CARRY_CAP } from '../data/carrying.js';
+         setAside, setAsideList, takeUp, KINDS, CARRY_CAP } from '../data/carrying.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
 import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, chatOptsFor } from '../ai/provider.js';
@@ -4088,6 +4088,7 @@ initStudyTable({
   getDoc: (slug) => { try { return Store.getDoc(slug); } catch(e){ return null; } },
   pageIn,
   refreshPanel: () => renderToolPanel(),
+  carryBook: (slug) => { if(!isCarrying(carryList(),'book',slug)) toggleInventory(slug); },
   // A carried note is a REFERENCE. Resolved live from gatherNotes() so an edit
   // elsewhere reads correctly here, and a deletion simply stops appearing.
   noteByKey: (key) => { try { return gatherNotes().find(n => n.key === key) || null; } catch(e){ return null; } },
@@ -5828,7 +5829,11 @@ function termRun(raw){
   const mark=d=>d.kind==='datasheet'?'ds ':d.kind==='paper'?'pap':d.kind==='physical'?'own':'   ';
   const fmt=(d,i)=>'  '+String(i+1).padStart(3)+'  '+mark(d)+'  '+(d.title||'untitled').slice(0,46).padEnd(46)+'  '+String(shelfOf(d)||'').slice(0,14);
   const listing=(docs,what)=>{
-    state.termLast=docs.slice(0,40).map(d=>d.slug);
+    /* {kind, ref}, NOT a bare slug — 2026-08-07, when `notes` arrived and a
+       numbered row could be a note rather than a book. One list, two kinds,
+       and every consumer asks which. A second parallel list keyed by number
+       is the drift this project keeps paying for. */
+    state.termLast=docs.slice(0,40).map(d=>({kind:'book', ref:d.slug}));
     if(!docs.length) return ['No '+what+'.'];
     const head=[docs.length+' '+what+':'];
     const rows=docs.slice(0,40).map(fmt);
@@ -5847,6 +5852,9 @@ function termRun(raw){
     '  ref <term>         constants, units, formulas — exact, offline, no AI',
     '  shelf [name]       list your shelves, or open one',
     '  unread             what you brought in and never opened',
+    '  notes [word]       every note you have written, or the ones matching',
+    '  carry <number>     put it in your backpack — the Study Table reads that',
+    '  carry              what you are carrying right now',
     '  open <number>      open one in the reader',
     '  stats              what is actually in here',
     '  hash <number>      the SHA-256 of a book — how you prove bytes are bytes',
@@ -5855,6 +5863,77 @@ function termRun(raw){
     '  ask <question>     hand it to your local AI (needs a connection)',
     '  clear              wipe the screen','',
     'Every command here except `ask` runs entirely on this machine.',''];
+
+  /* ---- notes, and the fastest way to fill the backpack ----------------
+
+     The Computer is already an index over everything on this machine, and
+     notes were the one thing it could not list — the largest pile most
+     visitors have. Added 2026-08-07 with `carry`, because typing is faster
+     than walking and "one keystroke to anywhere beats a beautiful room you
+     must walk to" is a standing decision.
+
+     It reads gatherNotes(), the same union every other surface reads, so a
+     note found here is the same note the Notes Log shows. No AI, like almost
+     everything else in here. */
+  const noteListing=(rows,what)=>{
+    state.termLast=rows.slice(0,40).map(n=>({kind:'note', ref:n.key}));
+    if(!rows.length) return ['No '+what+'.'];
+    const head=[rows.length+' '+what+':'];
+    const body=rows.slice(0,40).map((n,i)=>{
+      const where=(n.slug?(Store.getDoc(n.slug)||{}).title||n.slug:(n.where||'')).slice(0,26);
+      const one=String(n.title||n.text||'').replace(/\s+/g,' ').slice(0,44);
+      return '  '+String(i+1).padStart(3)+'  '+(n.icon||' ')+'  '+one.padEnd(44)+'  '+where;
+    });
+    const tail=rows.length>40?['  … and '+(rows.length-40)+' more. Narrow it with  notes <word>']:[];
+    return head.concat(body, tail, ['', 'Then:  open <number>   or   carry <number>']);
+  };
+  if(c==='notes'){
+    const all=gatherNotes();
+    if(!arg) return noteListing(all,'notes');
+    const q=arg.toLowerCase();
+    /* Matches the BOOK as well as the note, so `notes dhammapada` reads the
+       way it looks — the book's name is the obvious thing to type. */
+    const hit=all.filter(n=>{
+      const t=(Store.getDoc(n.slug||'')||{}).title||'';
+      return (n.title||'').toLowerCase().includes(q) || (n.text||'').toLowerCase().includes(q)
+          || t.toLowerCase().includes(q) || (n.slug||'').toLowerCase().includes(q);
+    });
+    return noteListing(hit,'notes matching "'+arg+'"');
+  }
+
+  /* carry — the whole point of listing. A thing found in the terminal goes
+     straight into the backpack, and from there onto the Study Table or in
+     front of a resident you ask. */
+  if(c==='carry'){
+    const last=state.termLast||[];
+    if(!arg){
+      const held=carried(carryList()), shelf=setAsideList(carryList());
+      if(!held.length && !shelf.length) return ['Your backpack is empty.',
+        'Run  ls  or  notes  and then  carry <number>.'];
+      return ['carrying '+held.length+':'].concat(
+        held.map((e,i)=>'  '+String(i+1).padStart(3)+'  '+(KINDS[e.kind]||{}).icon+'  '+String(e.label||e.ref).slice(0,50)),
+        shelf.length?['', shelf.length+' set aside for later.']:[]);
+    }
+    const n=parseInt(arg,10);
+    if(!n||!last[n-1]) return ['carry which? run  ls  or  notes  first, then  carry <number>'];
+    const it=last[n-1];
+    const label = it.kind==='book'
+      ? ((Store.getDoc(it.ref)||{}).title||it.ref)
+      : ((gatherNotes().find(x=>x.key===it.ref)||{}).title||'a note');
+    if(isCarrying(carryList(), it.kind, it.ref)) return ['Already in your backpack: '+label];
+    const r=pickUp(carryList(), {kind:it.kind, ref:it.ref, label:String(label).slice(0,80)}, todayKey());
+    if(!r.ok){
+      if(r.canSetAside){
+        const sa=setAside(carryList(), {kind:it.kind, ref:it.ref, label:String(label).slice(0,80)}, todayKey());
+        if(sa.ok){ data.carrying=sa.list; persist();
+          return ['Backpack full at '+CARRY_CAP+' — "'+label+'" is on your "pick up later" shelf.',
+                  'Nothing is lost. Set something down and  carry  it again when you want it.']; }
+      }
+      return [r.reason];
+    }
+    data.carrying=r.list; persist();
+    return ['carried: '+label, 'It is on the Study Table now, and a resident you ask can see it.'];
+  }
 
   if(c==='ls'||c==='books') return listing(mine,'books on your shelves');
   if(c==='papers') return listing(mine.filter(termIsPaper),'papers');
@@ -5878,7 +5957,7 @@ function termRun(raw){
       setTimeout(()=>{ closeUI(); openReader(d.slug); },60);
       return [(d.part?d.part+'  —  ':'')+(d.title||''),'opening…'];
     }
-    state.termLast=pick.map(d=>d.slug);
+    state.termLast=pick.map(d=>({kind:'book', ref:d.slug}));
     return [pick.length+' datasheet'+(pick.length===1?'':'s')+':']
       .concat(pick.map((d,i)=>'  '+String(i+1).padStart(3)+'  '+String(d.part||'—').slice(0,16).padEnd(16)+'  '+(d.title||'untitled').slice(0,44)))
       .concat(['','  ds <part>      jump straight to one','  open <number>  open it in the reader']);
@@ -5951,9 +6030,10 @@ function termRun(raw){
   if(c==='open'){
     const n=parseInt(arg,10);
     const last=state.termLast||[];
-    if(!n||!last[n-1]) return ['open which? run  ls  or  find <word>  first, then  open <number>'];
-    const slug=last[n-1];
-    setTimeout(()=>{ closeUI(); openReader(slug); },60);
+    if(!n||!last[n-1]) return ['open which? run  ls  or  find <word>  or  notes  first, then  open <number>'];
+    const it=last[n-1];
+    if(it.kind==='note'){ setTimeout(()=>{ closeUI(); openNotesLog(it.ref); },60); return ['opening the note…']; }
+    setTimeout(()=>{ closeUI(); openReader(it.ref); },60);
     return ['opening…'];
   }
   if(c==='stats') return [
@@ -5982,7 +6062,8 @@ function termRun(raw){
   if(c==='hash'){
     const n=parseInt(arg,10), last=state.termLast||[];
     if(!n||!last[n-1]) return ['hash which? run  ls  or  find <word>  first, then  hash <number>'];
-    const d=Store.getDoc(last[n-1]);
+    if(last[n-1].kind!=='book') return ['That one is a note, not a book. hash works on a book’s bytes.'];
+    const d=Store.getDoc(last[n-1].ref);
     const text=d && d.doc && d.doc.fullText && d.doc.fullText.text;
     if(!text) return ['"'+((d&&d.title)||'that')+'" has no full text here, so there are no bytes to hash.',
       'Summary-only books carry a card, not a book. Drag the real text in and try again.'];
@@ -11738,7 +11819,7 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage, openNeedsChapters, carryNote,
-  studySetBook,
+  studySetBook, studyCarryBook,
   shelveRefused, takeUpLater, shelveCarried,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,

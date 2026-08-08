@@ -153,6 +153,11 @@ function trayRow(current) {
       you brought, shown beside the part ${notes === 1 ? 'it belongs' : 'they belong'} to.</div>` : ''}
   </div>`;
 }
+/* One press from "you have notes about this" to having it on the table. */
+export function studyCarryBook(slug) {
+  if (X.carryBook) X.carryBook(slug);
+  studySetBook(slug);
+}
 export function studySetBook(slug) {
   const v = view();
   v.slug = slug; v.idx = 1; v.labelling = false;
@@ -175,6 +180,34 @@ export async function renderStudyTable() {
     /* THE EMPTY STATE POINTS AT THE BACKPACK, because that is now how things
        get here. It used to name pocketing only, which was the single narrow
        door — and the reason the table could hold one book forever. */
+    /* CARRYING NOTES BUT NOT THE BOOK is a real dead end, found 2026-08-07 by
+       following the terminal loop all the way here: `notes <book>` then
+       `carry 1` puts a note in the bag, and the table said "nothing here" —
+       true, and useless, when the one thing you need is named in the note you
+       are holding. So offer it. */
+    const orphans = [];
+    for (const e of carriedOf(data.carrying || [], 'note')) {
+      const n = X.noteByKey ? X.noteByKey(e.ref) : null;
+      if (!n || !n.slug) continue;
+      const d = docFor(n.slug);
+      if (d && !orphans.some(o => o.slug === n.slug)) orphans.push({ slug: n.slug, title: (d.doc && d.doc.title) || n.slug });
+    }
+    if (orphans.length) {
+      /* NAME THE BOOK. The first version read "carrying a note about — bring
+         the book too", with the title missing from the middle of its own
+         sentence, because the singular branch rendered an empty string where
+         the name should be. */
+      const names = orphans.map(o => '<b>' + esc(o.title) + '</b>').join(' and ');
+      el.innerHTML = `<div class="meta">You are carrying ${orphans.length === 1 ? 'a note' : 'notes'} about
+        ${names} — bring the book too and ${orphans.length === 1 ? 'it' : 'they'} will sit
+        beside the part ${orphans.length === 1 ? 'it belongs' : 'they belong'} to.</div>
+        <div class="row" style="margin-top:8px;flex-wrap:wrap">
+          ${orphans.map(o => `<button class="btn" onclick="studyCarryBook('${jsq(o.slug)}')"
+            >\u{1F4D6} Bring ${esc(o.title)}</button>`).join('')}
+          <button class="btn ghost" onclick="openInventory()">\u{1F392} Your backpack</button>
+        </div>`;
+      return;
+    }
     el.innerHTML = `<div class="meta">Nothing on the table yet. Put a book in your <b>🎒 backpack</b> —
       from any shelf, or <b>🎒 Take with you</b> in the Reader — and it is here when you sit down.
       Bring notes the same way and they sit beside the part they belong to.</div>
