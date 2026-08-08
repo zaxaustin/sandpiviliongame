@@ -82,6 +82,18 @@ export function awardBadge(id){
   showBadgeToast(b);
 }
 
+/* ================================================================
+   WHAT THE GAME REMEMBERS RIGHT NOW — and what it does NOT keep.
+
+   `state` is the session: which panel is open, which page you are on,
+   who you are talking to. It is deliberately NOT saved. `data` above
+   is the save, and it is written the moment anything changes.
+
+   That line matters to a visitor and is stated in the Your Data panel:
+   close the app mid-book and the note you wrote is kept, while the page
+   you were on is not. (Which is why the reader's page is moving onto
+   the carried book, where it will survive.)
+   ================================================================ */
 export const state = {
   scene:'overworld',
   player:{ x:19,y:21,px:19,py:21,dir:'down',moving:false,tx:19,ty:21,t:0 },
@@ -89,6 +101,36 @@ export const state = {
   shelfTradition:null, currentDoc:null, courseView:{mode:'list',id:null},
   archiveView:{mode:'list',slug:null},
 };
+
+/* ---- A DEBT, WRITTEN DOWN. Not a design. --------------------------------
+
+   Forty-seven more fields are assigned to `state` around the codebase and
+   declared nowhere. Every one was invented at the point of use, which is
+   exactly how `data.bookMarks` and `data.study` got in — both found on
+   2026-08-07, both missing from the privacy line as a result, and the second
+   found only because a guard was finally written for it.
+
+   This list exists so the same thing cannot happen again silently. `npm test`
+   fails if a `state.*` field appears that is neither declared above nor listed
+   here, so a NEW one has to be added deliberately and in front of everybody.
+
+   IT MAY ONLY SHRINK. Moving a name from here into the declaration above is
+   always correct and needs no permission; adding one is a decision. Declaring
+   all forty-seven at once is a separate pass, deliberately not done in the
+   middle of feature work — see the foundation plan.                        */
+export const UNDECLARED_STATE = [
+  'audioReturnSlug', 'bookAudio', 'bookNotesShowAll', 'bundleView',
+  'calView', 'catalogView', 'commonsView', 'courseCat', 'courseSearch',
+  'courseShowArchived', 'currentPastDay', 'dissectWhere', 'foldView',
+  'fullTextView', 'grantView', 'groveView', 'hallView', 'indexCategory',
+  'indexSearch', 'indexSearchResults', 'indexSearching', 'lastFiling',
+  'logKind', 'mlDraft', 'myLibView', 'noteLogKind', 'notesLogEdit',
+  'notesLogView', 'pathView', 'planLogKind', 'plannerChat',
+  'plannerNoteView', 'plannerTool', 'promptAgent', 'readerPocket',
+  'researchView', 'reviewView', 'shelfDocs', 'shelfIndex', 'sidxView',
+  'standUp', 'standingAgent', 'studyChat', 'studyView', 'termLast',
+  'termLines', 'treeView',
+];
 // restore position
 if(data.pos && scenes[data.pos.scene]){
   const s=scenes[data.pos.scene], px=data.pos.x, py=data.pos.y;

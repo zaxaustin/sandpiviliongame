@@ -2386,6 +2386,59 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- what the game remembers RIGHT NOW ----------
+   The mirror of the data.* guard above, and written for the same reason.
+
+   `state` declares ten fields in entities.js and the codebase assigns
+   fifty-five. The other forty-seven were invented at the point of use - which
+   is exactly how data.bookMarks and data.study got in, both found 2026-08-07,
+   the second only because a guard was finally written for it.
+
+   Declaring all forty-seven is a separate pass. What this stops is a
+   FORTY-EIGHTH appearing quietly while other work is going on. The
+   grandfathered list lives in entities.js beside `state`, where someone
+   reading it will see it, and it may only shrink. */
+{
+  const entSrc = readFileSync(new URL('../src/game/entities.js', import.meta.url), 'utf8');
+
+  // the declared block: `export const state = { ... };`
+  const decl = entSrc.match(/export const state = \{([\s\S]*?)\n\};/);
+  if (!decl) fail('entities.js: could not find the `state` declaration to check against');
+
+  const grand = entSrc.match(/export const UNDECLARED_STATE = \[([\s\S]*?)\];/);
+  if (!grand) fail('entities.js: UNDECLARED_STATE is gone - the grandfathered list is what makes this guard usable');
+
+  if (decl && grand) {
+    const declared = new Set([...decl[1].matchAll(/(?:^|[\s,{])([A-Za-z_][A-Za-z0-9_]*)\s*:/g)].map(m => m[1]));
+    const listed = new Set([...grand[1].matchAll(/'([^']+)'/g)].map(m => m[1]));
+
+    const seen = new Map();
+    const walkState = (dirUrl, label) => {
+      for (const e of readdirSync(dirUrl, { withFileTypes: true })) {
+        if (e.isDirectory()) { walkState(new URL(e.name + '/', dirUrl), label + e.name + '/'); continue; }
+        if (!e.name.endsWith('.js')) continue;
+        const text = readFileSync(new URL(e.name, dirUrl), 'utf8');
+        for (const m of text.matchAll(/\bstate\.([A-Za-z_][A-Za-z0-9_]*)\s*(?:=[^=]|\|\|=|\?\?=)/g)) {
+          if (!seen.has(m[1])) seen.set(m[1], label + e.name);
+        }
+      }
+    };
+    walkState(new URL('../src/game/', import.meta.url), 'src/game/');
+
+    for (const [k, where] of seen) {
+      if (declared.has(k) || listed.has(k)) continue;
+      fail(where + ' assigns state.' + k + ', which entities.js neither declares nor grandfathers. '
+         + 'Declare it in `state` (best), or add it to UNDECLARED_STATE and say why.');
+    }
+    // the list may only SHRINK: a name nobody assigns any more is done, not a debt
+    for (const k of listed) {
+      if (!seen.has(k)) fail('entities.js: UNDECLARED_STATE lists ' + k + ', which nothing assigns any more - remove it');
+      if (declared.has(k)) fail('entities.js: ' + k + ' is BOTH declared and grandfathered - drop it from UNDECLARED_STATE');
+    }
+    if (seen.size < 20) fail('smoke: only found ' + seen.size + ' state.* writes - the source scan has drifted');
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list
