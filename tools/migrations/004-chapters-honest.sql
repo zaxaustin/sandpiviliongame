@@ -33,6 +33,14 @@ DROP VIEW IF EXISTS v_needs_chapters;
 -- reader's own rule, that an absent field beats a guessed one, applied to
 -- a whole row. So the view can only ever name books the visitor has
 -- genuinely opened, and a panel over it must say so.
+--
+-- AND THAT IS A FEATURE, not a limitation to apologise for. The steward,
+-- 2026-08-07: "one step at a time is fine lets a user feel like he is
+-- contributing." A number that grows because YOU opened a book and named
+-- its chapters is yours in a way a bulk sweep never is — the same reason
+-- the seed shelf is small on purpose, and the same reason carrying is
+-- manual. So a panel built on this must never offer to "scan everything";
+-- it offers the next book, and it lets the count climb.
 CREATE OR REPLACE VIEW v_needs_chapters AS
   SELECT b.slug, b.title, b.pages,
          s.how,                      -- 'toc' | 'headings' | 'numerals' | 'none'

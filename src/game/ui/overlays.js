@@ -1743,6 +1743,29 @@ function renderDataPanel(){
       ${stat(Object.keys(data.badges).length,'badges earned')}
       ${stat(data.activityLog.length,'activity log entries')}
     </div>
+    <h3 style="margin-top:16px">When it saves</h3>
+    <div class="meta">Worth knowing before you trust a place with real work. There is no save button
+      here because there is nothing to press: <b>everything you do is written the moment you do
+      it</b>, and nothing is ever left waiting.</div>
+    <div style="margin-top:10px">
+      <div class="card" style="cursor:default">
+        <div class="t">\u2713 Kept \u2014 written the instant it changes</div>
+        <div class="s">Your books, notes, days, courses, chapter marks, the backpack and the
+          \u201cpick up later\u201d shelf. Close the window mid-sentence and the sentence is there.</div>
+      </div>
+      <div class="card" style="cursor:default">
+        <div class="t">\u25cb Not kept \u2014 and deliberately</div>
+        <div class="s">Which panel you had open, and whether you had walked off with a book. These
+          describe <i>this sitting</i> and mean nothing tomorrow. <b>Where you are in a book IS kept</b>
+          \u2014 it used to be thrown away with the rest, and stopped being on 2026-08-07.</div>
+      </div>
+      <div class="card" style="cursor:default">
+        <div class="t">\u26a0 If a save ever fails, you are told</div>
+        <div class="s">If this device refuses to write \u2014 storage full, or blocked in a private
+          window \u2014 the Pavilion says so once rather than carrying on as if nothing happened.
+          A save that silently did not happen is the one thing worth interrupting you for.</div>
+      </div>
+    </div>
     <h3>Clear old planner days</h3>
     <div class="meta">Removes the intention, blocks, ember, and sparks for days before the date you
       pick — everything else in your save is untouched. Confirmed before anything happens, and it

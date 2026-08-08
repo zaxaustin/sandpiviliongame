@@ -2534,6 +2534,42 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- the panel that explains saving must be TRUE ----------
+   Added 2026-08-07 at the steward's word: "lets make sure the user udersands
+   how tings get saved and when things get saved as well."
+
+   A panel that reassures is worse than one that says nothing, so the three
+   claims it makes are checked against the code that would have to back them:
+
+     "written the moment you do it"   -> persist() exists and is called on
+                                         change, not on a timer or a button
+     "if a save fails you are told"   -> persist() actually warns
+     "where you are in a book IS kept" -> readingPos is a declared save store
+
+   The point is not the wording. It is that none of the three can quietly
+   stop being true while the sentence stays on screen. */
+{
+  const ovSrc = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const entSrc2 = readFileSync(new URL('../src/game/entities.js', import.meta.url), 'utf8');
+
+  if (/When it saves/.test(ovSrc)) {
+    if (!/export function persist\(\)/.test(entSrc2)) {
+      fail('Your Data says work is written as you go, but entities.js has no persist()');
+    }
+    // the honest claim is "we tell you once", so the warning has to exist
+    if (!/saveWarned/.test(entSrc2) || !/alert\(/.test(entSrc2)) {
+      fail('Your Data promises you are told when a save fails, and persist() no longer warns');
+    }
+    // and a save BUTTON would make "there is nothing to press" a lie
+    if (/>\s*(Save|Save now|Save progress)\s*</.test(ovSrc)) {
+      fail('Your Data says there is nothing to press, but a Save button exists');
+    }
+    if (!/readingPos/.test(entSrc2)) {
+      fail('Your Data says where you are in a book is kept, but readingPos is not in the save');
+    }
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list
