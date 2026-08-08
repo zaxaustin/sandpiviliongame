@@ -178,8 +178,10 @@ export function contextFor(messages, replyTokens){
 // convo in the middle"). A local model on modest hardware — or one streaming a
 // long, thoughtful reply — can legitimately take a while, and the pocket/phone
 // already lets you walk away while it works, so a longer wall is nearly free
-// and far kinder than clipping a reply mid-thought. The Monk ('deep') gets the
-// most room of all, matching his standing rule.
+// and far kinder than clipping a reply mid-thought. 'deep' is the widest tier
+// and is currently unused: it was the Monk's, until his special treatment was
+// retired 2026-08-07. Kept because the tier is a transport concern and outlives
+// whichever resident happens to want it — chatOptsFor() is where that is said.
 const REPLY_TIMEOUT = { short:90000, long:240000, deep:360000 };
 
 // Picks the largest-parameter model actually installed, reading the
@@ -228,6 +230,38 @@ export function bestLocalModel(availableModels, fallback){
     if(size>bestSize){ bestSize=size; best=m; }
   }
   return isCloudModel(best) ? (fallback && !isCloudModel(fallback) ? fallback : null) : best;
+}
+
+/* WHAT A NAMED RESIDENT IS ANSWERED WITH — one place, reachable by everyone.
+
+   Right now the answer is THE SAME FOR ALL OF THEM, and that is a decision
+   rather than an absence, which is why this function still exists.
+
+   THE MONK'S SPECIAL TREATMENT WAS RETIRED 2026-08-07, at the steward's word:
+
+     "lets not treat the monk differently for now hav him focus on guidens"
+
+   That reverses a standing decision, so the reversal is on the record and can
+   be judged. Until today the Monk always got the largest LOCAL model plus a
+   deep token/timeout tier — real room to think — on the reasoning that he
+   handles the most private conversations and the one question the others hand
+   over. What changed is the emphasis: his job is GUIDANCE, and guidance is
+   carried by who he is and what he is grounded in, not by how many tokens he
+   is allowed to spend thinking. A bigger model does not make better counsel;
+   it makes slower counsel, on a machine whose cooling is already the limit.
+
+   WHAT DID NOT CHANGE, and must not be quietly lost with it: the Monk is
+   still LOCAL-ONLY by the cloud guard in the transport layer, because the
+   privacy reason was never the same as the depth reason. If a future change
+   makes residents provider-aware, this is the seam where the Monk's answer
+   goes back to "local, always".
+
+   MOVED HERE FROM ui/overlays.js the same day, where it was private. Three
+   call sites remembered to pass it and ui/lesson-tree.js COULD NOT reach it
+   at all. A rule enforced by "three files remember" is not enforced — which
+   is precisely why it now has a guard, whatever the rule happens to say. */
+export function chatOptsFor(agentKey){
+  return {};
 }
 
 // The two "nothing came back" sentinels below — exported so a caller can

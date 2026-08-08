@@ -137,10 +137,13 @@ export const ROLES = {
        the log still skips straight to the end.
 
        It belongs on the Monk and not in the chat code because it is part of
-       who he is: he is the one resident this project has decided never to
-       trade depth for speed with (see chatOptsFor). Everyone else stays
-       instant — a librarian who made you wait for a shelf number would be
-       an affectation. */
+       who he is — the PACE he speaks at, which is a matter of character and
+       stays. What did not stay is the model and thinking tier he used to get
+       (retired 2026-08-07: "lets not treat the monk differently for now hav
+       him focus on guidens"). Guidance is carried by who he is and what he is
+       grounded in, not by how long he is allowed to think. Everyone else stays
+       instant — a librarian who made you wait for a shelf number would be an
+       affectation. */
     pace: 34,
   },
   computer: {

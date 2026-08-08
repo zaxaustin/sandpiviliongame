@@ -144,8 +144,21 @@ terms.
 
 **Residents are agents, not personalities.** *"there real purpous should be
 agents without a doubt."* One at a time, chosen for a purpose, each with its own
-thread. Personality is the skin. The Monk always gets the best **local** model
-and real room to think — never a hosted one.
+thread. Personality is the skin.
+
+**The Monk is no longer given a bigger model.** Retired 2026-08-07: *"lets not
+treat the monk differently for now hav him focus on guidens."* He used to get
+the largest installed local model and a deep token/timeout tier; now he gets
+what everyone gets. Guidance is carried by who he is and what he is grounded
+in, not by how long he is allowed to think — and a bigger model on this machine
+buys slower counsel, not better counsel, since cooling is the real limit.
+
+**What did NOT change: he is still local-only**, by the cloud guard in the
+transport layer. The privacy reason was never the same as the depth reason, and
+losing one must not quietly lose the other. `chatOptsFor()` in
+`src/game/ai/provider.js` is the single seam where any of this is decided —
+every `AI.chat` caller in `ui/` must be able to reach it, and `npm test`
+enforces that whatever the rule currently says.
 
 **DON'T FORCE THE MODEL TO CONFORM.** Stated 2026-08-04:
 

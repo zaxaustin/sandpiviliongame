@@ -23,7 +23,7 @@ import { blip } from '../main.js';
 import { Store } from '../data/store.js';
 import { esc, jsq, NOTE_SELECT_STYLE } from './dom.js';
 import { WORK_CHARTER } from '../data/charter.js';
-import { AI, isEmptyReply } from '../ai/provider.js';
+import { AI, isEmptyReply, chatOptsFor } from '../ai/provider.js';
 import { planToLesson } from '../data/plan-to-lesson.js';
 import { chapterAt, findChapters } from '../data/chapters.js';
 import { paginate } from '../data/retrieval.js';
@@ -307,7 +307,7 @@ export async function draftLessonPlanFromLesson(id){
         +'long); one small hands-on task per session; and a simple way to check understanding at the end. Keep it practical and encouraging, '
         +'grounded strictly in the lesson — invent no tools or steps that contradict it. Plain readable text.'},
       {role:'user', content:'LESSON: '+node.title+'\n\n'+node.summary+'\n\n'+lessonAsText(node)},
-    ], {long:true});
+    ], {...chatOptsFor('tutor'), long:true});
     if(isEmptyReply(reply)){ if(el) el.textContent='The model came back empty — a lighter model may do better, or use 📓 Save to my Notes (no AI needed).'; }
     else {
       const note={id:newNoteId(), title:'Lesson plan — '+node.title,

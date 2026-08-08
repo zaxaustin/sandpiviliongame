@@ -2495,6 +2495,45 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- one place decides what a resident is answered with ----------
+   chatOptsFor() lived privately in ui/overlays.js until 2026-08-07. Three
+   call sites remembered to pass it and ui/lesson-tree.js COULD NOT REACH IT
+   AT ALL - it imports AI directly. Nothing was broken by that on the day,
+   because neither of its calls was Monk-routed; the defect was that if one
+   ever became so, the rule would have failed in silence.
+
+   A RULE ENFORCED BY "THREE FILES REMEMBER" IS NOT ENFORCED. So: any file
+   that talks to a model must be ABLE to ask what that resident is answered
+   with. Whether a given call passes it is the caller's judgement - a
+   one-off summariser legitimately does not - but being unable to is not a
+   judgement, it is a gap.
+
+   This guard outlives whatever chatOptsFor happens to return. It said one
+   thing this morning (the Monk gets the biggest local model) and another by
+   the afternoon (everyone the same); the seam is the point. */
+{
+  const aiDir = new URL('../src/game/ui/', import.meta.url);
+  for (const f of readdirSync(aiDir).filter(x => x.endsWith('.js'))) {
+    const text = readFileSync(new URL(f, aiDir), 'utf8');
+    if (!/\bAI\.chat\s*\(/.test(text)) continue;
+    if (!/\bchatOptsFor\b/.test(text)) {
+      fail('ui/' + f + ' calls AI.chat but cannot reach chatOptsFor - import it from '
+         + 'ai/provider.js. A resident\'s options must not depend on which file happens to remember.');
+    }
+  }
+  // and it must live in ONE place
+  const provSrc = readFileSync(new URL('../src/game/ai/provider.js', import.meta.url), 'utf8');
+  if (!/export function chatOptsFor/.test(provSrc)) {
+    fail('ai/provider.js no longer exports chatOptsFor - it is the one place this decision lives');
+  }
+  for (const f of readdirSync(aiDir).filter(x => x.endsWith('.js'))) {
+    const text = readFileSync(new URL(f, aiDir), 'utf8');
+    if (/function chatOptsFor/.test(text)) {
+      fail('ui/' + f + ' defines its own chatOptsFor - a second copy of this decision is exactly the drift it was moved to avoid');
+    }
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list

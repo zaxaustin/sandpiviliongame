@@ -30,7 +30,7 @@ import { pickUp, setDown, isCarrying, carriedOf, carryLine, stale, carried,
          setAside, setAsideList, takeUp, CARRY_CAP } from '../data/carrying.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
-import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel } from '../ai/provider.js';
+import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, chatOptsFor } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
@@ -716,17 +716,6 @@ export function sweepReminders(){
 }
 export function dismissButlerPing(){ document.getElementById('butlerPing').classList.remove('show'); }
 export function butlerPingGo(){ dismissButlerPing(); calSelectDay(todayKey()); }
-/* The Mountain Monk always gets the best available local model and real
-   room to actually think (opts.think:true, the 'deep' token/timeout
-   tier) — a standing decision, not a performance default: everything
-   else in this game trades depth for speed on purpose, the Monk is the
-   one place that trade explicitly does not apply. bestLocalModel()
-   reads whatever isAvailable() already confirmed is actually installed
-   — never a guess, never a hardcoded name that could go stale. */
-function chatOptsFor(agentKey){
-  if(agentKey!=='monk') return {};
-  return { model: bestLocalModel(AI.availableModels, AI.model), think:true, deep:true };
-}
 async function sendChatMessage(q){
   const d=state.dialog; if(!d||!d.chat) return;
   const agent=CHAT_AGENTS[d.agent]||CHAT_AGENTS.quill;
@@ -4841,9 +4830,11 @@ export async function sendPlannerMessage(){
   const who=(ROLES[key]&&ROLES[key].label)||key;
   thread.history.push({role:'user',content:q}); input.value=''; renderPlannerAssistBody();
   try{
-    /* chatOptsFor() and not {} — the Monk's standing rule (best installed
-       model, real room to think) is his wherever he is standing, and a desk
-       that quietly downgraded him would look exactly like nothing at all. */
+    /* chatOptsFor() and not {} — WHATEVER it currently says. It returns the
+       same options for everyone since 2026-08-07 (the Monk's special model and
+       thinking tier were retired), but the point of routing through it is that
+       a resident's options are decided in ONE place. A desk that hardcoded {}
+       would be right today and silently wrong the day that changes back. */
     const reply=await AI.chat([{role:'system',content:await deskSystemPrompt(key)}, ...thread.history], chatOptsFor(key));
     thread.history.push({role:'assistant',content:reply}); thread.lastReply=reply;
     logActivity('Called '+who+' over to the Writing Desk.'+elapsedTag());
