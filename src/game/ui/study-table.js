@@ -34,6 +34,7 @@ import { findChapters } from '../data/chapters.js';
 import { mergeMarks, unitsFor, unitAt, unitLabel } from '../data/marks.js';
 import { ROLES, ROLE_KEYS, rosterForVisitor } from '../data/roles.js';
 import { versionsOf, addVersion, restoreVersion, versionSummary, hasHistory, TAG_ORIGINAL } from '../data/note-versions.js';
+import { carriedOf, canAccept } from '../data/carrying.js';
 
 /* Injected once, at import time in overlays.js. */
 let X = {};
@@ -72,10 +73,97 @@ function view() {
   const s = state.studyView = state.studyView || { slug: null, idx: 1, labelling: false };
   return s;
 }
-/* The book on the table is the one you walked over with — the same pocket
-   the desk's book panel already uses, so the two never disagree about which
-   book you are holding. */
-function tableBook() { return X.deskBook ? X.deskBook() : null; }
+/* ---- THE TRAY: what you brought, and which of it is in front of you ----
+
+   The table used to work on exactly one book — whichever you had pocketed —
+   so "work through a book" meant one book forever, and putting a second one
+   next to it was impossible. The steward asked for both halves:
+
+     "the notes of the book can be loaded there through the back pack so the
+      user has to do it, and the book can be broung out and references in the
+      same way or one after another."
+
+   So the tray IS THE BACKPACK, filtered to what this surface accepts. No
+   third state and no "put down" step: carrying something and walking here is
+   putting it on the table, which is the whole point of one carry verb. What
+   IS manual — and stays manual — is which one you are working on. Nothing is
+   chosen for you; §0 of the plan, and the same rule as the-day.js's picked-up
+   path beating an inferred one.
+
+   canAccept() rather than a list of kinds, so adding a kind to
+   data/carrying.js works here with nothing edited. */
+function trayOf(kind) {
+  if (!canAccept('studyTable', kind)) return [];
+  return carriedOf(data.carrying || [], kind)
+    /* `book` is the deskBook-SHAPED WRAPPER, so the title is book.doc.title.
+       This field was called `doc` at first, which made `x.doc.title` read
+       undefined and fall back silently to the slug — the chips said
+       "personal-first-book" on screen while the heading beside them said
+       "The First Book". Named so it cannot be read wrong. */
+    .map(e => ({ entry: e, book: docFor(e.ref) }))
+    .filter(x => x.book);
+}
+/* THE SAME SHAPE deskBook() RETURNS, and it has to be: tableBook() may hand
+   back either, and everything downstream reads `b.doc.title`. The first
+   version returned Store.getDoc()'s entry directly — whose title is top-level,
+   not under .doc — so the heading read "Working through undefined" while the
+   tray beside it showed the title correctly. Two shapes behind one function is
+   the drift this whole day has been about; there is one, and it is this. */
+function docFor(slug) {
+  try {
+    const entry = X.getDoc ? X.getDoc(slug) : null;
+    if (!entry) return null;
+    return { slug, doc: entry, page: (X.pageIn ? X.pageIn(slug) : 0) || 0, ch: null, view: null, pages: null };
+  } catch (e) { return null; }
+}
+
+/* THE BOOK IN FRONT OF YOU. Your choice first, then the one you walked in
+   with — never a guess. `studyView.slug` is only honoured while you are
+   actually carrying it, so setting a book down puts it away here too rather
+   than leaving the table pointing at something no longer in your hands. */
+export function tableBook() {
+  const books = trayOf('book');
+  const v = state.studyView;
+  if (v && v.slug) {
+    const chosen = books.find(x => x.entry.ref === v.slug);
+    if (chosen) return chosen.book;
+  }
+  const pocketed = X.deskBook ? X.deskBook() : null;
+  if (pocketed) return pocketed;
+  return books.length ? books[0].book : null;
+}
+
+/* One press to swap books. Only rendered with more than one on the tray —
+   a picker offering one choice is a label pretending to be a control. */
+function trayRow(current) {
+  const books = trayOf('book');
+  const notes = trayOf('note').length;
+  if (books.length < 2 && !notes) return '';
+  const chips = books.map(x => {
+    const on = current && x.entry.ref === current.slug;
+    return `<button class="btn ghost" onclick="studySetBook('${jsq(x.entry.ref)}')"
+      style="margin:0 6px 6px 0;padding:4px 9px;font-size:12px${on ? ';background:#e0a43c;color:#2a2118' : ''}"
+      >\u{1F4D6} ${esc((x.book.doc && x.book.doc.title) || x.entry.label || x.entry.ref)}</button>`;
+  }).join('');
+  return `<div class="card" style="cursor:default;margin-bottom:10px">
+    <div class="s" style="margin:0 0 6px">On the table \u2014 what you carried in. ${books.length > 1
+      ? 'Pick one to work through; the others stay here.' : ''}</div>
+    ${chips}
+    ${notes ? `<div class="s" style="margin-top:4px">\u{1F5D2} ${notes} note${notes === 1 ? '' : 's'}
+      you brought, shown beside the part ${notes === 1 ? 'it belongs' : 'they belong'} to.</div>` : ''}
+  </div>`;
+}
+export function studySetBook(slug) {
+  const v = view();
+  v.slug = slug; v.idx = 1; v.labelling = false;
+  cache = null;
+  /* THE HEADING LIVES OUTSIDE THIS BODY. renderStudyTable() rewrites
+     #planToolBody; the tool's title is drawn one level up by renderToolPanel().
+     Re-rendering only the body left the heading naming the PREVIOUS book while
+     the pages below it were the new one — which is worse than no heading,
+     because it is confidently wrong. Redraw both. */
+  if (X.refreshPanel) X.refreshPanel(); else renderStudyTable();
+}
 
 /* ---------- render ---------- */
 
@@ -84,9 +172,14 @@ export async function renderStudyTable() {
   if (!el) return;
   const b = tableBook();
   if (!b) {
-    el.innerHTML = `<div class="meta">Nothing on the table yet. Open any book and press <b>↓ pocket</b> in the
-      Reader — it comes with you, and this is where you work through it.</div>
+    /* THE EMPTY STATE POINTS AT THE BACKPACK, because that is now how things
+       get here. It used to name pocketing only, which was the single narrow
+       door — and the reason the table could hold one book forever. */
+    el.innerHTML = `<div class="meta">Nothing on the table yet. Put a book in your <b>🎒 backpack</b> —
+      from any shelf, or <b>🎒 Take with you</b> in the Reader — and it is here when you sit down.
+      Bring notes the same way and they sit beside the part they belong to.</div>
       <div class="row" style="margin-top:8px">
+        <button class="btn ghost" onclick="openInventory()">🎒 Your backpack</button>
         <button class="btn ghost" onclick="openMyLibrary()">📚 Your shelves</button>
         <button class="btn ghost" onclick="openIndex()">🗂 The whole Index</button>
       </div>`;
@@ -106,8 +199,8 @@ export async function renderStudyTable() {
   const unit = bk.units.find(u => u.idx === v.idx) || bk.units[0];
   if (!unit) { el.innerHTML = `<div class="meta">This book has no pages to divide.</div>`; return; }
 
-  el.innerHTML = navRow(b, bk, unit) + labelRow(unit, bk) + textRow(bk, unit)
-    + notesRow(b, unit) + draftRow(b, bk) + chatRow(b, unit);
+  el.innerHTML = trayRow(b) + navRow(b, bk, unit) + labelRow(unit, bk) + textRow(bk, unit)
+    + carriedNotesRow(b, unit) + notesRow(b, unit) + draftRow(b, bk) + chatRow(b, unit);
 }
 
 /* The way OUT of the table, and it only appears once there is work to build
@@ -311,6 +404,44 @@ export function notesInUnit(slug, unit) {
   return (data.bookNotes[slug] || [])
     .map((n, i) => ({ n, i }))
     .filter(({ n }) => n.page !== undefined && n.page >= unit.from && n.page <= unit.to);
+}
+
+/* NOTES YOU CARRIED IN, beside the part they belong to.
+
+   The other half of what the tray is for: "the notes of the book can be
+   loaded there through the back pack so the user has to do it." A note in
+   your backpack that names a page in THIS book, and falls inside the part
+   you are looking at, is shown here — because that is the moment it is
+   useful, and no other moment.
+
+   It is a REFERENCE, not a copy: X.noteByKey resolves it live, so a note
+   edited elsewhere reads correctly here and a note deleted elsewhere simply
+   stops appearing rather than becoming a ghost. Same rule as the backpack
+   itself. */
+function carriedNotesIn(b, unit) {
+  const out = [];
+  for (const e of carriedOf(data.carrying || [], 'note')) {
+    const n = X.noteByKey ? X.noteByKey(e.ref) : null;
+    if (!n || n.slug !== b.slug) continue;
+    const page = Number.isInteger(n.page) ? n.page : null;
+    if (page == null || page < unit.from || page > unit.to) continue;
+    out.push({ e, n, page });
+  }
+  return out.sort((a, x) => a.page - x.page);
+}
+function carriedNotesRow(b, unit) {
+  const carried = carriedNotesIn(b, unit);
+  if (!carried.length) return '';
+  return `<h4 style="margin:14px 0 4px">\u{1F5D2} Notes you brought \u00b7 ${carried.length}</h4>
+    <div class="meta" style="margin:0 0 6px">From your backpack, and only the ones that land in this part.</div>
+    ${carried.map(({ e, n, page }) => `<div class="card" style="cursor:default;border-color:#8fb4d9">
+      <div class="s">p. ${page + 1}${n.where ? ' \u00b7 ' + esc(n.where) : ''}</div>
+      <div style="white-space:pre-wrap">${esc((n.text || '').length > 220 ? n.text.slice(0, 220) + '\u2026' : (n.text || ''))}</div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn ghost" style="font-size:11px;padding:3px 10px"
+          onclick="openNotesLog('${jsq(e.ref)}')">Open where it lives</button>
+      </div>
+    </div>`).join('')}`;
 }
 
 function notesRow(b, unit) {

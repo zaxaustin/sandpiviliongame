@@ -16,7 +16,7 @@ import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName
 import { esc, jsq, NOTE_SELECT_STYLE } from './dom.js';
 import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
          studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache,
-         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
+         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply, studySetBook, tableBook,
          studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson } from './study-table.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
@@ -2223,6 +2223,24 @@ export function setNotesLogBook(slug){
   state.notesLogView.expanded=null;
   renderNotesLog();
 }
+/* One press to put a note in the backpack, and one to set it down. The label
+   flips rather than a second button appearing, so the card never grows a row
+   of near-identical controls. */
+export function carryNote(key){
+  const n = gatherNotes().find(x => x.key === key);
+  if(!n){ showToast('That note is no longer there.'); return; }
+  if(isCarrying(carryList(),'note',key)){
+    data.carrying = setDown(carryList(),'note',key); persist();
+    showToast('Set down. It is still exactly where it lives.');
+  } else {
+    const r = pickUp(carryList(), {kind:'note', ref:key,
+      label:(n.title||'A note').slice(0,80)}, todayKey());
+    if(!r.ok){ showToast(r.reason); return; }
+    data.carrying = r.list; persist();
+    showToast('In your backpack — it will be beside the part it belongs to at the Study Table.');
+  }
+  renderNotesLog();
+}
 export function openNotesLog(focusKey){
   state.notesLogView=state.notesLogView||{source:'all',folder:'all',q:'',expanded:null};
   if(!state.notesLogView.folder) state.notesLogView.folder='all';
@@ -2458,6 +2476,20 @@ function notesLogCard(n, v, folders){
        which is the oldest way anyone has ever worked out what they think.
        Offered on every source, because a note is a note; hidden with no AI,
        because a button that cannot answer is worse than no button. */
+    /* CARRY IT. Added 2026-08-07, and it closes a gap I made the same day:
+       the Study Table's tray renders notes you have brought and there was NO
+       WAY TO BRING ONE. A surface that displays something nothing can produce
+       is a dead feature, which is the exact shape this project keeps finding.
+
+       Only for notes that name a book, because that is where a carried note
+       is USEFUL — the table shows it beside the part it belongs to, and a
+       note about nothing in particular would just be luggage. */
+    const held = isCarrying(carryList(), 'note', n.key);
+    const carryBtn = n.slug
+      ? `<button class="btn ghost" style="font-size:11px" onclick="carryNote('${jsq(n.key)}')"
+          title="${held ? 'On the Study Table beside the part it belongs to' : 'Bring it to the Study Table, and to a resident you ask'}"
+          >${held ? '🎒 Carrying' : '🎒 Take with you'}</button>`
+      : '';
     const monkBtn = isAIActive()
       ? `<button class="btn ghost" style="font-size:11px" onclick="talkToMonkAboutNote('${jsq(n.key)}')"
           title="Sit with the Mountain Monk in the Keep and talk this one over">🧘 Talk it over with the Monk</button>`
@@ -2468,6 +2500,7 @@ function notesLogCard(n, v, folders){
           ${inTree
             ? `<button class="btn ghost" style="font-size:11px" onclick="openLessonFromNote('${n.id}')">🌳 It’s in the tree — open it</button>`
             : `<button class="btn ghost" style="font-size:11px" onclick="lessonFromPlanNote('${n.id}','notesLogMsg')" title="Turn this note into a lesson you can tick off and pick up">🌳 Put this in the tree</button>`}
+          ${carryBtn}
           ${monkBtn}
         </div><div class="meta" id="notesLogMsg" style="margin:6px 0 0"></div>`
       /* A BOOK NOTE HAD NOWHERE TO GO. Reported 2026-08-03 from real use:
@@ -2492,6 +2525,7 @@ function notesLogCard(n, v, folders){
             title="Turn this into a lesson you can walk and tick off">🌳 Put this in the tree</button>
           <button class="btn ghost" style="font-size:11px" onclick="bookNoteToDissection('${esc(n.key)}')"
             title="A note is often where an investigation starts">🔬 Dissect this book</button>
+          ${carryBtn}
           ${monkBtn}
         </div><div class="meta" id="notesLogMsg" style="margin:6px 0 0"></div>`
       /* Notes from a conversation, a research project or a grant have no
@@ -4009,7 +4043,12 @@ const TOOLBOX_TITLES = {book:'The book in front of you',
    rule, applied to the tool beside it. */
 function toolTitle(id){
   if(id==='book'){ const b=deskBook(); return b ? b.doc.title : TOOLBOX_TITLES.book; }
-  if(id==='study'){ const b=deskBook(); return b ? 'Working through '+b.doc.title : TOOLBOX_TITLES.study; }
+  /* tableBook(), NOT deskBook(). They were different answers: the table works
+     from the BACKPACK now and deskBook() is only the pocketed book, so with a
+     carried book on the table the heading fell back to the generic title and
+     said nothing. Two notions of "the book on the table" is the drift this
+     whole day has been about — there is one, and study-table.js owns it. */
+  if(id==='study'){ const b=tableBook(); return b ? 'Working through '+b.doc.title : TOOLBOX_TITLES.study; }
   return TOOLBOX_TITLES[id];
 }
 /* The toolbox button for the chat says WHO is at the desk, not a fixed
@@ -4046,6 +4085,12 @@ initResidents({
 });
 initStudyTable({
   deskBook,
+  getDoc: (slug) => { try { return Store.getDoc(slug); } catch(e){ return null; } },
+  pageIn,
+  refreshPanel: () => renderToolPanel(),
+  // A carried note is a REFERENCE. Resolved live from gatherNotes() so an edit
+  // elsewhere reads correctly here, and a deletion simply stops appearing.
+  noteByKey: (key) => { try { return gatherNotes().find(n => n.key === key) || null; } catch(e){ return null; } },
   loadBookText,
   writeBookNote: (slug, text, page) => {
     /* The Reader's own path, so a note written at the table is identical to
@@ -11692,7 +11737,8 @@ Object.assign(window, {
   takePlanting, digUpPlanting, previewBequest, giveBequest, triggerImportBequest,
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
-  markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage, openNeedsChapters,
+  markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage, openNeedsChapters, carryNote,
+  studySetBook,
   shelveRefused, takeUpLater, shelveCarried,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,
   openLessonReading, exportLesson, writeLessonOnThisBook,
