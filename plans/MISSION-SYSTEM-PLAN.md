@@ -3,7 +3,7 @@
 **Status:** Draft for implementation
 **Date:** 2026-08-07 (ranks ordered easiest → hardest: F → E → D → C → B → A → S)
 **Author:** the steward
-**Filed:** 2026-08-07. See `plans/NEW-PLANS-RECONCILED-2026-08-07.md` for what
+**Filed:** 2026-08-07. See `plans/done/NEW-PLANS-RECONCILED-2026-08-07.md` for what
 this already has in the tree and what it would cost.
 
 **Purpose:** Give people (and the steward) real foundations, then a clear path

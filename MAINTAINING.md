@@ -287,7 +287,93 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
-**Where things stand, end of 2026-08-04 (FIFTH session) — READ THIS ONE.**
+**Where things stand, end of 2026-08-07 (SEVENTH session) — READ THIS ONE.**
+Full account in [`archive/dev-log-2026-08-07.txt`](archive/dev-log-2026-08-07.txt),
+sections 14–22. Everything below the horizontal rule further down is the
+*previous* sessions' record: still accurate about the backend, kept because the
+scars in it are load-bearing, but it is **history, not the frontier**.
+
+### THE FOUNDATION PASS IS DONE. The carry model is the spine.
+
+Two days went on one question — *"are there any other things that we fix on one
+end and is still broken on the other?"* — and it had six answers. All six are
+closed:
+
+| was | now |
+|---|---|
+| **two carry systems** (`data.inventory`, `state.readerPocket`) | one: `data.carrying`, `{kind, ref}`, references never copies |
+| `state` declared 10, assigned 55 | a guard; `UNDECLARED_STATE` is a written debt that **may only shrink** (46) |
+| `chatOptsFor` private, unreachable from `lesson-tree.js` | in `ai/provider.js`, exported, guarded |
+| `chapters` + `chapter_scans` **written by nothing** | `syncChapters()` keeps what the reader finds; migration 004 |
+| Your Data said *where*, never *when* | three cards, and the claims are held against the code |
+| a list of unwired queries reading as debt | written down: four should **stay** unwired (rule 7) |
+
+**`data/carrying.js` is the spine now.** One table (`KINDS`) says what can be
+carried and where each kind goes down; `PLACES` is derived from it. The cap is
+20 and counts only what is **in hand** — a *"pick up later"* shelf sits outside
+both the cap and the grounding, because *"what you carry is what a resident can
+see"* has to stay literally true. Adding a kind there makes it work at every
+surface that already accepts it, with nothing else edited.
+
+**`data/lookup.js` is the one road to knowledge.** Every resident reaches the
+Library the same way; the role decides only what it *does* with the result.
+Books and published things may be searched; notes only when **you ask** —
+`asked` is a deliberate press and is never inferred from wording.
+
+### Built on it so far
+
+- **The Study Table's tray** — works from the backpack, two books at once, one
+  press to swap, carried notes beside the part they belong to.
+- **The Computer**: `notes`, `notes <word>`, `carry <n>`, `carry`. Typing is
+  now the fastest way to fill the backpack, and the loop closes — a note found
+  in the terminal is on the table in the other room.
+- **Books not divided yet** — the first panel on the chapter tables. Six at a
+  time, longest first, **no bulk-scan button**: *"one step at a time is fine
+  lets a user feel like he is contributing."*
+
+### The list, in order
+
+1. A resident's **knowledge gap becomes a book request**. The branch exists at
+   `ui/residents.js:107` and fires only for a *title* search.
+2. **Ask a resident to search your notes.** `groundingPlan(q, carrying,
+   {searchMyNotes:true})` exists and **has no caller** — no UI yet.
+3. **Records Hall search** (`recordCounts` would earn its place here).
+4. **Public commentary** — publish a note against a book.
+5. **Password boxes** in the Inheritance Hall — the *real* lock,
+   `crypto.subtle`, PBKDF2 + AES-GCM, no dependency.
+6. **The tutorial**, five stages. A design problem more than a coding one.
+7. **Profile + the steward's inbox** (dev mode is an inbox, not a permission
+   level).
+8. **The Science Room.** The website **last**.
+
+Small things worth closing on the way: `book_health` is a table nothing writes
+(so `v_unshelved`'s health filter is inert); `tags` is a column and a GIN index
+receiving `null`; note-versions in the database would be migration **005**.
+
+### The working format, which earned itself
+
+Pure module first (`npm test` holds it in a second) → **a derived guard, broken
+on purpose** → a live suite that presses the real buttons → **read the .png** →
+follow the loop to the other room → name things so they cannot be read wrong.
+
+Two days produced **seven** cases where the check was the broken thing and
+**four** real bugs found in a screenshot after the assertions passed. One test
+block ran *after* the suite printed its verdict and reported "all clean" twice
+while testing nothing. A guard nobody has broken is a comment.
+
+### No beta cut
+
+beta.5 is **built, verified and unpublished** at the steward's word. The honest
+moment for beta.6 is after the tutorial — the first release where a stranger
+could find their way around. beta.4's `.exe` is still in `release/` and is
+**stale**.
+
+---
+
+*Below is the record from sessions five and six. The backend detail is still
+correct; treat the "next" framing in it as superseded by the list above.*
+
+**Where things stood, end of 2026-08-04 (FIFTH session).**
 Full account in [`archive/dev-log-2026-08-04.txt`](archive/dev-log-2026-08-04.txt).
 
 ### THE PAVILION HAS A BACKEND ON EVERY MACHINE, not just this one

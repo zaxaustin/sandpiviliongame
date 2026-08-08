@@ -3,13 +3,13 @@
 **Status:** Ready for implementation
 **Date:** 2026-08-07
 **Author:** the steward, with outside advice the steward chose to take
-**Filed:** 2026-08-07. See `plans/NEW-PLANS-RECONCILED-2026-08-07.md` for what
+**Filed:** 2026-08-07. See `plans/done/NEW-PLANS-RECONCILED-2026-08-07.md` for what
 of this is already true in the tree — a good deal of Phase A is.
 
 **Depends on / Extends:**
 - `PAVILION-TIERS-AND-COMMONS-SERVER-PLAN.md` — **there is no such document.**
   The three courts were new thinking, not a missing file; they are defined in
-  `plans/NEW-PLANS-RECONCILED-2026-08-07.md` under *"The three courts"*, settled
+  `plans/done/NEW-PLANS-RECONCILED-2026-08-07.md` under *"The three courts"*, settled
   2026-08-07. In short: **Outer** = everyone (all of the Pavilion is here
   today), **Inner** = contributors, **Core** = those on the path, a layman's
   sangha. They describe *people*, while `data/visibility.js`'s

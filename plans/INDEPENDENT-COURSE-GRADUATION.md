@@ -6,7 +6,7 @@
 **Depends on:** Existing Teacher's Tree, Course Board, Academy Tutor, Learning
 Tree plans
 **Used by:** F-rank recognition in `MISSION-SYSTEM-PLAN.md`
-**Filed:** 2026-08-07. See `plans/NEW-PLANS-RECONCILED-2026-08-07.md`.
+**Filed:** 2026-08-07. See `plans/done/NEW-PLANS-RECONCILED-2026-08-07.md`.
 
 The Pavilion's goal is not to control direction. It is to give people (and the
 steward) the foundations to pursue what they want, to create courses on the

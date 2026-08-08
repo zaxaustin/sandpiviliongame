@@ -5,7 +5,7 @@
 **Author:** the steward
 **Depends on:** `MISSION-SYSTEM-PLAN.md`
 **Also used by:** Science Hall personal papers and investigations
-**Filed:** 2026-08-07. See `plans/NEW-PLANS-RECONCILED-2026-08-07.md`.
+**Filed:** 2026-08-07. See `plans/done/NEW-PLANS-RECONCILED-2026-08-07.md`.
 
 Every Mission (and every serious scientific investigation) is a living
 repository. The workspace is the place where plans are extended, books are

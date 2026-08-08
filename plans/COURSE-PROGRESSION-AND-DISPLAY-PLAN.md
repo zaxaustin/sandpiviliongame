@@ -7,7 +7,7 @@
 `THE-TEACHERS-TREE-PLAN.md`, Academy Tutor
 **Supports:** `INDEPENDENT-COURSE-GRADUATION.md`, `MISSION-SYSTEM-PLAN.md`,
 `MISSION-WORKSPACE-PLAN.md`
-**Filed:** 2026-08-07. See `plans/NEW-PLANS-RECONCILED-2026-08-07.md`.
+**Filed:** 2026-08-07. See `plans/done/NEW-PLANS-RECONCILED-2026-08-07.md`.
 
 The current course progression and Learning Tree are functional but not yet
 professional enough for serious independent course creation, long hierarchical

@@ -1,5 +1,16 @@
 # The five new plans, against what is actually in the tree
 
+**CLOSED 2026-08-07 — every finding is acted on or recorded elsewhere.**
+The three courts are settled here and echoed in
+`plans/PRIVACY-AND-WEBSITE-PATHWAY-PLAN.md`; the "Phase 2d was the wrong shape"
+audit now lives in `MAINTAINING.md` where someone will actually meet it; the
+chapter blockage it identified was fixed the same day (migration 004 +
+`syncChapters()`).
+
+Kept because it is the record of a reading-against-the-code pass that found
+things nothing else would have.
+
+
 **Written 2026-08-07**, when the steward filed five plans at once and asked to
 get un-confused about where things stand.
 

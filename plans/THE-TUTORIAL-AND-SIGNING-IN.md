@@ -1,7 +1,7 @@
 # The tutorial, the backpack's ceiling, and signing in
 
 **Status:** Design, agreed 2026-08-07. Not built — queued behind "notes solid".
-**Sits with:** `plans/THE-BACKPACK-AND-THE-TUTORIAL.md` (the carry model)
+**Sits with:** `plans/done/THE-BACKPACK-AND-THE-TUTORIAL.md` (the carry model)
 
 Three decisions from the steward, written down while they are exact. Two of
 them have a wrinkle worth naming before anyone builds them; both are named

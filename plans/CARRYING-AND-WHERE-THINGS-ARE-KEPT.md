@@ -1,7 +1,22 @@
 # Carrying, and where things are kept
 
-**Status:** Plan. Agreed 2026-08-07. Nothing here is built.
-**Replaces the carry sections of:** `plans/THE-BACKPACK-AND-THE-TUTORIAL.md`
+**Status: PARTLY BUILT 2026-08-07.** Updated rather than closed, because the
+back half is still open.
+
+| | |
+|---|---|
+| **BUILT** | `data/carrying.js` (one verb, `KINDS`/`PLACES` derived, cap 20, "pick up later" shelf outside both the cap and the grounding) · `state.readerPocket` retired, page now saved in `data.readingPos` · the Study Table's tray, two books, notes beside their part · the Computer's `notes` / `carry` · `data/lookup.js`, the one road, with notes searched only when ASKED |
+| **STILL OPEN** | §2's Records Hall **search** · §3 password boxes · the resident's knowledge-gap request in §6 |
+
+Suites: `test/live/backpack.mjs`, `study-tray.mjs`, `terminal-carry.mjs`, plus
+the `carrying` and `lookup` blocks in `npm test`.
+
+One correction the building made to §6: the line on notes moved from
+**never** to **not unasked**, at the steward's word — *"lets put functionality
+over privacy the backend should help people."* Never made "what did I write
+about impermanence?" unanswerable, which is a missing feature wearing privacy's
+coat.
+**Replaces the carry sections of:** `plans/done/THE-BACKPACK-AND-THE-TUTORIAL.md`
 (that document's tutorial and dev-mode parts still stand; its dev-mode framing
 is superseded by `THE-TUTORIAL-AND-SIGNING-IN.md`)
 

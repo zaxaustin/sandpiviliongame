@@ -432,3 +432,319 @@ with the bug:
 Two of those four are the same lesson as this morning's title-screen
 screenshot: innerText does not care what is on top of it, or whether the
 thing was ever opened.
+
+
+================================================================
+FOURTH ROUND — the foundation pass, and the first two features
+built on it
+================================================================
+
+The steward: "i just want to have a solid foundation where we dont have
+to redo things so drastically again." Then, on being asked where things
+stood: "are there any other things that we fix on one end and is still
+broken on the other?"
+
+That question turned out to have six answers, and the audit is the whole
+reason the rest of this went as fast as it did.
+
+
+14. A PROJECT YOU SET DOWN IS AN OFFER, NOT A DEBT
+----------------------------------------------------------------
+
+  "the users priority shuold be whats in front of them and there shuold
+   be a way to lookc back and pick up a stagnant project instead of an
+   overdue timer."
+
+Today led with overdue items and counted the days -- "was due 3 days
+ago", first in the list, one row per late thing. On any day with a
+week-old item the panel OPENED with a column of things you had failed to
+do, and the item most likely to build a habit (the thing you were in the
+middle of) was pushed off the end of a five-item cap.
+
+Now: due TODAY leads, because a date you set for today IS what is in
+front of you. Everything older moves down beside "carried for 5 days --
+still want it?", becomes ONE item and never a column, and reads "set
+down 3 days ago -- pick it back up?".
+
+THE REWRITE IMMEDIATELY PROVED ITS OWN POINT. Deleting the (hourglass)
+icon left theDayLine() still keyed on it, so the menu would have gone on
+saying the second-best thing forever with every test green. ICON is
+exported now and a guard checks every icon the door reads is one the
+panel can emit.
+
+Then the guard was broken on purpose AND DID NOT FIRE: the first version
+scanned the source for emoji in a codepoint range, and the hourglass is
+U+23F3, outside it. It would have missed the exact icon that caused the
+bug. Born dead, precisely as rule 3 predicts. It reads the real exported
+values now.
+
+
+15. ONE CARRY VERB, AND A SHELF SO THE CAP IS NOT A WALL
+----------------------------------------------------------------
+
+data/carrying.js. The diagnosis first, because four separate problems
+turned out to be one missing verb: the Study Table could not see the
+reader's book, three rooms each answered a different question with
+nobody having said which was which, the backpack held books and nothing
+else, and handing a thing between rooms needed a button written for that
+exact pair.
+
+THERE WERE ALREADY TWO CARRY SYSTEMS, and both are in the tree:
+
+  data.inventory      many books, in the save,  read by one panel
+  state.readerPocket  ONE book + a page, UI state, read by four things
+
+Different lifetimes, different consumers, no connection. Wiring the
+reader's "mark the chapters yourself" door had required calling
+minimizeReader() first -- POCKETING A BOOK THAT WAS ALREADY OPEN --
+which is the seam leaking into the interface.
+
+The principle that settles the design is the steward's: "we want the
+sand pavilion to be there for the user not do everything they can
+automatically." So carrying is MANUAL and that is the feature. Not a new
+rule either -- the-day.js already says a picked-up path beats an
+inferred one, because "picking one up is you saying so."
+
+THE SHELF. The cap was settled as a hard refusal, and a hard refusal is
+a wall. So: "make sure there is a place to put notes and books that say
+something like pick up later, i dont want people to feel like trhere not
+able to hold somthing just that to focus them in whats in the invitoruy."
+
+One store, a flag -- `later:true` on the same entry, because this
+project had just spent a day removing a second carry system and was not
+adding one back. The shelf is outside the cap AND OUTSIDE THE GROUNDING:
+a note set aside is not something a resident may see. "What you carry is
+what a resident can see" has to stay literally true or it is a slogan.
+
+Broken on purpose, and THE FIRST CAP CHECK DID NOT CATCH IT. It asserted
+on carried() directly, which proves nothing about whether pickUp() uses
+it. The real shape is 19 in hand plus 5 on the shelf must still accept a
+20th.
+
+
+16. ONE ROAD TO KNOWLEDGE, AND A LINE THAT MOVED
+----------------------------------------------------------------
+
+  "the lookup for ai can be the library database how they handle that
+   data should depend on there role so we can leave the pathway to
+   knolege the same for all ai plugins."
+
+data/lookup.js. The stopword list and term extraction were private to
+residents.js, so a new plugin either re-implemented "how do I find a
+book" or went without.
+
+The line, first version: books may be searched, notes may NEVER be. In
+code rather than in a prompt, because a prompt is a request and a
+function is a boundary.
+
+THEN THE STEWARD NARROWED IT, and was right:
+
+  "lets put functionality over privacy the backend should help people"
+
+Never was too strong. It made "Quill, what did I write about
+impermanence?" unanswerable -- one of the most useful things a resident
+could do with a local index that already stems. Refusing that is not
+privacy, it is a missing feature wearing privacy's coat.
+
+So the line moved from WHO to WHY. Asked: yes. Unasked: no. `asked` is
+NEVER inferred from the wording -- a question that merely mentions notes
+is not permission, and guessing would put the boundary back inside the
+model's judgement, which is the one place it must not live.
+
+Worth recording that most of the privacy work cost NOTHING in
+functionality: zero-network is the product, DATA_MAP is documentation,
+and "the backpack is the grounding" is what PREVENTS the uncapped-prompt
+bug. Exactly one rule was costing a feature, and it was found by asking.
+
+
+17. THE MONK STEPS OFF THE SPECIAL PATH
+----------------------------------------------------------------
+
+  "lets not treat the monk differently for now hav him focus on guidens"
+
+He used to get the largest installed local model plus a deep
+token/timeout tier. Retired. Guidance is carried by who he is and what
+he is grounded in, not by how long he is allowed to think -- and on this
+machine a bigger model buys slower counsel, not better, since cooling is
+the limit.
+
+WHAT DID NOT CHANGE: he is still LOCAL-ONLY, by the cloud guard in the
+transport layer. The privacy reason was never the same as the depth
+reason and losing one must not quietly lose the other. His `pace` stays
+too; speaking at the rate a person would talk is character.
+
+This reverses a standing decision, so it is on the record in three
+places rather than edited out of one: the seam, CLAUDE.md, and the
+memory that held the old rule.
+
+
+18. THE FOUNDATION PASS, SIX STEPS
+----------------------------------------------------------------
+
+  1. `state` declares TEN fields and the code assigns FIFTY-FIVE. The
+     other forty-seven were invented at the point of use -- exactly how
+     data.bookMarks and data.study got in. Declaring them all is a
+     separate pass; what this stops is a FORTY-EIGHTH appearing quietly.
+     UNDECLARED_STATE is a debt written down, and it MAY ONLY SHRINK.
+     Broken three ways: a new field, a stale entry, and one both
+     declared and listed -- that third check is what makes it one-way.
+
+  2. state.readerPocket retired. It did two unrelated jobs badly: a
+     second record of which book you hold, and the only record of where
+     you had got to -- which, being session state, was thrown away every
+     time you closed. Split into data.readingPos (SAVED) and
+     state.pocketSlug (not, correctly). THE DEBT LIST SHRANK 47 -> 46,
+     and pocketSlug was DECLARED rather than added to it, which is the
+     difference between paying a debt and rolling it over.
+
+  3. chatOptsFor moved to ai/provider.js and guarded. It was private to
+     overlays.js; three call sites remembered to pass it and
+     lesson-tree.js COULD NOT REACH IT AT ALL. A rule enforced by "three
+     files remember" is not enforced.
+
+  4. Chapters kept -- see 19 below.
+
+  5. Your Data says WHEN, not only where. Three cards: kept the instant
+     it changes / not kept and deliberately / and if a save fails you
+     are told. THE CLAIMS ARE HELD AGAINST THE CODE: persist() exists,
+     it still warns, readingPos is a declared store, and no Save button
+     exists to make "there is nothing to press" a lie.
+
+  6. Which named queries are deliberately unwired, written down, so the
+     list stops reading as debt. Four SHOULD stay unwired under rule 7.
+
+Also recorded: book_health is a table nothing writes, and v_unshelved
+joins it, so that filter is inert. Honest to say rather than leave
+looking load-bearing.
+
+
+19. THE READER STOPS THROWING AWAY WHAT IT FOUND
+----------------------------------------------------------------
+
+`chapters` and `chapter_scans` were in the schema from the start, with
+views and named queries on top, and NOTHING IN THE APP EVER WROTE TO
+EITHER. The only writer was tools/load-library.mjs -- the MinIO loader,
+which needs Docker, a manual run and this one machine. Meanwhile
+findChapters() ran on every book you opened and the answer was discarded
+on close.
+
+The split between the three new writes is the point:
+clearDetectedChapters NEVER touches source='hand', and
+addDetectedChapter is ON CONFLICT DO NOTHING for the same reason.
+recordChapterScan writes a row EVEN WHEN NOTHING WAS FOUND -- that row
+is the only thing separating "this book has no chapters" from "nobody
+has opened it".
+
+TWO REAL FINDINGS, both from the container refusing:
+
+  a. CREATE OR REPLACE VIEW cannot change a view's shape. A migration
+     that reshapes a view MUST DROP IT FIRST.
+  b. And dropping in the migration is not enough. applySchema() runs
+     schema.sql FIRST and then every migration, on EVERY open -- so
+     schema.sql kept recreating the old five-column view and then
+     failing to replace the new one, BEFORE the migration that fixes it
+     ever ran. THE BASE SCHEMA HAS TO BE THE CURRENT TRUTH.
+
+Caught by status().schemaError, which exists because a database that
+answers while behind on its schema is the failure most easily mistaken
+for health. Measured 31/31 on the container, then 31/31 again --
+genuinely idempotent, not idempotent-looking.
+
+Coverage on the steward's own library: 296 scanned, 194 divided. So 102
+real books have no chapters the finder could see -- a number that was
+unobtainable that morning.
+
+
+20. TWO FEATURES ON THE NEW GROUND
+----------------------------------------------------------------
+
+THE STUDY TABLE'S TRAY. The table worked on exactly one book -- whichever
+you had pocketed -- so a second book beside it was impossible. The tray
+IS the backpack, filtered by canAccept(), with no third state and no
+separate "put down" step, because that is the point of one carry verb.
+Notes you carried sit beside the part they belong to.
+
+I BUILT A SURFACE THAT RENDERED SOMETHING NOTHING COULD PRODUCE: the
+tray showed carried notes and there was NO WAY TO CARRY A NOTE. The
+exact dead-feature shape this project keeps finding, authored the same
+hour by the person finding them.
+
+THREE BUGS, ALL ONE THING NAMED TWO WAYS: toolTitle asked deskBook()
+while the table asked tableBook(); tableBook() then returned TWO SHAPES
+so the heading read "Working through undefined"; and the tray item's
+field was called `doc` when it held the WRAPPER, so chips said
+"personal-first-book" beside a heading saying "The First Book". None
+found by reading. All three from the screenshot or the suite.
+
+THE TERMINAL. `notes`, `notes <word>`, `carry <number>`, `carry`. The
+Computer was already an index over everything on this machine and notes
+were the one thing it could not list. state.termLast had to grow a KIND
+-- it held bare slugs and a numbered row can now be a note.
+
+Two findings from FOLLOWING THE LOOP TO THE OTHER ROOM rather than
+stopping when the command said it worked: carrying a note but not its
+book landed on "nothing on the table yet" (true, useless -- the book is
+named in the note you are holding), and the message fixing that read
+"carrying a note about -- bring the book too", with the title missing
+from the middle of its own sentence.
+
+
+21. MY OWN MISTAKES, WHICH ARE THE POINT OF KEEPING THIS
+----------------------------------------------------------------
+
+A log of successes teaches nothing. Today's:
+
+  * A TEST BLOCK THAT NEVER RAN. smoke.mjs prints its verdict and exits;
+    the whole carrying block was appended AFTER that, so its failures
+    went into a list nobody reads. It reported "all checks clean" TWICE.
+    Only found by deliberately breaking PLACES and watching the suite
+    pass anyway. Two guards that day were born dead; this one was born
+    INVISIBLE, which is worse -- a dead guard fails to catch a bug, an
+    invisible one also certifies there is none. There is a guard for it
+    now.
+
+  * `git checkout <path>` TO UNDO A DELIBERATE BREAK ATE UNCOMMITTED
+    WORK. TWICE. Both times the suite caught it. Copy-and-restore, never
+    checkout.
+
+  * An assertion that read `open` inside a page context -- which is
+    window.open, a function, therefore always truthy. It verified
+    nothing at all until it was named.
+
+  * A regex with a LITERAL BACKSPACE BYTE in it (python's \b in a
+    heredoc), so an assertion failed while the pages it looked for were
+    on screen. The Read tool renders that byte away, so the line looked
+    correct. Three detours today came from building test strings through
+    python heredocs.
+
+  * Test fixtures that broke rule 1 twice: a migration test using only
+    SEED slugs (one of two resolution paths), and a one-page book whose
+    unbroken text made paginate() return a single page -- so four
+    "hand marks never reach the reader" failures were a guard correctly
+    rejecting marks past the end.
+
+  * An assertion checking for the WORD "lost" that failed the correct
+    wording, "nothing is lost".
+
+SEVEN TIMES the check was the broken thing, and FOUR real bugs came from
+reading the .png after the assertions passed. That is the strongest
+signal of the whole session: my assertions test what I expect the code
+to do; the screenshot tests what is on the screen.
+
+
+22. WHERE THIS LEAVES IT
+----------------------------------------------------------------
+
+The foundation pass is done. One carry verb, one road to knowledge, one
+notion of the book on the table, guards on both kinds of undeclared
+store, and chapters that persist.
+
+Left, in the steward's order: a resident's knowledge gap becoming a book
+request; asking a resident to search your own notes (the `asked` path
+exists in lookup.js with NO CALLER yet); Records Hall search; public
+commentary; password boxes; the tutorial; the profile and inbox; the
+Science Room. The website last.
+
+No beta cut. beta.5 is built and unpublished at the steward's word, and
+the honest moment for beta.6 is after the tutorial -- the first release
+where a stranger could find their way around.

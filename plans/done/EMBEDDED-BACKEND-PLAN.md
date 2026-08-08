@@ -1,5 +1,17 @@
 # A database everyone gets — Postgres inside the app, Docker when it's there
 
+**CLOSED 2026-08-07 — BUILT, MEASURED, SHIPPED.** Phase 0 came back GO at
+19/19; `electron/db.cjs` picks Docker when the container answers and its own
+PGlite otherwise, below the named-query seam, and `applySchema()` runs
+`schema.sql` + every migration on BOTH homes on every open. Shipped in
+0.1.0-beta.5. Guarded by `test/live/records.cjs` and `note-search.cjs` (fresh
+embedded) and `test/live/docker-home.cjs` (the container, 31/31).
+
+The one thing this plan got wrong is worth keeping: it recommended waiting
+until after the beta. That was overridden, and the reversal was right — PGlite
+is what makes "runs with nothing" and "has a backend" the same sentence.
+
+
 **Written 2026-08-04, for review. Nothing here is built.**
 
 From the steward:

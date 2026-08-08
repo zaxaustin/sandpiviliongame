@@ -1,5 +1,16 @@
 # One way to carry things, one way to learn them
 
+**CLOSED 2026-08-07 — SUPERSEDED, and both halves went somewhere better.**
+The carry model is `plans/CARRYING-AND-WHERE-THINGS-ARE-KEPT.md` (built: one
+`data.carrying`, a "pick up later" shelf, the Study Table's tray, the
+terminal's `carry`). The tutorial and dev-mode halves are
+`plans/THE-TUTORIAL-AND-SIGNING-IN.md`, where dev mode is re-framed as an
+INBOX rather than a permission level — a better idea than this file's.
+
+Kept for the diagnosis, which was the useful part: four separate features were
+one missing verb.
+
+
 **Status:** Design, agreed 2026-08-07. Not built.
 **Comes from:** the steward, after the first real session of reading a book
 with notes open beside it — *"it was magic it made the sand pavilion really be

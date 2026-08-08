@@ -30,7 +30,7 @@
    pays for it.
 
    ----------------------------------------------------------------
-   TWO HOMES, ONE DATABASE (2026-08-04, plans/EMBEDDED-BACKEND-PLAN.md)
+   TWO HOMES, ONE DATABASE (2026-08-04, plans/done/EMBEDDED-BACKEND-PLAN.md)
 
      Docker Postgres answering?  --yes-->  pg Pool          (this machine)
                |
