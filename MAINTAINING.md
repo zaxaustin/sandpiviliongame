@@ -383,20 +383,29 @@ two Grounds, earlier the same day).
 
 > ## ⚠ READ BEFORE SCOPING ANYTHING
 >
-> **1 · Two promises the code stopped keeping on 2026-08-07.** When the Monk's
-> model tier was retired, `chatOptsFor()` was emptied to `return {}` — and
-> **local-only** and **`think:true`** went with it, unnoticed, while the docs
-> kept promising both for three days.
+> **1 · Two promises the code stopped keeping on 2026-08-07 — BOTH NOW CLOSED.**
+> When the Monk's model tier was retired, `chatOptsFor()` was emptied to
+> `return {}` — and **local-only** and **`think:true`** went with it, unnoticed,
+> while the docs kept promising both for three days.
 >
 > - **Local-only: RESOLVED 2026-08-10 — dropped on purpose.** *"the monk can be
 >   cloud if there computer cant run local ai."* Every resident uses the one
 >   detected connection; 🏠/☁ labelling in the **chat header** carries it now.
-> - **`think:true`: STILL OPEN.** No caller anywhere in `src/`, `tools/`,
->   `electron/` or `test/`, so the `💭` reasoning panel can never fill — while
->   `PROTOCOLS.md` used to tell people to install a thinking model to watch it
->   think. Decide **(a)** turn it back on for some tier, or **(b)** drop the
->   feature and say so. It is one option object either way.
->   See [`docs/DOCS-DRIFT.md`](docs/DOCS-DRIFT.md).
+> - **`think:true`: RESOLVED 2026-08-10 — turned back on, off by default.** A
+>   visitor switch (`data.settings.showThinking`) in the data panel; `chatOptsFor()`
+>   returns `{think:true, deep:true}`, which gives the retired `deep` tier a
+>   caller again. **The finding was itself half wrong** and the correction is
+>   worth carrying: "the 💭 panel can never fill" was inference, not measurement
+>   — `deepseek-r1` reasons unasked and had been filling it all along. Measured
+>   properly, the switch also turned up a real bug: `think:true` on a model
+>   without the capability is **HTTP 400**, so `canThink()` now filters it from
+>   what Ollama reports. See [`docs/DOCS-DRIFT.md`](docs/DOCS-DRIFT.md).
+>
+> **The lesson generalises**, and it is the one to carry into the next audit:
+> *"nothing sets this flag"* and *"this feature never happens"* are different
+> claims. The first was checkable by grep and true; the second needed a model
+> and was false. **Grep proves the absence of a caller, never the absence of a
+> behaviour.**
 >
 > **2 · If the backend feels twisted, read
 > [`docs/THE-BACKEND.md`](docs/THE-BACKEND.md) first.** It is the map, measured
@@ -411,16 +420,34 @@ two Grounds, earlier the same day).
 
 ### The next session, in order
 
-1. **Decide `think:true`** (the one still open above). Small, and it unblocks
-   any further prompt work.
-2. **Backend knot A, then B** — [`plans/THE-BACKEND-UNTANGLE.md`](plans/THE-BACKEND-UNTANGLE.md).
-   A (one read path instead of two) makes B (a real `minioRead` on the bridge) a
-   one-line change. Stopping after A is a complete session.
+**The grounding chain is mid-build.** Parts 1–3 landed on 2026-08-10 (Docker
+demoted, the three courts written down, the grounding path streamlined). 4, 5
+and 6 are the rest of the same chain and are meant to go in that order.
+
+1. **Declarative per-role grounding** — a `grounding: [...]` field in
+   `data/roles.js`, and `pathwayBlock()` composes only what a role declares.
+   Guard in both directions: every role declares one, and every kind named is
+   one the composer knows. **This must precede retrieval** — once passages make
+   the carried-books block expensive, "everyone gets every block" stops being
+   free, and the Computer has no use for a page of *Walden*.
+   **Measure the prompt budgets after it: they should FALL. If nothing falls,
+   the declaration is not being consulted and the whole part is inert.**
+2. **Retrieval reaches the residents** — `searchPages()`/`passagesBlock()` are
+   built and tested with exactly one caller (the Science Hall), so a carried
+   book still cannot be quoted from. **The cap goes in on the first commit**,
+   not as a follow-up, and **the page cache is required, not a nicety**:
+   tokenising a 563 KB book per message is real heat on a machine whose limit
+   is cooling. Plan at the end of
+   [`plans/AI-INTEGRATION-NOTES.md`](plans/AI-INTEGRATION-NOTES.md).
+   **Measure again: the residents who opted in should RISE, against the cap.**
 3. **The resident reach gap** — [`plans/RESIDENT-REACH-PLAN.md`](plans/RESIDENT-REACH-PLAN.md),
    fully designed and not built. *"i dont have acces to this can you please put
-   the book in your back pack."*
-4. **Retrieval reaches the residents** — the plan is at the end of
-   [`plans/AI-INTEGRATION-NOTES.md`](plans/AI-INTEGRATION-NOTES.md).
+   the book in your back pack."* Mostly assembly now: `d.shelfLookup` is already
+   stashed and `shelfLookupReceipt()` already renders — it grows a 🎒 button per
+   uncarried hit onto what is there.
+4. **Backend knot A, then B** — [`plans/THE-BACKEND-UNTANGLE.md`](plans/THE-BACKEND-UNTANGLE.md).
+   A (one read path instead of two) makes B (a real `minioRead` on the bridge) a
+   one-line change. Stopping after A is a complete session.
 5. **`ui/computer.js`** — the first commit of
    [`plans/OVERLAYS-SPLIT-PLAN.md`](plans/OVERLAYS-SPLIT-PLAN.md), whose order is
    now derived from `data/places.js` rather than hand-listed. **One region per

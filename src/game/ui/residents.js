@@ -32,7 +32,11 @@ import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { rosterBlock, stanceBlock, ROLES } from '../data/roles.js';
 import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { referenceBlock } from '../data/reference.js';
-import { lookupTerms, privacyLeaks } from '../data/lookup.js';
+/* groundingPlan() DECIDES, this file PERFORMS. Not lookupTerms() directly any
+   more: extracting the terms here and searching on them was performing a plan
+   without ever asking for one, which is how lookup.js came to describe a
+   boundary nobody consulted. See shelfLookup() below. */
+import { groundingPlan, privacyLeaks } from '../data/lookup.js';
 import { groundingFor, fitToBudget, KINDS } from '../data/carrying.js';
 import { mayReachNote } from '../data/note-reach.js';
 /* The SAME estimator the request itself uses. A grounding block bounded by its
@@ -120,18 +124,68 @@ function lastAskOf(agent){
 
    The line lookup.js draws, and this function honours: BOOKS ARE LOOKED UP,
    NOTES ARE CARRIED. Nothing below searches a note, ever. */
-async function libraryLookupBlock(question){
+/* ================================================================
+   THE LOOKUP ITSELF — the plan, then the performance, ONCE a turn.
+
+   Two things were wrong here until 2026-08-10, and they are the same
+   thing at different scales.
+
+   1 · groundingPlan() HAD NO CALLER. data/lookup.js says of it: "the
+       caller then performs exactly this and nothing else — which means
+       the boundary is checkable without a database." Nobody performed
+       it. This function extracted its own terms and searched on them,
+       which happened to agree with the plan and was free to stop
+       agreeing at any time. That is the THIRD instance of this exact
+       shape in one file's blast radius, after groundingFor() and
+       chatOptsFor(): written, tested, documented, called by nobody. A
+       boundary around a door nobody opened is not a boundary.
+
+   2 · IT RAN TWICE A MESSAGE. Quill and the Monk each call
+       libraryLookupBlock() once in their own systemPrompt() and again
+       inside pathwayBlock() — up to EIGHT database round-trips where
+       four would do. Harmless in effect (both got the same rows) and
+       pure waste, on a machine whose real limit is cooling.
+
+   So: one plan, one search, stashed on state.dialog for the turn. The
+   memo key is the question AND how many messages deep the conversation
+   is, so it cannot survive into the next turn and cannot go stale
+   against a book shelved between two asks.
+
+   Returns null with no database — never a quieter search wearing the
+   same label — and the callers use that to choose between "you look
+   things up" and the pasted catalogue brief, exactly as before. */
+async function shelfLookup(question){
   if(!(Store.dbAvailable && Store.dbAvailable())) return null;
   const q=String(question||'').trim();
-  if(!q) return '';
-  const terms=lookupTerms(q);
-  if(!terms.length) return '';
-  const seen=new Map();
-  for(const t of terms){
-    const rows=await Store.dbQuery('searchBooks',[t,8]);
-    for(const r of (rows||[])) if(!seen.has(r.slug)) seen.set(r.slug,r);
+  const d=state.dialog;
+  const turn=(d && Array.isArray(d.history)) ? d.history.length : -1;
+  if(d && d.shelfLookup && d.shelfLookup.q===q && d.shelfLookup.turn===turn) return d.shelfLookup;
+  /* WHAT THIS QUESTION IS ALLOWED TO REACH FOR. The notes half is not asked
+     about here — notesLookupBlock() performs that half of the same plan, and
+     `searchMyNotes` is a button press rather than anything this function may
+     decide for itself. */
+  const plan=groundingPlan(q, carryList(), { noteReach:(data&&data.noteReach)||{} });
+  const res={ q, turn, terms:plan.terms, hits:[], searched:plan.search.includes('book') };
+  if(res.searched){
+    const seen=new Map();
+    for(const t of plan.terms){
+      const rows=await Store.dbQuery('searchBooks',[t,8]);
+      for(const r of (rows||[])) if(!seen.has(r.slug)) seen.set(r.slug,r);
+    }
+    res.hits=[...seen.values()].slice(0,12);
   }
-  const hits=[...seen.values()].slice(0,12);
+  /* THE STASH, so the receipt can say what was looked up. Same shape the notes
+     search already proved (d.noteSearch → noteSearchReceipt): a search whose
+     only evidence is a better answer is indistinguishable from a resident
+     making something up. */
+  if(d) d.shelfLookup=res;
+  return res;
+}
+async function libraryLookupBlock(question){
+  const res=await shelfLookup(question);
+  if(res===null) return null;          // no database — the caller says so
+  if(!res.searched) return '';         // nothing in the question to search on
+  const terms=res.terms, hits=res.hits;
   if(!hits.length){
     /* TWO DIFFERENT THINGS, AND THE FIRST VERSION CONFLATED THEM — found
        2026-08-08 by pointing deepseek-r1:8b at this prompt and reading its

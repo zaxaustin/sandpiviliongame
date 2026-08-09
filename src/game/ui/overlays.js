@@ -38,7 +38,7 @@ import { initDailyTasks, openDailyTasks, takeDailyTask, toggleDailyTaskStep,
 /* The one road to knowledge — the same term extraction every resident uses to
    search the shelves, now used to search your notes too. Two ways of turning a
    question into a query is the drift this project keeps paying for. */
-import { lookupTerms } from '../data/lookup.js';
+import { groundingPlan } from '../data/lookup.js';
 import { placesByScene } from '../data/places.js';
 import { storageBadge, storageOf, storageSummary, localRoom, nextDestination,
          STORAGE_STATES, DEFAULT_LOCAL_BOOK_CAP, LOCAL_CAP_MIN, LOCAL_CAP_MAX,
@@ -46,7 +46,7 @@ import { storageBadge, storageOf, storageSummary, localRoom, nextDestination,
 import { scenes } from '../scenes.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
-import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, isLocalConn, chatOptsFor } from '../ai/provider.js';
+import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, isLocalConn, chatOptsFor, initProviderSettings } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
@@ -271,8 +271,12 @@ export function openChatDialog(npc){
     transcript:[{from:'npc',text:npc.lines[0]}], // {from,text} — what's actually shown
     /* Declared rather than invented at the point of use. `askNotes` is one
        message's permission (see sendChatMessage) and `noteSearch` is the
-       receipt shown for what that permission actually reached. */
-    askNotes:false, noteSearch:null,
+       receipt shown for what that permission actually reached. `shelfLookup`
+       is the same pattern for the Library half — set by shelfLookup() in
+       residents.js, read by shelfLookupReceipt() below, and it doubles as the
+       once-a-turn memo that stopped four residents making eight database
+       round-trips for four questions. */
+    askNotes:false, noteSearch:null, shelfLookup:null,
   };
   document.getElementById('chatOv').classList.add('open');
   renderChatView(); blip(740,.06,'square',.03);
@@ -505,7 +509,7 @@ function renderChatQuickActions(d){
      including what was refused — rule 3 of the lookup design. A search whose
      only evidence is a better answer is indistinguishable from a resident
      making something up. */
-  html = groundedInLine(d) + noteSearchReceipt(d) + html;
+  html = groundedInLine(d) + shelfLookupReceipt(d) + noteSearchReceipt(d) + html;
   el.innerHTML=html;
   el.style.display=html?'block':'none';
   updateAskNotesBtn();
@@ -577,6 +581,38 @@ function groundedInLine(d){
     ${bits.join(' · ')}${g.sealed?' · <b>'+g.sealed+' sealed, not read</b>':''}.
     <button class="btn ghost" style="font-size:10.5px;padding:2px 8px;margin-left:4px"
       onclick="openInventory()" title="Open your backpack">🎒</button></div>`;
+}
+/* ----- WHAT THE SHELVES WERE ACTUALLY ASKED -----
+
+   The third receipt, and the one the pathway had been running silently since
+   2026-08-08. Every resident searches the Library on every message; until now
+   the only evidence was the answer, which is exactly the case the notes receipt
+   already exists to refuse — "a search whose only evidence is a better answer is
+   indistinguishable from a resident making something up."
+
+   Deterministic and free (rule 7): the application knows what it queried and
+   what came back, so it says so rather than asking the model to.
+
+   Deliberately one plain line for now. plans/RESIDENT-REACH-PLAN.md grows the
+   next part onto this stash — a 🎒 button per hit you are NOT carrying, so a
+   found book stops being a dead end. */
+function shelfLookupReceipt(d){
+  const r=d && d.shelfLookup; if(!r || !r.searched) return '';
+  const asked=r.terms.map(t=>'“'+esc(t)+'”').join(', ');
+  /* NAMED, NOT COUNTED — read off the screenshot on 2026-08-10. "2 found" is a
+     number you cannot do anything with, sitting in a project whose standing
+     rule is that nothing may be a dead end. The titles are already in the
+     stash; printing them costs nothing and turns the receipt into something a
+     person can act on. Capped and the remainder named, like every other list
+     here. (The 🎒 button per uncarried hit is RESIDENT-REACH-PLAN.md's job.) */
+  const NAME_CAP=3;
+  const names=r.hits.slice(0,NAME_CAP).map(h=>'“'+esc(String(h.title||h.slug))+'”').join(', ');
+  const rest=r.hits.length-NAME_CAP;
+  return `<div class="meta" style="border-left:2px solid #8a7fb0;padding-left:8px;margin:0 0 8px">
+      📚 Searched the shelves for ${asked} — <b>${r.hits.length}</b> found${
+        r.hits.length ? ': '+names+(rest>0?`, and ${rest} more`:'') : ''}.
+      ${r.hits.length ? '' : 'Nothing on these shelves matches, which is a real answer about this library — not about the subject.'}
+    </div>`;
 }
 function noteSearchReceipt(d){
   const r=d && d.noteSearch; if(!r) return '';
@@ -2011,6 +2047,17 @@ function renderDataPanel(){
     <div class="meta" style="margin:-4px 0 0">Off by default. The 👁 marks in your backpack are always
       there; this adds the bar and the numbers, which are useful when you are tuning a local model and
       noise when you are not.</div>
+    <label class="meta" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:10px 0">
+      <input type="checkbox" ${(data.settings&&data.settings.showThinking)?'checked':''} onchange="toggleShowThinking()">
+      Let the model show its reasoning, and show it to me
+    </label>
+    <div class="meta" style="margin:-4px 0 0">Off by default, and it costs something real: a reasoning
+      model is asked to think out loud first, and that is <b>much</b> slower — the same question to a
+      9B model here took <b>1 second with this off and 107 with it on</b>. It also gets a far bigger
+      budget, because a model told to reason on a short one can spend the whole thing thinking and
+      answer nothing. Leave it off for ordinary use; switch it on when an answer looks wrong and you
+      want to see where it went wrong.
+      ${thinkingCapabilityLine()}</div>
 
     <h3 style="margin-top:16px">What can leave this machine, and what never does</h3>
     <div class="meta">The honest accounting, store by store. The rule underneath all of it:
@@ -3170,7 +3217,19 @@ function askTheIndex(q){
 /* ----- ASK A RESIDENT TO SEARCH YOUR NOTES -----
 
    groundingPlan(q, carrying, {searchMyNotes:true}) was written, tested and
-   documented on 2026-08-07 and had NO CALLER. This is it.
+   documented on 2026-08-07 and had NO CALLER.
+
+   ⚠ AND THIS COMMENT SAID "THIS IS IT" FOR TWO DAYS WHILE THE BODY BELOW
+   RE-IMPLEMENTED THE DECISION BY HAND — corrected 2026-08-10. It called
+   lookupTerms() itself and searched notes because a boolean parameter said the
+   visitor had asked; the plan was never consulted, so lookup.js's claim that
+   "the caller performs exactly this and nothing else" was true of nothing. A
+   comment is not a call site, and this file has now supplied the counterexample
+   twice (see also groundingFor, chatOptsFor).
+
+   Fixed the only way that stays fixed: the plan is asked, and if it does not
+   return `note` in `search`, NOTHING IS SEARCHED. Change lookup.js and this
+   feature changes with it, whether or not anybody remembers this function.
 
    Everything that makes it legitimate happens here rather than in a prompt:
    the visitor pressed a button (sendChatMessage's `opts.searchMyNotes`), the
@@ -3194,10 +3253,17 @@ async function searchMyNotesFor(q){
      every question a person would actually type. Measured: "walking" → 2
      rows, the whole question → 0.
 
-     lookupTerms() is the shared extractor that already exists for exactly
-     this, and libraryLookupBlock has always used it. Joining with OR asks
-     the question a person means: "notes about any of these". */
-  const terms=lookupTerms(q);
+     groundingPlan() is where the terms now come from — it uses the same shared
+     lookupTerms() extractor libraryLookupBlock reaches through, so both halves
+     of the pathway still search the identical thing. Joining with OR asks the
+     question a person means: "notes about any of these". */
+  const plan=groundingPlan(q, carryList(), { searchMyNotes:true, noteReach:(data&&data.noteReach)||{} });
+  /* THE PLAN IS THE PERMISSION. Not `searchMyNotes:true` on its own — that is
+     what was asked for, and this is what lookup.js allows in return. Break this
+     on purpose by making groundingPlan drop 'note' from `search`: the button
+     goes quiet, which is the whole point of the boundary living in one file. */
+  if(!plan.search.includes('note')) return null;
+  const terms=plan.terms;
   if(!terms.length) return null;
   const term=terms.join(' OR ');
   // the index is only as fresh as the last sync, and a note written a moment
@@ -4872,6 +4938,12 @@ initLessonTree({
   publishFrom, commonsStore, cleanAnswer, visBadge, openNotesLog,
   refreshNoteEditors, setHud,
 });
+/* THE ONE WIRE for anything in the transport layer that a VISITOR gets to
+   decide. provider.js imports nothing on purpose, so the setting is read
+   through here rather than imported over there. One call, beside the other
+   init() seams — a second would be a hand-maintained list that must match
+   another file, and every one of those in this project has drifted. */
+initProviderSettings(() => (data && data.settings) || {});
 initResidents({
   agentMemory, personalBooks, allNodes, lessonDone, lessonCompletedCount,
   currentStudy, nextStepOf, eventsOn, hallShelfSummary, investigationsForPrompt,
@@ -5255,6 +5327,32 @@ export function toggleContextMeter(){
   persist();
   if(state.ui==='dataPanel') openDataPanel();
   else if(state.ui==='inventory') openInventory();
+}
+/* WHETHER THE MODEL YOU ACTUALLY HAVE CAN DO THIS — said here rather than
+   discovered by switching it on and getting nothing. Not every model reasons,
+   and asking one that cannot used to be an HTTP 400 reported to the visitor as
+   "your local AI didn't answer" (measured on llama3.2, 2026-08-10). The
+   transport now filters the request; this is the same fact said out loud, so a
+   switch that does nothing explains itself instead of looking broken. */
+function thinkingCapabilityLine(){
+  if(!isAIActive()) return 'Nothing is connected right now, so there is nothing to ask.';
+  const can = !!(AI.canThink && AI.canThink());
+  const model = esc(AI.model || 'the connected model');
+  if(can) return `<b>${model}</b> can reason, so this switch will do something.`;
+  const others = (AI.thinkingModels||[]).filter(m=>m!==AI.model).slice(0,3);
+  return `<b>${model}</b> does not reason, so this switch will change nothing for it — the Pavilion `
+    + `will not ask it to, because being asked is an error rather than something it can ignore.`
+    + (others.length ? ` Models here that can: ${others.map(m=>esc(m)).join(', ')}.` : '');
+}
+/* WATCH THE MODEL THINK. Off by default and read straight out of settings by
+   chatOptsFor(), so this function does nothing but flip the flag — there is no
+   second place that has to be told, which is the whole reason the setting is
+   injected rather than pushed. See the long note in ai/provider.js. */
+export function toggleShowThinking(){
+  if(!data.settings) data.settings={};
+  data.settings.showThinking=!data.settings.showThinking;
+  persist();
+  if(state.ui==='dataPanel') openDataPanel();
 }
 // the one place "planning today" and the quiet due-date badge actually
 // meet — still nothing that pops up on its own, just here if you came to
@@ -13045,7 +13143,8 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage, openNeedsChapters, carryNote,
-  toggleNoteSeal, setDownCarried, toggleContextMeter, sendCurrentChatMessageWithNotes, previewPrompt,
+  toggleNoteSeal, setDownCarried, toggleContextMeter, toggleShowThinking,
+  sendCurrentChatMessageWithNotes, previewPrompt,
   openDailyTasks, takeDailyTask, toggleDailyTaskStep, dailyTaskGo,
   finishDailyTask, setDownDailyTask, retakeDailyTask, dailyTaskWhereChanged,
   studySetBook, studyCarryBook, renderStudyTable,

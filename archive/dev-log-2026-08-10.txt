@@ -1065,3 +1065,202 @@ Two conclusions written into that file:
 VERIFIED THIS PART: npm test green; build:beta clean and beta-verified;
 real Chrome against :4173 with pageerror attached, screenshots read;
 node --check on provider.js, overlays.js, machine-advice.js.
+
+
+================================================================
+PART EIGHT - THE GROUNDING PATH, STREAMLINED (plan Part 3)
+================================================================
+
+Steward: "very good lets keep going with the plan, i feel we are over
+the hill and into greener pastures now! that broke alot less than
+adding 2 databeses lol."
+
+Four things, one commit. Three were repairs to the same shape.
+
+
+1 - groundingPlan() FINALLY HAS A CALLER
+----------------------------------------
+It was written, tested and documented on 2026-08-07 and called by
+NOBODY. data/lookup.js says of it: "the caller then performs exactly
+this and nothing else - which means the boundary is checkable without a
+database." Its only appearance in src/ was inside a COMMENT above
+searchMyNotesFor() reading "...had NO CALLER. This is it." - above a
+body that then re-implemented the decision by hand with lookupTerms().
+
+THIRD INSTANCE OF THE SHAPE in one blast radius, after groundingFor()
+and chatOptsFor(). A comment is not a call site, and this file supplied
+its own counterexample.
+
+Now: shelfLookup() asks the plan and searches books only if
+plan.search contains 'book'; searchMyNotesFor() returns null unless it
+contains 'note'. So searchMyNotes:true is the REQUEST and plan.search
+is the ANSWER, and only the answer is a boundary. Change lookup.js and
+both halves change with it, whether or not anyone remembers these two
+functions. Neither extracts its own terms any more.
+
+
+2 - ONE LOOKUP A TURN, AND IT IS MEASURED
+------------------------------------------
+Quill and the Monk each called libraryLookupBlock() twice per message -
+once in their own systemPrompt(), again inside pathwayBlock().
+
+MEASURED, in Electron against a real embedded database, counting
+searchBooks round-trips for one real chat turn on a 3-term question:
+
+                    before   after
+  quill               6        3
+  monk                6        3
+  investigator        3        3
+  computer            3        3
+
+Memoised on state.dialog.shelfLookup, keyed by the question AND the
+turn (history length), so it cannot survive into the next message and
+cannot go stale against a book shelved between two asks.
+
+
+3 - THE LIBRARY SEARCH SAYS WHAT IT SEARCHED
+---------------------------------------------
+Every resident has searched the shelves on every message since
+2026-08-08 and the only evidence was the answer. That is precisely the
+case the notes receipt already exists to refuse: "a search whose only
+evidence is a better answer is indistinguishable from a resident making
+something up."
+
+  They can see what you are carrying - Walden . 1 note of yours.
+  Searched the shelves for "solitude", "walden", "pond" - 2 found:
+    "The Book of Solitude", "Walden".
+  Searched your notes for "solitude, walden, pond" - 1 found . 1 now
+    in your backpack.
+
+TWO THINGS CAME OFF THE SCREENSHOT, not off reasoning. The first
+version used the same magnifier icon as the notes receipt and the two
+read as one line at a glance - the shelf one is now a book icon with
+its own colour. The second: it said "2 found" and named nothing, which
+is a number you cannot act on, in a project whose standing rule is that
+nothing may be a dead end. The titles were already in the stash.
+
+d.shelfLookup is also what RESIDENT-REACH-PLAN.md needs - the backpack
+button per uncarried hit grows onto this, next session.
+
+
+4 - think:true TURNED BACK ON - AND THE FINDING WAS HALF WRONG
+---------------------------------------------------------------
+This was the other property lost when the Monk's tier was retired on
+2026-08-07; his was its only caller. Three documents went on describing
+the feature.
+
+Built: data.settings.showThinking, off by default, a checkbox in the
+data panel. chatOptsFor() reads it through an injected reader
+(initProviderSettings - ONE wire, because provider.js imports nothing
+and must stay that way) and returns {think:true, deep:true}. That gives
+the retired 'deep' tier a caller again, deliberately: a reasoning model
+on the short tier's 450 tokens can spend all of them thinking and
+return empty content.
+
+THEN I MEASURED IT, AND THE AUDIT HAD BEEN WRONG:
+
+  model            think:false           think:true
+  deepseek-r1:8b   1,098 chars ANYWAY    805 chars
+  ornith:9b        none                  7,900 chars, 1.2s -> 107s
+  llama3.2         none                  HTTP 400
+
+deepseek-r1 reasons whether or not it is asked, and Ollama surfaces it
+in message.thinking regardless. So the accumulator, p.lastThinking and
+the "thought for a moment" panel HAVE BEEN WORKING THE WHOLE TIME for
+anyone running r1. The dead switch was real; "plumbed and never fed"
+was inference wearing measurement's clothes, and I wrote it.
+
+THE LESSON, worth more than the fix: "nothing sets this flag" and "this
+feature never happens" are different claims. The first was checkable by
+grep and true. The second needed a model and was false. GREP PROVES THE
+ABSENCE OF A CALLER, NEVER THE ABSENCE OF A BEHAVIOUR.
+
+AND THE MEASUREMENT FOUND A BUG THAT WOULD HAVE SHIPPED. think:true on
+a model without the capability is HTTP 400, not a shrug - the visitor
+would have seen "your local AI didn't answer" on every message with no
+way to connect it to a checkbox in another room, for the single most
+common default local model. Ollama publishes capabilities per model in
+/api/tags, so p.thinkingModels is DERIVED from it and canThink()
+filters the request. An Ollama too old to report capabilities yields an
+empty list, which means off - the safe direction.
+
+The panel now names the connected model and says whether it can, rather
+than letting a person discover it by switching the thing on.
+
+
+BREAKING EVERY GUARD ON PURPOSE - 11 SABOTAGES, 1 BORN DEAD
+------------------------------------------------------------
+  1  plan replaced by a hand-rolled lookupTerms        caught
+  2  groundingPlan demoted to a COMMENT (residents)    caught
+  3  memo stash removed                                *** PASSED ***
+  4  turn stamp dropped from the memo key              caught
+  5  groundingPlan demoted to a COMMENT (overlays)     caught
+  6  plan.search permission check deleted              caught
+  7  chatOptsFor back to returning {}                  caught
+  8  think without the room to think                   caught
+  9  setting ignored, think always on                  caught
+ 10  the settings wire removed                         caught
+ 11  the checkbox unwired                              caught
+
+NUMBER 3 WAS BORN DEAD. The check was /d\.shelfLookup/ and the
+sabotage was "if(false) d.shelfLookup=res" - the text survived and the
+guard stayed green. THIRD BORN-DEAD GUARD IN TWO SESSIONS, after
+setBookCap and room.cap earlier today, and all three died the same way:
+A LEFTOVER MENTION OF THE THING BEING GUARDED SATISFIED THE PATTERN.
+Fixed to check the assignment WITH its guard clause, plus the read that
+returns it. Re-run: 11 of 11 caught.
+
+The groundingPlan guards read FUNCTION BODIES WITH COMMENTS STRIPPED,
+which is rule 3 in its most literal form given that the defect itself
+was a comment claiming a call.
+
+
+VERIFIED THIS PART
+-------------------
+npm test green. build:beta clean and beta-verified.
+
+Electron, real database: note-search.cjs (the whole notes-search round
+trip, the seal, all seven residents' pathways), records.cjs,
+packaged-boot.cjs. docker-home.cjs against the live container, 31
+passed - 419 books.
+
+Browser, real Chrome at :4173 with pageerror attached: preflight
+(zero network), study-chain 39/39, teacher, writing-desk, study-table,
+librarian-safety. No page errors anywhere.
+
+SCREENSHOTS READ, not just taken:
+  * the data panel with the reasoning switch off and on - which is how
+    I found the capability line was needed at all;
+  * the three receipts stacked under one Quill reply, in Electron,
+    which is the only place they can appear (a browser tab has no
+    database, so no lookup) - and reading it is what caught the
+    duplicate icon and the un-actionable "2 found".
+
+A real model, three of them, through the real isAvailable() path -
+which is itself a correction: the first acceptance run set p.model by
+hand, so thinkingModels was empty, canThink() was false and the run
+measured nothing. A harness that skips the code path proves as little
+as a stub.
+
+
+DOCS MOVED WITH IT
+-------------------
+docs/DOCS-DRIFT.md    row 2 closed with its own correction; row 6 (the
+                      double lookup) closed with the measurement; the
+                      'deep' tier moved out of "left alone"; the third
+                      callerless function and the born-dead guard
+                      recorded
+PROTOCOLS.md          the model guide rewritten - this section has now
+                      been wrong twice and says so
+MANUAL.md             the three receipts, and the reasoning switch with
+                      its real cost
+MAINTAINING.md        both 2026-08-07 losses closed; "the next session"
+                      reordered around the rest of the grounding chain
+plans/AI-INTEGRATION-NOTES.md   the status table, the wrong half, and
+                      what gets built next
+
+NEXT: Part 4, declarative per-role grounding in roles.js - and it must
+land BEFORE retrieval, because once passages make the carried block
+expensive, "everyone gets every block" stops being free. Measure the
+prompt budgets after it: they should FALL, and if nothing falls the
+declaration is not being consulted and the part is inert.

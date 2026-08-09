@@ -63,18 +63,31 @@ async function localFetch(url, { method='GET', headers, body, signalMs }={}){
    and call onStream({content,thinking}) as they grow, so the reply can be
    watched live instead of only after the fact.
 
-   ⚠ THE `thinking` HALF IS PLUMBED AND NEVER FED — measured 2026-08-10. This
-   comment used to promise "the Monk's reasoning can be watched live", and the
-   whole road for it exists: this accumulator, p.lastThinking, and the
-   `💭 thought for a moment` panel in renderChatView(). But `think` defaults to
-   false in chat() below and **nothing in src/, tools/, electron/ or test/ ever
-   sets think:true**. The only caller that ever did was the Monk's tier in
-   chatOptsFor(), retired 2026-08-07 — so this went with it, unnoticed, the
-   same way the local-only rule did.
+   `think` WAS NEVER SET BY ANYTHING for three days — found 2026-08-10 and
+   fixed the same day, and the correction to the correction is the useful part.
 
-   Kept exactly as it is, deliberately: the code is correct and complete, and
-   turning it back on is one option object, not a rebuild. Registered in
-   docs/DOCS-DRIFT.md so it is a decision rather than a ruin.
+   What was true: nothing in src/, tools/, electron/ or test/ ever passed
+   think:true. The Monk's retired tier had been its only caller, so it went with
+   him unnoticed, the same way the local-only rule did.
+
+   WHAT WAS NOT TRUE, and this comment asserted it: that the `thinking` half was
+   therefore never fed. MEASURED against the installed models the same day:
+
+     deepseek-r1:8b   think:false -> 1,098 chars of thinking came back anyway
+     ornith:9b        think:false -> none.  think:true -> 7,900 chars
+     llama3.2         think:false -> none.  think:true -> HTTP 400
+
+   deepseek-r1 reasons whether or not it is asked, and Ollama surfaces it in
+   message.thinking regardless — so the accumulator below, p.lastThinking and
+   the `💭 thought for a moment` panel HAVE been working the whole time for
+   anyone running r1. The dead switch was real; "never fed" was reasoning, not
+   measurement, and it was wrong. `think` is the toggle for models that can be
+   asked either way (the qwen3.5 family), and it is a 400 for models that cannot
+   be asked at all — see canThink() below, which is why that filter exists.
+
+   The switch is now chatOptsFor()'s doing, behind data.settings.showThinking
+   and off by default. See the long note there for why off, and why `deep` comes
+   with it. Cost, measured on the same question: ornith:9b 12s -> 60s.
    Two transports: an ordinary browser reads the fetch body stream directly;
    the desktop app's bridge buffers by default, so it uses a dedicated
    streaming channel when preload exposes one, and otherwise throws so the
@@ -128,10 +141,11 @@ async function ollamaStreamChat(chatUrl, payload, timeoutMs, onStream){
 // reasoning before it starts answering (see below). Drafted documents
 // (a grant section, a full course/lesson plan) need real room to
 // actually finish a thought — callers pass {long:true} for those.
-// 'deep' is bigger still, reserved for the Mountain Monk specifically —
-// see bestLocalModel() below: a standing decision that the Monk always
-// gets the best available model and real room to actually think,
-// regardless of what's fastest for everything else.
+// 'deep' is bigger still. It was the Mountain Monk's, until his special
+// treatment was retired 2026-08-07, and then had no caller at all until
+// 2026-08-10 — it is now what a visitor gets when they switch the model's
+// reasoning ON (chatOptsFor), because a thinking model handed 450 tokens can
+// spend every one of them reasoning and return an empty reply.
 const REPLY_TOKENS = { short:450, long:1600, deep:3000 };
 
 /* ================================================================
@@ -191,10 +205,11 @@ export function contextFor(messages, replyTokens){
 // convo in the middle"). A local model on modest hardware — or one streaming a
 // long, thoughtful reply — can legitimately take a while, and the pocket/phone
 // already lets you walk away while it works, so a longer wall is nearly free
-// and far kinder than clipping a reply mid-thought. 'deep' is the widest tier
-// and is currently unused: it was the Monk's, until his special treatment was
-// retired 2026-08-07. Kept because the tier is a transport concern and outlives
-// whichever resident happens to want it — chatOptsFor() is where that is said.
+// and far kinder than clipping a reply mid-thought. 'deep' is the widest tier;
+// it was the Monk's until 2026-08-07 and is now what showThinking asks for.
+// Kept through the gap because the tier is a transport concern and outlives
+// whichever resident happens to want it — chatOptsFor() is where that is said,
+// and it turned out to want it again three days later.
 const REPLY_TIMEOUT = { short:90000, long:240000, deep:360000 };
 
 // Picks the largest-parameter model actually installed, reading the
@@ -299,15 +314,46 @@ export function bestLocalModel(availableModels, fallback){
    THIS IS STILL THE SEAM if per-resident routing is ever wanted, and npm test
    still enforces that every AI.chat caller in ui/ can reach it.
 
-   STILL OPEN, and tracked in docs/DOCS-DRIFT.md: think:true. The plumbing is
-   complete and nothing turns it on. Decide it; do not let it drift again.
-
    MOVED HERE FROM ui/overlays.js the same day, where it was private. Three
    call sites remembered to pass it and ui/lesson-tree.js COULD NOT reach it
    at all. A rule enforced by "three files remember" is not enforced — which
-   is precisely why it now has a guard, whatever the rule happens to say. */
+   is precisely why it now has a guard, whatever the rule happens to say.
+
+   ✅ AND IT DECIDES SOMETHING AGAIN, 2026-08-10: think:true. This was the
+   OTHER thing lost when the Monk's tier was retired — his was the only caller
+   that ever set it, so `think` silently went to false for everybody and stayed
+   there while three documents went on describing the feature. The whole road
+   was already built and correct: parseOllamaStreamLines accumulates
+   message.thinking, p.lastThinking holds it, and renderChatView() has had a
+   `💭 thought for a moment` panel waiting for it. One option object.
+
+   OFF BY DEFAULT, and that is not timidity. Reading a model's reasoning is the
+   best debugging tool this project has — it found three real bugs on
+   2026-08-08, including a librarian that KNEW the answer and said none of it —
+   and it is also slower, longer, and noise to somebody who just wants counsel.
+   So it is a switch in the data panel beside the context meter, and turning it
+   on says plainly what it costs.
+
+   `deep` comes with it, deliberately. A thinking model given the short tier's
+   450 tokens can spend the whole budget reasoning and return EMPTY content —
+   measured on qwen3.5:9b, 3m26s, nothing. Asking for the reasoning and not for
+   the room to produce it would be a switch that mostly breaks the reply. This
+   also gives the `deep` tier a caller again, which it has not had since the
+   Monk's was retired. */
+/* WHERE THE SETTING COMES FROM, and why it is injected. provider.js imports
+   NOTHING — that is the property that keeps it a seam rather than a layer, and
+   reaching into entities.js for `data` would build the cycle it has always been
+   free of. So one reader is handed in, from the one place that already wires
+   this module up. Defaults to {} so a missing wire is "off", never a crash —
+   and npm test asserts the wire exists, because "off because nobody called
+   init" is precisely the silent failure this whole function is a monument to. */
+let readSettings = () => ({});
+export function initProviderSettings(fn){
+  readSettings = (typeof fn === 'function') ? fn : (() => ({}));
+}
 export function chatOptsFor(agentKey){
-  return {};
+  const s = readSettings() || {};
+  return s.showThinking ? { think:true, deep:true } : {};
 }
 
 // The two "nothing came back" sentinels below — exported so a caller can
@@ -332,6 +378,20 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
   const url = (baseUrl || 'http://localhost:11434').replace(/\/$/,'');
   const p = {
     name: name || 'Ollama', model: null, availableModels: [], cloudModels: [],
+    /* WHICH MODELS CAN REASON AT ALL, read from Ollama rather than guessed.
+       Measured 2026-08-10, and it is the reason this list exists: sending
+       think:true to llama3.2 does not get ignored, it returns HTTP 400 and the
+       visitor is told "your local AI didn't answer". A switch in the data panel
+       that silently breaks every conversation for the single most common local
+       model is the house failure mode with a checkbox on it.
+
+       /api/tags carries `capabilities` per model — ['completion','tools'] for
+       llama3.2, and 'thinking' for deepseek-r1, qwen3.5 and ornith. A derived
+       list, never a hand-maintained one (rule 4); an older Ollama that omits
+       the field yields an empty list, and an empty list means the switch stays
+       off, which is the safe direction. */
+    thinkingModels: [],
+    canThink(){ return p.thinkingModels.includes(p.model); },
     // Ollama can stream tokens live; chat() below uses it when a caller passes
     // opts.onStream (see sendChatMessage). The cloud providers here don't set
     // this, so live streaming stays scoped to local models — which is exactly
@@ -352,6 +412,9 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
         // Filtered on the FULL entry (name and size), not the name alone;
         // see isCloudModel above for why the name is not enough.
         const entries = (body.models||[]);
+        p.thinkingModels = entries
+          .filter(m => Array.isArray(m.capabilities) && m.capabilities.includes('thinking'))
+          .map(m => m.name);
         p.cloudModels = entries.filter(isCloudModel).map(m=>m.name);
         const local = entries.filter(m=>!isCloudModel(m)).map(m=>m.name);
         p.availableModels = local;      // what may ever be auto-picked
@@ -398,7 +461,13 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
     async chat(messages, opts){
       const size = (opts && opts.deep) ? 'deep' : (opts && opts.long) ? 'long' : 'short';
       const model = (opts && opts.model) || p.model;
-      const think = (opts && typeof opts.think==='boolean') ? opts.think : false;
+      /* ASKED FOR, AND POSSIBLE. A model without the `thinking` capability
+         answers think:true with HTTP 400, not by ignoring it — measured on
+         llama3.2 — so the visitor's switch is filtered against what Ollama says
+         this model can do. Break it on purpose by dropping canThink(): turn the
+         switch on with llama3.2 selected and every reply becomes an error. */
+      const wants = !!(opts && opts.think === true);
+      const think = wants && p.canThink();
       const onStream = (opts && typeof opts.onStream==='function') ? opts.onStream : null;
       /* num_ctx is set on EVERY request, never left to the default — see the
          block above REPLY_TOKENS. Without it the front of the system prompt is

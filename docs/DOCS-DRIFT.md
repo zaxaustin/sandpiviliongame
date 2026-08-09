@@ -71,23 +71,56 @@ not an honest choice:
 paragraph*, and the reassurance was the false one. When a change retires a rule,
 the things that rule was quietly also providing do not announce themselves.
 
-### 2 · "You can watch the Monk think"
+### 2 · "You can watch the Monk think" — ✅ RESOLVED 2026-08-10, turned on
+
+**And the resolution corrects the finding, which is the more useful half.**
 
 | | |
 |---|---|
 | **claimed in** | `PROTOCOLS.md`, the in-app Connections panel, `ai/provider.js`'s comment |
-| **measured** | **`think:true` has no caller anywhere** — zero occurrences in `src/`, `tools/`, `electron/`, `test/`. `think` defaults to `false`, so Ollama is always told not to reason |
-| **but** | the whole road is built and correct: `parseOllamaStreamLines` accumulates `message.thinking`, `p.lastThinking` holds it, and `renderChatView()` has a `💭 thought for a moment` panel ready to render it |
-| **status** | ✅ documents corrected · ❌ **one option object away from working, and not turned on** |
+| **measured** | **`think:true` had no caller anywhere** — zero occurrences in `src/`, `tools/`, `electron/`, `test/`. `think` defaults to `false` |
+| **the road** | built and correct throughout: `parseOllamaStreamLines` accumulates `message.thinking`, `p.lastThinking` holds it, `renderChatView()` has a `💭 thought for a moment` panel |
+| **status** | ✅ closed — a visitor switch, `data.settings.showThinking`, **off by default** |
 
-**Kept, not deleted** — per the steward, 2026-08-10: *"lets make sure not to
-delete fucntions that are not wired in but to fix the writing."* This is correct
-code without a caller, which is a decision to make rather than a ruin to clear.
+**What was built.** `chatOptsFor()` reads the setting through an injected reader
+(`initProviderSettings`, one wire, because `provider.js` imports nothing and
+must keep it that way) and returns `{think:true, deep:true}`. A checkbox sits in
+the data panel beside the context meter, and it says what it costs.
 
-**Note the shape.** A reachable seam that returns `{}` enforces nothing.
-`npm test` genuinely checks that every `AI.chat` caller in `ui/` can *reach*
-`chatOptsFor()` — a real, good guard — and it passed throughout. This is
-`groundingFor()` again: written, tested, documented, and called by nobody.
+**`deep` gets a caller again** — the tier retired with the Monk on 2026-08-07.
+It comes with `think` deliberately: a reasoning model given the short tier's 450
+tokens can spend all of them reasoning and return empty content.
+
+#### ⚠ The finding said "plumbed and never fed". That half was wrong.
+
+Never measured, only reasoned from "nothing sets `think:true`". Measured against
+the installed models on the day it was fixed:
+
+| model | `think:false` | `think:true` |
+|---|---|---|
+| `deepseek-r1:8b` | **1,098 chars of reasoning anyway** | 805 chars |
+| `ornith:9b` (qwen3.5) | none | **7,900 chars** — and **1.2 s → 107 s** |
+| `llama3.2` | none | **HTTP 400** |
+
+**deepseek-r1 reasons whether or not it is asked**, and Ollama surfaces it in
+`message.thinking` regardless — so the accumulator, `p.lastThinking` and the 💭
+panel **have been working the whole time for anyone running r1**. The dead
+switch was real; "never fed" was inference wearing measurement's clothes.
+
+#### And the fix found a bug that would have shipped
+
+**`think:true` on a model without the capability is HTTP 400, not a shrug.** The
+visitor would have been told *"your local AI didn't answer"* with no way to
+connect it to a checkbox in another room — a switch that silently breaks every
+conversation for the most common default local model. Ollama publishes
+`capabilities` per model in `/api/tags`, so `p.thinkingModels` is **derived**
+from it (rule 4) and `canThink()` filters the request. An Ollama too old to
+report capabilities yields an empty list, which means off — the safe direction.
+
+**Note the shape that caused all of this.** A reachable seam that returns `{}`
+enforces nothing. `npm test` genuinely checks that every `AI.chat` caller in
+`ui/` can *reach* `chatOptsFor()` — a real, good guard — and it passed
+throughout. There is now a second guard that **runs** it.
 
 ---
 
@@ -101,7 +134,7 @@ Map: [`THE-BACKEND.md`](THE-BACKEND.md).
 | 3 | **Two implementations of one read.** `loadBookTextResult()` and `openFullText()` each independently do inline → `libraryRead` → MinIO-fetch, with separate error messages | the `store.js` scar exactly — two paths for one decision, free to drift |
 | 4 | **MinIO reads and writes use unrelated doors.** Writes: `mc` in a throwaway container, authenticated. Reads: a bare unauthenticated `fetch()` from the renderer. **`minioRead` does not exist** on the bridge (0 occurrences), and the bucket answers anonymously with **HTTP 200** | the policy was set by hand, is in no compose file, no protocol doc and no test. Loopback-only so low risk — but **a fresh machine will not have it**, and this asymmetry is the concrete reason the backend "feels twisted" |
 | 5 | **`shelveAsPersonal()` (~127 lines) is the write half of `book-storage.js`'s decision, living in `overlays.js`** | two files remembering the same order is not enforcement. Fold in during the `ui/library.js` extraction |
-| 6 | **Quill and the Monk each call `libraryLookupBlock()` twice per message** — once in `systemPrompt()`, again inside `pathwayBlock()`. Up to 8 DB round-trips where 4 would do | harmless (both stash the same rows), pure waste. Fold in with [`RESIDENT-REACH-PLAN.md`](../plans/RESIDENT-REACH-PLAN.md) |
+| ~~6~~ | ~~**Quill and the Monk each call `libraryLookupBlock()` twice per message.**~~ | ✅ **fixed 2026-08-10.** One lookup a turn, memoised on `state.dialog.shelfLookup` keyed by question *and* turn. **Measured on a 3-term question: Quill 6 → 3 round-trips, the Monk 6 → 3**; the other five were already 3 and are unchanged |
 
 ---
 
@@ -150,6 +183,29 @@ Both in `test/smoke.mjs`, both **broken on purpose before being trusted**.
 Proven in three directions: change the manual → red; change the source → red;
 replace the source string with a comment → red.
 
+### The third callerless function, and the guard that now holds it
+
+**`groundingPlan()` had no caller until 2026-08-10.** `data/lookup.js` said of
+it: *"the caller then performs exactly this and nothing else — which means the
+boundary is checkable without a database."* Its only appearance in `src/` was
+inside a **comment** above `searchMyNotesFor()` reading *"…had NO CALLER. This
+is it."* — above a body that then re-implemented the decision by hand.
+
+**Third instance of the shape in one blast radius**, after `groundingFor()` and
+`chatOptsFor()`. Both callers now perform the plan: `shelfLookup()` searches
+books only if `plan.search` contains `book`, and `searchMyNotesFor()` returns
+`null` unless it contains `note` — so `searchMyNotes:true` is the *request* and
+`plan.search` is the *answer*, and only the answer is a boundary.
+
+**Guarded by reading function bodies with comments stripped**, which is rule 3
+in its most literal form, since the defect *was* a comment claiming a call.
+**Eleven sabotages run; ten caught first time.** The eleventh — the memo-stash
+check — was **born dead**: `if(false) d.shelfLookup=res` left the text intact
+and the guard green. It now checks the assignment *with its guard clause*. That
+is the third born-dead guard in two sessions (`setBookCap` and `room.cap` were
+the others), and all three died the same way: **a leftover mention of the thing
+being guarded satisfied the pattern.**
+
 ---
 
 ## ⚪ Left alone on purpose
@@ -165,9 +221,12 @@ replace the source string with a comment → red.
 - **`GATE_BEQUESTS = []`** and the `gifts.length ?` branch that renders them.
   Empty list, dead branch, **kept** — it is the shape your own bequests are
   built from, and the Record Stone's empty state is already written honestly.
-- **The `deep` reply tier** (`3000` tokens / `360s`). No caller since
-  2026-08-07. Kept: a table with an unused row is not a bug, and turning a tier
-  back on is one option object.
+- ~~**The `deep` reply tier**~~ (`3000` tokens / `360s`). Had no caller between
+  2026-08-07 and 2026-08-10; **it has one again** — `showThinking` asks for it,
+  because a reasoning model on the short tier can spend all 450 tokens thinking
+  and answer nothing. The judgement that kept it is the point: *a table with an
+  unused row is not a bug, and turning a tier back on is one option object.*
+  Three days later it was exactly one option object.
 - **`book_health`** — a table nothing writes, so `v_unshelved`'s health filter
   is inert. Harmless, and stated out loud rather than left looking load-bearing.
 

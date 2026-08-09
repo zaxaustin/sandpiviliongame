@@ -308,6 +308,22 @@ your own standing instructions, so you can watch them take effect.
   If you want the numbers, **Your Data → "Show how much room the backpack is
   taking, in tokens"** adds a bar. It is off by default and only worth turning
   on when you are tuning a local model.
+- **What a resident actually looked up, under every reply.** You never have to
+  take their word for it. Three lines appear beneath the answer, and the app
+  writes them from what it really sent — not from anything the model said:
+  - *They can see what you are carrying* — the backpack items that fitted.
+  - *📚 Searched the shelves for "x", "y" — 2 found: "…", "…"* — the Library
+    search every resident makes on every question. **Nothing found is a real
+    answer**, and it says so: it is a fact about your library, not the subject.
+  - *🔎 Searched your notes for "…"* — only when you pressed the 🔎 send button,
+    never otherwise.
+- **Watching the model think.** **Your Data → "Let the model show its reasoning,
+  and show it to me"**, off by default. With it on, a reasoning model thinks out
+  loud first and a **💭 thought for a moment** panel appears under the reply. It
+  is the best way to understand why an answer came out the way it did — and it
+  is *much* slower: the same question to a 9B model here took **1 second off and
+  107 seconds on**. Not every model can do it; the panel names yours and says
+  which. Turn it on when something looks wrong, and off again afterwards.
 - **The Index** (📑, from any shelf) — every text in one searchable list.
 - **Dropping a BATCH — one subject at a time.** Whatever shelf is picked in the
   intake form is applied to **every file in the drop**. So name a shelf only when

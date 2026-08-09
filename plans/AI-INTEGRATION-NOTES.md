@@ -154,7 +154,7 @@ the docs went on asserting the other two for three days.**
 |---|---|---|
 | the largest local model | **yes**, deliberate and documented | correctly retired |
 | **local-only for the Monk** | no — but **ratified 2026-08-10** | ✅ **dropped on purpose**; 🏠/☁ in the chat header carries it |
-| **`think:true` / visible reasoning** | **no** | ✗ **still gone, and still undecided** |
+| **`think:true` / visible reasoning** | **no** | ✅ **turned back on 2026-08-10** as a visitor switch, off by default — and the finding was half wrong (see below) |
 
 > **The local-only question is settled.** *"the monk can be cloud if there
 > computer cant run local ai alot of people have laptops just let the user
@@ -176,16 +176,45 @@ question entirely, and `bestLocalModel()` no longer feeds any routing decision.
 
 **Visible reasoning.** The streaming reader accumulates `message.thinking`,
 `p.lastThinking` holds it, and `renderChatView()` has a `💭 thought for a
-moment` panel ready. But `think` defaults to `false` and **nothing in `src/`,
-`tools/`, `electron/` or `test/` ever sets `think:true`.** The Monk's tier was
+moment` panel ready. `think` defaulted to `false` and **nothing in `src/`,
+`tools/`, `electron/` or `test/` ever set `think:true`** — the Monk's tier was
 the only thing that ever had.
 
-**Both are one option object away from working.** Nothing is broken and nothing
-was deleted — this is a reachable seam that returns `{}`, which is the same
-shape as `groundingFor()`, written and tested and callerless for a day.
-`npm test` genuinely enforces that every `AI.chat` caller in `ui/` can reach
-`chatOptsFor()` — the guard is real and good. **A reachable seam that decides
-nothing still enforces nothing.**
+**Both were one option object away, and both are now closed.** `chatOptsFor()`
+reads `data.settings.showThinking` through an injected reader and returns
+`{think:true, deep:true}` — which also gives the retired `deep` tier a caller
+again. A checkbox in the data panel, **off by default**, stating its cost.
+
+> ### ⚠ The half of this finding that was wrong, and how
+>
+> *"Nothing sets `think:true`"* was checkable by grep and true. *"So the 💭
+> panel can never fill"* did not follow, and was written as though it did.
+> Measured on the installed models when the switch was built:
+>
+> | model | `think:false` | `think:true` |
+> |---|---|---|
+> | `deepseek-r1:8b` | **1,098 chars of reasoning anyway** | 805 chars |
+> | `ornith:9b` | none | **7,900 chars** — and **1.2 s → 107 s** |
+> | `llama3.2` | none | **HTTP 400** |
+>
+> `deepseek-r1` reasons whether asked or not, and Ollama returns it in
+> `message.thinking` regardless — **the panel had been working the whole time
+> for anyone running r1.** And the third row is a bug the audit never saw: a
+> model without the capability *errors* rather than shrugging, so the switch
+> would have broken every conversation on the most common default local model.
+> `canThink()` now filters it, derived from Ollama's own `capabilities` field.
+>
+> **Grep proves the absence of a caller. It never proves the absence of a
+> behaviour** — for that you need a model, and this project has a standing rule
+> about looking rather than reasoning.
+
+**And note the shape, because it is the one that keeps recurring.** A reachable
+seam that returns `{}` is the same shape as `groundingFor()` and
+`groundingPlan()` — written, tested, documented, callerless. `npm test` had long
+enforced that every `AI.chat` caller in `ui/` can *reach* `chatOptsFor()`, and
+that guard is real and good and passed throughout. **A reachable seam that
+decides nothing still enforces nothing**, so there is now a second guard that
+*runs* it.
 
 Tracked as the top item in `docs/DOCS-DRIFT.md`, with the two honest options:
 **restore the rules**, or **drop the promises everywhere** and let the 🏠/☁
@@ -322,16 +351,23 @@ without you"* — the loop is driven by a person each turn, never a timer.
 
 ## What gets built next
 
-1. **Decide `think:true`.** The local-only half is settled (above). This half is
-   not: the plumbing is complete and nothing turns it on, while the docs used to
-   tell people to install a thinking model to watch it think. Either give some
-   tier `think:true`, or drop the feature and say so — one option object either
-   way, and it should not stay ambiguous.
+*(1 and 2 as listed here were done on 2026-08-10 — `think:true` decided and
+turned on, and the grounding path streamlined so `groundingPlan()` has a real
+caller and the Library is searched once a turn instead of twice.)*
+
+1. **Declarative per-role grounding.** A `grounding: [...]` field in
+   `data/roles.js`; `pathwayBlock()` stays the single composer and consults it.
+   **Before retrieval, not after** — once passages make the carried block
+   expensive, "everyone gets every block" stops being free, and the Computer has
+   no use for a page of *Walden*. Guard both directions: every role declares
+   one, every kind named is one the composer knows.
 2. **Retrieval reaches the residents** — the next real feature, and the clearest
-   case of the balance principle at the top of this file.
+   case of the balance principle at the top of this file. **Cap on the first
+   commit; the page cache is required, not optional.**
 3. **Point a real model at the current prompts.** The last time this happened
    (2026-08-08, `deepseek-r1:8b`, reading its visible reasoning) it found three
-   real bugs in one sitting. Nothing written since has been seen by a model.
+   real bugs in one sitting — and **this is now something a visitor can do**,
+   not only a developer, since the reasoning switch shipped.
 4. **Don't add a background AI loop.** No always-thinking resident, no ambient
    briefing on a timer — the no-background-polling rule is load-bearing.
 

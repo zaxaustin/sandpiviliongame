@@ -244,25 +244,45 @@ answer fast and reliably; "thinking"/"reasoning" models (`deepseek-r1`,
 `qwq`, the `qwen3` reasoning family) spend a long, hidden stretch reasoning
 first** — sometimes minutes, sometimes coming back blank.
 
-**⚠ Corrected 2026-08-10.** This paragraph used to say the Pavilion "streams
-that reasoning live so you can *watch* it think instead of staring at a dead
-panel." **It does not, currently.** The plumbing is all built — the streaming
-reader collects reasoning, and the chat panel has a 💭 section ready to show it
-— but **nothing in the app ever asks for it**: every request goes out with
-`think: false`, so a reasoning model's thinking is never returned to be shown.
-This was lost on 2026-08-07 along with the Monk's special model tier, which was
-the only thing that had ever set it.
+**You can now switch that reasoning on and watch it** — *Pause → Your data →
+"Let the model show its reasoning, and show it to me"*. It is **off by default**,
+and the reason is a measurement rather than a preference. On this machine, the
+same question to a 9B reasoning model:
 
-So today, **a thinking model gives you the long wait and none of the view.**
-Prefer a plain instruct model until this is turned back on. Pick by the machine
-you actually have:
+| | reasoning off | reasoning on |
+| --- | --- | --- |
+| time to answer | **1.2 s** | **107 s** |
+| reasoning shown | none | 7,900 characters |
+
+That is the trade in full. Switch it on when an answer looks wrong and you want
+to see *where* it went wrong — it is the single best way to understand what your
+model is actually doing — and switch it off again for ordinary use.
+
+Three things worth knowing:
+
+- **Some models reason whether or not you ask.** `deepseek-r1` is one: its
+  thinking comes back and the 💭 panel fills even with the switch off.
+- **Some models cannot reason at all**, and asking them to is an *error*, not
+  something they ignore — `llama3.2` answers the request with HTTP 400. The
+  Pavilion checks what your model reports it can do and simply does not ask the
+  ones that cannot. The panel tells you which case you are in, by name.
+- **Reasoning gets a much bigger reply budget**, automatically. A model told to
+  think on a small budget can spend all of it thinking and answer nothing —
+  measured here at 3m26s for an empty reply, before this was fixed.
+
+*This section was wrong twice. It first promised live reasoning that nothing
+requested; the correction on 2026-08-10 then said the 💭 panel could never fill,
+which was inference rather than measurement — `deepseek-r1` had been filling it
+all along. Both are recorded in `docs/DOCS-DRIFT.md`.*
+
+Pick by the machine you actually have:
 
 | Your machine | Pull this | What to expect |
 | --- | --- | --- |
 | Modest — no real GPU, 8GB RAM, a few years old | `ollama pull llama3.2:1b` | Snappy, simple replies; the whole Pavilion works |
 | Everyday — most laptops/desktops, 8–16GB RAM | `ollama pull llama3.2` (3B) | The dependable default; quick, plain-spoken residents |
 | Capable — a real GPU (8GB+ VRAM) or 16GB+ RAM | an 8B instruct model, e.g. `ollama pull llama3.1:8b` | Noticeably deeper conversations, still reliable |
-| Strong — a gaming/creator machine, 12GB+ VRAM | a 8–14B instruct. **A thinking model is not recommended right now** | Deeper conversations throughout. See the note below on thinking models — the Pavilion currently asks every model *not* to think, so a reasoning model buys you the wait without the payoff |
+| Strong — a gaming/creator machine, 12GB+ VRAM | a 8–14B instruct for daily use; add a reasoning model if you want to inspect its thinking | Deeper conversations throughout. A reasoning model is now genuinely useful here — but it is a *debugging* tool, not a faster one; see the measured times above |
 
 Two Pavilion-specific facts that make the choice easier:
 

@@ -2967,6 +2967,99 @@ for (const d of SEED_LIBRARY) {
     fail('residents.js: still has its own LOOKUP_STOP - the lookup pathway must be shared, '
        + 'or a new plugin either re-implements it or goes without');
   }
+
+  /* ---------- THE PLAN MUST HAVE A CALLER, AND A COMMENT IS NOT ONE ----------
+
+     groundingPlan() was written, tested and documented on 2026-08-07 and had NO
+     CALLER until 2026-08-10. Its only appearance in src/ was inside a COMMENT
+     above searchMyNotesFor() reading "...had NO CALLER. This is it." - above a
+     body that then re-implemented the decision by hand. Third instance of the
+     shape in one blast radius, after groundingFor() and chatOptsFor().
+
+     So this guard reads FUNCTION BODIES WITH COMMENTS STRIPPED, which is
+     CLAUDE.md rule 3 in its most literal form: three guards in this project
+     have been born dead because a comment satisfied them, and this specific
+     defect was a comment claiming a call that did not exist.
+
+     Break it on purpose: delete the groundingPlan() line from either body and
+     go back to lookupTerms(). Both must go red. */
+  const osrc = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const noComments = (s) => s
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const fnBody = (src, name) => {
+    const at = src.search(new RegExp('function\\s+' + name + '\\s*\\('));
+    if (at < 0) return '';
+    let i = src.indexOf('{', at), depth = 0;
+    for (let j = i; j < src.length; j++) {
+      if (src[j] === '{') depth++;
+      else if (src[j] === '}') { depth--; if (!depth) return src.slice(i, j + 1); }
+    }
+    return '';
+  };
+  for (const [file, src, name] of [
+    ['ui/residents.js', rsrc, 'shelfLookup'],
+    ['ui/overlays.js',  osrc, 'searchMyNotesFor'],
+  ]) {
+    const body = noComments(fnBody(src, name));
+    if (!body) {
+      fail(`smoke: could not find ${name}() in ${file} - the groundingPlan caller guard has drifted `
+         + 'and is now checking nothing');
+      continue;
+    }
+    if (!/groundingPlan\s*\(/.test(body)) {
+      fail(`THE PLAN HAS NO CALLER AGAIN. ${name}() in ${file} does not call groundingPlan(). `
+         + 'data/lookup.js states that "the caller performs exactly this and nothing else - which '
+         + 'means the boundary is checkable without a database", and that sentence is only true '
+         + 'while this call exists. A comment saying so is what we had before.');
+    }
+    /* ...and it must not go back to extracting its own terms. Performing the
+       plan AND deciding the terms yourself is agreeing with the plan by luck. */
+    if (/lookupTerms\s*\(/.test(body)) {
+      fail(`${name}() in ${file} extracts its own terms with lookupTerms() again. The plan already `
+         + 'returns them; a second extractor is free to stop agreeing with the first, which is the '
+         + 'drift data/lookup.js exists to prevent.');
+    }
+  }
+  /* The notes half must be gated on what the plan ALLOWS, not merely on what
+     the button ASKED. Break it by deleting the plan.search check: the boundary
+     silently moves back out of lookup.js and into whoever set the flag. */
+  const notesBody = noComments(fnBody(osrc, 'searchMyNotesFor'));
+  if (notesBody && !/plan\.search\.includes\(\s*'note'\s*\)/.test(notesBody)) {
+    fail('searchMyNotesFor() no longer checks that the plan permits reaching for notes. '
+       + 'searchMyNotes:true is the REQUEST; plan.search is the ANSWER, and only the answer is '
+       + 'a boundary.');
+  }
+
+  /* ---------- ONE LOOKUP A TURN ----------
+     Quill and the Monk each call libraryLookupBlock() twice per message - once
+     in their own systemPrompt() and again inside pathwayBlock() - which was up
+     to EIGHT database round-trips serving four questions. Harmless in effect,
+     pure waste, on a machine whose real limit is cooling. The memo lives on
+     state.dialog and is keyed by question AND turn so it cannot survive into
+     the next message or go stale against a book shelved between two asks. */
+  const shelfBody = noComments(fnBody(rsrc, 'shelfLookup'));
+  /* BOTH HALVES, AND THE WRITE IS CHECKED WITH ITS CONDITION ATTACHED.
+
+     The first version of this check was /d\.shelfLookup/ and it was BORN DEAD:
+     sabotaging the write to `if(false) d.shelfLookup=res` left the text intact
+     and the guard green. That is the third time in two sessions a check has
+     been satisfied by a leftover mention of the thing it guards - the setBookCap
+     and room.cap guards on 2026-08-10 were the other two - so it is now the
+     assignment WITH its guard clause, plus the read that returns it. */
+  if (shelfBody && !/if\s*\(\s*d\s*\)\s*d\.shelfLookup\s*=/.test(shelfBody)) {
+    fail('shelfLookup() does not stash its result on state.dialog - the double lookup is back '
+       + '(eight database round-trips for four questions) and shelfLookupReceipt() has nothing '
+       + 'to read, so the Library search goes silent again.');
+  }
+  if (shelfBody && !/return\s+d\.shelfLookup\s*;/.test(shelfBody)) {
+    fail('shelfLookup() writes the memo but never returns it - a cache nothing reads is a slower '
+       + 'version of no cache');
+  }
+  if (shelfBody && !/\.turn\s*===\s*turn/.test(shelfBody)) {
+    fail('shelfLookup() memoises without a turn stamp - a repeated question would be answered from '
+       + 'a stale result, and a book shelved between two asks would be invisible.');
+  }
 }
 
 /* ---------- note reach: the one state an ASK cannot cross ----------
@@ -3191,6 +3284,100 @@ for (const d of SEED_LIBRARY) {
     if (/function chatOptsFor/.test(text)) {
       fail('ui/' + f + ' defines its own chatOptsFor - a second copy of this decision is exactly the drift it was moved to avoid');
     }
+  }
+
+  /* ---------- ...AND THE SEAM MUST ACTUALLY DECIDE SOMETHING ----------
+
+     "A reachable seam that returns {} enforces nothing" (docs/DOCS-DRIFT.md).
+     The guard above passed every day chatOptsFor() was inert, which is exactly
+     right for what it checks and exactly why it is not enough on its own.
+
+     So this one RUNS IT. think:true was the second thing silently lost when the
+     Monk's tier was retired on 2026-08-07 - his was its only caller - and three
+     documents went on describing a feature nothing turned on. It is now a
+     visitor setting, off by default. */
+  const P = await import('../src/game/ai/provider.js');
+  if (typeof P.initProviderSettings !== 'function') {
+    fail('ai/provider.js does not export initProviderSettings - chatOptsFor has no way to read a '
+       + 'visitor setting without importing entities.js, which would build the cycle this file '
+       + 'has always been free of');
+  } else {
+    P.initProviderSettings(() => ({}));
+    if (P.chatOptsFor('monk').think) {
+      fail('chatOptsFor: showThinking is OFF and think is still true. Reasoning is slower and '
+         + 'longer; it must be something a person chose.');
+    }
+    P.initProviderSettings(() => ({ showThinking: true }));
+    const on = P.chatOptsFor('monk');
+    if (on.think !== true) {
+      fail('THINK IS DEAD AGAIN. showThinking is on and chatOptsFor did not set think:true - the '
+         + 'accumulator, p.lastThinking and the "thought for a moment" panel are all still there '
+         + 'and still fed by nothing.');
+    }
+    /* A thinking model on the short tier can spend all 450 tokens reasoning and
+       return EMPTY content - measured on qwen3.5:9b, 3m26s, nothing. Asking for
+       the reasoning without the room is a switch that mostly breaks the reply. */
+    if (on.deep !== true) {
+      fail('chatOptsFor: think:true without deep:true - a reasoning model handed the short budget '
+         + 'can burn it all thinking and answer nothing at all');
+    }
+    /* An unset wire must read as OFF and never throw. "Off because nobody
+       called init" is the silent failure this whole function is a monument to,
+       so the default is safe AND the wire is checked separately, below. */
+    P.initProviderSettings(null);
+    if (P.chatOptsFor('monk').think) fail('chatOptsFor: an unwired settings reader defaulted to ON');
+  }
+  /* ---------- ...AND ONLY OF A MODEL THAT CAN ----------
+     MEASURED 2026-08-10: think:true on llama3.2 is HTTP 400, not a shrug. The
+     visitor sees "your local AI didn't answer" and has no way to connect it to
+     a checkbox they ticked in another room. Ollama publishes `capabilities`
+     per model in /api/tags, so the list is DERIVED (rule 4) - and an older
+     Ollama that omits the field yields an empty list, which means off, which
+     is the safe direction. */
+  const prov = P.makeOllamaProvider('http://127.0.0.1:1', 'test');
+  prov.model = 'llama3.2:latest';
+  prov.thinkingModels = ['deepseek-r1:8b'];
+  if (prov.canThink()) fail('provider: canThink() said yes for a model with no thinking capability - '
+    + 'switching reasoning on would 400 every reply');
+  prov.model = 'deepseek-r1:8b';
+  if (!prov.canThink()) fail('provider: canThink() said no for a model Ollama lists as thinking - '
+    + 'the switch would be inert for everyone');
+  prov.thinkingModels = [];
+  if (prov.canThink()) fail('provider: with no capability list at all, canThink() must be false - '
+    + 'an Ollama too old to report capabilities must fail toward not asking');
+  const provSrc2 = readFileSync(new URL('../src/game/ai/provider.js', import.meta.url), 'utf8');
+  const provCode = provSrc2
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  if (!/const think\s*=\s*wants\s*&&\s*p\.canThink\(\)/.test(provCode)) {
+    fail('ollama chat() no longer filters think through canThink() - a visitor with llama3.2 who '
+       + 'ticks the reasoning box gets HTTP 400 on every message, reported to them as the model '
+       + 'not answering');
+  }
+  if (!/capabilities\.includes\(\s*'thinking'\s*\)/.test(provCode)) {
+    fail('provider: thinkingModels is no longer derived from what Ollama reports - a hand-written '
+       + 'list of model names is rule 4\'s exact shape and every one of them here has drifted');
+  }
+  /* THE WIRE ITSELF. A correct chatOptsFor nobody ever hands a settings reader
+     is off forever, which would look exactly like the three days it was dead.
+     One call, and it must exist. */
+  const ovSrc = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const ovCode = ovSrc
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  if (!/initProviderSettings\s*\(\s*\(\s*\)\s*=>/.test(ovCode)) {
+    fail('ui/overlays.js never calls initProviderSettings() with a reader - chatOptsFor would read '
+       + '{} forever and every visitor setting in the transport layer would be silently off');
+  }
+  /* ...and the visitor needs a way to set it. A setting with no switch is a
+     setting nobody has, and this one is the project's best debugging tool. */
+  if (!/function toggleShowThinking/.test(ovCode)) {
+    fail('ui/overlays.js has no toggleShowThinking() - showThinking would be reachable only by '
+       + 'hand-editing the save');
+  }
+  if (!/onchange="toggleShowThinking\(\)"/.test(ovSrc)) {
+    fail('the data panel has no checkbox wired to toggleShowThinking() - the switch exists and '
+       + 'nothing presses it, which is this project\'s oldest bug shape');
   }
 }
 
