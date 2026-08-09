@@ -48,10 +48,44 @@ app.whenReady().then(async () => {
   });
 
   const errs = [];
-  win.webContents.on('console-message', (e, level, message) => {
-    const text = String(message);
+  const SELFTEST = 'PACKAGED-BOOT-CAPTURE-SELFTEST';
+  let captureAlive = false;
+  /* THE SIGNATURE, MEASURED rather than assumed (Electron 43, 2026-08-08):
+
+       argc = 5
+       a[0]  event object — .message (string), .level ('error' | 'warning')
+       a[1]  level as a NUMBER — 3 error, 2 warning
+       a[2]  the message, as a string
+       a[3]  line, a[4] sourceId
+
+     Both the old positional form and the newer event object arrive, together.
+     So THIS suite's original `(e, level, message)` reader was CORRECT and this
+     gate has been honest all along — I briefly claimed otherwise while fixing
+     three OTHER suites and it was worth measuring rather than believing.
+
+     What was genuinely dead, in note-search.cjs, records.cjs and
+     chapters-panel.cjs, is `const m = a[1]` — a[1] is the NUMBER, so
+     `typeof m === 'string'` threw every line away and "no console errors"
+     passed no matter what the page logged.
+
+     Kept tolerant of either shape anyway, since the positional args are the
+     deprecated half and will eventually go.
+
+     AND IT PROVES ITSELF NOW. A capture nobody has tested is exactly what cost
+     three runs today, so this one triggers a console error of its own and
+     refuses to pass unless it saw it. */
+  win.webContents.on('console-message', (...a) => {
+    const ev = a[0];
+    const isObj = ev && typeof ev === 'object' && typeof ev.message === 'string';
+    const text = String(isObj ? ev.message : (a[2] !== undefined ? a[2] : ''));
+    const rawLevel = isObj ? ev.level : a[1];
+    const bad = typeof rawLevel === 'string'
+      ? /error|warn/i.test(rawLevel)
+      : Number(rawLevel) >= 2;
+    if (!bad || !text) return;
+    if (text.includes(SELFTEST)) { captureAlive = true; return; }
     // Electron's own dev-only CSP nag is not a fault in the app
-    if (level >= 2 && !/Electron Security Warning/.test(text)) errs.push(text.slice(0, 160));
+    if (!/Electron Security Warning/.test(text)) errs.push(text.slice(0, 160));
   });
   win.webContents.on('did-fail-load', (e, code, desc, url) => errs.push(`did-fail-load ${code} ${desc} ${url}`));
 
@@ -86,6 +120,10 @@ app.whenReady().then(async () => {
     })()`);
   }
 
+  /* Prove the error capture works before reporting on what it did not see. */
+  await win.webContents.executeJavaScript(`console.error('${SELFTEST}'); true`).catch(() => {});
+  await new Promise(r => setTimeout(r, 400));
+
   const row = (label, ok) => console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${label}`);
   console.log('--- the packaged app, booted the way the installer boots it ---');
   row('index.html loads at all', !!booted.shell);
@@ -94,9 +132,11 @@ app.whenReady().then(async () => {
   row('the desktop bridge is wired up (preload)', !!booted.bridge);
   row('"Enter the Grounds" actually enters', !!starts);
   row('a panel opens and has real content', !!panelWorks);
+  row('the error capture itself is alive (self-test)', captureAlive);
   console.log('  console errors:', errs.length ? errs.slice(0, 4) : 'none');
 
-  const ok = booted.codeRan && booted.bridge && starts && panelWorks && !errs.length;
+  const ok = booted.codeRan && booted.bridge && starts && panelWorks
+          && captureAlive && !errs.length;
   console.log(ok ? '\n  ✓ SHIPPABLE — the packaged app boots, starts, and works.'
                  : '\n  ✗ DO NOT CUT AN INSTALLER FROM THIS BUILD.');
   app.exit(ok ? 0 : 1);

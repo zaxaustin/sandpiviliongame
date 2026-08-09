@@ -29,6 +29,13 @@ Two promises, up front, that make the rest easy to relax into:
 
 On a touch screen, an on-screen D-pad and E button appear on their own.
 
+**Esc is the whole map.** The pause menu now lists **every room in both
+Grounds**, grouped under the room it stands in — the Writing Desk under the
+Study, the Grant Desk and the Commons Table under the Café, the Record Stone
+under the Inheritance Hall, and so on down to the pond's Hearth. One keystroke
+to anywhere. You can walk to any of them too, and walking is worth doing; it is
+just never the only way in. If a room exists, it is in that menu.
+
 **Saving is automatic.** Every real action persists immediately. The title
 screen tells you plainly whether saving to this device is working.
 
@@ -36,10 +43,32 @@ screen tells you plainly whether saving to this device is working.
 
 ## 2. The map — what's where
 
-- **The Grounds** — the outdoor world that connects everything. A fishing
-  pond (face the water, press E), wandering deer and bunnies, and doors to
-  every building. North leads to the Keep.
-- **The Library** (south) — shelves of real, readable books, a shrine by the
+**There are two Grounds, and one road between them.** They are not gated, not
+earned and not sequential — just two places, the way a village has a quiet end
+and a working end.
+
+| **The Pavilion Grounds** — where you study alone | **The Works** — where you make, meet, give and rest |
+|---|---|
+| the Keep | the Workshop (three floors) |
+| the Library (+ second floor, and something else) | the Café |
+| the Study | the Inheritance Hall |
+| | the pond, and the dock |
+
+Walk **east along the plaza road** to go from the Pavilion to the Works, and
+back west to return. Signposts stand at both ends.
+
+**You never have to walk it.** Press **Esc** and the menu lists *every room in
+both Grounds* under the room it stands in — one keystroke to anywhere. Walking
+is scenery, not access; nothing in this Pavilion is reachable only on foot.
+
+- **The Pavilion Grounds** — the quiet end. The Keep to the north, the Library
+  and the Study to the west, wandering deer and bunnies, and the road east.
+- **The Works** — the working end. The Café and the Workshop face each other
+  across a sand plaza with **the Hearth** burning in the middle; the
+  Inheritance Hall stands off down its own lane at the southwest; and the pond
+  is in the southeast corner, with **SAGARA the Fisher** on the bank. Face the
+  water from the dock and press **E** to fish.
+- **The Library** (west of the Pavilion Grounds) — shelves of real, readable books, a shrine by the
   door, a bean-bag reading nook, and **Your Shelf** (see §4). It is bigger
   inside than outside. The ground floor holds six lineage shelves; a **spiral
   staircase at the back (east side)** climbs to a **second floor** — Hindu and
@@ -49,11 +78,11 @@ screen tells you plainly whether saving to this device is working.
 - **The Study** (through the Library's east door, or its own south door) —
   the day-planning room: the Writing Desk, the Course Board, the Computer,
   and the Request Board.
-- **The Workshop** (east) — the working building, three floors. Ground
+- **The Workshop** (the Works, north-east) — the working building, three floors. Ground
   floor: Sebastian, his calendar, the Archive / Research / Caravan desks.
   One floor up: the Records Hall. Above that: an unfinished floor, honest
   about being unfinished.
-- **The Café** — the outward-looking room: the Counter, the Grant Desk, and
+- **The Café** (the Works, north-west) — the outward-looking room: the Counter, the Grant Desk, and
   **the Commons Table** (see §11), where work people wrote and chose to hand on
   is laid out for anyone, and where your own goes out if you decide it should.
   The Commons Table needs no account and no server.
@@ -67,8 +96,8 @@ screen tells you plainly whether saving to this device is working.
   (Religion & Spirituality → Buddhism / Hinduism / Daoism…, plus Philosophy &
   Classics, Science, Non-fiction, Fiction). The physical shelves stay a curated
   handful; the Stacks hold *everything*, your own 👤 books included.
-- **The Inheritance Hall** (southwest corner, down its own lane off the west
-  end of the plaza road) — a walled garden with no roof and no door, and the
+- **The Inheritance Hall** (the Works, southwest corner, down its own lane) —
+  a walled garden with no roof and no door, and the
   only place here that arrives **completely empty**. See §10: it's ground you
   plant things in, and it holds nothing except what you or someone else put
   there.
@@ -108,6 +137,20 @@ to them, wherever you happen to be standing.
 
 Any of them will hand you on **by name** when a question isn't theirs. That is
 part of the job, not a brush-off.
+
+**The two buttons beside the chat box.** **Ask** sends your question. **🔎**
+sends the same question *and* searches everything you have ever written for it —
+so *"what did I write about impermanence?"* has a real answer. It is a separate
+button on purpose: one press, one question, one search. There is no switch that
+leaves it on, because your notes being read should always be something you just
+did, not something you once agreed to. What it finds is shown to you and goes
+into your 🎒 backpack, so you can see it, carry it elsewhere, or put it down —
+and 🔒 sealed notes are never searched, even by this.
+
+In a browser tab the 🔎 is **locked**: searching your own notes needs the small
+database the desktop app carries. Press it and it tells you so. Everything else
+in the conversation is identical, and anything already in your backpack is being
+read regardless, because you put it there.
 
 ### A little more on three of them
 
@@ -222,8 +265,49 @@ your own standing instructions, so you can watch them take effect.
     - It's kept in **🔬 The Lab** under **Dissections**, and **→ Open an
       investigation from this** carries the whole thing into the Science Hall as
       real evidence when you're ready to make a claim of it.
+- **📋 Today's Tasks** (pause menu, or Sebastian) — what you sat down to do
+  today, at a size you can actually finish.
+
+  This is not a to-do list and it does not follow you around. You set **two or
+  three things**, each with a place it happens, and tomorrow starts empty. That
+  is the whole point: it makes you scope the work to a real day, and it lets a
+  big goal — *learning electronics*, say — be eaten one sitting at a time
+  instead of sitting there being enormous. Name the bigger thing under **"part
+  of something bigger"** and the board keeps showing you where today fits.
+
+  Each step says **where it happens**, and the board takes you there in one
+  press — get a text (the Request Board), read it here, draft a lesson from it
+  with the Tutor, a step on the path, the desk, the bench, ask someone, write a
+  note. One kind has no button on purpose: **🌍 out there.** *"Go to the town
+  library."* *"Wire the 555 timer."* *"Read pages 40–60 on paper."* The Pavilion
+  holds those and lets you tick them off, because it is here to support real
+  study, not to replace it.
+
+  **Nothing here is ever late.** When the day ends, what you set out to do and
+  what you got to are both written into that day's log, honestly, and the board
+  is clear again. Anything can be taken up again with **↻ Do this again today**.
+  Finish everything you set for a day and it counts — there are badges for days
+  finished and for days in a row.
+
 - **Carry a book:** 🎒 takes it with you, readable from anywhere via the
-  pause menu's Inventory.
+  pause menu's Backpack.
+
+  **Your backpack is what a resident can see.** This is the whole point of it,
+  and it works in both directions: nothing of yours reaches a resident unless
+  you put it there, *and* a resident genuinely reads what you did put there. So
+  the way to have a real conversation about a book or a note is to carry it in.
+
+  Open the backpack and the top line tells you exactly where you stand —
+  *"3 of 4 things are visible to a resident when you ask"* — with a 👁 mark on
+  each item that is. Things on the **↓ Pick up later** shelf are not in your
+  hands, so they are not seen; 🔒 sealed notes are never seen. The cap of 20 is
+  there to keep your attention on a few things rather than a hundred, and to
+  keep a resident's reading small enough that it stays fast and stays accurate.
+  Nothing is ever lost — everything is still in the Library and the Notes Log.
+
+  If you want the numbers, **Your Data → "Show how much room the backpack is
+  taking, in tokens"** adds a bar. It is off by default and only worth turning
+  on when you are tuning a local model.
 - **The Index** (📑, from any shelf) — every text in one searchable list.
 - **Dropping a BATCH — one subject at a time.** Whatever shelf is picked in the
   intake form is applied to **every file in the drop**. So name a shelf only when
@@ -233,6 +317,13 @@ your own standing instructions, so you can watch them take effect.
   so a batch filed onto the wrong shelf is the one state where it cannot help.
   If that happens: open **⚙ Manage my books**, click that shelf, and press
   **↩ Send all N back to the pile**. Nothing is deleted.
+- **The shelf starts empty, and that is on purpose.** Nothing ships with the
+  Pavilion — no starter books, no samples. A library nobody chose is inert, and
+  filling your own is where the sense of owning it comes from. So the first
+  thing to do in this room is put one book on a shelf.
+  [`docs/BOOKS-TO-SOURCE.md`](docs/BOOKS-TO-SOURCE.md) is a starting list if you
+  want a first armful. *(Earlier versions shipped 27 texts; they were removed on
+  2026-08-10.)*
 - **Your own books — the short version: drag the file onto the window.** A
   `.txt` or `.epub` dropped **anywhere on the Pavilion**, from any screen, lands
   on your own shelf and is readable at once. You do not have to be in a
@@ -266,6 +357,29 @@ your own standing instructions, so you can watch them take effect.
   the shelf you picked, each marked 👤 as yours (personal copies, no license
   needed). A progress line counts them in, one bad file never stops the rest,
   and you can re-file any of them afterward under **⚙ Manage my books**.
+- **Where a book's text actually goes, and how to tell.** Every book carries a
+  small badge saying where *its own* text is kept — read from the book, not from
+  what happens to be running, so the badge stays honest even when something is
+  switched off:
+
+  | badge | what it means |
+  | --- | --- |
+  | 🐳 **Docker** | in local Docker storage (MinIO). No practical limit, and shared between machines that reach the same container |
+  | 💾 **this machine** | a real file in the app's own data folder. Hundreds fit; it never leaves this computer |
+  | 📄 **in the save** | the text is inside the save itself. Only a few fit this way — a browser tab has roughly 5–10 MB in total |
+  | 📝 **summary only** | a card with no full text behind it. There is nothing to open yet |
+
+  There is a **shelf line** showing the whole tally, and the intake table tells
+  you where the *next* book will go **before** you drop it.
+
+  **The local shelf holds 100 books.** Past that the Pavilion does not simply
+  refuse — it says so plainly and names the way through: start Docker, and new
+  text goes there instead with no practical limit. Nothing you already have
+  moves or is lost.
+- **Use `npm run electron:dev`, not `npm run dev`, if you run from source.** A
+  browser tab cannot reach the database, your book files, or Docker, and browser
+  storage is per address — so your library will look empty there even though it
+  is perfectly safe. See §8.
 - **Your Library — your own shelves, your own names.** Walk up to **Your
   Shelf** (the case by the reading nook) and it opens **👤 Your Library**: every
   book you brought in, and the tools to sort them out. **No license and no
@@ -532,11 +646,19 @@ of the day, not three.
   search, and the review queue where *you* stand behind what you shelve.
 - **The Records Hall** (one floor up) — your own history, newest first:
   books you finished, things you built at the Bench, claims you
-  investigated, experiments you ran, work you published — beside the
-  Pavilion's own milestones. **Every line is a door**; clicking one takes
-  you to where the real thing lives. It keeps no copies of anything, and
-  if it cannot tell *when* something happened it leaves it out rather
-  than guessing a date.
+  investigated, experiments you ran, work you published, **and every day
+  you finished on the Today's Tasks board** — beside the Pavilion's own
+  milestones. **Every line is a door**; clicking one takes you to where the
+  real thing lives. It keeps no copies of anything, and if it cannot tell
+  *when* something happened it leaves it out rather than guessing a date.
+
+  A finished day shows the day you *took* it, not the day it was closed
+  out, and says what it was a slice of — *"part of Learning electronics"*.
+  **A day you took and did not finish is not listed here**, and that is
+  deliberate: the board shows you both halves because you need to see both,
+  but a history of your own work that fills up with the days you fell short
+  is a guilt inventory, not a record. Two steps out of four is a real day on
+  the board and no line in this room.
 - **🗒 Your Notes** (pause menu) — the one home for notes. Every note you've
   taken *anywhere* (book notes, chat notes, desk notes, research, grant
   documents) is gathered here, with folders and tags and a scoped "have
@@ -550,6 +672,15 @@ of the day, not three.
       word match, which is the same search minus that extra help.
     - **＋ New note** starts a fresh note right here (the same note also appears
       in the Writing Desk's My Notes drawer — one store, two doors).
+    - **🔒 Seal a note.** Open any note and look under **Residents**. Every note
+      starts **🔎 Askable**, which means exactly two things: a resident *can*
+      read it when you press the 🔎 button in a conversation, and it is *never*
+      read otherwise — not as background, not to seem clever. Press **🔒 Seal
+      this note** and it becomes unreadable full stop: not by searching, not
+      when you ask, and not even if you put it in your backpack. Sealed notes
+      wear a 🔒 badge wherever they appear, so you can always tell at a glance.
+      Sealing has nothing to do with publishing — a sealed note is still yours,
+      still in the same place, and still goes nowhere off this machine.
     - Open one of your own notes and **✏ Open to edit / link a book** to edit its
       title and body inline.
     - **🔗 Link a book you're carrying** to a note, down to a **page** or a
@@ -658,21 +789,39 @@ memory footprint, and a "today's session" count of asks and timings.
 changed on 2026-08-04; if you read an older version of this page saying a
 database was an optional Docker upgrade, that is no longer true.
 
-The title screen tells you which one you are on, and there are only three
+The title screen tells you which one you are on, and there are **four**
 things it can say:
 
 > ● **Built-in database** — your shelves, chapters and notes are indexed.
-> Nothing to install; Docker is only needed to keep the book text outside
-> the app.
+> Nothing to install; Docker is only needed to keep the book text outside the app.
 
 > ● **Postgres in Docker** — your shelves, chapters and notes are indexed,
 > and the container holds the book text beside it.
 
-> ○ **Running in a browser tab** — everything works, but nothing is indexed.
+> ○ **Running in a browser tab** — this is a SEPARATE Pavilion. Your books, notes and days
+> here are its own: a tab cannot reach the desktop app's database, its book files, or
+> Docker, and each address (localhost:5173, :4173, the app) keeps its own save.
+> If your library looks empty here, it is not lost — open the desktop app.
 
-The first is what almost everyone gets. The second is for someone who
-already runs Docker and wants the book text kept outside the app. The third
-is the browser version, which is the only place there is no database at all.
+> ○ **The database did not open.** Everything still works and nothing is lost;
+> search and sorting are the parts that need it.
+
+The first is what almost everyone gets. The second is for someone who already
+runs Docker and wants the book text kept outside the app. The fourth is rare —
+a disk with no room, or a data folder that will not load — and the Pavilion
+keeps working without it.
+
+**The third is the one worth understanding, and this page got it wrong until
+2026-08-10.** It used to be quoted here as *"everything works, but nothing is
+indexed"* — which named a *search* limitation for what is actually an
+**absence**. A browser tab is not a smaller Pavilion; it is a **different one**.
+It has no bridge to the desktop app, so no database, no book files and no
+Docker — a library of hundreds of books shows as an empty shelf. And browser
+storage is **per address**, so `localhost:5173`, `localhost:4173` and the app
+are three separate saves that cannot see each other.
+
+*"I can't find my books"* is almost always this, and nothing is lost. Open the
+desktop app.
 
 **What the database is for.** It holds what the Pavilion knows *about* your
 books — their cards, their shelves, their chapters — and your notes. That
@@ -711,7 +860,7 @@ without it. Nothing you have moves anywhere without you.
 
 ## 10. The Inheritance Hall — planting something for whoever comes next
 
-Down a lane at the southwest corner of the Grounds there's a walled court with
+Down a lane at the southwest corner of **the Works** there's a walled court with
 no roof and no door — bare sand, a stone wall, and an open sky. Walk in and it
 is **empty**. That isn't a room waiting to be finished; it's the point.
 Everything that will ever stand in that court was put there by you, or handed

@@ -49,9 +49,69 @@ function applyOverrides(list){
   return out;
 }
 function stripMeta(o){ const { summary, hidden, editedAt, ...rest } = o; return rest; }
+/* ================================================================
+   EVERY BOOK HAS A CATEGORY, AND THIS IS THE BUG THAT HID A LIBRARY.
+
+   Found 2026-08-10, and it is the answer to "i cant find my books in the
+   library ... this issue keeps happening the books havent been working
+   for a while."
+
+   The Index groups by `category` and filters to the selected one, which
+   defaults to `classical`. Only ONE source ever set that field —
+   seed.js, via `SEED_LIBRARY.map(d => ({ category:'classical', ...d }))`.
+
+   docFromRow() (the database) does not set it. shelveAsPersonal() (your
+   own imports) does not set it. So every book that was actually YOURS
+   arrived with `category: undefined`, matched no category tab, and the
+   Index rendered ZERO CARDS while the shelf line underneath it correctly
+   said "326 Docker". The catalogue was loaded the whole time; the room
+   was filtering it all out.
+
+   It was invisible precisely because the seed books DID have a category.
+   A shelf of twenty-seven stubs rendered perfectly and hid the fact that
+   nothing else could — which is CLAUDE.md rule 1, stated as a bug:
+   "TEST THE PLAYER'S BOOKS, NOT THE SEED."
+
+   Fixed HERE rather than at the two sources, because this is the single
+   gate every reader passes through — listDocs, getDoc, allDocs, the
+   Index, the Stacks, Quill's grounding. A default applied at one seam
+   cannot drift; two sources each remembering to set a field is rule 4's
+   exact shape and is how this happened.
+
+   `personal` is the honest default: a book from the database or from an
+   import is one YOU brought in. The steward's override layer still wins,
+   so re-filing a book by hand keeps working.
+   ================================================================ */
+/* THE CATEGORY IS DERIVED FROM THE SHELF, not defaulted to one bucket.
+
+   The first fix here put every categoryless book in `personal`, which made
+   the books visible again but dropped all 415 into a single tab — beside
+   the Archive Desk's own documents, which are also `personal`. That is what
+   "it looks like its saving my notes as books" is: not notes becoming
+   books, but books and notes sharing one heap.
+
+   `tradition` is the shelf a book is actually on and every book has one, so
+   the category can be READ rather than guessed. Deterministic, rule 7, and
+   it gives the Index a real spread instead of one enormous tab. */
+const SHELF_CATEGORY = {
+  'Fiction': 'fiction',
+  'Non-fiction': 'non-fiction',
+  'Science': 'non-fiction',
+  'Classics': 'classical',
+  'Theravada': 'classical', 'Mahayana': 'classical', 'Daoism': 'classical',
+  'Chinese': 'classical', 'Hindu': 'classical', 'Tantra': 'classical',
+  'Christian': 'classical', 'Native American': 'classical', 'Practice': 'classical',
+  'Personal': 'personal',
+};
+export function categoryForShelf(shelf){
+  return SHELF_CATEGORY[shelf] || 'personal';
+}
+function withCategory(docs){
+  return docs.map(d => d && d.category ? d : { ...d, category: categoryForShelf(d && d.tradition) });
+}
 function mergedDocs(){
   const p = personalDocs();
-  return applyOverrides(p.length ? libraryDocs.concat(p) : libraryDocs);
+  return withCategory(applyOverrides(p.length ? libraryDocs.concat(p) : libraryDocs));
 }
 /* Kept as a resolved promise so the handful of callers that await it (the
    title screen's status line) need no change. There is nothing to wait for
@@ -132,7 +192,16 @@ function docFromRow(r, bucket){
     doc: {
       summary: '',
       sections: [],
-      fullText: r.text_key ? { storage: { bucket, key: r.text_key } } : undefined,
+      /* TWO HOMES, IN THE ORDER THE APP WRITES THEM. shelveAsPersonal tries
+         MinIO first and a local file second, so reading them back the same
+         way means a hydrated card can never disagree with what actually
+         happened. `local_file` arrived with migration 005: without it, a
+         book whose text is a real .txt under userData came back from the
+         database as a card with NO text at all — openable only because the
+         save happened to still have its own copy of the pointer. */
+      fullText: r.text_key ? { storage: { bucket, key: r.text_key } }
+              : r.local_file ? { storage: { personal: r.local_file } }
+              : undefined,
     },
   };
 }
@@ -220,6 +289,13 @@ export async function hydrateFromDb(opts = {}){
       d.kind || 'book', d.part || null,
       (d.doc && d.doc.fullText && d.doc.fullText.storage && d.doc.fullText.storage.key) || null,
       null,
+      /* THE LOCAL FILE GOES UP TOO, since migration 005. Before it, a book
+         whose text was written to userData rather than MinIO pushed a row
+         with no pointer at all — 89 of the steward's 415 looked, from the
+         database's side, like books owned on paper with nothing behind
+         them, while 59 real .txt files sat on disk. Losing the save meant
+         losing the only record of which file was which book. */
+      (d.doc && d.doc.fullText && d.doc.fullText.storage && d.doc.fullText.storage.personal) || null,
     ]);
     try { await b.dbWriteMany('upsertCard', params); } catch(e){ /* best effort */ }
   }
@@ -356,9 +432,15 @@ export async function syncChapters(slug, marks, how, doc, opts = {}){
 
   try {
     if(doc){
+      /* ELEVEN PARAMETERS SINCE MIGRATION 005 — text_key AND local_file.
+         This call still passed ten when the column landed and Postgres
+         refused the whole prepared statement ("bind message supplies 10
+         parameters, but prepared statement requires 11"), which took down
+         chapter syncing entirely. Caught by docker-home.cjs, which is the
+         container suite earning its keep. npm test now counts them. */
       await b.dbWrite('upsertCard', [slug, doc.title || slug, doc.attribution || null,
         doc.license || null, doc.source_url || null, doc.shelf || null,
-        doc.kind || 'book', doc.part || null, null, doc.pages || null]);
+        doc.kind || 'book', doc.part || null, null, doc.pages || null, null]);
     }
     await b.dbWrite('clearDetectedChapters', [slug]);
     if(list.length && b.dbWriteMany){

@@ -35,7 +35,8 @@ program asking another for something over `localhost`.
 2. **The app builds the full request.** It's a list of messages:
    - a **system prompt** — the resident's identity + live grounding (the
      Library shelves, your day, the charter). This is built fresh each time by
-     that resident's `systemPrompt()` in the `CHAT_AGENTS` table.
+     that resident's `systemPrompt()` in the `CHAT_AGENTS` table, which lives in
+     **`src/game/ui/residents.js`** (moved out of `overlays.js` on 2026-08-04).
    - then the **conversation history** so far.
 
 3. **The app calls the AI.** `AI.chat(messages, opts)` — `AI` is whichever
@@ -83,7 +84,7 @@ schedule as text; the app reads that text and creates events. Here's the whole
 trick:
 
 1. **You ask Sebastian for a plan.** He's a resident, so this is just Journey 1
-   — his `systemPrompt()` (in `CHAT_AGENTS`, `overlays.js`) is handed the honest
+   — his `systemPrompt()` (in `CHAT_AGENTS`, `ui/residents.js`) is handed the honest
    shape of your day (`butlerDayRead()` — today's intention, what's due, your
    open sparks, today's existing events) and is *told how to format a schedule*:
    one item per line, and when something has a time, **start the line with the

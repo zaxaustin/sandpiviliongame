@@ -16,7 +16,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[] /* VESTIGIAL - the old book-only backpack. Read ONCE by carryMigrate() and emptied; data.carrying is the backpack now. Do not write to it. */, reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[],builds:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, bookMarks:{}, study:null, carrying:[], readingPos:{}, catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, noteReach:{}, dailyTasks:[], taskStats:{done:0,streak:0,best:0,lastDone:''}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[] /* VESTIGIAL - the old book-only backpack. Read ONCE by carryMigrate() and emptied; data.carrying is the backpack now. Do not write to it. */, reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[],builds:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, bookMarks:{}, study:null, carrying:[], readingPos:{}, catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -29,6 +29,17 @@ if(!data.settings) data.settings={carryForwardSparks:false}; // older saves pred
 if(!data.notes) data.notes=[]; // older saves predate My Notes at the Writing Desk
 if(!data.calendar) data.calendar=[]; // older saves predate Sebastian's calendar (BUTLER-SEBASTIAN-PLAN.md)
 if(!data.noteMeta) data.noteMeta={}; // folder/tag layer over the notes log (NOTES-AND-LOG-ROOM-PLAN.md step 2) — a side-map keyed by note, touches no note itself
+/* May a local model see this note? (data/note-reach.js, 2026-08-08.) A SEPARATE
+   store from noteMeta on purpose: noteMeta is on the DATA_MAP ignore list as
+   "small, boring, self-evident", and a per-note AI permission is the exact
+   opposite — it belongs in Your Data where a person can read it. Absent means
+   ASKABLE, so this stays empty until someone deliberately seals something. */
+if(!data.noteReach) data.noteReach={};
+/* Today's tasks, and the tally (data/daily-tasks.js, 2026-08-08). One list,
+   newest first; only the entry whose `taken` is today is live, which is
+   computed on read rather than by any timer. */
+if(!Array.isArray(data.dailyTasks)) data.dailyTasks=[];
+if(!data.taskStats) data.taskStats={done:0,streak:0,best:0,lastDone:''};
 if(!data.personalLibrary) data.personalLibrary=[]; // older saves predate the personal shelf (BETA-BUILD-PLAN.md)
 if(!data.hall) data.hall={investigations:[],experiments:[]}; // older saves predate the Science & Research Hall (SCIENCE-RESEARCH-HALL-PLAN.md)
 if(!data.hall.experiments) data.hall.experiments=[]; // Phase 3 self-experiments came after Phases 0-2

@@ -43,7 +43,19 @@ async function listAll() {
   return out.filter(k => k.endsWith('.txt'));
 }
 
-const slugOf = (key) => key.replace(/\.txt$/, '').replace(/^personal\//, '').replace(/^personal-/, '');
+/* THE `personal-` PREFIX IS PART OF THE SLUG. Do not strip it.
+
+   This line used to end `.replace(/^personal-/, '')` and it is the whole of
+   the duplication bug found 2026-08-10. shelveAsPersonal() in ui/overlays.js
+   writes a personal book as slug `personal-X` and stores its text as
+   `personal-X.txt` — so the object `personal/personal-X.txt` IS the book
+   already keyed `personal-X`. Stripping the name prefix invented a second
+   identity, `X`, and this loader duly INSERTed it. 254 books ended up in the
+   catalogue twice, both rows pointing at the same real object.
+
+   The `personal/` FOLDER is still stripped, because that is a bucket prefix
+   and not part of anyone's identity. Folder yes, name no. */
+const slugOf = (key) => key.replace(/\.txt$/, '').replace(/^personal\//, '');
 const titleOf = (key) => slugOf(key).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 /* READ THE TITLE AND AUTHOR OUT OF THE TEXT ITSELF.

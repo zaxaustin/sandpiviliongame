@@ -6,18 +6,21 @@
    Real speech cannot be driven in headless Chrome, so this drives the same
    state the voice drives — which is exactly where the bug lived. */
 import puppeteer from 'puppeteer-core';
+/* A book the PLAYER added, with real text long enough to paginate — the seed
+   shelf this used to borrow from was deleted 2026-08-10. Rule 1. */
+import { inlineBook, A_BOOK } from './_books.mjs';
 const CHROME='C:/Program Files/Google/Chrome/Application/chrome.exe';
 const b=await puppeteer.launch({executablePath:CHROME,headless:'new'});
 const p=await b.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
-await p.evaluateOnNewDocument(s=>localStorage.setItem('sandPavilionSave.v2',s),JSON.stringify({seenWelcome:true,aiConnections:[]}));
+await p.evaluateOnNewDocument(s=>localStorage.setItem('sandPavilionSave.v2',s),JSON.stringify({seenWelcome:true,aiConnections:[],personalLibrary:[inlineBook()]}));
 await p.goto('http://localhost:4173',{waitUntil:'networkidle2'});
 await p.click('#startBtn'); await new Promise(r=>setTimeout(r,1300));
 const R=[];
 
 // open a real full text and go to page 2
-await p.evaluate(()=>{ window.openReader('dhammapada'); });
+await p.evaluate(sl=>{ window.openReader(sl); }, A_BOOK);
 await new Promise(r=>setTimeout(r,600));
-await p.evaluate(()=>window.openFullText('dhammapada',2));
+await p.evaluate(sl=>window.openFullText(sl,2), A_BOOK);
 await new Promise(r=>setTimeout(r,500));
 
 const pageNum=()=>p.evaluate(()=>document.getElementById('rdFullTextPageNum').textContent);

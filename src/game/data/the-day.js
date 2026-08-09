@@ -60,6 +60,44 @@ export function forgottenNotes(notes, today, limit) {
     .slice(0, limit == null ? 1 : limit);
 }
 
+/* ---- WHAT YOU WROTE TODAY ----------------------------------------------
+
+   Asked for 2026-08-10: "lets make proper pathways for the notes to be in
+   the logs."
+
+   A note used to have exactly one route back into the day, and it opened
+   after a FORTNIGHT (forgottenNotes above). Everything in between fell
+   through: you could write six notes in a morning and ☀ Today would not
+   know a single one of them existed. Writing was the end of a note's life
+   rather than the start, which is the same complaint that rule was written
+   for — it just fixed the far end and left the near one open.
+
+   THIS IS NOT A "WAITING" ITEM AND MUST NEVER BECOME ONE. theDayItems() is
+   capped at five on purpose, because "a list of everything outstanding is a
+   guilt inventory". A note you already wrote is the opposite of outstanding
+   — it is work DONE, and it belongs in the day as a record, not as another
+   thing asking for you. So it is its own function, rendered as its own
+   section, and it does not compete for the five.
+
+   Newest first, and never truncated by count: on a day you wrote eleven
+   notes, eleven is the honest answer and a good day.                     */
+export function notesToday(notes, today) {
+  if (!today) return [];
+  return (notes || [])
+    .filter(n => n && n.date && String(n.date).slice(0, 10) === today)
+    .slice()
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
+/* One plain sentence for the day's header, or nothing at all. Silence when
+   you have written none is deliberate — "0 notes today" is a scold, and the
+   four rules at the top of this file exist to keep that out. */
+export function notesTodayLine(notes, today) {
+  const n = notesToday(notes, today).length;
+  if (!n) return '';
+  return n === 1 ? 'one note written today' : n + ' notes written today';
+}
+
 /* ---- the whole thing --------------------------------------------------
    Everything is passed in, nothing is reached for:
      today       'YYYY-MM-DD'

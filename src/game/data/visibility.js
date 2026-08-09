@@ -92,6 +92,19 @@ export const DATA_MAP = [
      why it has to be listed and said plainly. */
   { key:'readingPos',   name:'Where you are in each book', state:'private', leaves:'Never. How far you have read is nobody else’s business.' },
   { key:'carrying',     name:'Your backpack',           state:'private', leaves:'Never on its own. What you carry is what a resident may see — and only while you carry it.' },
+  /* THE OTHER AXIS, and it is listed here precisely because it is not this one.
+     `state:'private'` below answers the question this file asks — can it leave
+     the machine — and the answer is never. What the store itself HOLDS is the
+     answer to a different question (data/note-reach.js): may a local model on
+     this machine read that note. A note can be private in every sense here and
+     still be one you are glad to hand your own resident when you ask it
+     something. Empty until you deliberately seal a note; absent means askable. */
+  { key:'noteReach',    name:'Notes you have sealed',   state:'private', leaves:'Never. Sealing a note is about what a model on THIS machine may read, not about where the note goes.' },
+  /* What you sat down to do each day, and the tally of days you finished.
+     Private in the strongest sense: this is a record of your own effort, and
+     the only thing anyone else could do with it is judge it. */
+  { key:'dailyTasks',   name:'Your daily tasks',        state:'private', leaves:'Never. What you set out to do on a given day is nobody else’s business.' },
+  { key:'taskStats',    name:'Days you finished what you set out to do', state:'private', leaves:'Never. A streak is a private encouragement, not a score anyone else sees.' },
   { key:'activityLog',  name:'Activity log',            state:'private', leaves:'Never.' },
   { key:'badges',       name:'Badges',                  state:'private', leaves:'Never.' },
   { key:'aiConnections',name:'Your AI connections',     state:'private', leaves:'Never. Keys and addresses stay on this device.' },

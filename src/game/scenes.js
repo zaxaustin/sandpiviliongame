@@ -28,72 +28,90 @@ export const scenes = {};
 function grid(w,h,fill){ return Array.from({length:h},()=>Array(w).fill(fill)); }
 function makeRng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
 
+/* ================================================================
+   TWO GROUNDS, 2026-08-10. The steward's own split:
+
+     "i dont wana loose features but we can move things like the pond and
+      the inhertince hall to a second overlays screen. mabie even the
+      workshop and the cafe as well"
+
+   THE PAVILION is where you study alone — the Keep, the Library and its
+   two floors, the Study. THE WORKS is where you make, meet, give and
+   rest — the Workshop's three floors, the Café, the Inheritance Hall and
+   the pond. Nothing was deleted and nothing is gated; one road joins
+   them, signposted at both ends.
+
+   IT COST NOTHING TO REACH THEM because the pause menu had already been
+   given a door to every room the day before (see data/places.js). That
+   ordering was deliberate: moving rooms further away while the ONLY way
+   in was walking would have deepened the Lab's bug instead of leaving it
+   fixed. Walking is atmosphere now, not access.
+   ================================================================ */
 function buildOverworld(){
   const W=40,H=34, t=grid(W,H,'G'), rng=makeRng(20260705);
   for(let x=0;x<W;x++){ t[0][x]='T'; t[1][x]='T'; t[H-1][x]='T'; t[H-2][x]='T'; }
   for(let y=0;y<H;y++){ t[y][0]='T'; t[y][1]='T'; t[y][W-1]='T'; t[y][W-2]='T'; }
-  const cx=31.5,cy=26.5,rx=5.6,ry=4.3;
-  for(let y=2;y<H-2;y++) for(let x=2;x<W-2;x++){
-    const dx=(x-cx)/rx, dy=(y-cy)/ry;
-    if(dx*dx+dy*dy<=1) t[y][x]='W';
-  }
-  t[26][26]='G'; t[26][27]='D'; t[26][28]='D';
   const stamp=(x0,y0,x1,y1)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) t[y][x]='B'; };
-  stamp(14,2,25,8); stamp(4,11,11,15); stamp(28,11,35,15); stamp(21,11,27,15); stamp(12,12,15,14);
-  // The Inheritance Hall — deliberately at the southwest EDGE, off the plaza,
-  // down a lane of its own: you go out of your way to reach it, and what's
-  // inside is whatever anyone has actually left there. See BETA-BUILD-PLAN §8.
-  stamp(5,22,11,26);
-  t[8][19]='P'; t[8][20]='P'; t[15][7]='P'; t[15][8]='P'; t[15][31]='P'; t[15][32]='P'; t[15][24]='P'; t[15][25]='P'; t[15][13]='P'; t[15][14]='P';
-  for(let y=9;y<=25;y++){ t[y][19]='P'; t[y][20]='P'; }
-  for(let x=3;x<=34;x++){ t[17][x]='P'; t[18][x]='P'; } // the plaza road, now reaching the west corner
-  for(let y=19;y<=27;y++){ t[y][3]='P'; t[y][4]='P'; } // the lane down the west side
-  for(let x=3;x<=10;x++) t[27][x]='P';                 // and east along the Hall's front
-  t[26][7]='P'; t[26][8]='P';                          // the open archway itself — no door, never shut
-  t[16][7]='P'; t[16][8]='P'; t[16][31]='P'; t[16][32]='P'; t[16][24]='P'; t[16][25]='P';
-  for(let x=21;x<=26;x++){ t[26][x]=(t[26][x]==='W')?'W':'P'; }
-  for(let y=19;y<=26;y++){ if(t[y][21]!=='W') t[y][21]='P'; }
+  stamp(14,2,25,8); stamp(4,11,11,15); stamp(12,12,15,14);
+  t[8][19]='P'; t[8][20]='P'; t[15][7]='P'; t[15][8]='P'; t[15][13]='P'; t[15][14]='P';
+  for(let y=9;y<=18;y++){ t[y][19]='P'; t[y][20]='P'; }
+  /* The plaza road, west corner to the east gate. IT CUTS STRAIGHT THROUGH
+     THE TREELINE and runs off the edge of the map, rather than stopping at a
+     wall of trees with an invisible seam in it — the steward's own call:
+     "lets get rid of the trees and make it like a road to the next part."
+     A road that visibly continues is a road you believe leads somewhere. */
+  for(let x=3;x<=W-1;x++){ t[17][x]='P'; t[18][x]='P'; }
+  t[16][7]='P'; t[16][8]='P';
   for(let y=19;y<=22;y++) for(let x=16;x<=23;x++){ if(t[y][x]==='G') t[y][x]='S'; }
   const reserved=(x,y)=>t[y][x]!=='G';
   for(let i=0;i<46;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='T'; }
   for(let i=0;i<34;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='F'; }
-  [[19,9],[20,9],[7,16],[8,16],[31,16],[32,16],[26,26],[25,26],
-   [17,9],[5,16],[34,16],[24,25],[17,20],[10,18],[31,18],[25,27],[27,16],
+  [[19,9],[20,9],[7,16],[8,16],[17,9],[5,16],[17,20],[10,18],
    [13,15],[14,15],[13,16],[14,16],
    [12,22],[30,20],[14,24],[32,23],
-   [11,27],[2,27],[5,27] // keep the Hall's own approach clear of RNG trees
+   [24,16],[25,16],[35,16],[36,16] // keep the eastward signposts clear of RNG trees
   ].forEach(([x,y])=>{ if(t[y][x]==='T'||t[y][x]==='F') t[y][x]='G'; });
   t[16][10]='n'; // a bench just outside the Library door, on the grass — reading doesn't
   // have to happen indoors; placed after the tree/flower RNG pass so it always wins the tile
 
   scenes.overworld = {
     name:'Pavilion Grounds', outdoor:true, tiles:t, w:W, h:H,
+    /* `door` is the absolute tile column the doorway is drawn at. It used to
+       be three hard-coded numbers inside render.js, keyed off the building
+       TYPE — correct only for as long as nothing ever moved. See the note at
+       that line; npm test now requires every building to carry its own. */
     buildings:[
-      {type:'castle',  x:14,y:2, w:12,h:7, label:'PAVILION KEEP'},
-      {type:'library', x:4, y:11,w:8, h:5, label:'THE LIBRARY'},
-      {type:'workshop',x:28,y:11,w:8, h:5, label:'THE WORKSHOP'},
-      {type:'cafe',    x:21,y:11,w:7, h:5, label:'THE CAFE'},
-      {type:'annex',   x:12,y:12,w:4, h:3, label:'THE STUDY'},
-      {type:'hall',    x:5, y:22,w:7, h:5, label:'INHERITANCE HALL', door:7},
+      {type:'castle',  x:14,y:2, w:12,h:7, label:'PAVILION KEEP', door:19},
+      {type:'library', x:4, y:11,w:8, h:5, label:'THE LIBRARY',   door:7},
+      {type:'annex',   x:12,y:12,w:4, h:3, label:'THE STUDY',     door:13},
     ],
     warps:[
       {x:19,y:8,to:'keep',sx:8,sy:11},{x:20,y:8,to:'keep',sx:9,sy:11},
       {x:7,y:15,to:'library',sx:7,sy:13},{x:8,y:15,to:'library',sx:8,sy:13},
-      {x:31,y:15,to:'workshop',sx:6,sy:8},{x:32,y:15,to:'workshop',sx:7,sy:8},
-      {x:24,y:15,to:'cafe',sx:6,sy:8},{x:25,y:15,to:'cafe',sx:7,sy:8},
-      {x:13,y:15,to:'study',sx:6,sy:8},{x:14,y:15,to:'study',sx:7,sy:8},
-      {x:7,y:26,to:'grove',sx:8,sy:12},{x:8,y:26,to:'grove',sx:9,sy:12},
+      /* Lands one tile INSIDE the Study, not in its own doorway. Until
+         2026-08-10 both of these dropped you at (6,8)/(7,8) — which are the
+         Study's two exit warps — so stepping sideways after walking in
+         ejected you straight back onto the Grounds. Found by the new
+         warp-onto-a-warp check, not by anyone reporting it, which is the
+         house failure mode in miniature. */
+      {x:13,y:15,to:'study',sx:6,sy:7},{x:14,y:15,to:'study',sx:7,sy:7},
+      /* The road east, out to THE WORKS. Not a door and not gated — a road.
+         Set one tile IN from the map edge so the roadway is still visibly
+         running on past you as you cross. */
+      {x:38,y:17,to:'works',sx:2,sy:13,face:'right'},
+      {x:38,y:18,to:'works',sx:2,sy:14,face:'right'},
     ],
-    // An open-air hearth in the plaza — the café's fire moved outside, where
-    // people actually gather, beside the path between the buildings.
-    stations:[{x:22,y:22,kind:'hearth',name:'THE HEARTH'}],
+    stations:[],
     signs:[
       {x:17,y:9, name:'WOODEN SIGN', text:"PAVILION KEEP\nThe guild's charter rests here. All are welcome.\nNothing here is owned — only kept, and passed on."},
       {x:5,y:16, name:'WOODEN SIGN', text:"THE LIBRARY\nOpen to all. No gate, no fee, no ledger of debts.\nThe Study stands just beside it now, its own door — no\nneed to pass through the shelves to reach a desk."},
-      {x:34,y:16,name:'WOODEN SIGN', text:"THE WORKSHOP\nThree desks stand finished on the ground floor. Climb\nthe stairs: the Records Hall is real too, one floor up.\nFive more rooms wait above that, still just framing\nand good intentions. — The Stewards"},
-      {x:27,y:16,name:'HAND-LETTERED SIGN', text:"THE CAFE\nWhere the Pavilion looks outward. Inside: a notice board, a\ngrant desk, and THE COMMONS TABLE — work people wrote and\nchose to hand on, laid out for anyone to take a copy of, and\nwhere your own goes out if you decide it should. The hearth\nburns in the plaza, where people gather. — The Stewards"},
-      {x:24,y:25,name:'OLD DOCK',    text:"The pond is older than the Pavilion.\nThe koi remember everything.\n(Stand on the dock, face the water, press E.)"},
-      {x:11,y:27,name:'A LEANING POST', text:"THE INHERITANCE HALL\nNo roof, no door, no keeper. Open ground, and whatever\nanyone has left standing in it.\nWhat you plant here outlives your visit. That is the\nwhole of the arrangement."},
+      /* A SECOND ONE, IN SIGHT OF THE PLAZA. Read off a screenshot: with the
+         Workshop and Cafe gone east, the only thing saying the road led
+         anywhere stood fifteen tiles down it, out of view from where a
+         visitor actually stands. A road to somewhere you cannot tell is
+         there is a road nobody takes. */
+      {x:24,y:16,name:'A FINGERPOST', text:"→ THE WORKS, east along the road\nThe Workshop, the Cafe, the Inheritance Hall and the pond.\nA few minutes' walk, and nothing over there is shut.\n(Esc opens every room in both Grounds, if you'd rather\nnot walk it just now.)"},
+      {x:35,y:16,name:'A ROAD SIGN, EAST', text:"→ THE WORKS\nKeep on down the road. The Workshop, the Cafe, the\nInheritance Hall and the pond all stand together over\nthere — the making, the meeting, the giving and the\nresting, out of earshot of the shelves.\nNothing over there is shut to you, and nothing here\ncloses while you're gone.\n(Or press Esc: every room in both Grounds is one key\naway, if you'd rather not walk it.)"},
     ],
     npcs:[
       {x:17,y:20,color:'#e0a43c',glow:'#ffd27a',name:'EMBER · Archivist Agent',wander:true,lines:[
@@ -102,21 +120,99 @@ function buildOverworld(){
       {x:10,y:18,color:'#7fa36b',glow:'#b9e29a',name:'MOSS · Steward Agent',wander:true,lines:[
         "A badge here can't be bought, only witnessed.\nThe Pavilion reads the record — never the soul.",
         "Building your own course? The board in the Study confers nothing. That's the point — it's practice, witnessed by you alone."]},
-      {x:31,y:18,color:'#6f8fb5',glow:'#a9c8ea',name:'COBALT · Caravan Agent',wander:true,lines:[
-        "Three small shops on my follow-up list. A promise made by a volunteer is a promise the whole guild made.",
-        "The Caravan's rule: never leave a relationship half-built.\nI nag kindly until the loop is closed."]},
-      {x:25,y:27,color:'#b9976b',glow:'#e8d5a8',name:'SAGARA the Fisher',wander:false,lines:[
-        "Cast, wait, and when the line jumps — move. Hesitate and the moment's gone. Same as sitting practice, really.",
-        "Caught a pearl here once. It dissolved in my palm.\nStill counts, I figure. Everything turns to sand."]},
       // just wildlife — wandering, decorative, no AI and no agenda. First
       // small step of the fuller pet/animal-track system sketched in the
       // README's Hopes and Dreams; these two are just here to live their lives.
       {x:12,y:22,species:'deer',wander:true,lines:["A deer looks up, chews once, decides you're not interesting, and goes back to grazing."]},
-      {x:30,y:20,species:'deer',wander:true,lines:["It watches you a moment longer than a deer usually should, then bounds off."]},
       {x:14,y:24,species:'bunny',wander:true,lines:["A rabbit freezes, ears up, then remembers you're not a hawk and keeps nibbling."]},
-      {x:32,y:23,species:'bunny',wander:true,lines:["It thumps a back foot once — not at you, just because rabbits do that — and hops on."]},
     ],
     spawn:{x:19,y:21}
+  };
+}
+
+function buildWorks(){
+  // THE WORKS — the second Grounds. Everything here stood on the Pavilion
+  // Grounds until 2026-08-10 and moved across whole: same buildings, same
+  // interiors, same koi. Only the road is new.
+  const W=34,H=28, t=grid(W,H,'G'), rng=makeRng(20260810);
+  for(let x=0;x<W;x++){ t[0][x]='T'; t[1][x]='T'; t[H-1][x]='T'; t[H-2][x]='T'; }
+  for(let y=0;y<H;y++){ t[y][0]='T'; t[y][1]='T'; t[y][W-1]='T'; t[y][W-2]='T'; }
+  // the pond, southeast — older than either Grounds, and it came with the koi
+  const cx=24.5,cy=19.5,rx=5.6,ry=3.3;
+  for(let y=2;y<H-2;y++) for(let x=2;x<W-2;x++){
+    const dx=(x-cx)/rx, dy=(y-cy)/ry;
+    if(dx*dx+dy*dy<=1) t[y][x]='W';
+  }
+  const stamp=(x0,y0,x1,y1)=>{ for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) t[y][x]='B'; };
+  stamp(6,5,12,9);    // the Cafe
+  stamp(20,5,27,9);   // the Workshop
+  // The Inheritance Hall keeps its habit of standing off on its own, down a
+  // lane at the southwest edge: you go out of your way to reach it, and
+  // what's inside is whatever anyone actually left there.
+  stamp(4,18,10,22);
+
+  // the road in from the Pavilion — through the treeline on the west side,
+  // the same cut the Pavilion's own road makes on its east
+  for(let x=0;x<=29;x++){ t[13][x]='P'; t[14][x]='P'; }
+  // the two doorways, carved out of their own footprints, and their approaches
+  t[9][8]='P'; t[9][9]='P';   for(let y=10;y<=12;y++){ t[y][8]='P'; t[y][9]='P'; }
+  t[9][23]='P'; t[9][24]='P'; for(let y=10;y<=12;y++){ t[y][23]='P'; t[y][24]='P'; }
+  // the lane down the west side to the Hall, and east along its front
+  for(let y=15;y<=23;y++){ t[y][2]='P'; t[y][3]='P'; }
+  for(let x=2;x<=11;x++) t[23][x]='P';
+  t[22][6]='P'; t[22][7]='P';                  // the open archway — no door, never shut
+  // the path down to the dock, and the dock itself out over the water
+  for(let y=15;y<=19;y++) t[y][18]='P';
+  t[19][19]='D'; t[19][20]='D';
+  // the plaza, between the two doors, where the hearth burns
+  for(let y=10;y<=12;y++) for(let x=13;x<=19;x++){ if(t[y][x]==='G') t[y][x]='S'; }
+
+  const reserved=(x,y)=>t[y][x]!=='G';
+  for(let i=0;i<40;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='T'; }
+  for(let i=0;i<28;i++){ const x=2+Math.floor(rng()*(W-4)), y=2+Math.floor(rng()*(H-4)); if(!reserved(x,y)) t[y][x]='F'; }
+  [[4,12],[5,12],[11,11],[12,11],[26,11],[27,11],   // room signs, kept clear
+   [17,18],[18,20],[17,20],[12,23],[11,22],          // the dock, the fisher, the Hall's post
+   [25,12],[7,16],[29,24],[13,16],[20,16]
+  ].forEach(([x,y])=>{ if(t[y][x]==='T'||t[y][x]==='F') t[y][x]='G'; });
+  t[16][13]='n'; // a bench on the plaza's edge, looking down toward the water
+
+  scenes.works = {
+    name:'The Works', outdoor:true, tiles:t, w:W, h:H,
+    buildings:[
+      {type:'cafe',    x:6, y:5, w:7,h:5, label:'THE CAFE',         door:8},
+      {type:'workshop',x:20,y:5, w:8,h:5, label:'THE WORKSHOP',     door:23},
+      {type:'hall',    x:4, y:18,w:7,h:5, label:'INHERITANCE HALL', door:6},
+    ],
+    warps:[
+      {x:8,y:9,to:'cafe',sx:6,sy:8},{x:9,y:9,to:'cafe',sx:7,sy:8},
+      {x:23,y:9,to:'workshop',sx:6,sy:8},{x:24,y:9,to:'workshop',sx:7,sy:8},
+      {x:6,y:22,to:'grove',sx:8,sy:12},{x:7,y:22,to:'grove',sx:9,sy:12},
+      // the road back to the Pavilion, one tile in from the edge for the
+      // same reason the eastbound one is
+      {x:1,y:13,to:'overworld',sx:37,sy:17,face:'left'},
+      {x:1,y:14,to:'overworld',sx:37,sy:18,face:'left'},
+    ],
+    // An open-air hearth in the plaza — the café's fire moved outside, where
+    // people actually gather, beside the path between the buildings.
+    stations:[{x:16,y:11,kind:'hearth',name:'THE HEARTH'}],
+    signs:[
+      {x:4,y:12, name:'A ROAD SIGN, WEST', text:"← THE PAVILION\nBack up the road: the Keep, the Library and the Study,\nwhere the quiet work happens.\nSame as here — nothing shut, nothing gated. Just a walk.\n(Or press Esc. Every room in both Grounds is one key away.)"},
+      {x:11,y:11,name:'HAND-LETTERED SIGN', text:"THE CAFE\nA place to look outward, not down at a shelf. Inside: a notice\nboard, a grant desk, and THE COMMONS TABLE — work people wrote\nand chose to hand on, laid out for anyone to take a copy of,\nand where your own goes out if you decide it should. The hearth\nburns out here on the plaza, where people gather. — The Stewards"},
+      {x:26,y:11,name:'WOODEN SIGN', text:"THE WORKSHOP\nThree desks stand finished on the ground floor. Climb\nthe stairs: the Records Hall is real too, one floor up.\nFive more rooms wait above that, still just framing\nand good intentions. — The Stewards"},
+      {x:17,y:18,name:'OLD DOCK',    text:"The pond is older than the Pavilion — older than this road,\nolder than the Works. They moved the buildings around it.\nThe koi remember everything.\n(Stand on the dock, face the water, press E.)"},
+      {x:12,y:23,name:'A LEANING POST', text:"THE INHERITANCE HALL\nNo roof, no door, no keeper. Open ground, and whatever\nanyone has left standing in it.\nWhat you plant here outlives your visit. That is the\nwhole of the arrangement."},
+    ],
+    npcs:[
+      {x:25,y:12,color:'#6f8fb5',glow:'#a9c8ea',name:'COBALT · Caravan Agent',wander:true,lines:[
+        "Three small shops on my follow-up list. A promise made by a volunteer is a promise the whole guild made.",
+        "The Caravan's rule: never leave a relationship half-built.\nI nag kindly until the loop is closed."]},
+      {x:18,y:20,color:'#b9976b',glow:'#e8d5a8',name:'SAGARA the Fisher',wander:false,lines:[
+        "Cast, wait, and when the line jumps — move. Hesitate and the moment's gone. Same as sitting practice, really.",
+        "Caught a pearl here once. It dissolved in my palm.\nStill counts, I figure. Everything turns to sand."]},
+      {x:29,y:24,species:'deer',wander:true,lines:["It watches you a moment longer than a deer usually should, then bounds off."]},
+      {x:7,y:16,species:'bunny',wander:true,lines:["It thumps a back foot once — not at you, just because rabbits do that — and hops on."]},
+    ],
+    spawn:{x:3,y:13}
   };
 }
 
@@ -334,7 +430,7 @@ function buildWorkshop(){
   t[3][12]='U';                                        // the narrow staircase, now visible
   scenes.workshop = {
     name:'The Workshop', outdoor:false, tiles:t, w:W, h:H, buildings:[],
-    warps:[{x:6,y:9,to:'overworld',sx:31,sy:16},{x:7,y:9,to:'overworld',sx:32,sy:16},
+    warps:[{x:6,y:9,to:'works',sx:23,sy:10},{x:7,y:9,to:'works',sx:24,sy:10},
            {x:12,y:3,to:'workshopfloor2',sx:5,sy:3}],
     signs:[{x:2,y:4,name:'ROUGH TIMBER SIGN',
       text:"THE ARCHIVE DESK\nYour own words, kept the same way the Library keeps\nothers' — a title, a license, a source, a body.\nTHE RESEARCH DESK, opposite wall — freeform notes on\nwhatever you're working through, with a research\nassistant AI to think alongside. THE CARAVAN DESK, by\nthe west pillar — where texts from outside actually\nenter the Library, one reviewed piece at a time. Face\na desk and press E.\nSEBASTIAN the butler keeps this floor — talk to him to\nplan your day, or to be told the honest shape of it. His\nCALENDAR stands at his desk; face it and press E."},
@@ -438,7 +534,7 @@ function buildGrove(){
   t[11][14]='N';                                        // a bench, weathered, facing the whole court
   scenes.grove = {
     name:'The Inheritance Hall', outdoor:true, tiles:t, w:W, h:H, buildings:[],
-    warps:[{x:8,y:13,to:'overworld',sx:7,sy:27},{x:9,y:13,to:'overworld',sx:8,sy:27}],
+    warps:[{x:8,y:13,to:'works',sx:6,sy:23},{x:9,y:13,to:'works',sx:7,sy:23}],
     stations:[{x:8,y:2,kind:'inheritance',name:'THE RECORD STONE'},
       // A broken column, half-buried, standing apart from everything else in
       // the court. Not decoration: it is the argument the Hall exists to make.
@@ -464,7 +560,7 @@ function buildCafe(){
   [[5,5],[8,5],[5,6],[8,6]].forEach(([x,y])=>t[y][x]='t'); // actual tables to sit at, not just stations to work at
   scenes.cafe = {
     name:'The Cafe', outdoor:false, tiles:t, w:W, h:H, buildings:[],
-    warps:[{x:6,y:9,to:'overworld',sx:24,sy:16},{x:7,y:9,to:'overworld',sx:25,sy:16}],
+    warps:[{x:6,y:9,to:'works',sx:8,sy:10},{x:7,y:9,to:'works',sx:9,sy:10}],
     signs:[{x:2,y:4,name:'HAND-LETTERED SIGN',
       text:"THE CAFE\nA place to look outward, not down at a shelf. Face a\nstation and press E.\nTHE COMMONS TABLE, east side: papers, lesson plans and\ncourses people wrote and gave away — and where your own\nwork goes out, if you decide it should. Nothing on that\ntable moved without a person carrying it."}],
     stations:[
@@ -485,4 +581,4 @@ function buildCafe(){
   };
 }
 
-buildOverworld(); buildKeep(); buildLibrary(); buildLibraryBasement(); buildLibraryFloor2(); buildStudy(); buildWorkshop(); buildWorkshopFloor2(); buildWorkshopFloor3(); buildCafe(); buildGrove();
+buildOverworld(); buildWorks(); buildKeep(); buildLibrary(); buildLibraryBasement(); buildLibraryFloor2(); buildStudy(); buildWorkshop(); buildWorkshopFloor2(); buildWorkshopFloor3(); buildCafe(); buildGrove();

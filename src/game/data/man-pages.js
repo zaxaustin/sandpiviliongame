@@ -42,6 +42,76 @@ export const MAN_PAGES = {
         + 'you want `grep -r "word" .`, which is the other command you will '
         + 'use every day.',
   },
+  /* THREE PAGES THAT WERE MISSING, found 2026-08-10 by the guard that pairs
+     `help` with MAN_PAGES on its very first run. `ref`, `notes` and `carry`
+     had been listed in help for weeks with nothing behind `man`, which is a
+     dud answer in the one place a person goes when they are already lost. */
+  ref: {
+    use: 'ref <term>',
+    what: 'Constants, units and formulas — exact, offline, no AI involved.',
+    more: 'For the numbers you should never ask a language model for: the '
+        + 'speed of light, a resistor colour band, how many joules in a '
+        + 'calorie. A model will give you a plausible number; this gives you '
+        + 'the number. That distinction is the whole reason the command '
+        + 'exists rather than being folded into `ask`.',
+    real: 'Unix has `units` — `units "10 furlongs" "km"` — which has shipped '
+        + 'since the 1970s and is still the fastest converter on any machine. '
+        + '`man 7 units` if it is installed.',
+  },
+  notes: {
+    use: 'notes [word]',
+    what: 'Every note you have written, or the ones matching a word.',
+    more: 'The largest pile most visitors have, and for a long time the one '
+        + 'thing this terminal could not list. It reads the same union the '
+        + 'Notes Log reads, so a note found here is the same note — never a '
+        + 'second copy with its own idea of the truth. `notes <word>` matches '
+        + "the BOOK's name too, because the book is the obvious thing to type.",
+    real: '`grep -r "word" ~/notes` is the direct equivalent and the command '
+        + 'you will use most on a real machine. `ripgrep` (rg) is the modern '
+        + 'one: same idea, far faster, and it skips your .git directory.',
+  },
+  carry: {
+    use: 'carry <number>   ·   carry',
+    what: 'Put a listed thing in your backpack. With no number: what you hold.',
+    more: 'The point of listing. A thing found in the terminal goes straight '
+        + 'into the backpack, and the backpack is what a resident can see and '
+        + 'what the Study Table works from — so `carry` is how something you '
+        + 'found becomes something you are working on. Books and notes both. '
+        + 'The bag has a cap on purpose: it is a bound on attention, and on '
+        + "the model's context window, which is the same bound twice.",
+    real: 'Nothing in Unix matches this exactly — the nearest thing is a '
+        + 'shell variable or the clipboard: `xclip`, `pbcopy` on a Mac. '
+        + 'Holding a few things aside while you work on them is a habit every '
+        + 'shell user builds their own way.',
+  },
+  random: {
+    use: 'random [shelf]',
+    what: 'Hand me ONE book, at random. Unread first.',
+    more: 'For the days you have no particular question. `ls` was a list when '
+        + 'twenty-seven books shipped with the Pavilion; against a real '
+        + 'collection it is a wall, and a wall is not an index. This is the '
+        + 'opposite command: not "show me everything", but "pick something". '
+        + 'It prefers a book you have never opened, and says so when you have '
+        + 'read them all. Narrow it to a shelf — `random fiction` — when you '
+        + 'know the mood but not the book.',
+    real: 'Unix has `shuf -n 1` (one random line) and `sort -R`. The real '
+        + 'idiom is `ls | shuf -n 1` — pipe a list into a shuffler and take '
+        + 'the top. Same idea: the list already existed, and the useful thing '
+        + 'was doing less with it.',
+  },
+  test: {
+    use: 'test <number>   ·   test random',
+    what: 'Carry that book and open the Study Table on it.',
+    more: 'Picking a book is only useful if there is somewhere to take it. '
+        + 'The Study Table works a book one unit at a time, and it reads your '
+        + 'BACKPACK — so this carries the book first and opens the desk '
+        + 'second. Two commands made one. `test random` skips the choosing '
+        + 'entirely.',
+    real: '`test` on Unix is the condition checker behind every `if` in a '
+        + 'shell script — `test -f file` asks whether a file exists, and `[ ]` '
+        + 'is the same program under another name. A different job entirely; '
+        + 'the word is borrowed here for what YOU do to a book.',
+  },
   papers: {
     use: 'papers',
     what: 'Only the entries marked as papers.',

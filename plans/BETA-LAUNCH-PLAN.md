@@ -81,10 +81,19 @@ Three things fall out of that, and they're the whole plan:
 
 ## The AI-customization piece — the resolution to the Monk model risk
 
-This is where the beta stance meets the biggest open reliability gap
-(`AI-INTEGRATION-NOTES.md`: `bestLocalModel()` hands the Monk the largest
-installed model, often an unreliable "thinking" model). The user's steer,
-2026-07-11, resolves it **without** lobotomizing anyone:
+> **⚠ THE RISK THIS SECTION MANAGES NO LONGER EXISTS (2026-08-07).**
+> `chatOptsFor()` returns `{}` for every resident: the Monk gets the same model
+> as everyone else, and `bestLocalModel()` no longer feeds any routing decision.
+> The section is kept because the *stance* it settled — the Monk ships, guidance
+> is the point, and you resolve reliability by choosing well rather than by
+> lobotomizing a resident — is still the standing decision. Read the mechanism
+> below as history; read the stance as current. See
+> `plans/AI-INTEGRATION-NOTES.md` for what actually runs.
+
+This is where the beta stance met the biggest open reliability gap of the time
+(`bestLocalModel()` handed the Monk the largest installed model, often an
+unreliable "thinking" model). The user's steer, 2026-07-11, resolved it
+**without** lobotomizing anyone:
 
 - **The Monk is definitely in the beta — guidance is the whole point.**
   (User, 2026-07-11: "he will definitely be included in the beta launch;

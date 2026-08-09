@@ -88,9 +88,16 @@ export function recommendModel(info = {}) {
     tier = 'strong';
     model = MODELS.standard;
     verdict = 'Strong — you can run whatever you like';
+    /* THE MONK NO LONGER CLAIMS THE LARGEST MODEL — retired 2026-08-07, and
+       this sentence outlived it by three days like the two in overlays.js and
+       the one in PROTOCOLS.md. It was the last of the four, and it was found
+       only because a live test pressed "Check this computer" and read the
+       output; every grep of the docs had missed it because it lives in a
+       pure-logic module nobody thinks of as user-facing copy. Advice a person
+       acts on IS user-facing copy. */
     why = `${ram} GB is plenty. Start with ${MODELS.standard.label} anyway; it's the reliable everyday `
-        + 'choice. If you later pull something larger, the Mountain Monk will claim it automatically — '
-        + 'the biggest model on your machine is always his.';
+        + 'choice — every resident here runs on the one model you pick, so a dependable one serves the '
+        + 'whole Pavilion. Pull something larger later if replies feel thin.';
   }
 
   if (cores && cores <= 4 && tier !== 'tight') {

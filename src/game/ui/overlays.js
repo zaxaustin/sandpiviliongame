@@ -9,7 +9,7 @@ import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-pa
 import { planToLesson } from '../data/plan-to-lesson.js';
 import { recommendModel, pullCommand } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
-import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS } from '../data/the-day.js';
+import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS, notesToday, notesTodayLine } from '../data/the-day.js';
 import { gatherRecords, recordSummary, RECORD_LOOK } from '../data/records.js';
 import { backendTrouble } from '../data/backend-trouble.js';
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
@@ -28,9 +28,24 @@ import { findChapters, chapterAt } from '../data/chapters.js';
 import { mergeMarks } from '../data/marks.js';
 import { pickUp, setDown, isCarrying, carriedOf, carryLine, stale, carried,
          setAside, setAsideList, takeUp, KINDS, CARRY_CAP } from '../data/carrying.js';
+import { reachOf, setReach, mayReachNote, REACH_STATES, REACH_NOTICE, sealedCount } from '../data/note-reach.js';
+/* Today's Tasks lives in its OWN module — a new room does not go into a
+   12k-line file. Only the window exports and one initDailyTasks() call are
+   here, which is the ui/study-table.js seam exactly. */
+import { initDailyTasks, openDailyTasks, takeDailyTask, toggleDailyTaskStep,
+         dailyTaskGo, finishDailyTask, setDownDailyTask, retakeDailyTask,
+         todaysTaskLine, closeOutPastDays, dailyTaskWhereChanged } from './daily-tasks.js';
+/* The one road to knowledge — the same term extraction every resident uses to
+   search the shelves, now used to search your notes too. Two ways of turning a
+   question into a query is the drift this project keeps paying for. */
+import { lookupTerms } from '../data/lookup.js';
+import { placesByScene } from '../data/places.js';
+import { storageBadge, storageOf, storageSummary, localRoom, nextDestination,
+         STORAGE_STATES, LOCAL_BOOK_CAP } from '../data/book-storage.js';
+import { scenes } from '../scenes.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
-import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, chatOptsFor } from '../ai/provider.js';
+import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, isLocalConn, chatOptsFor } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
@@ -39,9 +54,22 @@ import { epubToText } from '../epub.js';
 /* ================================================================
    MAP OF THIS FILE — read this before hunting.
 
-   ~10,000 lines, and that is fine: it is a few dozen INDEPENDENT panel
-   renderers, not a tangle. Nothing here has ever broken because the
-   file is long. But "where do I even look" is a real cost, so:
+   ~13,000 lines, and that is NO LONGER FINE. This header said "~10,000
+   lines, and that is fine" — it was written when that was true, and it
+   was still saying it at 12,966 (measured 2026-08-10: 74% code, 732
+   top-level definitions, ~2,000 lines carrying HTML).
+
+   The original claim's REASONING is still correct and worth keeping:
+   these are a few dozen INDEPENDENT panel renderers, not a tangle, and
+   nothing here has ever broken because the file is long. That is
+   precisely why the split is a moving job rather than a rewrite. What
+   changed is the cost of "where do I even look", which grew with the
+   file while this sentence said it hadn't.
+
+   THE SPLIT IS PLANNED AND UNDER WAY — plans/OVERLAYS-SPLIT-PLAN.md.
+   Five regions are already out (see below). The order is derived from
+   data/places.js's `scene` field, so it cannot go stale the way this
+   line did. So:
 
    HOW TO USE THIS MAP. Search for the quoted anchor text, not a line
    number — line numbers rot within a day and a stale map is worse than
@@ -66,11 +94,14 @@ import { epubToText } from '../epub.js';
      "Sebastian's reminder"    the opt-in ping. No polling anywhere else.
 
    ── Panels that have already moved out ────────────────────────────
-     `ui/residents.js`   CHAT_AGENTS and all their grounding blocks
-     `ui/lesson-tree.js` the curriculum, authoring, drafting, export
-     `ui/study-table.js` working through a book one story at a time
-     `ui/dom.js`         esc / jsq
-     The order for the rest is in plans/OVERLAYS-SPLIT-PLAN.md.
+     `ui/residents.js`   CHAT_AGENTS and all their grounding blocks   1,017
+     `ui/lesson-tree.js` the curriculum, authoring, drafting, export  1,063
+     `ui/study-table.js` working through a book one story at a time     747
+     `ui/daily-tasks.js` Today's Tasks — BORN OUT HERE, never in         334
+     `ui/dom.js`         esc / jsq                                       27
+     The order for the rest is in plans/OVERLAYS-SPLIT-PLAN.md, and
+     `ui/daily-tasks.js` is the shape to copy: overlays.js kept only
+     the window exports, one initDailyTasks() call, and a menu line.
 
    ── Frame: menu, settings, your data ──────────────────────────────
      "Pause menu"              every door in one place. Add new rooms here.
@@ -161,7 +192,24 @@ function safeUrl(u){ return /^https?:\/\//i.test(u||'') ? u : ''; }
    bottom of the screen — quick, doesn't interrupt the world. AI-backed
    residents (Quill, the Steward, the Monk) use the full-screen chat view
    below instead, since a real conversation deserves room to breathe. */
+/* A DIALOG IS WORLD-LEVEL, SO IT CLOSES WHATEVER PANEL IS OVER IT.
+
+   Found 2026-08-10 the first time the pause menu could open a room: pressing
+   THE HEARTH, THE COUNTER, THE NOTICE BOARD or THE RESIDENTS' BOARD from the
+   menu appeared to do NOTHING. The dialog box really did open — underneath a
+   full-screen overlay that was still up — and because state.ui was still
+   'menu', onAction() returned early, so E could not even advance the thing
+   you could not see. Close the menu and a dialog you had no memory of asking
+   for was waiting for you.
+
+   That is the house failure mode exactly: a button that silently does
+   nothing. Fixed here rather than in the four openers because EVERY caller of
+   openDialog is world-level — fishing, signs, NPCs, the unbuilt-room
+   placeholders and these four flavour stations. From the world this is a
+   no-op (no panel is open); from a panel it is the only correct behaviour.
+   npm test holds that: a dialog opener that leaves a panel up fails. */
 export function openDialog(name,lines){
+  if(state.ui){ state.ui=null; hideAllOv(); }
   state.dialog={name,lines:Array.isArray(lines)?lines:[lines],idx:0,chat:false};
   document.getElementById('dialog').style.display='block';
   renderDialog(); blip(740,.06,'square',.03);
@@ -220,6 +268,10 @@ export function openChatDialog(npc){
     chat:true, thinking:false,
     history:[], // {role,content} sent to the AI as conversational context
     transcript:[{from:'npc',text:npc.lines[0]}], // {from,text} — what's actually shown
+    /* Declared rather than invented at the point of use. `askNotes` is one
+       message's permission (see sendChatMessage) and `noteSearch` is the
+       receipt shown for what that permission actually reached. */
+    askNotes:false, noteSearch:null,
   };
   document.getElementById('chatOv').classList.add('open');
   renderChatView(); blip(740,.06,'square',.03);
@@ -377,8 +429,17 @@ function renderChatView(opts){
   av.style.background = d.glow||'#e0a43c';
   av.style.color = d.color||'#2a2118';
   document.getElementById('chatName').textContent=d.name;
+  /* 🏠 OR ☁, IN THE ROOM WHERE YOU ARE TALKING. Added 2026-08-10 with the
+     steward's ruling that the Monk may run on a cloud connection — "alot of
+     people have laptops just let the user know." Every resident uses the one
+     detected connection, so the honest version of that decision is that the
+     visitor can see where their words go WITHOUT opening a settings panel.
+     The Connections panel badged this all along; the place people actually
+     speak did not. */
   document.getElementById('chatStatus').textContent = isAIActive()
-    ? '● connected — '+AI.name : '○ connection lost — replies may stop working';
+    ? (AI.local ? '🏠 ' : '☁ ') + 'connected — ' + AI.name
+      + (AI.local ? ' · stays on this computer' : ' · leaves this device')
+    : '○ connection lost — replies may stop working';
   const log=document.getElementById('chatLog');
   const bubbles=d.transcript.map((m,idx)=>
     m.from==='user' ? `<div class="bubble user">${esc(m.text)}</div>`
@@ -433,16 +494,137 @@ function renderChatQuickActions(d){
       <button class="btn ${m==='ease'?'':'ghost'}" style="font-size:11px;padding:4px 10px" onclick="setSebMode('ease')">🌱 Ease in</button>
       <button class="btn ${m==='work'?'':'ghost'}" style="font-size:11px;padding:4px 10px" onclick="setSebMode('work')">🎯 Work mode</button></div>`;
     html+=`<button class="btn ghost" onclick="openCalendar()">📅 Open the calendar</button>`;
+    /* He is where you go to set the day's work, and where you go to take it up
+       again. The calendar is for appointments; this is for what you actually
+       sat down to do. */
+    html+=`<button class="btn ghost" onclick="openDailyTasks()">📋 Today's tasks</button>`;
     if(hasReply) html+=`<button class="btn ghost" id="sebPlanBtn" onclick="sendSebastianPlanToToday()">📋 Send this plan to today</button>`;
   }
+  /* THE RECEIPT. What was searched and what came back, including nothing, and
+     including what was refused — rule 3 of the lookup design. A search whose
+     only evidence is a better answer is indistinguishable from a resident
+     making something up. */
+  html = groundedInLine(d) + noteSearchReceipt(d) + html;
   el.innerHTML=html;
   el.style.display=html?'block':'none';
+  updateAskNotesBtn();
+}
+/* LOCKED, NOT ABSENT-AND-SILENT, and never a quieter search wearing the same
+   label. A feature that genuinely needs something absent says plainly how to
+   turn it on (CLAUDE.md) — and per the steward the web build stays a simple
+   prototype for now: "lets get the app done first". */
+function updateAskNotesBtn(){
+  const b=document.getElementById('askNotesBtn'); if(!b) return;
+  const has=!!(Store.dbAvailable && Store.dbAvailable());
+  b.style.display='';
+  /* LOCKED, NOT DISABLED — and that difference was found by looking at the
+     screenshot (2026-08-08). `disabled` made it a dead button: dimmed by a
+     fraction nobody notices, and pressing it did nothing at all, with the only
+     explanation in a tooltip that never appears on a first look. That is the
+     house failure mode with a lock icon on it.
+
+     So it stays pressable and ANSWERS. A person who presses a locked control
+     deserves the reason on screen, which is the whole of rule 5 and also the
+     whole of "a feature that needs something absent says plainly how to turn
+     it on". */
+  b.disabled=false;
+  b.style.opacity=has?'':'0.6';
+  b.textContent=has?'🔎':'🔒';
+  b.dataset.locked=has?'':'1';
+  b.title = has
+    ? 'Ask this, and search everything you have ever written for it. One press, one search — your notes are never read otherwise.'
+    : 'Searching your notes needs the desktop app — press to read why.';
+}
+/* ----- WHAT THIS RESIDENT WAS ACTUALLY WORKING FROM -----
+
+   Added 2026-08-08, after the first real model ever pointed at these prompts.
+   Asked to build a course out of two carried notes, the Tutor's REASONING
+   named both of them precisely — and its ANSWER mentioned neither, so a
+   visitor had no way to know it had read anything at all. The Investigator,
+   same run, did name the note. So it is not reliable, and on an 8B it will
+   not become reliable by asking harder.
+
+   RULE 7: this is not a thing to ask a model for. The application knows
+   exactly what it put in the prompt — carryGrounding() computes it from the
+   same carriedLines()/fitToBudget() pair that built the block. So the app
+   says it, deterministically, in one line, and it is right every time and
+   costs no tokens at all.
+
+   It is also the trust story made visible: "what you carry is what a resident
+   can see" stops being a promise and becomes something you can read under
+   every reply. */
+function groundedInLine(d){
+  if(!d || !d.chat) return '';
+  let g; try { g = carryGrounding(); } catch(e){ return ''; }
+  if(!g || !g.shown) return '';
+  const held = carried(carryList());
+  const bits = [];
+  const books = held.filter(e => (e.kind==='book'||e.kind==='paper') && g.seen.has(e.kind+':'+e.ref));
+  const notes = held.filter(e => e.kind==='note' && g.seen.has('note:'+e.ref));
+  if(books.length) bits.push(books.map(e=>'📖 '+esc(String(e.label||e.ref).slice(0,40))).join(' · '));
+  if(notes.length) bits.push('🗒 '+notes.length+' note'+(notes.length===1?'':'s')+' of yours');
+  if(!bits.length) return '';
+  /* BEFORE the first reply this is a promise about what they WILL see, and
+     after it a statement about what they DID. Saying "answered with" above a
+     greeting — which is what the first version did, and it took a screenshot
+     to notice — is a small lie in the one place whose entire job is telling
+     the truth about what the model was given. */
+  const answered = d.history && d.history.some(m => m.role === 'assistant');
+  return `<div class="meta" style="margin:0 0 8px;opacity:.8">${answered
+      ? 'Answered with what you are carrying'
+      : 'They can see what you are carrying'} —
+    ${bits.join(' · ')}${g.sealed?' · <b>'+g.sealed+' sealed, not read</b>':''}.
+    <button class="btn ghost" style="font-size:10.5px;padding:2px 8px;margin-left:4px"
+      onclick="openInventory()" title="Open your backpack">🎒</button></div>`;
+}
+function noteSearchReceipt(d){
+  const r=d && d.noteSearch; if(!r) return '';
+  if(r.locked) return `<div class="meta" style="border-left:2px solid #c78f6f;padding-left:8px;margin:0 0 8px">
+      🔒 <b>Searching your own notes needs the desktop app.</b> It carries a small database that can
+      find “walked” when you typed “walking”; a browser tab has no way to hold one. Everything else
+      in this conversation works exactly the same — and anything in your 🎒 backpack is already being
+      read, because you put it there.</div>`;
+  const bits=[];
+  if(r.carried.length) bits.push(`<b>${r.carried.length}</b> now in your 🎒 backpack`);
+  if(r.shelved.length) bits.push(`${r.shelved.length} on your "pick up later" shelf (bag was full)`);
+  if(r.sealed.length)  bits.push(`${r.sealed.length} 🔒 sealed, not read`);
+  const offer=r.offered.length ? `<div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">`
+      +r.offered.map(n=>`<button class="btn ghost" style="font-size:11px" onclick="carryNote('${jsq(n.key)}');renderChatView()"
+          title="${esc(n.where)}">🎒 ${esc(String(n.title||'note').slice(0,40))}</button>`).join('')
+    +`</div>` : '';
+  return `<div class="meta" style="border-left:2px solid #7fa36b;padding-left:8px;margin:0 0 8px">
+      🔎 Searched your notes for “${esc(r.shown||r.term)}” — <b>${r.hits.length + r.sealed.length}</b> found${bits.length?' · '+bits.join(' · '):''}.
+      ${r.hits.length ? '' : 'Nothing you have written matches, which is a real answer.'}
+      ${offer}
+    </div>`;
 }
 export function sendCurrentChatMessage(){
   const input=document.getElementById('chatInput');
   const q=input.value.trim(); if(!q) return;
   input.value='';
   sendChatMessage(q);
+}
+/* THE SECOND SEND BUTTON. Deliberately a separate press rather than a toggle:
+   `asked` is meant to be one question's permission, and a switch that stays on
+   is a standing permission wearing a different word. Pressing this IS the ask,
+   which is why data/lookup.js can say the boundary never lives in the model's
+   judgement — it lives in whether a person clicked this instead of Send. */
+export function sendCurrentChatMessageWithNotes(){
+  const d=state.dialog;
+  /* The locked case answers OUT LOUD rather than doing nothing. A browser tab
+     has no desktop bridge and therefore no database at all; that is a real
+     wall, not a policy, and saying which is the difference between an honest
+     absence and a feature that looks broken. */
+  if(!(Store.dbAvailable && Store.dbAvailable())){
+    if(d) d.noteSearch={ locked:true, term:'', hits:[], sealed:[], carried:[], shelved:[], offered:[] };
+    renderChatView();
+    return;
+  }
+  const input=document.getElementById('chatInput');
+  const q=input.value.trim();
+  if(!q){ input.focus(); return; }
+  input.value='';
+  sendChatMessage(q, {searchMyNotes:true});
 }
 export function toggleChatSpeak(){
   const d=state.dialog; if(!d||!d.chat) return;
@@ -525,7 +707,7 @@ function sessionAISummary(){
    They touch no DOM; what they need from this file is handed over by
    initResidents() at the bottom of this section. ----- */
 import { initResidents, CHAT_AGENTS, referenceShelfBlock, capped, LIST_CAP,
-         MONK_SHELVES, setSebMode } from './residents.js';
+         MONK_SHELVES, setSebMode, carryGrounding } from './residents.js';
 export { setSebMode };
 
 /* ================================================================
@@ -716,7 +898,19 @@ export function sweepReminders(){
 }
 export function dismissButlerPing(){ document.getElementById('butlerPing').classList.remove('show'); }
 export function butlerPingGo(){ dismissButlerPing(); calSelectDay(todayKey()); }
-async function sendChatMessage(q){
+/* `opts.searchMyNotes` is the visitor having pressed the second send button —
+   ONE PRESS, ONE QUESTION, ONE SEARCH. It is deliberately not sticky and
+   deliberately never inferred from the wording of the question: data/lookup.js
+   is explicit that guessing would put the boundary back inside the model's
+   judgement, which is the one place it must not live. */
+/* NOT `opts` — the body already declares `const opts = chatOptsFor(...)` inside
+   the try block below. A block-scoped const shadows the parameter for the WHOLE
+   block, so reading `opts` before that line threw
+   "Cannot access 'opts' before initialization" and the catch reported it to the
+   visitor as "your local AI didn't answer". node --check, npm run build and
+   npm test all passed; only running it in Electron with a real database found
+   it, because the browser build locks the button that reaches this path. */
+async function sendChatMessage(q, sendOpts){
   const d=state.dialog; if(!d||!d.chat) return;
   const agent=CHAT_AGENTS[d.agent]||CHAT_AGENTS.quill;
   d.transcript.push({from:'user',text:q});
@@ -730,6 +924,12 @@ async function sendChatMessage(q){
   renderChatView();
   let streamed=false;
   try{
+    /* THE ASK, AND ITS LIFETIME. Set immediately before the prompt is built and
+       cleared in the `finally` below, so it cannot survive into the next
+       message. Deleting that clear is the first thing to break on purpose:
+       everything still works, and every later question quietly searches your
+       notes without you pressing anything. */
+    if(sendOpts && sendOpts.searchMyNotes) d.askNotes=true;
     const systemPrompt=withStanding(d.agent, await agent.systemPrompt());
     // Send the system prompt plus only the most recent stretch of the
     // conversation, not an ever-growing transcript (BETA-FEEDBACK #21). The cap
@@ -762,8 +962,22 @@ async function sendChatMessage(q){
     // A timeout isn't "it broke" — the model was just slow — so say so kindly
     // and never imply the thought was cut on purpose; the wall is already
     // generous (see REPLY_TIMEOUT) and the pocket phone lets them walk away.
+    /* SAY WHAT ACTUALLY WENT WRONG, at least to the console. This catch wraps
+       the whole turn — building the prompt as well as the call — so a bug in
+       OUR assembly has always been reported to the visitor as "your local AI
+       didn't answer", which blames the model for our mistake and sends them to
+       check Ollama. Found 2026-08-08: a genuine TypeError in the notes-search
+       path was invisible for three test runs because of exactly this.
+       The visitor still gets the kind sentence; the reason is one keypress
+       away instead of nowhere. */
+    console.error('[chat] '+d.agent+' turn failed:', err);
     const aborted = err && (err.name==='AbortError' || /abort|timed?\s*out/i.test(String(err.message||'')));
     d.transcript.push({from:'npc', text: aborted ? TIMEOUT_LINE : agent.errorLine});
+  } finally {
+    /* ONE PRESS, ONE SEARCH — and `finally` rather than the end of the happy
+       path on purpose. A message that timed out or threw must still clear the
+       ask, or a failed question silently turns the permission on for good. */
+    d.askNotes=false;
   }
   // let a paced resident finish saying it before the bubble is replaced
   await finishPacedReveal(d);
@@ -938,9 +1152,16 @@ function renderRecordsHall(dbRows){
       const go = r.opener && window[r.opener]
         ? ` onclick="recordOpen('${jsq(r.opener)}','${jsq(r.ref||'')}')" style="cursor:pointer"`
         : ' style="cursor:default"';
+      /* `detail` says what a record was a slice OF — for a finished day, the
+         bigger thing it came out of ("Learning electronics"), which is the
+         whole anti-overwhelm point of the board. It was carried through
+         gatherRecords from the first version and rendered by nothing, which
+         is the inert-data half of the inert-pure-function bug: perfectly
+         correct, and invisible. */
       return `<div class="card"${go}>
         <div class="t">${L.icon} ${esc(r.happened)}${r.kind!=='milestone'?' · '+esc((RECORD_LOOK[r.kind]||{}).label||r.kind):''}</div>
         <div class="s">${esc(r.title)}</div>
+        ${r.detail?`<div class="meta" style="margin-top:2px">part of ${esc(r.detail)}</div>`:''}
       </div>`;
     }).join('') : `<div class="meta">Nothing recorded yet. Read a book, run an
       experiment, or make something at the Bench and it will show up here.</div>`}`;
@@ -1031,10 +1252,25 @@ export function libraryCeilingLine(){
    where it ran. */
 export function backendStatusLine(kind){
   const on = Store.dbAvailable && Store.dbAvailable();
+  /* "EVERYTHING WORKS" WAS THE LIE, and it cost a real morning on
+     2026-08-10: "i cant find my books in the library ... i tried in npm run
+     dev and i cant find the books there ... this issue keeps happening."
+
+     A browser tab is not a smaller Pavilion, it is a DIFFERENT ONE. bridge()
+     in data/store.js needs window.desktopBridge, which a tab does not have,
+     so there is no Postgres, no MinIO and no access to the book files on
+     this machine — a library of 415 books renders as an empty shelf. And
+     localStorage is per-origin, so :5173, :4173 and the app are three
+     separate saves that cannot see each other's books either.
+
+     None of that was said anywhere. The old line named a SEARCH limitation
+     ("nothing is indexed") for what is actually an ABSENCE, and absence with
+     the reason unsaid is the house failure mode. Say it plainly instead. */
   if(!on) return { on:false,
-    text:'○ Running in a browser tab — everything works, but nothing is indexed. '
-        +'The desktop app carries its own database: search across every note you have '
-        +'written, and room for far more books than a tab can hold.' };
+    text:'○ Running in a browser tab — this is a SEPARATE Pavilion. Your books, notes and days '
+        +'here are its own: a tab cannot reach the desktop app\'s database, its book files, or '
+        +'Docker, and each address (localhost:5173, :4173, the app) keeps its own save. '
+        +'If your library looks empty here, it is not lost — open the desktop app.' };
   if(kind === 'docker') return { on:true,
     text:'● Postgres in Docker — your shelves, chapters and notes are indexed, '
         +'and the container holds the book text beside it.' };
@@ -1256,9 +1492,11 @@ function statusBadge(c,ok){
 // anything not on this device's own loopback address is a real cloud call —
 // worth a plain, unmissable label rather than blurring it with Ollama's
 // "nothing leaves this device" promise
-function isLocalUrl(url){ return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)([:/]|$)/i.test(url||''); }
+/* The rule itself lives in ai/provider.js now (isLocalConn), because the chat
+   header needs the same answer and two copies of "is this on my machine" is
+   the drift this project keeps paying for. */
 function localityBadge(c){
-  const local = c.kind==='ollama' || isLocalUrl(c.baseUrl);
+  const local = isLocalConn(c);
   return local ? '<span class="badge" style="border-color:#7fa9c9;color:#a9cbe0">🏠 local</span>'
                : '<span class="badge" style="border-color:#e0a43c;color:#f2c97a">☁ cloud — leaves this device</span>';
 }
@@ -1367,9 +1605,18 @@ export async function checkOllama(){
     ${cloud.length?`<div class="s" style="margin-top:6px;color:#e0a43c">☁ ${list(cloud)} — these are Ollama's
       <b>hosted</b> models, not local ones. Using one sends your conversation to Ollama's servers.</div>`:''}
     ${local.length
+      /* THE MONK NO LONGER CLAIMS THE LARGEST MODEL, and this line said he did
+         for three days after the rule was retired (2026-08-07 → found
+         2026-08-10). chatOptsFor() returns {} for every agent and detectAI()
+         assigns ONE connection to everyone, so there is no per-resident model
+         and no per-resident provider. A panel whose whole job is telling the
+         truth about where a conversation goes is the worst possible place for
+         a stale promise. `best` is still computed — bestLocalModel() is good
+         code with no rule behind it — and is now shown as what it actually is:
+         the biggest one you have, for your own information. */
       ? `<div class="s" style="margin-top:6px">A 🏠 model answers entirely on this computer — nothing you say
-          to a resident goes anywhere. The Mountain Monk will claim <b>${esc(best)}</b>, the largest local one,
-          and everyone else runs on the connection's default.</div>`
+          to a resident goes anywhere. <b>Every resident uses this connection's model</b>; there is no
+          per-resident routing. The largest local model you have is <b>${esc(best)}</b>.</div>`
       : `<div class="s" style="margin-top:6px">All of these are hosted. For the private, offline Pavilion,
           pull a local model — press below and you'll get the line to copy.</div>
          <div class="row" style="margin-top:8px"><button class="btn" onclick="checkMyMachine()">Which model fits this computer?</button></div>`}
@@ -1414,12 +1661,14 @@ function renderConnections(){
         <b>Everyday</b> (most laptops, 8–16GB RAM) — <code>ollama pull llama3.2</code>. The dependable default.<br>
         <b>Capable</b> (real GPU or 16GB+ RAM) — an 8B instruct model, e.g. <code>ollama pull llama3.1:8b</code>. Deeper, still reliable.<br>
         <b>Strong</b> (12GB+ VRAM) — an 8–14B instruct, plus optionally <i>one</i> "thinking" model.<br><br>
-        Two Pavilion facts worth knowing: <b>the Mountain Monk always claims the single largest
-        model installed</b> — the biggest model on your machine is effectively his, and his
-        reasoning streams live so slow-and-profound is watchable, not a dead panel. <b>Everyone
-        else runs on the connection's default</b> — keep that a plain instruct model and the whole
-        place feels alive. Start small; only move up a tier if replies feel thin. The full guide
-        lives in <code>PROTOCOLS.md</code> (Protocol 2).
+        Two Pavilion facts worth knowing: <b>every resident runs on this connection's model</b> —
+        there is no per-resident routing, so one good default serves the whole place. The Monk
+        used to claim the largest model you had installed; that was retired on 2026-08-07, so
+        <b>you no longer need a big model on his account</b>. And <b>a "thinking" model is not
+        worth it right now</b> — the Pavilion currently sends every request with thinking
+        switched off, so you would get the long pause without seeing any of the reasoning.
+        Start small; only move up a tier if replies feel thin.
+        The full guide lives in <code>PROTOCOLS.md</code> (Protocol 2).
       </div>
     </details>
     <details style="margin:4px 0 14px">
@@ -1582,6 +1831,30 @@ export function closeUI(){
 
 /* ----- Pause menu — reachable with Esc from the open world, or the ☰ HUD button ----- */
 export function openMenu(){ state.ui='menu'; hideAllOv(); renderMenu(); showOv('menuOv'); awardBadge('first-menu'); }
+
+/* PLACES — every room, one keystroke away, DERIVED from data/places.js and
+   grouped by the room it stands in. Until 2026-08-10 this menu named about
+   twenty-five panels and NOT ONE ROOM: the Writing Desk, the Request Board,
+   the Grant Desk, the Commons Table, the Inheritance Hall and the Science
+   Hall could be reached only by remembering where they were and walking. See
+   the header of data/places.js for the count and the standing decision.
+
+   The headings are the SCENES' OWN NAMES, so a room renamed in scenes.js is
+   renamed here, and a room that stops existing shows up rather than vanishing
+   quietly. npm test crosses the table against scenes.js in both directions. */
+function placesSections(){
+  return placesByScene(scenes).map(g => {
+    const items = g.items.map(p => {
+      /* The door is called through window like every other menu item, so a
+         listed room that is not exported is a dud button — which is exactly
+         the guard in test/smoke.mjs, and exactly what openArchive() was. */
+      return `<button class="btn ghost menuItem" onclick="${p.door}()"${
+        p.note ? ` title="${p.note.replace(/"/g,'&quot;')}"` : ''}>${p.icon} ${p.label}</button>`;
+    });
+    return `<div class="menuSection">${g.name}</div><div class="menuGrid">${items.join('')}</div>`;
+  }).join('');
+}
+
 function renderMenu(){
   // Grouped into labelled sections in a two-column grid — a scannable menu with
   // real hierarchy, rather than one long identical stack (VISUAL-POLISH Phase 2).
@@ -1627,10 +1900,16 @@ function renderMenu(){
       item('openRoster()', '👥 Who to ask'),
       item('openBadges()', '🏅 Badges'),
     ])}
-    ${section('Library', [
+    ${/* Was "Library", which never described these three and became actively
+          misleading on 2026-08-10 when the rooms went in below: a section
+          headed LIBRARY sat directly above a section headed THE LIBRARY,
+          meaning something else. Read off a screenshot, not reasoned. */''}
+    ${section('What you are carrying', [
+      item('openDailyTasks()', `📋 Today's Tasks${todaysTaskLine()?' ·':''}`),
       item('openInventory()', '🎒 Inventory'),
       item('openReviewQueue()', '🛡 Steward Review'),
     ])}
+    ${placesSections()}
     ${section('Local AI', [
       item('openConnections()', '⚙ Manage AI connections'),
       item('openLocalAIPanel()', '🧠 Local AI'),
@@ -1639,6 +1918,7 @@ function renderMenu(){
     ${section('Account & data', [
       item('openWaypoints()', '🔗 Waypoints'),
       item('openActivity()', '📜 Activity Log'),
+      item('openStorage()', '📦 Where books are kept'),
       item('openDataPanel()', '📊 Your Data'),
       item('openReport()', '✍ Tell them what happened'),
     ])}
@@ -1719,6 +1999,18 @@ function renderDataPanel(){
           because none of it is built. Nothing leaves unless you write a file and hand it over.</div>
       </div>
     </div>
+    <h3 style="margin-top:16px">What a resident on this machine can read</h3>
+    <div class="meta">A different question from the one below, and worth keeping apart: this is about
+      what a model <b>here</b> may see, not about anything leaving. ${esc(REACH_NOTICE)}
+      ${sealedCount(data.noteReach) ? `<br>You have <b>${sealedCount(data.noteReach)}</b> sealed note${sealedCount(data.noteReach)===1?'':'s'}.` : ''}</div>
+    <label class="meta" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:10px 0">
+      <input type="checkbox" ${(data.settings&&data.settings.showContextMeter)?'checked':''} onchange="toggleContextMeter()">
+      Show how much room the backpack is taking, in tokens
+    </label>
+    <div class="meta" style="margin:-4px 0 0">Off by default. The 👁 marks in your backpack are always
+      there; this adds the bar and the numbers, which are useful when you are tuning a local model and
+      noise when you are not.</div>
+
     <h3 style="margin-top:16px">What can leave this machine, and what never does</h3>
     <div class="meta">The honest accounting, store by store. The rule underneath all of it:
       <b>nothing moves by itself.</b> There is no sync and no upload — a thing becomes shared only
@@ -1836,6 +2128,140 @@ export function pruneOldPlannerDays(){
    AGENT-EMBODIMENT-PLAN.md's own tick-rate warning). Only Ollama
    connections expose listLoaded() at all; anything else gets an honest
    "no equivalent data" message instead of a fake zero. ----- */
+/* ================================================================
+   [WHERE YOUR BOOKS ARE KEPT] — 2026-08-10.
+
+   Measured before it was built: there was NO in-game path to Docker at
+   all. Setup existed only as terminal commands in PROTOCOLS.md and
+   LEARNING-PATH.md, which is against a standing decision —
+
+     "it is for a lay user: no terminal required, no config file."
+
+   — and it is the difference between "about a dozen books" and "no
+   practical limit" for everyone who is not the steward. A capability
+   nobody can find is a capability nobody has.
+
+   THREE RULES THIS ROOM FOLLOWS.
+
+   1 · IT READS REAL STATE, never configuration. dbStatus() names which
+       home actually answered; storageSummary() counts where the books
+       really are. A panel that says "Docker: enabled" because a setting
+       says so is how you get a person staring at an empty shelf.
+
+   2 · NO FAKE INSTALL BUTTON. We do not shell out to Docker, and a
+       button that pretends to would be the worst kind of dead end —
+       one that appears to work. Say the step, make it copyable (the
+       same thing copyPullCommand() already does for Ollama), then
+       detect the result and say plainly that it worked.
+
+   3 · IT NEVER IMPLIES ANYTHING IS BROKEN. The Pavilion is complete
+       without Docker; that is a release gate with a test behind it.
+       This is an OFFER, and the honest ceiling is stated either way.
+   ================================================================ */
+export function openStorage(){
+  state.ui='storage'; hideAllOv(); renderStorage(); showOv('storageOv');
+  /* dbStatus is async — draw the room immediately from what is already
+     known and fill the live line in when it answers, rather than holding
+     an empty panel open while a container is asked. */
+  refreshStorageStatus();
+}
+async function refreshStorageStatus(){
+  const el=document.getElementById('storageLive'); if(!el) return;
+  const st = Store.dbStatus ? await Store.dbStatus() : null;
+  if(state.ui!=='storage') return;                 // they walked out while we asked
+  const bridge = typeof window!=='undefined' && window.desktopBridge;
+  if(!bridge){
+    el.innerHTML = '<b style="color:#c8a04a">You are in a browser tab.</b> A tab cannot reach Docker, '
+      + 'the desktop app\'s database, or your book files — it keeps its own separate save. '
+      + 'Open the desktop app (or run <code>npm run electron:dev</code>) and this page will say something different.';
+    return;
+  }
+  if(st && st.up && st.kind==='docker'){
+    el.innerHTML = '<b style="color:#7fa36b">● Docker is running and the Pavilion is using it.</b> '
+      + 'Your book text goes to local object storage, and there is no practical limit on how much.';
+  } else if(st && st.up){
+    el.innerHTML = '<b style="color:#c9a227">● The built-in database is running.</b> Everything works: '
+      + 'search, chapters, sorting. Book TEXT is written as files on this machine, which is good for '
+      + 'hundreds of books. Docker is how you go past that — the step is below.';
+  } else {
+    el.innerHTML = '<b style="color:#c9a227">○ No database opened.</b> Nothing is lost and nothing is '
+      + 'broken; search and sorting are the parts that want one.';
+  }
+}
+function renderStorage(){
+  const el=document.getElementById('storagePanel'); if(!el) return;
+  const bridge = typeof window!=='undefined' && window.desktopBridge;
+  const docs = Store.allDocs();
+  const split = storageSummary(docs);
+  const room = localRoom(docs);
+  /* ONE command, and it is the real one from docker-compose.yml. Copyable
+     rather than typed, because a mistyped command is the commonest way a
+     setup fails for someone who does not live in a terminal. */
+  const CMD='docker compose up -d';
+  el.innerHTML = `
+    <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+    <h2>📦 Where your books are kept</h2>
+    <div class="meta">The Pavilion works with none of this. Every step below is an offer, and
+      nothing here is required to read, write or keep anything.</div>
+
+    <div class="card" style="cursor:default;margin-top:12px;border-color:#8fb4d9">
+      <div class="t">Right now</div>
+      <div class="s" id="storageLive" style="margin-top:6px">checking…</div>
+      ${split?`<div class="s" style="margin-top:8px">Your shelves: ${esc(split)}</div>`:''}
+      ${room.used?`<div class="s" style="margin-top:4px">The local shelf holds <b>${room.used} of ${room.cap}</b> books.${
+        room.full?' It is full — Docker is how you go past it.':''}</div>`:''}
+    </div>
+
+    <div class="menuSection" style="margin-top:16px">How much fits, honestly</div>
+    <div class="card" style="cursor:default">
+      <div class="s"><b>A browser tab</b> — about <b>10–20 books</b>. The text goes inside the save itself,
+        against a browser's own few-megabyte limit. Real books average about half a megabyte.</div>
+      <div class="s" style="margin-top:6px"><b>The desktop app</b> — <b>hundreds</b>. Each book is written
+        as a real file in the app's own folder; the save only keeps the catalogue card.</div>
+      <div class="s" style="margin-top:6px"><b>With Docker</b> — <b>no practical limit</b>. The text lives
+        in local object storage beside the app, and two machines can share one library.</div>
+    </div>
+
+    ${bridge ? `
+    <div class="menuSection" style="margin-top:16px">Turning Docker on</div>
+    <div class="card" style="cursor:default">
+      <div class="s">One command, once. It needs <b>Docker Desktop</b> installed and running — that part is
+        a normal download from docker.com, and the Pavilion cannot do it for you.</div>
+      <div class="s" style="margin-top:8px">Then, in this project's folder:</div>
+      <div class="row" style="margin-top:6px;align-items:center;gap:8px">
+        <code style="background:var(--field);padding:6px 10px;border-radius:4px">${esc(CMD)}</code>
+        <button class="btn ghost" style="font-size:11.5px;padding:3px 10px"
+          onclick="copyStorageCommand('${jsq(CMD)}')">copy</button>
+        <span class="s" id="storageCopied" style="color:#7fa36b"></span>
+      </div>
+      <div class="s" style="margin-top:8px">Come back to this panel afterwards and the line at the top
+        will say so itself. Nothing needs restarting and nothing already saved moves.</div>
+    </div>
+
+    <div class="menuSection" style="margin-top:16px">What it adds</div>
+    <div class="card" style="cursor:default">
+      ${BACKEND_UPGRADES.map(u=>`<div class="s">· ${esc(u)}</div>`).join('')}
+      <div class="s" style="margin-top:6px">· Room for a library with no practical ceiling.</div>
+    </div>
+
+    <div class="menuSection" style="margin-top:16px">Turning it off again</div>
+    <div class="card" style="cursor:default">
+      <div class="s"><code>docker compose stop</code> — the app falls back to its own built-in database
+        and keeps working. Books already in Docker wait there until you start it again.</div>
+    </div>` : ''}
+
+    <div class="row" style="margin-top:14px;gap:6px;flex-wrap:wrap">
+      <button class="btn" onclick="openBookIntake()">📥 Bring a book in</button>
+      <button class="btn ghost" onclick="openIndex()">📑 The Index</button>
+      <button class="btn ghost" onclick="openDataPanel()">📊 Your Data</button>
+    </div>`;
+}
+export function copyStorageCommand(cmd){
+  try{ navigator.clipboard.writeText(cmd); blip(760,.06);
+    const o=document.getElementById('storageCopied'); if(o) o.textContent='✓ copied';
+  }catch(e){ /* clipboard refused — the command is on screen to type */ }
+}
+
 export function openLocalAIPanel(){
   state.ui='localai'; hideAllOv(); showOv('localaiOv');
   renderLocalAIPanel();
@@ -2091,6 +2517,74 @@ function setNoteMeta(key, patch){
   if(!m.folder && (!m.tags||!m.tags.length)) delete data.noteMeta[key]; // don't keep empty entries
   else data.noteMeta[key]=m;
   persist();
+}
+/* ----- MAY A MODEL ON THIS MACHINE READ THIS NOTE? (data/note-reach.js) -----
+
+   A SEPARATE side-map from noteMeta, and deliberately so: noteMeta sits on the
+   DATA_MAP ignore list as "small, boring, self-evident", and a per-note AI
+   permission is none of those — it belongs in Your Data where a person can
+   read it. It is also the one thing here where absence is MEANINGFUL (absent
+   means askable), and noteMeta deletes its own empty entries.
+
+   The rule lives in the pure module; these three lines are only the save. */
+function noteReachOf(key){ return reachOf(data.noteReach, key); }
+export function toggleNoteSeal(key){
+  if(!key) return;
+  const now = noteReachOf(key);
+  /* Two states under one press. A published note is not touched — that is a
+     decision made elsewhere, through curation, and quietly un-publishing it
+     from a lock button would be the silent wrong thing. */
+  if(now === 'published'){
+    setNotesLogMsg('This note is published, so it already reads like a book. Unpublish it at the Commons Table first.');
+    return;
+  }
+  data.noteReach = setReach(data.noteReach, key, now === 'sealed' ? 'askable' : 'sealed');
+  persist();
+  blip(now === 'sealed' ? 760 : 420, .05);
+  renderNotesLogList();
+  refreshNoteEditors();
+}
+/* One badge, shown on any note a resident cannot read. Askable is the default
+   and deliberately wears NO badge — a badge on every card is wallpaper, and
+   the thing worth seeing at a glance is the departure from the rule. */
+function reachBadge(key){
+  const st = noteReachOf(key);
+  if(st === 'askable') return '';
+  const s = REACH_STATES[st];
+  return `<span class="badge" style="border-color:#c78f8f;color:#e0a0a0" title="${esc(s.help)}">${s.icon} ${esc(s.label)}</span>`;
+}
+/* The same three states, but never silent — for anywhere the badge itself is
+   the point rather than an exception to it (☀ Today's "Written today"). One
+   vocabulary, two policies about when to show it, which is the difference
+   between a list you scan and a control you act on. */
+function reachState(key){
+  const s = REACH_STATES[noteReachOf(key)] || REACH_STATES.askable;
+  const colour = s === REACH_STATES.sealed ? '#c78f8f' : '#7fa36b';
+  return `<span class="badge" style="border-color:${colour};color:${colour}" title="${esc(s.help)}">${s.icon} ${esc(s.label)}</span>`;
+}
+function setNotesLogMsg(text){
+  const el=document.getElementById('notesLogMsg'); if(el) el.textContent=text;
+}
+/* The control itself, in the expanded card beside Folder and Tags — the other
+   two things that are true ABOUT a note rather than part of it.
+
+   It states the CURRENT rule in full, not just the switch, because "askable"
+   is a promise with two halves and only one of them is obvious: a resident
+   reads this when you ask, AND never otherwise. Someone who only sees a lock
+   icon will reasonably assume the unlocked state means "always readable",
+   which is not what it means and never has been. */
+function reachRow(key){
+  const st = reachOf(data.noteReach, key);
+  const s = REACH_STATES[st];
+  const isSealed = st === 'sealed';
+  const btn = st === 'published' ? '' :
+    `<button class="btn ${isSealed?'':'ghost'}" style="font-size:11px;margin-top:6px"
+       onclick="toggleNoteSeal('${jsq(key)}')"
+       title="${isSealed ? 'Let a resident read it when you ask' : 'Nothing will read it, even if you ask'}"
+       >${isSealed ? '🔎 Let residents read it when I ask' : '🔒 Seal this note'}</button>`;
+  return `<label style="margin:8px 0 4px">Residents</label>
+    <div class="meta" style="margin:0">${s.icon} <b>${esc(s.label)}.</b> ${esc(s.help)}</div>
+    ${btn}`;
 }
 /* The identity of a book note, in ONE place. gatherNotes() builds it and
    bookNoteFromKey() reads it back; anywhere else that wants to hand a note
@@ -2457,7 +2951,7 @@ function notesLogCard(n, v, folders){
     const where = narrowed
       ? (n.page!==undefined ? 'page '+(n.page+1) : 'from the summary')
       : n.where;
-    const badges=`${folder?`<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📁 ${esc(folder)}</span>`:''}${bookChip}${tags.map(t=>`<span class="badge lic">#${esc(t)}</span>`).join('')}`;
+    const badges=`${folder?`<span class="badge" style="border-color:#7fa3c7;color:#a9c7e8">📁 ${esc(folder)}</span>`:''}${bookChip}${reachBadge(n.key)}${tags.map(t=>`<span class="badge lic">#${esc(t)}</span>`).join('')}`;
     // My Notes are editable right here (title/body/book link); other sources are
     // shown read-only with a jump to where they actually live to edit them.
     /* The way OUT of a note sits on the card itself, not one level down inside
@@ -2544,6 +3038,7 @@ function notesLogCard(n, v, folders){
         </select>
         <label style="margin:8px 0 4px">Tags</label>
         <input type="text" value="${esc(tags.join(', '))}" placeholder="comma, separated, tags" onchange="setNoteTags('${n.key}',this.value)">
+        ${reachRow(n.key)}
       </div>` : '';
     return `<div class="card" onclick="toggleNotesLogItem('${n.key}')">
       <div class="t">${n.icon} ${esc(n.title)}${n.date?` <span class="badge lic">${esc(n.date)}</span>`:''}</div>
@@ -2594,6 +3089,78 @@ function askTheIndex(q){
     state.notesLogView.fts = { term, keys, n: rows.length };
     renderNotesLogList();
   }, 180);
+}
+/* ----- ASK A RESIDENT TO SEARCH YOUR NOTES -----
+
+   groundingPlan(q, carrying, {searchMyNotes:true}) was written, tested and
+   documented on 2026-08-07 and had NO CALLER. This is it.
+
+   Everything that makes it legitimate happens here rather than in a prompt:
+   the visitor pressed a button (sendChatMessage's `opts.searchMyNotes`), the
+   seal is honoured, what was found is SHOWN, and what was found goes into the
+   backpack so the next question can build on it. A search that fed a model
+   privately and left no trace would be exactly the invisible grounding the
+   carrying plan rules out.
+
+   Returns null when there is no database — the caller shows a locked control
+   rather than a quieter search wearing the same label. */
+async function searchMyNotesFor(q){
+  if(!(Store.dbAvailable && Store.dbAvailable())) return null;
+  /* THE QUESTION IS NOT THE QUERY, and getting this wrong made the whole
+     feature return nothing (found 2026-08-08 by test/live/note-search.cjs,
+     which is the only place it COULD be found — a browser has no database to
+     be wrong against).
+
+     `searchNotes` uses websearch_to_tsquery, which ANDs every word. Handed
+     "what did I write about walking?" it demands a note containing what AND
+     did AND write AND about AND walking, and returns nothing — for almost
+     every question a person would actually type. Measured: "walking" → 2
+     rows, the whole question → 0.
+
+     lookupTerms() is the shared extractor that already exists for exactly
+     this, and libraryLookupBlock has always used it. Joining with OR asks
+     the question a person means: "notes about any of these". */
+  const terms=lookupTerms(q);
+  if(!terms.length) return null;
+  const term=terms.join(' OR ');
+  // the index is only as fresh as the last sync, and a note written a moment
+  // ago must be findable now — the same one transaction askTheIndex pays for
+  try{ await Store.syncNotes(gatherNotes()); }catch(e){ /* stale, not broken */ }
+  const rows=await Store.dbQuery('searchNotes',[term, 8]);
+  if(!rows) return null;
+  const all=gatherNotes();
+  const hits=[], sealed=[];
+  for(const r of rows){
+    /* THE SAVE OWNS THE NOTE; the index only points at it. A row that will not
+       resolve is dropped rather than shown, because there is nothing to open,
+       carry or verify — a hit you cannot reach is the dead end this project
+       keeps removing. */
+    const n=all.find(x=>x.key===r.save_key);
+    if(!n) continue;
+    if(!mayReachNote(data.noteReach, n.key, {asked:true})){ sealed.push(n); continue; }
+    hits.push(n);
+  }
+  /* WHAT IT FOUND GOES INTO THE BACKPACK — the steward's call, and it is what
+     makes the search a way of FILLING the bag rather than a private channel
+     around it. Only the top few: the bag is the model's context now, so one
+     search taking a quarter of it would re-create the very bug the bag exists
+     to prevent. The rest are listed with a 🎒 each. */
+  const carriedNow=[], shelved=[];
+  for(const n of hits.slice(0,3)){
+    if(isCarrying(carryList(),'note',n.key)) continue;
+    const r=pickUp(carryList(), {kind:'note', ref:n.key, label:String(n.title||'note').slice(0,80)}, todayKey());
+    if(r.ok){ data.carrying=r.list; carriedNow.push(n); }
+    else if(r.canSetAside){
+      // a full bag is a redirection, never a wall — carrying.js says so
+      const s=setAside(carryList(), {kind:'note', ref:n.key, label:String(n.title||'note').slice(0,80)}, todayKey());
+      if(s.ok){ data.carrying=s.list; shelved.push(n); }
+    }
+  }
+  if(carriedNow.length || shelved.length) persist();
+  /* `shown` is what the person reads, `term` is what the database was asked.
+     They differ, so the receipt must not print the raw OR-query at someone —
+     "walking OR patience" is the machine's sentence, not theirs. */
+  return { term, shown:terms.join(', '), hits, sealed, carried:carriedNow, shelved, offered:hits.slice(3) };
 }
 export function toggleNotesLogItem(key){
   const v=state.notesLogView;
@@ -2786,6 +3353,48 @@ export function openShelf(tradition){
   renderShelf();
   showOv('shelfOv'); blip(700,.05,'square',.03);
 }
+/* AN EMPTY SHELF HAS TO SAY WHY IT IS EMPTY — 2026-08-10.
+
+   Reported the same day, after the whole library had been repaired:
+   "if i run npm run dev im not seeing anything on the shelves still."
+
+   And the shelf said, in full: "This shelf waits for its first text."
+   True, useless, and pointing at the wrong cause. There are 415 books.
+   They are simply not reachable from a browser tab: bridge() in
+   data/store.js needs window.desktopBridge, so no Postgres, no MinIO, no
+   book files — and localStorage is per-origin, so :5173, :4173 and the
+   desktop app are three separate saves that cannot see each other.
+
+   THE TITLE SCREEN ALREADY SAID SO and it was not enough, because nobody
+   reads a status line and then walks to a bookcase. The place to say it
+   is the empty bookcase. Three different empties, three different causes,
+   three different next steps — never one sentence covering all of them. */
+function emptyShelfText(tradition){
+  const bridge = typeof window!=='undefined' && window.desktopBridge;
+  if(!bridge){
+    return `<p><b>Your library is not in this browser tab.</b> A tab has its own separate save and
+      cannot reach the desktop app's database, your book files, or Docker — so every shelf here looks
+      empty even when your Library is full.</p>
+      <p style="margin-top:8px">Run <code>npm run electron:dev</code> instead of <code>npm run dev</code>
+      to develop against your real Library, or open the installed app. Nothing is lost either way.</p>
+      <p style="margin-top:8px">If you meant to start a fresh library right here, you can:
+      <button class="btn ghost" style="font-size:11.5px;padding:3px 10px" onclick="openBookIntake()">📥 Bring a book in</button></p>`;
+  }
+  if(tradition==='Personal'){
+    return `<p>Your own shelf — empty so far, and that's the design: you fill it. Drop a
+      <b>.txt</b> or <b>.epub</b> anywhere on the Pavilion, or use
+      <button class="btn ghost" style="font-size:11.5px;padding:3px 10px" onclick="openBookIntake()">📥 Bring a book in</button>
+      It lands here, marked as yours.</p>`;
+  }
+  return `<p>Nothing on the <b>${esc(tradition||'this')}</b> shelf yet. Books land here when you file them
+    under that shelf — bring one in, then set its shelf in
+    <button class="btn ghost" style="font-size:11.5px;padding:3px 10px" onclick="openMyLibrary()">👤 Your Library</button></p>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" onclick="openBookIntake()">📥 Bring a book in</button>
+      <button class="btn ghost" onclick="openIndex()">📑 See the whole Index</button>
+    </div>`;
+}
+
 function renderShelf(){
   const docs=state.shelfDocs||[];
   const hue=SHELF_HUE[state.shelfTradition]||38;
@@ -2822,11 +3431,7 @@ function renderShelf(){
         ${state.shelfTradition==='Personal'?'<button class="btn ghost" onclick="openManageLibrary()">⚙ Manage my books</button>':''}
       </div>
       <div class="blHint">◀ ▶ browse the shelf · Enter / E open</div>
-    </div>` : (state.shelfTradition==='Personal'
-      ? `<p>Your own shelf — empty so far, and that's the design: you fill it. Bring a text in at
-         the Caravan Desk in the Workshop (drop a .txt file, paste Caravan output, or browse
-         SuttaCentral), then press <b>👤 Shelve on Your Shelf</b>. It lands here, marked as yours.</p>`
-      : '<p>This shelf waits for its first text.</p>');
+    </div>` : emptyShelfText(state.shelfTradition);
 }
 export function selectBook(i){
   state.shelfIndex=i; renderShelf(); blip(600,.03,'square',.02);
@@ -3668,9 +4273,92 @@ function renderBookPhone(){
    plus your own Archive Desk (personal writing, and Quill's "ai-written"
    reports). Categories are defined even where nothing's shelved there
    yet — the taxonomy is meant to hold future content, not just today's. */
+/* ================================================================
+   AN EMPTY LIBRARY IS AN ON-RAMP, NOT A DEAD END — 2026-08-10.
+
+   The seed shelf was deleted this day, so an empty Library went from
+   "impossible" to "what every new visitor sees on the first morning."
+   That makes the empty state a real screen for the first time, and it
+   was reading "Nothing here yet." with no way forward — the exact dead
+   end the standing rule forbids:
+
+     "nothing may be a dead end — every artifact must be reachable AND
+      actionable from where you are looking at it."
+
+   Your Library already got this right (+ Add a book or paper, right at
+   the top, with the .txt/.epub sentence underneath). This is the same
+   thing, said once, wherever a list of books can come back empty — so
+   the three panels cannot drift apart, which is rule 4's shape.
+
+   It also says WHERE the text will go, because with Docker up that is a
+   different answer than without, and a person deciding whether to import
+   a 5 MB book deserves to know which one they are getting. */
+function emptyLibraryOnRamp(){
+  const bridge = typeof window!=='undefined' && window.desktopBridge;
+  const where = !bridge
+    ? 'In a browser tab the text is kept inside the save itself, so only a few books fit — the desktop app holds hundreds.'
+    : (Store.dbAvailable && Store.dbAvailable())
+      ? 'Your books go to local Docker storage, where there is no practical limit.'
+      : 'Your books are written as real files on this machine.';
+  return `<div class="meta" style="margin-top:10px;line-height:1.6">
+    <b>Your Library is empty, and that is the intended starting point.</b><br>
+    The shipped shelf was removed on 2026-08-10 — it was mostly excerpts standing in
+    for books, and a shelf you filled yourself is the whole idea.
+    ${esc(where)}</div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn" onclick="openBookIntake()">📥 Bring a book in</button>
+    <button class="btn ghost" onclick="openMyLibrary()">📕 Your Shelf</button>
+    <button class="btn ghost" onclick="openReviewQueue()">🐫 The Caravan Desk</button>
+  </div>`;
+}
+
+/* WHERE THIS ONE BOOK'S TEXT IS, on the card itself. Read off the book's own
+   pointer by data/book-storage.js, never off what happens to be running — so
+   a book written to Docker still says Docker with the container stopped,
+   which is true and is the thing you need to know when it will not open. */
+function bookStorageBadge(slug){
+  const d = Store.getDoc(slug);
+  if(!d) return '';
+  /* storageBadge() decides the icon and the words; STORAGE_STATES is read
+     ONLY for the hover hint. Two ways of spelling the same badge would be
+     rule 4's exact shape, and a second way to be wrong. */
+  const text = storageBadge(d);
+  if(!text) return '';
+  const s = STORAGE_STATES[storageOf(d)] || {};
+  return ` <span class="badge" title="${esc(s.hint||'')}">${esc(text)}</span>`;
+}
+/* And the whole shelf in one line, so "is Docker actually holding my books"
+   is answerable at a glance instead of by opening one and finding out. */
+function shelfStorageLine(){
+  const line = storageSummary(Store.allDocs());
+  if(!line) return '';
+  const room = localRoom(Store.allDocs());
+  const capNote = room.used
+    ? ` · local shelf ${room.used}/${room.cap}${room.full?' — FULL, start Docker for more':''}`
+    : '';
+  return `<div class="meta" style="margin:10px 0 4px;color:#c9a227">${esc(line)}${esc(capNote)}</div>`;
+}
+
 export function openIndex(){
   state.ui='index'; hideAllOv();
-  state.indexCategory = state.indexCategory || 'classical';
+  /* OPEN ON A TAB THAT HAS BOOKS IN IT.
+
+     This used to hardcode 'classical', which was fine for exactly as long
+     as the shipped seed existed to fill it. With the seed shelf removed
+     (2026-08-10) a visitor with 415 books of their own would have opened
+     the Index onto the one empty category and concluded the Library was
+     empty — the same silent nothing this whole day was spent removing,
+     reintroduced by a default.
+
+     So: keep a category the visitor chose, otherwise pick the fullest one.
+     Deterministic, and it can never be wrong about which tab has books
+     because it counts them. */
+  if(!state.indexCategory || !indexItems().some(i=>i.category===state.indexCategory)){
+    const counts={};
+    for(const i of indexItems()) counts[i.category]=(counts[i.category]||0)+1;
+    const best=CATEGORIES.map(c=>c.id).sort((a,b)=>(counts[b]||0)-(counts[a]||0))[0];
+    state.indexCategory = (counts[best] ? best : 'classical');
+  }
   renderIndex(); showOv('indexOv');
 }
 function indexItems(){
@@ -3776,11 +4464,12 @@ function renderIndex(){
       ${CATEGORIES.map(c=>`<button class="btn ${c.id===cat&&!search?'':'ghost'}" style="font-size:11.5px;padding:6px 12px"
         onclick="setIndexCategory('${c.id}')">${esc(c.label)} <span class="badge">${counts[c.id]||0}</span></button>`).join('')}
     </div>
+    ${shelfStorageLine()}
     ${shown.length ? shown.map(i=>`
       <div class="card" onclick="openIndexItem('${i.kind}','${i.slug}')">
-        <div class="t">${i.kind==='library'?'📖':'📔'} ${esc(i.title)}${i.kind==='library'?` <span class="badge lic">${esc(i.license)}</span>`:''}${isRecentlyAdded(i.added)?' <span class="badge">NEW</span>':''}</div>
+        <div class="t">${i.kind==='library'?'📖':'📔'} ${esc(i.title)}${i.kind==='library'?` <span class="badge lic">${esc(i.license)}</span>`:''}${i.kind==='library'?bookStorageBadge(i.slug):''}${isRecentlyAdded(i.added)?' <span class="badge">NEW</span>':''}</div>
         <div class="s">${esc(i.sub||'')}</div>
-      </div>`).join('') : `<p>${search?'Nothing matches that search.':'Nothing here yet.'}</p>`}`;
+      </div>`).join('') : `<p>${search?'Nothing matches that search.':''}</p>${search?'':emptyLibraryOnRamp()}`}`;
 }
 
 /* ================================================================
@@ -3933,13 +4622,18 @@ export async function toggleSpokenSummary(){
 }
 
 /* ----- Planner (the Writing Desk) ----- */
-function plannerDay(){
-  const k=todayKey();
+/* ANY day, created if absent. Split out from plannerDay() 2026-08-08 for the
+   daily-tasks board, which records a finished day into the log of the day it
+   BELONGED TO — you open the app on Tuesday and Monday's account lands on
+   Monday, where it is true, rather than on today, where it is not. */
+export function plannerDayFor(k){
+  if(!k) return null;
   if(!data.planner[k]) data.planner[k]={ intention:'', ember:'', blocks:DEFAULT_BLOCKS.map(n=>({name:n,state:'waiting'})), sparks:[] };
   if(!data.planner[k].sparks) data.planner[k].sparks=[]; // upgrade days saved before sparks existed
   if(!data.planner[k].log) data.planner[k].log=[]; // the day's bullet-journal log (SELF-LEARNING-JOURNAL-PLAN.md)
   return data.planner[k];
 }
+function plannerDay(){ return plannerDayFor(todayKey()); }
 /* The Writing Desk's white paper IS a bullet journal now (the user's ask):
    the classic three entry types — a • task, an ○ event, a — note — rapid-logged
    right on the day's page. Tasks toggle done. Kept simple and fast; migration
@@ -4105,7 +4799,15 @@ initResidents({
   agentMemory, personalBooks, allNodes, lessonDone, lessonCompletedCount,
   currentStudy, nextStepOf, eventsOn, hallShelfSummary, investigationsForPrompt,
   renderChatQuickActions,
+  /* The backpack becomes grounding, 2026-08-08 — groundingFor()'s first
+     caller lives over there. gatherNotes resolves a carried note, which is a
+     reference and not a copy, so only this file can do it. */
+  carryList, gatherNotes, searchMyNotes: searchMyNotesFor, todaysTaskLine,
 });
+/* Today's Tasks — the same seam again. `plannerDayFor` is the one thing it
+   genuinely cannot reach: a finished day is recorded into the log of the day
+   it belonged to, not the day you happened to open the app. */
+initDailyTasks({ hideAllOv, showOv, closeUI, plannerDayFor, setHud });
 initStudyTable({
   deskBook,
   getDoc: (slug) => { try { return Store.getDoc(slug); } catch(e){ return null; } },
@@ -4466,6 +5168,16 @@ export function toggleSparkDone(dayKey, i){
 export function toggleCarryForward(){
   data.settings.carryForwardSparks=!data.settings.carryForwardSparks;
   persist(); renderPlanSparksBody();
+}
+/* The token bar in the backpack. Off by default: tokens are a technical unit
+   most visitors never need a word for, and the 👁 marks — which are the part
+   that makes the boundary legible — are always on regardless. */
+export function toggleContextMeter(){
+  if(!data.settings) data.settings={};
+  data.settings.showContextMeter=!data.settings.showContextMeter;
+  persist();
+  if(state.ui==='dataPanel') openDataPanel();
+  else if(state.ui==='inventory') openInventory();
 }
 // the one place "planning today" and the quiet due-date badge actually
 // meet — still nothing that pops up on its own, just here if you came to
@@ -5775,6 +6487,50 @@ function notesForRules(){
 export function openTheDay(){
   state.ui='theday'; hideAllOv(); renderTheDay(); showOv('thedayOv');
 }
+/* WHAT YOU WROTE TODAY — the near end of the note pathway.
+
+   Until 2026-08-10 a note's only route back into ☀ Today opened after a
+   FORTNIGHT. Write six notes in a morning and the day knew about none of
+   them. "lets make proper pathways for the notes to be in the logs."
+
+   Deliberately BELOW the five waiting items and visually apart from them:
+   these are not asking for anything, they are what you already did. The
+   rule that decides which notes count is in data/the-day.js and is pure,
+   so npm test holds it.
+
+   AND THE REACH TOGGLE LIVES HERE TOO, which is the other half of the same
+   request: "the ai can reach the ones in the back pack with we can toggle
+   private or view". The one place you look at today's notes is the right
+   place to decide which of them a resident may read — deciding that in a
+   settings panel three rooms away is how a privacy control goes unused. */
+function writtenTodayBlock(){
+  const mine = notesToday(notesForRules(), todayKey());
+  if(!mine.length) return '';
+  const line = notesTodayLine(notesForRules(), todayKey());
+  return '<div class="menuSection" style="margin-top:18px">Written today</div>'
+    + '<div class="meta">' + esc(line) + ' — already done, not waiting on you. '
+    + 'The badge is what a resident may read; press it to change your mind.</div>'
+    + mine.map(function(n){
+        return '<div class="card" style="cursor:default">'
+          /* ALWAYS SHOW THE STATE HERE, even the default one. reachBadge()
+             stays silent on `askable` because a badge on every row would be
+             noise in a long list — right there, wrong here. This block says
+             "the badge is what a resident may read", and a note with NO
+             badge beside one marked Sealed reads as "unknown", not as
+             "askable". Read off the screenshot. */
+          + '<div class="t">🗒 ' + esc(n.title || 'A note') + ' ' + reachState(n.key) + '</div>'
+          + '<div class="s" style="margin-top:4px">' + esc(String(n.text || '').slice(0, 160))
+          + (String(n.text || '').length > 160 ? '…' : '') + '</div>'
+          + '<div class="row" style="margin-top:8px">'
+          + '<button class="btn ghost" style="font-size:11.5px;padding:3px 10px" '
+          + 'onclick="openNotesLog(\'' + jsq(n.key) + '\')">open it</button>'
+          + '<button class="btn ghost" style="font-size:11.5px;padding:3px 10px" '
+          + 'onclick="toggleNoteSeal(\'' + jsq(n.key) + '\');openTheDay()">'
+          + (noteReachOf(n.key)==='sealed' ? '🔎 let a resident read it' : '🔒 keep it private')
+          + '</button></div></div>';
+      }).join('');
+}
+
 function renderTheDay(){
   const el=document.getElementById('thedayPanel'); if(!el) return;
   const items=currentDayItems();
@@ -5793,6 +6549,7 @@ function renderTheDay(){
       }).join('')
     + '<div class="meta" style="margin-top:14px;opacity:.85">Five at most, on purpose. A list of everything '
     + 'outstanding is a guilt inventory, and that is the opposite of a habit. The rest is where it always was.</div>'
+    + writtenTodayBlock()
     + '<div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap">'
     + '<button class="btn" onclick="openStandUp()">🤵 Walk it through with Sebastian</button>'
     + '<button class="btn ghost" onclick="openPlanner()">✍ The Writing Desk</button>'
@@ -5876,6 +6633,8 @@ function termRun(raw){
     '  ref <term>         constants, units, formulas — exact, offline, no AI',
     '  shelf [name]       list your shelves, or open one',
     '  unread             what you brought in and never opened',
+    '  random [shelf]     hand me ONE book — unread first',
+    '  test <number>      carry it and open the Study Table  (test random works)',
     '  notes [word]       every note you have written, or the ones matching',
     '  carry <number>     put it in your backpack — the Study Table reads that',
     '  carry              what you are carrying right now',
@@ -6012,6 +6771,92 @@ function termRun(raw){
     const unread=mine.filter(d=>!(data.read||{})[d.slug]);
     return unread.length?listing(unread,'brought in and never opened')
       :['Nothing unread. Every book you brought in has been opened at least once.'];
+  }
+
+  /* ---- random — ONE book, because 415 of them is a wall ---------------
+
+     Asked for 2026-08-10: "we can make a command like test book random
+     instead of scanning the whole library alot that cant work since we got
+     rid of those 26 books seed."
+
+     He is right, and the reason is arithmetic. `ls` was a LIST when 27 books
+     shipped; against a real 415-book collection it is a wall, and a wall is
+     not an index. Every other command here narrows by something you already
+     know — a word, a shelf, a kind. This one is for when you know nothing
+     and want the shelf to hand you something, which is what a library is
+     for on the days you have no particular question.
+
+     Deterministic and offline like everything else in this room except
+     `ask`. It prefers a book you have NOT read, because being handed one
+     you finished last week is not a suggestion, and says so when it has to
+     fall back. */
+  if(c==='random'){
+    /* EXACT SHELF FIRST, loose only if nothing matched exactly. A plain
+       substring makes `random fiction` sweep in every NON-fiction book —
+       and this steward has 98 on one shelf and 25 on the other, so the two
+       are the most likely pair anyone types. `random non` still works
+       loosely, which is the whole value of a loose match; it just no longer
+       overrides an answer the visitor named precisely. */
+    const want=String(arg||'').toLowerCase();
+    const exact=arg ? all.filter(d=>String(shelfOf(d)||'').toLowerCase()===want) : null;
+    const pool=!arg ? all
+      : (exact.length ? exact
+         : all.filter(d=>String(shelfOf(d)||'').toLowerCase().includes(want)));
+    if(!pool.length) return arg
+      ? ['Nothing on a shelf matching "'+arg+'".', 'Run  shelf  to see the shelves you have.']
+      : ['The Library is empty.', 'Drag a .txt or .epub onto the window, or run  help.'];
+    const fresh=pool.filter(d=>!(data.read||{})[d.slug]);
+    const from=fresh.length?fresh:pool;
+    const pick=from[Math.floor(Math.random()*from.length)];
+    /* Set termLast so `open 1`, `carry 1` and `test 1` all work on it —
+       the one-element case of the same {kind, ref} list every listing
+       builds, rather than a second path that would drift. */
+    state.termLast=[{kind:'book', ref:pick.slug}];
+    const note=(pick.doc&&pick.doc.summary)||'';
+    return ['one of '+pool.length+(arg?' on '+arg:'')+(fresh.length?'':' — you have read them all, so this is a re-read')+':', '',
+      '  '+'  1'+'  '+mark(pick)+'  '+(pick.title||'untitled').slice(0,46).padEnd(46)+'  '+String(shelfOf(pick)||'').slice(0,14),
+      note?'      '+note.replace(/\s+/g,' ').slice(0,70):'',
+      '', 'Then:  open 1   ·   carry 1   ·   test 1'].filter(function(l,i){ return l!=='' || i>1; });
+  }
+
+  /* ---- test — hand that book to the thing that works a book ----------
+
+     The other half of his sentence. Picking a book at random is only useful
+     if there is somewhere to take it, and the Study Table is exactly that:
+     it works a book one unit at a time and it reads the BACKPACK, which is
+     why this carries first and opens second. Two steps that were already
+     two commands, made one — the same "one keystroke to anywhere" that put
+     every room in the pause menu. */
+  if(c==='test'){
+    const last=state.termLast||[];
+    let it=null;
+    if(!arg || arg.toLowerCase()==='random'){
+      /* `test random` and `test book random` both work — his phrasing had
+         the word `book` in the middle and refusing it over a noise word
+         would be the pedantry this terminal is meant to avoid. */
+      const fresh=all.filter(d=>!(data.read||{})[d.slug]);
+      const from=(fresh.length?fresh:all);
+      if(!from.length) return ['The Library is empty — nothing to work on yet.'];
+      it={kind:'book', ref:from[Math.floor(Math.random()*from.length)].slug};
+      state.termLast=[it];
+    } else {
+      const n=parseInt(arg.replace(/^book\s+/i,''),10);
+      if(!n||!last[n-1]) return ['test which? run  ls,  find <word>  or  random  first, then  test <number>.',
+                                 'Or just:  test random'];
+      it=last[n-1];
+    }
+    if(it.kind!=='book') return ['The Study Table works on a book. That row is a note — try  carry '+arg+'  instead.'];
+    const d=Store.getDoc(it.ref);
+    if(!d) return ['That book is not on the shelves any more.'];
+    const r=pickUp(carryList(), {kind:'book', ref:it.ref, label:d.title||it.ref}, todayKey());
+    if(r.ok) data.carrying=r.list;
+    persist();
+    /* Open it rather than announce it. A terminal that says "now go to the
+       Study" is the walking-to-a-room problem in text. */
+    setTimeout(function(){ closeUI(); openPlanner(); }, 350);
+    return ['"'+(d.title||it.ref)+'" is in your backpack.',
+            r.ok?'':'  (the bag was full — set something down and it will be there)',
+            'Opening the Writing Desk; the Study Table reads what you carry.'].filter(Boolean);
   }
   if(c==='shelf'){
     if(!arg){
@@ -6171,7 +7016,10 @@ function renderComputer(){
     + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();termSubmit();}">'
     + '<button class="btn" onclick="termSubmit()">Run</button></div>'
     + '<div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">'
-    + ['ls','papers','ds','owned','unread','shelf','stats','net','man','help'].map(function(c){
+    /* `random` sits FIRST, ahead of `ls`. On a 415-book shelf `ls` is a wall
+       and `random` is the useful one, and a quick button is the only part of
+       this room a person presses without knowing the command exists. */
+    + ['random','ls','papers','ds','owned','unread','shelf','stats','net','man','help'].map(function(c){
         return '<button class="btn ghost" style="font-size:11px;padding:2px 8px;font-family:var(--font-mono)" '
              + 'onclick="termQuick(\''+c+'\')">'+c+'</button>'; }).join('')
     + '</div>';
@@ -10040,7 +10888,30 @@ async function shelveAsPersonal({title, body, author, license, source, tradition
       if(res && res.ok){ fullText.storage={ bucket:res.bucket, key:res.key }; fullText.chars=body.length; storedAsFile=true; storedWhere=', stored in local MinIO'; }
     }catch(e){ /* fall through to a file / inline */ }
   }
+  /* THE LOCAL SHELF HAS A CEILING, AND IT REFUSES WITH THE WAY THROUGH.
+
+     The steward's split, 2026-08-10: "there should be 2 pathways a local
+     file that limmits to 100 books but the docker setup should be the main
+     path". At ~563 KB a book (measured), 100 is about 56 MB under userData —
+     a number a person can hold in their head.
+
+     The cap applies ONLY to this path. A book going to Docker is not on this
+     machine's shelf and must never be refused for space it is not using —
+     which is one of the cases npm test breaks on purpose. And the refusal
+     names Docker, because a refusal with no next step is the dead end this
+     project keeps removing. */
   if(!storedAsFile && bridge && bridge.libraryWrite){
+    const room = localRoom(Store.allDocs());
+    if(room.full && body.length>INLINE_PERSONAL_MAX){
+      /* The refusal names the way through AND opens the door to it — since
+         2026-08-10 there is a room that explains Docker in one panel, so
+         "start Docker" is no longer a terminal instruction with no home. */
+      showToast('Local shelf full — 📦 Where books are kept explains the next step.');
+      setTimeout(function(){ if(!state.ui) openStorage(); }, 600);
+      return { ok:false, reason:`Your local shelf is full — ${room.cap} books stored as files on this `
+        + `machine. Start Docker and the text goes to local storage instead, with no practical limit; `
+        + `everything already here stays exactly where it is.` };
+    }
     try{
       const res=await bridge.libraryWrite(slug+'.txt', body);
       if(res && res.ok){ fullText.storage={ personal:slug+'.txt' }; fullText.chars=body.length; storedAsFile=true; storedWhere=', stored on this device'; }
@@ -10065,6 +10936,47 @@ async function shelveAsPersonal({title, body, author, license, source, tradition
     doc:{ summary:sum, sections:sections||[], fullText },
   });
   persist();
+
+  /* THE BOOK REACHES THE DATABASE NOW, AT IMPORT — not whenever somebody
+     happens to open it.
+
+     Reported from real use 2026-08-10, and precisely: "the multi load did
+     not but one at a time did." Confirmed by reading the code. The ONLY
+     call to upsertCard from the app was inside chapterInfo(), which runs
+     when a book's full text is PAGINATED — i.e. when you open it. So:
+
+       one at a time   you drop it, you read it, chapterInfo fires, the
+                       row lands in Postgres                       ✓
+       forty at once   you drop forty and open none of them, and NOT ONE
+                       of them exists to the database               ✗
+
+     Every consequence of that is invisible until you go looking: a
+     resident's catalogue lookup cannot find them (searchBooks reads the
+     books table), notes cannot point at them (notes.slug is a foreign key
+     into it), and they are absent from the Records Hall. The books were
+     fine the whole time; the index simply did not know.
+
+     Fire-and-forget, exactly like syncChapters: nothing waits on it, a
+     browser has no bridge and falls straight through, and a failure here
+     must never cost you the book you just added — which is already
+     shelved and persisted two lines above. */
+  try {
+    const st = fullText.storage || {};
+    Store.dbWrite('upsertCard', [
+      slug, title||'Untitled',
+      (author && author.trim()) || null,
+      lic, source||null,
+      /* NULL, not 'Personal' — an unfiled book is unfiled, and `shelf IS
+         NULL` is what the sorter's work queue asks for. Writing 'Personal'
+         here would quietly empty the pile of books waiting to be sorted. */
+      (shelf && shelf!=='Personal') ? shelf : null,
+      'book', null,
+      st.key || null,
+      (fullText.chars ? Math.max(1, Math.ceil(fullText.chars/1400)) : null),
+      st.personal || null,
+    ]);
+  } catch(e){ /* the Pavilion shelves books perfectly well without a database */ }
+
   logActivity('Shelved "'+(title||'untitled')+'" in your Library ('+shelf+', personal'+storedWhere+').');
   blip(784,.09);
   return { ok:true, slug, shelf, storedAsFile };
@@ -10349,7 +11261,41 @@ function renderPromptInspector(){
       `).join('')}
       ${standingFor(key)?'<div class="meta" style="margin-top:10px">✎ Your standing instructions are in there — search the system block for “STANDING INSTRUCTIONS”.</div>':''}
     `:`<p class="meta" style="margin-top:12px">Nothing captured yet — talk to ${esc(name)} once, then come back and this will show you exactly what they were sent.</p>`}
-    <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="openStanding('${key}')">✎ Standing instructions</button></div>`;
+    <div id="promptPreview"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn ghost" onclick="previewPrompt('${key}')">👁 What would they be told right now?</button>
+      <button class="btn ghost" onclick="openStanding('${key}')">✎ Standing instructions</button></div>`;
+}
+/* WHAT THEY WOULD BE TOLD *NOW*, without spending a message to find out.
+
+   Added 2026-08-08, because this panel could only ever show a prompt that had
+   already been sent — so before your first message it said "nothing captured
+   yet", which is the one moment you most want to look. It also had no way to
+   answer the question this session made worth asking: "if I put that in my
+   backpack, what does the resident actually see?" Now you can carry something,
+   press this, and read the difference.
+
+   It builds the prompt through exactly the same call sendChatMessage makes, so
+   it is a preview and not a reconstruction — the distinction recordSent() was
+   written to protect. */
+export async function previewPrompt(agentKey){
+  const key=agentKey||state.promptAgent||'quill';
+  const agent=CHAT_AGENTS[key]; if(!agent||!agent.systemPrompt) return '';
+  /* Build FIRST, render second. The text is the useful thing and the panel is
+     only one way of looking at it — returning it regardless means a test can
+     ask "what would this resident actually be told" without opening a window,
+     which is the difference between checking the real prompt and checking a
+     screenshot of it. */
+  const el=document.getElementById('promptPreview');
+  if(el) el.innerHTML='<div class="meta" style="margin-top:10px">building…</div>';
+  const text=withStanding(key, await agent.systemPrompt());
+  if(!el) return text;
+  el.innerHTML=`<h3 style="margin-top:14px">What ${esc(((CHAT_AGENTS[key]||{}).label)||key)} would be told, as of right now
+      <span class="badge lic">${text.length.toLocaleString()} chars · ~${estimateTokens([{content:text}]).toLocaleString()} tokens</span></h3>
+    <div class="meta">Nothing was sent to build this. Carry something in your 🎒 backpack and press again —
+      the difference is exactly what the backpack does.</div>
+    <div class="card" style="cursor:default"><div style="white-space:pre-wrap;font-size:12px;max-height:340px;overflow:auto">${esc(text)}</div></div>`;
+  return text;
 }
 
 /* ================================================================
@@ -11309,6 +12255,37 @@ function libraryFolderHint(){
   if(isWindowsish()) return "Paste that into the address bar of any Explorer window.";
   return 'Paste that into your file manager.';
 }
+/* WHERE THE NEXT BOOK WILL GO, SAID BEFORE IT GOES THERE.
+
+   Asked for 2026-08-10: "the docker pathway shuld be the main but dont
+   ignore a place for a new user to put notes and books either ... add a
+   pathway into the game of where to send it."
+
+   Until now the app decided silently — MinIO if it answered, else a file,
+   else inline — and told you afterwards, in a toast, in passing. Which
+   home you get changes how many books fit and whether they survive a
+   container reset, so it is worth one line BEFORE you drop a 5 MB file
+   rather than a shrug after. The decision itself is in
+   data/book-storage.js, which is pure and tested; this only renders it. */
+function destinationLine(){
+  const bridge = window.desktopBridge;
+  const dest = nextDestination(Store.allDocs(), {
+    hasDocker: !!(bridge && bridge.minioWrite),
+    hasFiles:  !!(bridge && bridge.libraryWrite),
+  });
+  const colour = dest.full ? '#c8574a' : dest.where === 'docker' ? '#7fa36b' : '#c9a227';
+  /* AND A DOOR TO THE ROOM THAT EXPLAINS IT. Saying where the text goes
+     without saying how to change that is half an answer — and this is the
+     moment a person actually cares, standing over a file they are about to
+     drop. Shown only when Docker is NOT already carrying it, because the
+     offer is meaningless once it has been taken. */
+  const offer = dest.where === 'docker' ? '' :
+    ` <button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px"
+        onclick="openStorage()">📦 give it more room</button>`;
+  return `<div class="meta" style="margin-top:8px;color:${colour}">
+    <b>The text of your next book goes:</b> ${esc(dest.line)}${offer}</div>`;
+}
+
 export function openBookIntake(){
   state.ui='intake'; hideAllOv();
   const desktop=!!(window.desktopBridge && window.desktopBridge.isDesktop);
@@ -11318,6 +12295,7 @@ export function openBookIntake(){
     <h2>📥 Bring a Book In ${visBadge('private')}</h2>
     <div class="meta">Everything you add lands on <b>your own shelf</b> — no licence asked, no source
       required, nothing sent anywhere. You have <b>${mine}</b> book${mine===1?'':'s'} of your own so far.</div>
+    ${destinationLine()}
 
     <div class="card" style="cursor:default;margin-top:12px;border-color:#7fa36b">
       <div class="t" style="color:#7fa36b;font-size:15px">1 · Drag the file onto this window</div>
@@ -11424,7 +12402,13 @@ export function openBookIntake(){
 
     <div class="row" style="margin-top:14px;gap:6px;flex-wrap:wrap">
       <button class="btn ghost" onclick="openMyLibrary()">👤 Your Library — sort what you have</button>
-      <button class="btn ghost" onclick="openReader('filling-your-shelves')">📖 Read the full guide</button>
+      ${/* WAS openReader('filling-your-shelves') — a seed book, deleted with the
+           rest of the shelf on 2026-08-10, leaving a button that opened
+           nothing. The guide it pointed at is real writing and still exists;
+           it is in the docs now, where a guide belongs, rather than shelved as
+           if it were literature. npm test forbids a literal openReader() slug
+           for exactly this reason. */''}
+      <button class="btn ghost" onclick="openMenu()">☰ Everything else — the menu</button>
     </div>`;
   showOv('intakeOv');
 }
@@ -11546,10 +12530,54 @@ export function carryList(){
 /* One-time lift of the old book-only backpack. Kept rather than dropped
    because someone has books in there right now, and a save that quietly
    empties your bag on upgrade is exactly the silent wrong thing. */
+/* THE 27 SEED SLUGS, WHICH CAN NEVER RESOLVE AGAIN — 2026-08-10.
+
+   The seed shelf was deleted outright. A visitor carrying one of these, or
+   holding it on the set-aside shelf, is holding a reference to a book that
+   no longer exists anywhere and never will again.
+
+   The bag already handles a stale entry WELL — it shows it, says "no longer
+   exists", and offers a one-press set-down (see dropStaleCarried). That is
+   the right behaviour for a book that has merely been removed from a shelf,
+   because the visitor might want to know which one went.
+
+   This is different, and narrower: these 27 are gone by a decision, not by
+   an accident, and no future import can bring the slug back (a re-imported
+   Dhammapada arrives as `personal-the-dhammapada`). Making someone press a
+   button to acknowledge our own deletion is not a boundary worth keeping.
+
+   ONLY THESE EXACT SLUGS. Anything else stale still goes through the loud
+   path — a list of known-dead names is not a licence to silently prune
+   whatever fails to resolve today, which could be a book whose file is
+   merely missing. */
+const DELETED_SEED_SLUGS = new Set([
+  'dhammapada','satipatthana','metta','anapanasati','first-sermon','dzogchen-note',
+  'tao-te-ching','inner-chapters','bhagavad-gita','hearth-logbook','steward-notes',
+  'on-precision','how-library-works','completing-your-pavilion','a-visitors-handbook',
+  'waking-the-residents','filling-your-shelves','when-something-goes-wrong','meditations',
+  'republic','nicomachean-ethics','origin-of-species','franklin-autobiography',
+  'emerson-essays','art-of-war','zhuangzi','aesops-fables',
+]);
+function dropDeletedSeedBooks(){
+  const list=carryList();
+  const doomed=list.filter(e=>e && e.kind==='book' && DELETED_SEED_SLUGS.has(e.ref));
+  if(!doomed.length) return;
+  let out=list;
+  for(const d of doomed) out=setDown(out,'book',d.ref);
+  data.carrying=out;
+  /* Said out loud in the log rather than swallowed: this removed something
+     from a person's bag, and they get to know it happened and which. */
+  logActivity('Set down '+doomed.length+' book'+(doomed.length===1?'':'s')
+    +' from the old shipped shelf, which was removed: '+doomed.map(d=>d.label||d.ref).join(', ')+'.');
+  persist();
+}
+
 export function carryMigrate(){
+  dropDeletedSeedBooks();
   if(!Array.isArray(data.inventory) || !data.inventory.length) return;
   let list=carryList();
   for(const slug of data.inventory){
+    if(DELETED_SEED_SLUGS.has(slug)) continue;   // never lift a deleted seed book across
     const d=Store.getDoc(slug);
     list=pickUp(list, {kind:'book', ref:slug, label:(d&&d.title)||slug}, todayKey()).list;
   }
@@ -11626,6 +12654,88 @@ export function dropStaleCarried(){
   showToast('Set down '+gone.length+' thing'+(gone.length===1?'':'s')+' that no longer exists.');
   renderInventory();
 }
+/* ----- THE BACKPACK'S METER — what a resident can see, and what it costs.
+
+   Built 2026-08-08, when the bag became grounding for the first time. The
+   steward's reason for the bag is the reason this is on screen at all:
+
+     "i wanted the back pack to serve the perpouse to make sure the condex of
+      the modles dosent get blown out and so the user can fouce there attention
+      on a few things and not 100 i hope we can streamline that prosses for the
+      user so that game like feel is there and interacive"
+
+   TWO LAYERS, and the split is deliberate.
+
+   The 👁 marks and the plain sentence are ALWAYS ON. They are not a debug
+   view: they are the boundary being legible, which is the difference between
+   a rule and a promise. Someone who cannot tell why a resident saw one note
+   and not another has no way to know the rule is holding — and rule 5 says a
+   thing you cannot see is a thing nobody reports.
+
+   The BAR and the token numbers are behind a setting, default off, at the
+   steward's word: "lets make it a feature we can toggle on and off in the
+   settings. super usefull for us tho!". Tokens are a technical unit and most
+   visitors should never need the word; the person tuning a local model wants
+   the number. ----- */
+function carryMeterHtml(g, held){
+  if(!held.length) return '';
+  const parts=[];
+  parts.push(`<b>${g.shown}</b> of ${held.length} ${held.length===1?'thing is':'things are'} visible to a resident when you ask.`);
+  if(g.sealed) parts.push(`${g.sealed} 🔒 sealed — nothing reads ${g.sealed===1?'it':'them'}, even if you ask.`);
+  if(g.dropped) parts.push(`${g.dropped} held back for room.`);
+  if(g.gone) parts.push(`${g.gone} no longer ${g.gone===1?'exists':'exist'}.`);
+  const showBar = !!(data.settings && data.settings.showContextMeter);
+  const pct = Math.max(2, Math.min(100, Math.round((g.tokens / g.budget) * 100)));
+  /* Over budget is a real state and it says so rather than pinning at 100%
+     and looking healthy — the silent-wrong-thing this project keeps removing. */
+  const over = g.tokens > g.budget;
+  const bar = showBar ? `
+    <div style="margin:6px 0 2px;height:9px;background:#2c2418;border:1px solid #55432e;border-radius:2px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:${over?'#c78f6f':'#7fa36b'}"></div>
+    </div>
+    <div class="meta" style="margin:0">~${g.tokens.toLocaleString()} of ${g.budget.toLocaleString()} tokens of room${over?' — <b>over</b>, so the rest is held back':''}.
+      Measured with the same estimate the request itself uses.</div>` : '';
+  return `<div class="card" style="cursor:default;border-color:#7fa36b;margin:10px 0">
+    <div class="s" style="margin:0">👁 ${parts.join(' ')}</div>
+    ${bar}
+  </div>`;
+}
+/* One mark per item, so "why did it see that one" never needs explaining twice. */
+function seenBadge(g, kind, ref){
+  return g.seen.has(kind+':'+ref)
+    ? `<span class="badge" style="border-color:#7fa36b;color:#8fbf8f" title="A resident can see this while you carry it">👁 seen</span>`
+    : `<span class="badge" style="border-color:#8a7a63;color:#9c8b74" title="Not handed to a resident right now">—</span>`;
+}
+/* NOTES IN THE BAG WERE INVISIBLE HERE. Found by reading this function on
+   2026-08-08: it rendered `carriedOf(carryList(),'book')` and nothing else, so
+   a note you carried — and carryNote() has existed since 2026-08-07 — simply
+   did not appear. With the bag now grounding, a panel that shows only half of
+   what a resident reads is worse than one that shows none of it. */
+function carriedNotesHtml(g){
+  const notes=carriedOf(carryList(),'note');
+  const others=carriedOf(carryList(),'chapter').concat(carriedOf(carryList(),'lesson'));
+  if(!notes.length && !others.length) return '';
+  const all=gatherNotes();
+  const row=(e,icon,label,extra)=>`
+    <div class="card" style="cursor:default">
+      <div class="t">${icon} ${esc(label)} ${seenBadge(g,e.kind,e.ref)} ${e.kind==='note'?reachBadge(e.ref):''}</div>
+      ${extra?`<div class="s">${extra}</div>`:''}
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" onclick="setDownCarried('${jsq(e.kind)}','${jsq(e.ref)}')">Put it back</button>
+        ${e.kind==='note'?`<button class="btn ghost" onclick="openNotesLog('${jsq(e.ref)}')">Open it</button>
+        <button class="btn ghost" onclick="toggleNoteSeal('${jsq(e.ref)}');openInventory()">${noteReachOf(e.ref)==='sealed'?'🔎 Unseal':'🔒 Seal'}</button>`:''}
+      </div>
+    </div>`;
+  return `<h3 style="margin-top:18px">🗒 Notes and marks you carried in</h3>
+    <div class="meta">Your own words. A resident reads these only because you put them here —
+      and never the sealed ones.</div>
+    ${notes.map(e=>{ const n=all.find(x=>x.key===e.ref);
+      return row(e,'🗒', (n&&n.title)||e.label||e.ref, n?esc(n.where):'<i>no longer in your notes</i>'); }).join('')}
+    ${others.map(e=>row(e,(KINDS[e.kind]||{icon:'·'}).icon, e.label||e.ref, '')).join('')}`;
+}
+export function setDownCarried(kind, ref){
+  data.carrying=setDown(carryList(), kind, ref); persist(); openInventory();
+}
 export function openInventory(){ state.ui='inventory'; hideAllOv(); renderInventory(); showOv('inventoryOv'); }
 function renderInventory(){
   const docs=carriedOf(carryList(),'book').map(e=>Store.getDoc(e.ref)).filter(Boolean);
@@ -11640,24 +12750,32 @@ function renderInventory(){
   const gone=stale(carryList(), (kind,ref)=> kind!=='book' || !!Store.getDoc(ref));
   const later=setAsideList(carryList());
   const log=data.fishLog||[];
+  /* WHAT A RESIDENT WOULD ACTUALLY SEE. Computed by residents.js from the very
+     same carriedLines()/fitToBudget() pair that builds the prompt — never a
+     second calculation over here, which would drift and then lie about the
+     one number this panel exists to report. */
+  const g=carryGrounding();
+  const held=carried(carryList());
   document.getElementById('inventoryPanel').innerHTML = `
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
     <h2>Your Backpack</h2>
-    <div class="meta">${docs.length ? esc(carryLine(carryList()))+' — ' : ''}read any of these from anywhere,
+    <div class="meta">${held.length ? esc(carryLine(carryList()))+' — ' : ''}read any of these from anywhere,
       no walk back to the shelf required. Nothing is missing from the Library; this is just your own
       copy in hand, and <b>what you carry is what a resident can see</b> — your notes stay private
       unless you put one in here yourself.
-      ${carried(carryList()).length >= CARRY_CAP ? '<br><b>Full at '+CARRY_CAP+'.</b> That is on purpose — it keeps this to what you are actually working on. Set something down, or put things on the shelf below for later. <b>Nothing is ever lost.</b>' : ''}</div>
-    ${docs.length ? `
+      ${held.length >= CARRY_CAP ? '<br><b>Full at '+CARRY_CAP+'.</b> That is on purpose — it keeps this to what you are actually working on. Set something down, or put things on the shelf below for later. <b>Nothing is ever lost.</b>' : ''}</div>
+    ${carryMeterHtml(g, held)}
+    ${held.length ? `
       <div id="invList">${docs.map(d=>`
         <div class="card" onclick="openReader('${d.slug}')">
-          <div class="t">${esc(d.title)}</div>
+          <div class="t">${esc(d.title)} ${seenBadge(g,'book',d.slug)}</div>
           <div class="s">${esc(d.tradition)}</div>
           <div class="row" style="margin-top:8px">
             <button class="btn ghost" onclick="event.stopPropagation();toggleInventory('${d.slug}');openInventory()">Put it back</button>
             <button class="btn ghost" onclick="event.stopPropagation();shelveCarried('${d.slug}')">↓ Pick up later</button>
           </div>
         </div>`).join('')}</div>
+      ${carriedNotesHtml(g)}
       ${gone.length ? `<div class="card" style="cursor:default;border-color:#b56f6f">
         <div class="t" style="color:#e0a0a0">⚠ ${gone.length} thing${gone.length===1?'':'s'} you are carrying no longer exist${gone.length===1?'s':''}</div>
         <div class="s">${gone.map(g=>esc(g.label||g.ref)).join(', ')} — removed from the Library since you picked
@@ -11778,6 +12896,11 @@ Object.assign(window, {
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,
   setCourseSearch, clearCourseSearch, setCourseCategory, toggleArchivedView, archiveCourse,
   addConnection, toggleConnection, removeConnection, recheckConnections, setConnectionModel, fillConnectionPreset,
+  /* openArchive was exported from this module and on NO window until
+     2026-08-10 — main.js's E-key handler was the only thing in the whole
+     application that could open the Archive Desk. Found by building
+     data/places.js, which is the argument for having one table. */
+  openArchive,
   newArchiveForm, createArchiveDoc, backToArchiveList, openArchiveDoc, deleteArchiveDoc, skipTyping,
   newBulkForm, runBulkImport, generateQuillReport,
   openConnections, openMenu, returnToTitle, resetSave,
@@ -11793,6 +12916,7 @@ Object.assign(window, {
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
   forgetMemoryItem, forgetAllMemory,
   openLocalAIPanel, renderLocalAIPanel,
+  openStorage, copyStorageCommand,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
   openBadges, openRecordsHall, recordOpen, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openCatalog, catalogOpen,
@@ -11843,6 +12967,9 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage, openNeedsChapters, carryNote,
+  toggleNoteSeal, setDownCarried, toggleContextMeter, sendCurrentChatMessageWithNotes, previewPrompt,
+  openDailyTasks, takeDailyTask, toggleDailyTaskStep, dailyTaskGo,
+  finishDailyTask, setDownDailyTask, retakeDailyTask, dailyTaskWhereChanged,
   studySetBook, studyCarryBook, renderStudyTable,
   shelveRefused, takeUpLater, shelveCarried,
   newLessonForm, saveMyLesson, deleteMyLesson, draftLessonWithAI, stopDrafting,

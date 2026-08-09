@@ -59,6 +59,23 @@
                              commons packet and behaves like a book,
                              because you already decided that.
 
+     SEALED IS SEALED.       Added 2026-08-08, and it sits OUTSIDE
+                             everything above: "private is truly
+                             private" (steward). A sealed note is not
+                             reachable by a search, by an ask, or by
+                             anything else. The rule above moved the
+                             line from WHO to WHY; this puts a per-note
+                             boundary around the WHY, so a visitor can
+                             say "not this one, ever" about a single
+                             note without turning the feature off.
+
+                             The states live in data/note-reach.js —
+                             pure, like this file, and for the same
+                             reason. Composed here rather than copied:
+                             two answers to "may a model see this note"
+                             is exactly the drift this project keeps
+                             paying for.
+
    THE THIRD STATE IS THE POINT, not an exception (steward, 2026-08-07):
    "there should be public lessons and a place to put public notes for
    example if i wana do commentarty on a dhamma book or something like
@@ -84,6 +101,8 @@
    this decides WHAT MAY BE ASKED FOR. So npm test can hold the line
    rather than trust it.
    ================================================================ */
+
+import { mayReachNote, reachOf } from './note-reach.js';
 
 /* Words that carry no search signal. Kept here rather than in
    residents.js so every plugin extracts terms identically — two
@@ -136,13 +155,25 @@ export function groundingPlan(question, carrying, opts) {
      permission, and guessing would put the boundary back in the model's
      judgement, which is exactly where it must not live. */
   const asked = !!(opts && opts.searchMyNotes);
+  /* The per-note boundary, OUTSIDE the asked/unasked one. A sealed note is
+     not reachable by a search and not reachable by carrying it either —
+     "truly private" would mean very little if dropping it in the backpack
+     were a way around it. So it is filtered here, at the plan, rather than
+     trusted to every caller downstream. */
+  const reach = (opts && opts.noteReach) || {};
+  const sealedHeld = held.filter(e => e && e.kind === 'note' && !mayReachNote(reach, e.ref, { asked: true }));
+  const carried = held.filter(e => e && REACH[e.kind] && !sealedHeld.includes(e));
   return {
     terms,
     // may be searched in the Library — plus your own notes, but only on request
     search: terms.length ? (asked ? ['book', 'note'] : ['book']) : [],
     // arrives from the backpack whether or not anything was asked
-    carried: held.filter(e => e && REACH[e.kind]),
+    carried,
     asked,
+    /* Sealed things you are carrying, so the surface can SAY it is holding
+       them back. A bag that silently drops what it shows you is the failure
+       mode this whole file exists to prevent. */
+    sealed: sealedHeld,
     // stated so the visitor can be told, in the panel, what was reached for
     withheld: !asked && held.length === 0 && terms.length
       ? 'Your own notes were not searched. Ask, or put one in your backpack.'
@@ -160,14 +191,26 @@ export function privacyLeaks(items, carrying, opts) {
   const held = Array.isArray(carrying) ? carrying : [];
   // if the visitor asked for their notes to be searched, a note is not a leak
   const asked = !!(opts && opts.searchMyNotes);
+  const reach = (opts && opts.noteReach) || {};
   const isHeld = (it) => held.some(e => e && e.kind === it.kind && String(e.ref) === String(it.ref));
   return (items || []).filter(it => {
     if (!it || !REACH[it.kind]) return true;      // an unknown kind is not a licence
     if (maySearch(it.kind)) return false;         // books and published things are fine
+    /* SEALED OUTRANKS EVERYTHING, and it is checked before `asked` and before
+       `isHeld` on purpose. A sealed note is a leak whether the visitor asked,
+       whether they carried it in, and whether some caller decided it was
+       relevant. This is the assertion to break first: make it read `asked`
+       and a sealed note walks straight into the prompt. */
+    if (it.kind === 'note' && !mayReachNote(reach, it.ref, { asked: true })) return true;
     if (asked && it.kind === 'note') return false; // you asked; it looked
     return !isHeld(it);                           // everything else must have been carried
   });
 }
+
+/* What a note's state is, for a caller that has the map but should not have
+   to import two modules to ask one question. Re-exported rather than
+   re-implemented — there is one road to knowledge and one answer to this. */
+export { reachOf, mayReachNote };
 
 /* WHAT THE VISITOR IS TOLD, in the panel rather than in a prompt.
    The rule is only real if the person can see it holding. */

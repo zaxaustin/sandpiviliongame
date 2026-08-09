@@ -242,28 +242,61 @@ deliberately add a ☁ cloud connection.
 The honest tradeoff, learned here the hard way: **plain "instruct" models
 answer fast and reliably; "thinking"/"reasoning" models (`deepseek-r1`,
 `qwq`, the `qwen3` reasoning family) spend a long, hidden stretch reasoning
-first** — sometimes minutes, sometimes coming back blank. The Pavilion now
-streams that reasoning live so you can *watch* it think instead of staring at
-a dead panel, but a plain model sidesteps the wait entirely. Pick by the
-machine you actually have:
+first** — sometimes minutes, sometimes coming back blank.
+
+**⚠ Corrected 2026-08-10.** This paragraph used to say the Pavilion "streams
+that reasoning live so you can *watch* it think instead of staring at a dead
+panel." **It does not, currently.** The plumbing is all built — the streaming
+reader collects reasoning, and the chat panel has a 💭 section ready to show it
+— but **nothing in the app ever asks for it**: every request goes out with
+`think: false`, so a reasoning model's thinking is never returned to be shown.
+This was lost on 2026-08-07 along with the Monk's special model tier, which was
+the only thing that had ever set it.
+
+So today, **a thinking model gives you the long wait and none of the view.**
+Prefer a plain instruct model until this is turned back on. Pick by the machine
+you actually have:
 
 | Your machine | Pull this | What to expect |
 | --- | --- | --- |
 | Modest — no real GPU, 8GB RAM, a few years old | `ollama pull llama3.2:1b` | Snappy, simple replies; the whole Pavilion works |
 | Everyday — most laptops/desktops, 8–16GB RAM | `ollama pull llama3.2` (3B) | The dependable default; quick, plain-spoken residents |
 | Capable — a real GPU (8GB+ VRAM) or 16GB+ RAM | an 8B instruct model, e.g. `ollama pull llama3.1:8b` | Noticeably deeper conversations, still reliable |
-| Strong — a gaming/creator machine, 12GB+ VRAM | a 8–14B instruct **plus, optionally, one thinking model** | The Monk automatically claims the largest model installed and streams his reasoning live — on a machine like this, watching him actually think is worth the wait |
+| Strong — a gaming/creator machine, 12GB+ VRAM | a 8–14B instruct. **A thinking model is not recommended right now** | Deeper conversations throughout. See the note below on thinking models — the Pavilion currently asks every model *not* to think, so a reasoning model buys you the wait without the payoff |
 
 Two Pavilion-specific facts that make the choice easier:
 
-- **The Mountain Monk always takes the single largest model you have
-  installed** — a standing rule, his depth is never traded for speed. So the
-  biggest model on your machine is, in effect, *his*. Install a thinking
-  model only if you're happy for the Monk to be slow and profound rather
-  than quick.
-- **Everyone else favors speed.** Quill, Sebastian, and the work desks run
-  on your connection's default model — keep that a plain instruct model and
-  the whole Pavilion feels alive rather than laggy.
+- **Every resident runs on the same model — your connection's default.** This
+  changed on 2026-08-07. The Mountain Monk used to claim the largest model you
+  had installed, and no longer does, at the steward's word: *"lets not treat
+  the monk differently for now hav him focus on guidens."* His job is guidance,
+  and guidance is carried by who he is and what he is grounded in, not by how
+  long he is allowed to think. On a machine whose real limit is **cooling**, a
+  bigger model buys slower counsel rather than better counsel.
+
+  So **you no longer need to install a large model for the Monk's sake.** Pick
+  one default you are happy talking to, and everyone uses it.
+- **Every resident uses the one connection you configured — the Monk included,
+  and that is now a decision rather than an oversight** (2026-08-10):
+
+  > *"the monk can be cloud if there computer cant run local ai alot of people
+  > have laptops just let the user know."*
+
+  There is no per-resident routing: `detectAI()` picks the first connection that
+  answers, and Quill, the Monk, Sebastian and every desk all speak through it.
+  **A laptop that cannot comfortably run a local model should not mean no
+  Mountain Monk.** Guidance you can actually reach beats a principle that locks
+  you out of the room.
+
+  So the rule is **tell the visitor, don't decide for them.** Everything is
+  labelled 🏠 local or ☁ cloud, on every connection and in every conversation,
+  precisely so you always know whose machine you are talking on. If you would
+  rather the Monk's conversations never leave this computer, keep a local
+  connection active — that is your call to make, not ours.
+
+  *(An earlier version of this page said he was local-only whatever you
+  configured. That was never enforced in the code, and is now not the intent
+  either.)*
 
 Start small, talk to a resident, and only move up a tier if the replies feel
 thin. A model that answers in two seconds beats a smarter one you stop

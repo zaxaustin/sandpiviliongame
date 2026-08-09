@@ -41,7 +41,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 const SAVE = JSON.stringify({
   seenWelcome: true, aiConnections: [],
-  read: { dhammapada: '2026-07-20' },
+  /* A book the visitor actually has. Was the seed book `dhammapada`, deleted
+     2026-08-10 — a reading record for a book that exists nowhere is a record
+     pointing at nothing, which is what this file is against. */
+  personalLibrary: [{ slug: 'personal-walden', title: 'Walden', tradition: 'Non-fiction',
+    personal: true, license: 'Personal', attribution: 'Henry David Thoreau',
+    doc: { summary: 'Two years beside a pond.', sections: [], fullText: { text: 'I went to the woods.' } } }],
+  read: { 'personal-walden': '2026-07-20' },
   hall: {
     builds:        [{ id:'b1', title:'A one-button IR remote', created:'2026-08-02' },
                     { id:'b2', title:'Undated build that must be skipped' }],
@@ -49,6 +55,23 @@ const SAVE = JSON.stringify({
     experiments:   [],
   },
   commons: { published: [{ id:'p1', title:'A lesson on soldering', created:'2026-08-03' }], received: [], taken:{} },
+  /* THREE DAILY TASKS, and only ONE of them is a day you worked (2026-08-10).
+     The Records Hall excluded days entirely and said why: "a planner day
+     exists as soon as it is opened, which is not the same as a day you
+     worked." A FINISHED daily task is the thing that was missing, and the
+     boundary is the whole feature — an index of real work that quietly
+     counts the days you fell short is worse than one that lists no days. */
+  dailyTasks: [
+    { id:'d1', title:'Read the electricity fundamentals', taken:'2026-08-05', closed:true,
+      source:{ kind:'free', ref:'', label:'Learning electronics' },
+      steps:[{ text:'a', where:'note', ref:'', done:true },
+             { text:'b', where:'world', ref:'', done:true }] },
+    { id:'d2', title:'A day that got away', taken:'2026-08-06', closed:true,
+      steps:[{ text:'a', where:'note', ref:'', done:true },
+             { text:'b', where:'world', ref:'', done:false }] },
+    { id:'d3', title:'Still going right now', taken:'2026-08-07', closed:false,
+      steps:[{ text:'a', where:'note', ref:'', done:true }] },
+  ],
 });
 
 app.whenReady().then(async () => {
@@ -59,9 +82,18 @@ app.whenReady().then(async () => {
   const js = expr => win.webContents.executeJavaScript(expr);
 
   const errs = [];
+  /* `a[1]` is the console LEVEL, not the message — this capture was dead and
+     "no console errors" passed no matter what the page logged. Found and
+     explained in full in test/live/note-search.cjs, 2026-08-08. */
+  const msgOf = (a) => {
+    const ev = a[0];
+    if (ev && typeof ev === 'object' && typeof ev.message === 'string') return ev.message;
+    for (let i = 1; i < a.length; i++) if (typeof a[i] === 'string') return a[i];
+    return '';
+  };
   win.webContents.on('console-message', (...a) => {
-    const m = a.length > 1 ? a[1] : (a[0] && a[0].message);
-    if (typeof m === 'string' && /error|not defined|undefined is not/i.test(m)) errs.push(m);
+    const m = msgOf(a);
+    if (m && /error|not defined|undefined is not|before initialization/i.test(m)) errs.push(m);
   });
 
   await win.loadFile(page);
@@ -98,6 +130,35 @@ app.whenReady().then(async () => {
   check('the UNDATED build never reached the index', !undated,
     'a record in the wrong year is a lie a note can cite');
 
+  /* ---- A DAY YOU ACTUALLY WORKED, all the way into Postgres ----
+     npm test holds the arithmetic. This is the half it cannot reach: that
+     the row is really written, really dated by the day the work was DONE,
+     and that the two days which are not work stayed out of the index. */
+  const days = (rows || []).filter(r => r.kind === 'day');
+  check('a FINISHED day reached the index', days.length === 1,
+    `${days.length} day row(s) from three tasks — expected exactly the finished one`);
+  if (days.length === 1) {
+    /* NORMALISE THE WAY THE ROOM DOES. A Postgres DATE comes back as a JS
+       Date at UTC midnight, and String()ing it renders in LOCAL time — so
+       2026-08-05 reads as "Tue Aug 04 ... GMT-0400" and a correct row looks
+       like an off-by-one-day bug. renderRecordsHall() already goes through
+       .toISOString(), which is timezone-proof; the first version of this
+       check did not, and reported the room wrong when the room was right. */
+    const day = typeof days[0].happened === 'string'
+      ? days[0].happened.slice(0, 10)
+      : new Date(days[0].happened).toISOString().slice(0, 10);
+    check('...dated the day the work was done, not the day it was closed out',
+      day === '2026-08-05', day + '  (raw: ' + String(days[0].happened) + ')');
+    check('...and it names what it was a slice of',
+      /electronics/i.test(days[0].detail || ''), days[0].detail || '(no detail)');
+  }
+  check('a day with steps left undone is NOT filed as work',
+    !(rows || []).some(r => /got away/i.test(r.title || '')),
+    'an index of work done that includes the days you fell short is a guilt inventory');
+  check("today's open board is NOT filed as history",
+    !(rows || []).some(r => /Still going/i.test(r.title || '')),
+    'the day is not over yet');
+
   // every door stored in the database must be a real function in the app
   const openers = [...new Set((rows || []).map(r => r.opener).filter(Boolean))];
   const alive = await js(`(${JSON.stringify(openers)}).filter(n => typeof window[n] === 'function').length`);
@@ -111,6 +172,13 @@ app.whenReady().then(async () => {
   // the room itself, reading the database rather than an array
   const html = await js(`document.getElementById('recordsPanel').innerHTML`);
   check('the room shows the indexed work', /one-button IR remote/i.test(html));
+  check('the finished day shows up as a card in the room',
+    /electricity fundamentals/i.test(html), 'indexed but never rendered is still invisible');
+  /* `detail` was carried through gatherRecords from the first version and
+     rendered by NOTHING — correct data with no consumer, which is the inert
+     half of the same bug groundingFor() had for a day. */
+  check('...and the card says what it was part of',
+    /part of[\s\S]{0,40}electronics/i.test(html), 'the source line is not being rendered');
   check('and does NOT claim to be unindexed here', !/Not indexed on this device/i.test(html),
     'that line is for a browser tab only');
 

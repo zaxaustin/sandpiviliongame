@@ -30,8 +30,21 @@
               Guessing would put lessons in your history that you never
               finished, and rule 6 says a wrong answer is worse than
               none. Wire it when the graph is reachable from here.
-     days     Same shape of problem: a planner day exists as soon as it
-              is opened, which is not the same as a day you worked.
+     days     WAS the same shape of problem, and is not any more. A
+              PLANNER day still exists the moment it is opened, which is
+              not the same as a day you worked, and planner days are
+              still not listed. But a DAILY TASK finished — closed, with
+              every step ticked — is exactly "a day you worked": dated by
+              the day it was taken, countable, with a board to point back
+              at. That is the one thing this list was waiting for, and it
+              arrived on 2026-08-09. See `day` in gatherRecords below.
+
+              STILL NOT LISTED, on purpose: a day taken and NOT finished.
+              The board records both halves because a person needs to see
+              both; the Records Hall is an index of work done, and filling
+              it with the days you fell short is the guilt inventory that
+              the-day.js exists to prevent. Two of four steps is a real
+              day on the board and not a record here.
 
    Anything whose date cannot be established is SKIPPED rather than
    dated today — a record in the wrong year is a lie a note can cite.
@@ -138,6 +151,35 @@ export function gatherRecords(data, bookTitle){
         happened:d, ref:null, opener, slug:(it && it.slug) || null,
         tags:[], source_key:kind + ':' + id });
     });
+  }
+
+  /* A DAY YOU ACTUALLY WORKED — the answer to "how are all the logs
+     connected to this?", asked 2026-08-09.
+
+     Six log-ish surfaces share no vocabulary in this save: activityLog, the
+     day's bullet journal, The Log, per-note logs, the fish log, and this.
+     This is the one that converges, because it is the only one that indexes
+     real work rather than narrating it.
+
+     THE TEST IS `closed && allDone`, and both halves matter. `closed` means
+     the day is over and was closed out; without it, today's unfinished board
+     would file itself as history. `allDone` means every step was ticked;
+     without it, taking up a task and doing nothing would count as a day
+     worked, which makes "how much have I done" a flattering lie.
+
+     Dated by `taken`, never by when the close-out ran: you did the work on
+     the day you did it, and a record in the wrong day is a lie a note can
+     cite. */
+  for(const [i, t] of ((data.dailyTasks || [])).entries()){
+    if(!t || !t.closed) continue;
+    const steps = (t.steps || []);
+    if(!steps.length || !steps.every(s => s && s.done)) continue;
+    const d = when(t.taken);
+    if(!d) continue;                            // undated -> skipped, not guessed
+    const src = (t.source && t.source.label) ? String(t.source.label).slice(0, 200) : null;
+    out.push({ kind:'day', title:titleOf(t, 'a day’s work'),
+      detail:src, happened:d, ref:null, opener:'openDailyTasks',
+      slug:null, tags:['finished'], source_key:'day:' + ((t && t.id) || i) });
   }
 
   // work published or received at the Commons Table

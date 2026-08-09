@@ -30,15 +30,24 @@ decisions), then this.*
 
 ## What's built (current state)
 
-**Eleven scenes.** Grounds · the Keep (Eightfold Path + the Monk) · the
-Library (ground floor, second floor, and a genuinely secret basement) · the
-Study · the Workshop (three floors) · the Café · **the Inheritance Hall**.
+**Twelve scenes**, in **two Grounds** since 2026-08-10 — `npm test` prints the
+count, so this number is derived rather than remembered:
 
-**Six AI-backed residents** on one shared chat stack (`CHAT_AGENTS`) with live
-streaming, per-resident memory, read-aloud, and a pocket-phone minimise:
-Quill (Library), the Mountain Monk (meaning/conduct), Sebastian (the day), the
-Steward/Investigator (café + Science Hall), the Computer, and the Tutor
-(Academy).
+| **The Pavilion** — study alone | **The Works** — make, meet, give, rest |
+|---|---|
+| `overworld` (the road) · `keep` (Eightfold Path + the Monk) · `library` + `libraryfloor2` + `librarybasement` (genuinely secret) · `study` | `works` (the road) · `workshop` + `workshopfloor2` + `workshopfloor3` · `cafe` · `grove` (the Inheritance Hall, the Alexandria Stone, the pond) |
+
+**Seven role keys, six people.** `ROLES` in `data/roles.js` has seven entries —
+`quill · monk · sebastian · steward · investigator · tutor · computer` — and the
+Steward and the Investigator are **the same resident in two rooms**, under two
+different charters (see the charter invariant below). Both numbers matter: seven
+is what a guard counts, six is who a visitor meets.
+
+One shared chat stack (`CHAT_AGENTS`, in **`ui/residents.js`** since 2026-08-04)
+with live streaming, per-resident memory, read-aloud, and a pocket-phone
+minimise. Every one of the seven reaches the Library, the backpack and your
+notes by the **same** `pathwayBlock()`; the only difference is a one-line `lens`
+in `roles.js`.
 
 **The day spine.** Writing Desk, Sebastian's calendar + scheduler, opt-in
 reminder pings, the due badge, Still Open, task migration across days, The Log,
@@ -75,10 +84,13 @@ a tradition → certified + personal side by side).
 
 Also: the serif Reader with read-aloud, the Index and the Stacks, bulk import,
 drag-and-drop `.txt`/`.epub` intake, and the eight Caravan connectors in
-`tools/caravan/`. **27 texts in the shipped seed** — 6 complete source texts, 11
-written for the Pavilion (including three guides), 10 classics carried as
-summaries that say so and invite the real text; ~51 on the
-dev machine's full setup.
+`tools/caravan/`. **`SEED_LIBRARY` is `[]` — nothing ships on the shelf**, and
+that is permanent (2026-08-10; the 27 former texts are in
+`archive/seed-texts-2026-08-10/`, re-download list in `docs/BOOKS-TO-SOURCE.md`).
+**This section said "27 texts in the shipped seed" until 2026-08-10 while the
+Library section 250 lines below correctly said the shelf was empty** — the file
+contradicted itself, which is why `npm test` now derives the number instead.
+The dev machine's own setup is **415 catalogued**.
 
 **Standing instructions + the prompt inspector.** `data.standing[agentKey]` is
 appended to a resident's system prompt by `withStanding()` — the single funnel
@@ -116,9 +128,24 @@ in Your Data. **`npm test` fails if a save store has no `DATA_MAP` entry.**
 - **The Temple (Eightfold Path) and the Library stay, always, in every tier.**
 - **Three residents, three roles:** Quill teaches, the Monk guides, Sebastian
   works with you. **The Monk is no longer given a bigger model** (retired
-  2026-08-07 — see `CLAUDE.md`); he is still **local-only**, which is a
-  separate rule enforced by the transport layer's cloud guard, not by
-  `chatOptsFor()`. Losing the first must not quietly lose the second.
+  2026-08-07 — see `CLAUDE.md`).
+- **THE MONK MAY BE CLOUD, and that is a decision** (2026-08-10): *"the monk can
+  be cloud if there computer cant run local ai alot of people have laptops just
+  let the user know."* This bullet used to claim he was local-only "enforced by
+  the transport layer's cloud guard" — there was no such guard, and the property
+  had been silently lost on 2026-08-07 with his model tier. Rather than restore
+  it, the steward dropped it: **a laptop that cannot run a local model must not
+  mean no Mountain Monk.** Every resident uses the one detected connection.
+- **SO LABELLING IS THE INVARIANT NOW, and it must be where the person is.**
+  `isLocalConn()` in `ai/provider.js` is the single definition, `detectAI()`
+  stamps `AI.local`, and the **chat header** says 🏠/☁ with what it means. The
+  Connections panel badged this all along and the room where people actually
+  speak did not — an honest choice the visitor cannot see is not an honest
+  choice. **Never let a surface that sends words to a model omit this.**
+- **A resident may name a book from the catalogue and may never claim to have
+  read one it is not carrying.** The lookup returns shelf metadata — title,
+  author, shelf — and not one word of any book's text. `carriedBlock()` is the
+  only path by which a text reaches a prompt, and it sends a card, not the book.
 - **Three charters, don't cross them:** `CHARTER` (in-world residents,
   devotional), `WORK_CHARTER` (work tools — neutral, serves any goal),
   `BUTLER_CHARTER` (Sebastian). Never skew a secular goal toward the dharma.
@@ -149,26 +176,77 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 
 - **`main.js`** — the rAF loop, input, audio, and `onAction()`'s dispatch.
 - **`scenes.js`** — pure data: tile grids plus npcs/signs/warps/stations. A new
-  room is a `build*()` function plus registration in `scenes`.
+  room is a `build*()` function plus registration in `scenes`. **TWO GROUNDS
+  since 2026-08-10:** `overworld` (the Keep, the Library, the Study) and
+  `works` (the Workshop, the Café, the Inheritance Hall, the pond), joined by
+  a road east/west. Every building carries its own `door` column — that used
+  to be three absolute tile numbers hard-coded in `render.js` by building
+  *type*, which would have painted the Café's door onto blank wall the day it
+  moved. `npm test` now flood-fills every scene from its spawn and fails if
+  any warp, station, sign or resident stands where nobody can walk.
+- **`data/places.js`** — **every room, and the one keystroke to it.** The pause
+  menu's PLACES section is derived from here, never hand-listed. Before it
+  existed the menu reached ~25 panels and named **no rooms at all**: eleven
+  exported openers were in it nowhere, and `openArchive` was on no window at
+  all, so nothing in the whole application could click the Archive Desk open.
+  `npm test` crosses it against `scenes.js` in **both** directions.
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one** (~10k lines). Every panel, the chat
-  stack, `CHAT_AGENTS`. **It opens with a map of itself**, anchored to searchable
-  text rather than line numbers and checked by `npm test`. Read that first.
+- **`ui/overlays.js`** — **the big one: 12,966 lines** (74% code, 732 top-level
+  definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
+  chat stack, and the window-export block, which it owns permanently. **It opens
+  with a map of itself**, anchored to searchable text rather than line numbers
+  and checked by `npm test`. Read that first. *(This entry said "~10k lines"
+  until 2026-08-10, and the file's own header said "~10,000 lines, and that is
+  fine" — both understated it by ~3,000. See `plans/OVERLAYS-SPLIT-PLAN.md`.)*
+- **Already out of it:** `ui/residents.js` (1,017 — `CHAT_AGENTS` and every
+  `systemPrompt()`), `ui/lesson-tree.js` (1,063), `ui/study-table.js` (747),
+  `ui/daily-tasks.js` (334 — **born outside**, the shape to copy), `ui/dom.js`
+  (27 — `esc`/`jsq`).
 - **`render.js`** — owns the canvas; reads state, never mutates it.
-- **`data/`** — `seed.js` (library), `store.js` (persistence + library
-  adapter), `charter.js`, `visibility.js` (yours/shared/commons + `DATA_MAP`),
-  and five pure-logic modules added 2026-07-28, each covered by `npm test`
-  precisely because they hold rules that erode quietly: `the-day.js` (what is
-  waiting for you, and the four rules that keep it from becoming a nag),
-  `shelf-rules.js` (file the obvious books with no model at all),
-  `machine-advice.js` (can this computer run a model, and the honest "no"),
-  `draft-parse.js` (what a small model actually returns, not what it was asked
-  for), `copyright.js` (rules decide, the AI only gathers evidence),
-  `bequests.js` (Inheritance Hall gate gifts), `commons-packets.js` (starter
-  shared work), `supabase.js`/`auth.js`/`exchange.js`/`agentNotes.js` (the
-  optional, currently-dormant server layer).
+- **`data/`** — `seed.js` (**now `[]`**, the shape and `TRADITIONS`/`CATEGORIES`
+  remain), `store.js` (persistence + library adapter; `mergedDocs()` is the one
+  gate every catalogue read passes through), `charter.js`, `visibility.js`
+  (yours/shared/commons + `DATA_MAP`), and the pure-logic modules, each covered
+  by `npm test` precisely because they hold rules that erode quietly:
+  - `the-day.js` — what is waiting for you, and the four rules that keep it
+    from becoming a nag
+  - `shelf-rules.js` — file the obvious books with no model at all
+  - `machine-advice.js` — can this computer run a model, and the honest "no"
+  - `draft-parse.js` — what a small model actually returns, not what it was
+    asked for
+  - `copyright.js` — rules decide, the AI only gathers evidence
+  - `commons-packets.js` — starter shared work (**3 packets, real**)
+  - `bequests.js` — the Inheritance Hall gate-gift *shape*. **`GATE_BEQUESTS`
+    is `[]` since 2026-08-10** — the shipped gifts were a seed pathway and went
+    with the seed. The module stays: it is what your own bequests are built
+    from, and deleting a working shape because its list is empty is how a
+    feature quietly disappears.
+  - `supabase.js`/`auth.js`/`exchange.js`/`agentNotes.js` — the optional,
+    dormant server layer. **Supabase is gone** (2026-08-02); these are kept as
+    history, never as instructions.
+
+  **The five that were missing from this map entirely** until 2026-08-10, all
+  load-bearing and all added since the map was last written:
+  - **`data/places.js`** — see above; the room table the pause menu is derived
+    from, and now also the seam the `overlays.js` split follows
+  - **`data/lookup.js`** — **one road to knowledge.** `groundingPlan()`,
+    `lookupTerms()`, `privacyLeaks()`, and the `REACH` table saying what may be
+    searched versus what must be carried. Books are looked up; notes are not
+    searched unasked
+  - **`data/note-reach.js`** — the three states on a note: 🔒 sealed · 🔎
+    askable · 🏛 published. **A different axis from `visibility.js`** — that one
+    answers *can this leave the machine*, this one answers *may a local model
+    here see it*. `npm test` asserts the two vocabularies never collide
+  - **`data/carrying.js`** — the backpack: one `KINDS` table, a cap of 20 in
+    hand, a "pick up later" shelf outside both the cap and the grounding, and
+    `fitToBudget()` bounding grounding in **tokens** rather than items
+  - **`data/book-storage.js`** — where a book's text actually lives, read from
+    the book's own pointer and never from what is running: 🐳 Docker · 💾 this
+    machine · 📄 in the save · 📝 summary only, plus the 100-book local cap
+  - **`data/daily-tasks.js`** + **`ui/daily-tasks.js`** — Today's Tasks, and the
+    first room built entirely outside the monolith
 - **`electron/`** — `main.cjs` (Ollama proxy, save dialog, MinIO write/delete
   via `mc` in a throwaway container), `preload.cjs` (the `desktopBridge`).
 - **`tools/caravan/`** — the eight source connectors and the draft/promote/
@@ -206,7 +284,17 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 
 - **`npm test`** — `test/smoke.mjs`: scene/warp/station/building sanity, no
   overlapping interactables, seed-library shape, and the `DATA_MAP` coverage
-  guard. No browser needed.
+  guard. No browser needed. **Since 2026-08-10 it also walks the world:** a
+  flood fill from each scene's spawn proves every warp, station, sign and
+  resident stands somewhere reachable; the scene graph must be connected in
+  **both** directions (a one-way road is a trap); no warp may land you on
+  another warp; and every room must have a keystroke door (`data/places.js`,
+  crossed against `scenes.js` both ways).
+- **`test/live/every-room.mjs`** — presses every room in the pause menu and
+  checks a real panel came up. `test/live/two-grounds.mjs` — **walks** between
+  the two Grounds and back. Movement here is **held keys, not `.press()`**, and
+  a long walk is a timing measurement rather than a test: seed `data.pos` near
+  what you actually want to prove.
 - **`node --check <file>`** after editing any module.
 - **Seeing it for real.** The live harness (puppeteer-core + system Chrome +
   `vite preview`) drives the actual game and screenshots any panel — set up in
@@ -287,7 +375,472 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
-**Where things stand, end of 2026-08-07 (SEVENTH session) — READ THIS ONE.**
+**Where things stand, end of 2026-08-10 — READ THIS ONE.**
+Full account in [`archive/dev-log-2026-08-10.txt`](archive/dev-log-2026-08-10.txt)
+(Part Six is the documentation session; Parts One–Five are the Library and the
+two Grounds, earlier the same day).
+
+> ## ⚠ READ BEFORE SCOPING ANYTHING
+>
+> **1 · Two promises the code stopped keeping on 2026-08-07.** When the Monk's
+> model tier was retired, `chatOptsFor()` was emptied to `return {}` — and
+> **local-only** and **`think:true`** went with it, unnoticed, while the docs
+> kept promising both for three days.
+>
+> - **Local-only: RESOLVED 2026-08-10 — dropped on purpose.** *"the monk can be
+>   cloud if there computer cant run local ai."* Every resident uses the one
+>   detected connection; 🏠/☁ labelling in the **chat header** carries it now.
+> - **`think:true`: STILL OPEN.** No caller anywhere in `src/`, `tools/`,
+>   `electron/` or `test/`, so the `💭` reasoning panel can never fill — while
+>   `PROTOCOLS.md` used to tell people to install a thinking model to watch it
+>   think. Decide **(a)** turn it back on for some tier, or **(b)** drop the
+>   feature and say so. It is one option object either way.
+>   See [`docs/DOCS-DRIFT.md`](docs/DOCS-DRIFT.md).
+>
+> **2 · If the backend feels twisted, read
+> [`docs/THE-BACKEND.md`](docs/THE-BACKEND.md) first.** It is the map, measured
+> rather than inherited. The one sentence: **Docker buys capacity for the book
+> TEXT — not privacy, and not search.** Both containers bind `127.0.0.1` only,
+> and PGlite under `userData` is exactly as private, so **making Docker optional
+> cost no privacy at all.**
+>
+> **3 · `npm run dev` shows an empty shelf by construction** — no bridge, a
+> per-origin save, and a blank MinIO endpoint. Three reasons, not one. Use
+> `npm run electron:dev`.
+
+### The next session, in order
+
+1. **Decide `think:true`** (the one still open above). Small, and it unblocks
+   any further prompt work.
+2. **Backend knot A, then B** — [`plans/THE-BACKEND-UNTANGLE.md`](plans/THE-BACKEND-UNTANGLE.md).
+   A (one read path instead of two) makes B (a real `minioRead` on the bridge) a
+   one-line change. Stopping after A is a complete session.
+3. **The resident reach gap** — [`plans/RESIDENT-REACH-PLAN.md`](plans/RESIDENT-REACH-PLAN.md),
+   fully designed and not built. *"i dont have acces to this can you please put
+   the book in your back pack."*
+4. **Retrieval reaches the residents** — the plan is at the end of
+   [`plans/AI-INTEGRATION-NOTES.md`](plans/AI-INTEGRATION-NOTES.md).
+5. **`ui/computer.js`** — the first commit of
+   [`plans/OVERLAYS-SPLIT-PLAN.md`](plans/OVERLAYS-SPLIT-PLAN.md), whose order is
+   now derived from `data/places.js` rather than hand-listed. **One region per
+   session that touches `overlays.js` at all** — "between things" never arrived,
+   and the file grew 850 lines while that was the rule.
+
+**`plans/AFTER-THE-LIBRARY.md` is four-sixths done** and marked as such. Still
+open there: `notesInReach` (half built) and the notice board (not started).
+
+### 📝 The documents were reconciled with the program on 2026-08-10
+
+Twenty-three stale or unbacked claims, each measured against the code rather
+than read off a dev log. The pattern worth remembering: **`SEED_LIBRARY` went to
+`[]` and four files kept saying 27** — including `README.md`, the front door,
+and `CLAUDE.md`, where it was rule 1's own worked example. `MAINTAINING.md` said
+both 27 and "empty", 250 lines apart.
+
+So it is **derived** now, not merely fixed. Two guards in `npm test`, each broken
+on purpose: no document may claim a shipped book count that disagrees with
+`SEED_LIBRARY.length`, and every `> ●`-quoted screen line in `MANUAL.md` must
+exist in `src/` — **with comments stripped first**, because with comments
+included the second guard passed while the string was gone, which is how three
+guards in this project were born dead.
+
+The full register, including what was deliberately left alone, is
+[`docs/DOCS-DRIFT.md`](docs/DOCS-DRIFT.md).
+
+### 📚 THE LIBRARY — the seed shelf is gone, and that exposed a real bug
+
+**The seed shelf is EMPTY and that is permanent.** All 27 books deleted at the
+steward's instruction; every text preserved in
+`archive/seed-texts-2026-08-10/`, re-download list in
+[`docs/BOOKS-TO-SOURCE.md`](docs/BOOKS-TO-SOURCE.md). The inlined
+`data/library-texts/` (248 KB in every build) and the Inheritance Hall's
+shipped bequests went with it — both were seed pathways.
+
+**THE BUG IT WAS HIDING, and it is the important part.** `indexItems()` filters
+by `category`, and **only `seed.js` ever set that field**. Books from the
+database and from your own imports arrived `category: undefined`, matched no
+tab, and the Index rendered **zero cards** while the storage line beneath it
+correctly read "326 Docker". A shelf of 27 stubs rendered perfectly and hid the
+fact that nothing else could. Fixed at `mergedDocs()` — the category is now
+**derived from the shelf**.
+
+That is CLAUDE.md **rule 1** stated as a bug. Every live suite seeded an *empty*
+save, so all of them tested the seed and none tested a real library.
+**`test/live/_books.mjs` is the fixture now** and nine suites use it.
+
+**Two homes, both visible.** `data/book-storage.js` (pure, tested) decides from
+the book's own pointer — never from what is running:
+
+`🐳 Docker` · `💾 this machine` · `📄 in the save` · `📝 summary only`
+
+Per book, plus a shelf line, plus the intake saying where the next book goes
+*before* you drop it. Local storage caps at **100 books** and refuses by naming
+Docker as the way through.
+
+**Migration 005 — `books.local_file`.** `text_key` only ever meant "the MinIO
+object", so 89 rows looked like books owned on paper while 59 real `.txt` files
+sat under userData. Two nullable columns, because a book can be in both homes;
+`upsertCard` COALESCEs each independently. Now: **326 docker · 59 this machine ·
+30 genuinely summary-only.**
+
+**A browser tab is a SEPARATE Pavilion** and now says so — on the title screen
+*and* on an empty shelf, which is where a person actually looks. `npm run dev`
+cannot reach Postgres, MinIO or your book files. **Use `npm run electron:dev`.**
+
+**New guards:** no hardcoded book slug anywhere in `ui/` (no book is guaranteed
+to exist); every `upsertCard` call site must pass as many parameters as the SQL
+declares (a 10-vs-11 mismatch silently killed every write for ten minutes and
+`npm test` saw nothing).
+
+### 🗝 TWO GROUNDS — and the keystroke doors that had to come first
+
+*"i dont wana loose features but we can move things like the pond and the
+inhertince hall to a second overlays screen. mabie even the workshop and the
+cafe as well."*
+
+**Stage 0 first, and the measurement is why.** Before anything moved, the pause
+menu reached about twenty-five panels and named **not one room**. Eleven
+exported room openers appeared in it nowhere, and a twelfth — `openArchive` —
+was on no `window` at all, so *nothing in the entire application* could open the
+Archive Desk with a click; only `main.js`'s E key could. Moving rooms further
+away while walking was the only way in would have deepened the Lab's bug rather
+than leaving it fixed.
+
+So `data/places.js` came first: one table, the menu derived from it, and a guard
+that runs **both** directions — a station in the world with no menu entry fails,
+and a menu entry naming a station that is not there fails too. (The `mission`
+dead drop hid for weeks in exactly the direction that was never checked.)
+
+**Then the world moved, and it cost nothing**, because walking had become
+scenery instead of access.
+
+| **The Pavilion** — study alone | **The Works** — make, meet, give, rest |
+|---|---|
+| the Keep, the Library (+2 floors), the Study | the Workshop (3 floors), the Café, the Inheritance Hall, the pond |
+
+Not gated. One road, signposted at both ends.
+
+**Four real bugs found on the way, none of them by reasoning:**
+
+1. **`openArchive` on no window** — found by building the table.
+2. **A dialog opened *behind* the pause menu.** The Hearth, the Counter, the
+   Notice Board and the Residents' Board are scripted beats, not panels. Opened
+   from the menu, the dialog box came up underneath a full-screen overlay with
+   `state.ui` still `'menu'`, so `onAction()` returned early and **E could not
+   even advance the thing you could not see**. Four menu buttons that silently
+   did nothing. Fixed in `openDialog()` itself — every caller is world-level.
+3. **`render.js` placed doorways from three absolute tile columns of the old
+   Grounds, keyed off building *type*.** Correct only while nothing ever moved.
+   Every building carries its own `door` now.
+4. **Walking into the Study dropped you onto the Study's own exit warp**, so one
+   sideways step ejected you back outside. Pre-existing, found by the new
+   warp-onto-a-warp check, never reported by anyone — the house failure mode.
+
+### ☀ THE LOGS ANSWER — a finished day is a day you worked
+
+*"how are all the logs connected to this?"* Six log-ish surfaces share no
+vocabulary; `data/records.js` is the one that converges, because it indexes real
+work instead of narrating it. It had excluded days and said why: *"a planner day
+exists as soon as it is opened, which is not the same as a day you worked."*
+
+**A finished daily task is exactly that missing thing** — `closed && allDone`,
+dated by the day it was *taken*, with the board to point back at. It also
+finally earns `recordCounts`.
+
+**A day taken and not finished is still NOT listed**, on purpose. The board
+records both halves because a person needs to see both; an index of your own
+work that fills with the days you fell short is the guilt inventory
+`the-day.js` exists to prevent. Held by a test, on both database homes.
+
+**Still open from the plan:** the framing art (Stage 2 — world stays pixel), the
+`overlays.js` split along the new seam (Stage 3), and then **Sebastian**:
+drafting the outline, and graduation to the inner Pavilion using the
+`requirementMet()` / `requirementText()` shape already in `entities.js`.
+
+---
+
+**The session before it, end of 2026-08-09 (NINTH).**
+Full account in [`archive/dev-log-2026-08-09.txt`](archive/dev-log-2026-08-09.txt).
+
+### 📋 TODAY'S TASKS — and the first room built OUTSIDE the monolith
+
+*"we can call it daily tasks instead of missions, you cant do missions unless
+you graduate lol."* A mission is something you earn; a task is what you sit down
+and do this afternoon. **`mission` stays unclaimed** in `carrying.js` for the
+graduated thing.
+
+**`mission` was already there as a DEAD DROP** — `book` and `lesson` both
+declared `places:[…'mission']` and no surface existed, since the carry model was
+built. `npm test` could not see it: the guard only ran one way (a surface
+accepting a kind nothing offers), never the other. Renamed `dailyTask`, and
+**the missing half of that guard now exists** in the daily-tasks tests.
+
+- **`data/daily-tasks.js`** — pure: the shape, `isToday()` (computed on read,
+  **never a timer**), `closeOut()` (pure and **idempotent**), `STEP_WHERE`,
+  `streakAfter()`.
+- **`ui/daily-tasks.js`** — the board. `overlays.js` gains only the window
+  exports, one `initDailyTasks()` call and a pause-menu line.
+
+**The date is a FRAMING DEVICE, not a stick** — the steward's correction. No
+countdown, nothing red, and **a test fails on the words "overdue" or "late"** in
+the notice *or* the recorded log line, so a future edit cannot reintroduce the
+framing by being reassuring about it. **Both halves are recorded** — what you
+did *and* what you did not.
+
+**The AI does no legwork**: *"the tesla chain is for the user to go and do not
+the ai."* Every step points at a door that **already existed** — and `world`
+(*"go to the town library"*, *"wire the 555 timer"*) has **no door on purpose**;
+a test fails if it grows one. The arc the steward named — *get the book → read
+it → have the Tutor draft a plan → walk the course* — is four existing doors in
+a row and needed **no new code** (`writeLessonOnThisBook` + `draftLessonWithAI`).
+
+**The complexity question, measured:** `overlays.js` 12,317 lines vs
+`roles.js` 284 and one `pathwayBlock()` for all seven residents. The agent
+pathways are the **simplest** part of the codebase. `overlays.js` is the real
+problem, and this feature is the first cut done right.
+
+**What the guards caught, both within the hour:** the new door-guard rejected
+`openStudyTable()` (it doesn't exist — the Study Table is a tool inside the
+Writing Desk), and the live suite found that a `read` step opened **nothing**
+because `needsRef` was declared and honoured by nothing. **Reading the
+screenshots** caught three more, two of them quiet lies: work finished *today*
+filed under "Before today", and "Nothing set for today yet" shown beside two
+finished sittings.
+
+**Verified:** `npm test` · **9 sabotage cases, all caught** · `build:beta` clean
+· `test/live/daily-tasks.mjs` 24/24 · full browser sweep (11 suites) · all four
+Electron suites, `packaged-boot` SHIPPABLE.
+
+**Next, in order:** ① **Sebastian drafts the outline** — turning *"i wanna read
+tesla"* into a three-step chain; he currently directs to the board and reads the
+day into his prompt, nothing more. ② Steps that tick themselves. ③ Chains.
+④ **No real model has seen `butlerDayRead()` with the task line in it.**
+
+---
+
+**Where things stood, end of 2026-08-08 (EIGHTH session).**
+Full account in [`archive/dev-log-2026-08-08.txt`](archive/dev-log-2026-08-08.txt).
+The seventh session's record follows below and is still accurate; this is the
+frontier.
+
+### THE BACKPACK IS THE CONTEXT WINDOW NOW — and it wasn't anything before
+
+The steward's correction, which turned the session over:
+
+> *"i wanted the back pack to serve the perpouse to make sure the condex of the
+> modles dosent get blown out and so the user can fouce there attention on a few
+> things and not 100."*
+
+**`groundingFor()` had NO CALLER ANYWHERE.** `carrying.js` said *"what you carry
+is what a resident can see"*, `visibility.js` said the backpack *"is the one
+store a resident is allowed to read"*, and no resident read it. Every unit test
+passed the whole time — **a pure function with no caller is perfectly testable
+and completely inert.** That is a new shape of this project's oldest bug, and
+`npm test` now asserts a resident actually calls it.
+
+| built | where |
+|---|---|
+| **Three states on a note** — 🔒 sealed · 🔎 askable · 🏛 published | `data/note-reach.js` (new, pure) |
+| **The backpack as bounded grounding** for Quill and the Monk | `carriedBlock()` in `ui/residents.js` |
+| **A token budget, not an item count** | `fitToBudget()` in `data/carrying.js` |
+| **The meter** — 👁 per item always; the bar behind a setting | `renderInventory()`, `data.settings.showContextMeter` |
+| **Ask a resident to search your notes** — a second send button | `sendCurrentChatMessageWithNotes()` |
+| **Preview a prompt without sending one** | `previewPrompt()`, in the prompt inspector |
+
+**`SEALED` is the one state an ask cannot cross** — not by searching, not by
+carrying it in. **Absent means askable**, which is exactly the rule that already
+held, so hundreds of existing notes changed reach by nothing and there is no
+migration. A present-but-unrecognised value **fails closed**.
+
+**This is NOT `visibility.js` and must not merge with it.** Two axes:
+`visibility.js` answers *can this leave the machine*; `note-reach.js` answers
+*may a local model here see it*. A note can be private in every sense and still
+be one you are glad to hand your own resident. `npm test` asserts the two
+vocabularies never collide.
+
+**The bound is TOKENS.** Twenty is a bound on *attention* and right for a
+person; it is not a bound on a context window, where twenty notes is nothing and
+twenty books is a catastrophe. Measured with the **same `estimateTokens()` the
+request uses** — a meter with its own idea of the answer is the `store.js` scar
+in miniature. This is the **fourth** costume of the uncapped-prompt bug.
+
+### RUNNING IT UNDER ELECTRON FOUND THREE REAL BUGS, AND THE FIRST RUN WAS BROKEN
+
+The notes search had only ever run on its *locked* path — a browser has no
+database, so it could never reach the code. Extending
+`test/live/note-search.cjs` (now **25 checks, green**) found all three in the
+first run, and **every one was invisible to `npm test`, `node --check`, the
+build and the browser suite**:
+
+1. **A shadowed parameter in the temporal dead zone.** `sendChatMessage(q, opts)`
+   — the body already declared `const opts = chatOptsFor(...)` *inside the try
+   block*, which shadows the parameter for the whole block. Reading it threw
+   `Cannot access 'opts' before initialization` **every time**, so the feature
+   did nothing at all and the catch told the visitor *"the local AI didn't
+   answer."* Renamed to `sendOpts`.
+2. **The question is not the query.** `searchNotes` uses `websearch_to_tsquery`,
+   which **ANDs** every word. Measured: `"walking"` → 2 rows, `"what did I write
+   about walking?"` → **0 rows**. It would have returned nothing for nearly
+   every real question while looking like it worked. Now uses the shared
+   `lookupTerms()` joined with OR, exactly as `libraryLookupBlock` always has.
+3. **The console capture was dead in THREE suites** — `note-search`, `records`
+   and `chapters-panel`. `a[1]` is the console *level* (a **number**), not the
+   message, so `typeof m === 'string'` threw every line away and *"no console
+   errors"* passed no matter what the page logged. That is how bug 1 stayed
+   hidden for three runs.
+
+   **A correction I had to make to myself:** I first wrote that `packaged-boot`
+   — the release gate — was dead too. Breaking its capture on purpose *still
+   passed*, so I measured the signature instead of believing my theory:
+   Electron 43 emits **both** forms at once (`a[0]` event object, `a[1]` level
+   as a number, `a[2]` the message). `packaged-boot` reads `a[2]` and **was
+   correct all along**. A false claim about the release gate in this file would
+   have been worse than the original bug.
+
+   All four now tolerate either shape, and **two prove their own capture** —
+   `note-search` asserts it saw the expected `[chat] … turn failed` lines, and
+   `packaged-boot` emits a console error of its own and fails unless it catches
+   it. Both verified by breaking the reader on purpose.
+
+**And a fourth, in my own new test:** the "the ask does not linger" check
+reopened the chat before the second message, which builds a fresh dialog with
+`askNotes:false` — so deleting the `finally` still passed. It now stays in one
+conversation. Sixth inert guard of the session, third I wrote myself.
+
+**`sendChatMessage`'s catch now logs the real exception.** It wraps the whole
+turn, prompt assembly included, so every bug in *our* code has always been
+reported to the visitor as the model failing — sending them to check Ollama for
+something we did.
+
+**Verified green:** `npm test` · 17 sabotage cases (13 pure + 4 Electron) ·
+`build:beta` clean · **all 20 browser live suites** · `records.cjs`,
+`chapters-panel.cjs`, `note-search.cjs` (embedded) · `docker-home.cjs` 31/31
+(container up). **Nothing is committed**; it is all in the working tree.
+
+### ONE PATHWAY, N BEHAVIOURS — was **2 of 7**, now all seven
+
+*"i wana have the pathways for each agent really be the same and that how they
+deal with that knolege be part of there specality."*
+
+`lookup.js` has claimed since 2026-08-07 that every resident reaches the Library
+the same way. **Measured, only Quill and the Monk could** — the other five,
+including the Tutor and the **Investigator** (*"insists on evidence someone else
+could check"*), could not look up a book, see the backpack, or search a note.
+Each `systemPrompt()` composed its grounding **by hand**, so a resident had a
+pathway only if someone remembered the line. Seven hand-maintained lists, rule
+4's exact shape.
+
+**`pathwayBlock()` in `ui/residents.js` now assembles the whole road once,
+identically, for everyone.** A role cannot opt in and cannot forget. What a role
+declares instead is a **`lens`** in `roles.js` — one line on what it *does* with
+what it found, appended *after* the grounding. That is the entire specialty.
+
+**Measured after** (real database, real backpack), because five prompts growing
+a pathway is how the uncapped-prompt bug arrived the previous four times:
+quill 1527 · **monk 2949** · steward 1331 · investigator 1950 · tutor 1480 ·
+computer 1255 · sebastian 1702 tokens. Heaviest is **36% of the 8k floor**, and
+every part is bounded by construction — none grows with the Library's size or
+with how much the visitor has done.
+
+**One argued exception:** Sebastian's *reading-companion* branch gets no
+pathway. It is a **mode**, not a role — it says *"answer grounded strictly in
+the text given below"*, and adding a catalogue would contradict its own
+instruction. Narrowing IS the lens there.
+
+**The same bug one layer up: three residents had no door.** `talkTo()` is called
+*"ONE opener for every chat resident"* and worked for four — the Tutor,
+Investigator and Computer had no `chat` entry, so it returned silently and a
+colleague's handoff could *name* them without opening them. Fixed. `open` still
+points at the **room** (the Academy has the lesson tree) because a handoff
+should land where the work is; `chat` is the plain door. Two different things.
+
+**Adding an assistant is now one entry in `roles.js`** — label, duty, sendMe,
+where, open, chat, lens. The pathway comes free. Still hand-written: the
+identity paragraph in `CHAT_AGENTS` and the icon in `AGENT_AVATAR` — the next
+cut, and a small one.
+
+### ⚠ What is still NOT proven
+
+- **A real model HAS now seen it** — `deepseek-r1:8b`, local, `think:true`,
+  against the real prompts. It found **three more bugs**, all fixed; see below.
+  Still unproven: the *other* residents' prompts (Sebastian's day-read, the
+  Steward's pre-notes) have not been read by a model since the pathway landed.
+- **The Study Table's chat and the Writing Desk's picker** do not get the
+  carried block — they take their own route to a resident.
+- **`packaged-boot.cjs` must be re-run** before any cut. It is green and now
+  self-tests its error capture.
+
+### A REAL MODEL SAW IT, AND FOUND THREE MORE
+
+The steward's idea, and it was the best debugging move of the session:
+*"if you use a thinking modle you can see how the ai handles the info."*
+
+1. **The zero-hit branch suppressed answers the model knew.** *"what's a classic
+   fiction book from hg wells?"* — its reasoning said *"not even his most famous
+   works like War of the Worlds or The Time Machine would be present"*, **and it
+   said none of it**, because the wording read as *"say nothing you cannot find
+   on a shelf"*. It also echoed that block's own sentence back verbatim, and
+   invented a handoff. *"We don't have it"* and *"I don't know what it is"* are
+   different claims and only the first was true. The block now separates them —
+   the never-imply-we-hold-it rule is untouched — and is phrased as a situation
+   rather than a line of dialogue, because dialogue gets delivered.
+2. **Residents invented their colleagues' powers, in 2 runs of 3.** *"the
+   Computer, which has access to more extensive research"* (it lists local
+   files); *"the Steward, about any texts they carry"* (he carries none). One
+   sentence in `rosterBlock()`, which all seven read. The prompt-budget guard
+   immediately caught it pushing the Monk 15 tokens over — **2150 → 2175, raised
+   deliberately with the measurement written beside it**, rather than trimming
+   the Eightfold Path to pay for an unrelated fix.
+3. **The answer didn't show its work.** The Tutor's *reasoning* named both
+   carried notes precisely; its *answer* named neither, so a visitor could not
+   tell it had read anything. Rule 7 answers this, not more prompt: the app
+   knows what it put in the prompt, so **the app says it** — *"Answered with
+   what you are carrying — The Dhammapada · 1 note of yours · 1 sealed, not
+   read."* Deterministic, right every time, zero tokens, and it makes *"what you
+   carry is what a resident can see"* a line you can read rather than a promise.
+
+After the fixes, same model and question: the Investigator **quotes the carried
+note back**, says what would refute the claim (its lens, working), and hands off
+to nobody it cannot vouch for.
+
+**Measured:** 1,034–1,524 tokens in, 14–24 s per reply *including* visible
+reasoning. Static worst case is the Monk at ~2,949 of an 8,192 floor (36%).
+
+### The list, in order
+
+1. **Point a real model at it** — see above.
+2. **Pull the PASSAGE, not just the title.** `searchPages` + `passagesBlock` in
+   `data/retrieval.js` (complete, one caller) over books **in the backpack** —
+   the boundary now exists, which is what makes it safe. The steward's case:
+   *"talking to the grand master about the 8fold path, he should be able to pull
+   that info and my notes with permission."*
+3. **Re-run `packaged-boot.cjs`**, then the other Electron suites, before any cut.
+4. **A knowledge gap becomes a book request.** `libraryLookupBlock()`'s zero-hit
+   branch (`ui/residents.js`) already detects the gap in code and discards it
+   into a sentence the model may or may not say. One button, one prefilled
+   Request Board entry.
+5. Then the original list: **Records Hall search · public commentary · password
+   boxes · THE TUTORIAL** (the hard one, and the front door) **· profile + inbox
+   · Science Room · the website.**
+
+Small and recorded so it is not re-found: the 🗒 note glyph renders as **tofu**
+in the pixel font — and so does the one in `index.html`'s own Notes header, so
+it is a pre-existing font-coverage gap, not something this session added.
+
+### Two process notes that cost real work
+
+- **Never `git checkout <file>` on a file with uncommitted work.** Used twice to
+  undo a deliberate sabotage; it took the sabotage *and* the session's real
+  edits with it (a `DATA_MAP` entry, then ~200 lines of new tests). The sabotage
+  harness already restores in a `finally` — use that.
+- **Two of this session's own guards were born dead**, both caught by breaking
+  them. One was satisfied by a *comment*; the other's parser choked on a regex
+  literal and silently ate 250 lines of the file it was checking. A guard that
+  parses must be held to the same standard as the thing it guards.
+
+---
+
+**Where things stood, end of 2026-08-07 (SEVENTH session).**
 Full account in [`archive/dev-log-2026-08-07.txt`](archive/dev-log-2026-08-07.txt),
 sections 14–22. Everything below the horizontal rule further down is the
 *previous* sessions' record: still accurate about the backend, kept because the
@@ -847,10 +1400,14 @@ welcome packet, the Stacks learning custom shelves, Security 101 — and with it
 4. **Piper for voice** (`VOICE-PLAN.md`). The OS voices got the steward most of
    the way — Windows' Natural voices, which are installed and never found.
 5. **The macOS `.dmg`** — never built. CI can do it on a `v*` tag.
-6. **`overlays.js` is ~10k lines.** No bug has ever come from that, the pure
-   logic is already out in `data/*.js`, and there is now a map at the top with a
-   test keeping it honest. When it is split: by room, one at a time, while
-   already working in that room. Never as a big-bang refactor.
+6. **`overlays.js` is ~10k lines.** *(**12,966** as of 2026-08-10 — this entry
+   was written when ~10k was true and did not move with the file.)* No bug has
+   ever come from that, the pure logic is already out in `data/*.js`, and there
+   is a map at the top with a test keeping it honest. When it is split: by room,
+   one at a time, while already working in that room. Never as a big-bang
+   refactor. **That instinct was right and is now the actual plan** — the order
+   in `plans/OVERLAYS-SPLIT-PLAN.md` is derived from `data/places.js`'s `scene`
+   field, which is literally "by room", and five regions are already out.
 
 **2026-08-02 — the Science Hall gained the Bench, and the research room finally
 has a real subject.** The steward brought a concrete project — *build a universal
@@ -911,14 +1468,16 @@ hand on a real Mac ([`MAC-BUILD.md`](MAC-BUILD.md), written for someone with no
 context).
 
 **The three gates to a real beta** (nothing large):
-1. **[done 2026-07-28] The welcome-packet decision** — resolved by honesty
-   rather than bulk. The seed is **27 texts**: 6 complete source texts, 11
-   written for the Pavilion (whole as they stand, and now including three
-   guides — a local AI explained, filling your own shelves, and what to do when
-   something misbehaves), and 10 classics carried as summaries. Each of those
-   ten now **says so in the reader**, names its source, and invites a drag-and-
-   drop that turns the page into the real book (`BETA-TESTING-FEEDBACK.md` #18,
-   #21).
+1. **[done 2026-07-28 — ⚠ SUPERSEDED 2026-08-10]** The welcome-packet decision
+   was resolved by honesty rather than bulk: a seed of **27 texts** (6 complete
+   source texts, 11 written for the Pavilion including three guides, 10 classics
+   carried as summaries that said so in the reader and invited the real book).
+
+   **All 27 were deleted on 2026-08-10 and `SEED_LIBRARY` is now `[]`.** Kept
+   here because the *reasoning* still stands and got sharper — honesty over
+   bulk, taken all the way. The welcome packet is now a **document**
+   (`docs/BOOKS-TO-SOURCE.md`), not a payload. Do not read the count above as
+   current; nothing ships on the shelf.
 2. **[done 2026-07-28] The installer is cut** — `release/Sand Pavilion Setup 0.1.0-beta.2.exe`,
    and it is the first one ever verified as an *artifact* rather than as
    source. Before it, the packaged app **did not boot at all**: no

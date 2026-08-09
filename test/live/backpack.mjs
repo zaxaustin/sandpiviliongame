@@ -36,8 +36,28 @@ const OLD_SAVE = {
     personal: true, license: '', added: '2026-08-07', category: 'personal', attribution: 'Someone',
     doc: { summary: '', sections: [], fullText: { text: 'A paragraph.' + String.fromCharCode(10,10) + 'And another one.' } },
   }],
-  inventory: ['dhammapada', 'personal-epub-import', 'no-such-book'],
+  inventory: ['personal-walden', 'personal-epub-import', 'no-such-book'],
 };
+
+/* FORTY BOOKS OF YOUR OWN, because the cap is 20 and this suite has to walk
+   the bag past it through the real door.
+
+   It used to get them from the seed shelf — `allDocs().slice(0, 40)` — which
+   worked only because 27 books happened to ship in seed.js. When the seed
+   shelf was deleted on 2026-08-10 the bag could not be filled, nothing
+   overflowed onto the shelf, and the suite crashed on an undefined.
+
+   That is rule 1 arriving with a bill: a suite leaning on the seed is a
+   suite that has never seen the library a real person has. These are
+   personal books, the way every book now arrives. */
+for (let i = 1; i <= 40; i++) {
+  OLD_SAVE.personalLibrary.push({
+    slug: 'personal-book-' + i, title: 'A Book of Your Own #' + i,
+    tradition: 'Personal', personal: true, category: 'personal',
+    license: 'Personal', added: '2026-08-07', attribution: 'You',
+    doc: { summary: 'One of many.', sections: [], fullText: { text: 'A paragraph of it.' } },
+  });
+}
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
   defaultViewport: { width: 1200, height: 900 } });
@@ -65,7 +85,7 @@ const after = await p.evaluate(() => {
 check('all three entries came across the migration', after.carrying.length === 3,
       JSON.stringify(after.carrying.map(e => e.label)));
 check('A SEED book kept its real title',
-      after.carrying.some(e => /Dhammapada/i.test(e.label || '')),
+      after.carrying.some(e => /Walden/i.test(e.label || '')),
       JSON.stringify(after.carrying.map(e => e.label)));
 check('A BOOK YOU ADDED YOURSELF kept its real title too - the two resolve by different paths',
       after.carrying.some(e => /Dragged In/i.test(e.label || '')),
@@ -86,7 +106,7 @@ const panel = await p.evaluate(() => {
   const el = document.getElementById('inventoryPanel');
   return el ? el.innerText : '';
 });
-check('the backpack panel lists what is carried', /Dhammapada/i.test(panel), JSON.stringify(panel.slice(0, 80)));
+check('the backpack panel lists what is carried', /Walden/i.test(panel), JSON.stringify(panel.slice(0, 80)));
 /* THE COUNT AND THE LIST MUST AGREE. `gita` is a slug that does not resolve —
    deliberately, in the fixture — and before 2026-08-07 it was counted in the
    heading and silently dropped from the list, so the panel read "carrying 2

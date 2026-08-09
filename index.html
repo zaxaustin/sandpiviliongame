@@ -40,6 +40,10 @@
     <div class="chatInputRow">
       <input type="text" id="chatInput" placeholder="Ask anything… (Enter to send)">
       <button class="btn" onclick="sendCurrentChatMessage()">Ask</button>
+      <!-- The second send button: one press, one question, one search of your
+           own notes. Rendered by updateAskNotesBtn() — hidden with no database
+           rather than searching more quietly. -->
+      <button class="btn ghost" id="askNotesBtn" style="display:none" onclick="sendCurrentChatMessageWithNotes()">🔎</button>
     </div>
   </div>
   <div class="chatNotes">
@@ -236,6 +240,10 @@
 
 <!-- Local AI (LOCAL-AI-MONITORING-PLAN.md step 1) -->
 <div class="overlay" id="localaiOv"><div class="panel" id="localaiPanel"></div></div>
+<!-- Where your books are kept, and how to give them more room. Added
+     2026-08-10: Docker setup existed ONLY as terminal commands in
+     PROTOCOLS.md, against the standing "no terminal required" rule. -->
+<div class="overlay" id="storageOv"><div class="panel" id="storagePanel"></div></div>
 
 <!-- Badges -->
 <div class="overlay" id="rosterOv"><div class="panel" id="rosterPanel"></div></div>
@@ -261,6 +269,11 @@
 
 <!-- Your Inventory (books you're carrying) -->
 <div class="overlay" id="inventoryOv"><div class="panel" id="inventoryPanel"></div></div>
+
+<!-- Today's Tasks — what you sat down to do, at a size you can finish.
+     Rendered by ui/daily-tasks.js, which is its own module: overlays.js is
+     12k lines and a new room does not belong in it. -->
+<div class="overlay" id="dailyTasksOv"><div class="panel" id="dailyTasksPanel"></div></div>
 
 <!-- Steward Review Queue (the "pull request" workflow for the shared Library) -->
 <div class="overlay" id="reviewOv"><div class="panel" id="reviewPanel"></div></div>

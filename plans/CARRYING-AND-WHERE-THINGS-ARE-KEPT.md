@@ -335,6 +335,29 @@ reversed and we are back to the uncapped-prompt bug in a new costume. So:
 That keeps one rule for everything: **what the resident sees is what you are
 carrying.** A lookup adds to it in the open rather than bypassing it.
 
+> **`mission` WAS A DEAD DROP, AND IS NOW `dailyTask` (2026-08-09).** `book`
+> and `lesson` both declared `places: [… 'mission']` from the day this file was
+> written, and **no surface ever existed**. `npm test` could not see it: the
+> guard only ran one way — a surface accepting a kind nothing offers — never
+> the other, a place no surface implements. It is `dailyTask` now, the board is
+> `ui/daily-tasks.js`, and the missing half of the guard lives in
+> `data/daily-tasks.js`'s tests. `mission` stays unclaimed for a graduated
+> thing: *"you cant do missions unless you graduate lol."*
+
+> **BUILT 2026-08-08 — the lookup half above.** `searchMyNotesFor()` in
+> `ui/overlays.js` and `notesLookupBlock()` in `ui/residents.js`. All three
+> rules hold: it happens because you pressed the 🔎 button (never silently),
+> what it finds goes **into the backpack** (top 3 in hand, the rest offered),
+> and what was searched and what came back is **stated on screen**, including
+> nothing and including what was refused. A fourth rule was added that this
+> section did not anticipate: a note can be **🔒 sealed** (`data/note-reach.js`)
+> and is then unreachable even by an explicit ask.
+>
+> **Not yet true: "the passage comes from `retrieval.js`."** The block still
+> hands over a card and an excerpt, never real passages out of a carried book.
+> That is deliberately separate work — it is exactly how a grounding block
+> quietly becomes a corpus again — and it is the next piece.
+
 ### A gap in what a resident knows is a REQUEST, not an apology
 
 Asked 2026-08-07, and it is the best idea of the session:

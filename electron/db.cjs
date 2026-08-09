@@ -273,8 +273,12 @@ const QUERIES = {
   ping: 'SELECT 1 AS ok',
 
   // the whole catalogue, for the one hydration at startup
+  /* `local_file` since migration 005: a book's text may be a real .txt
+     under userData/library rather than a MinIO object, and until that
+     column existed the database could not say so — 89 rows looked like
+     books owned on paper while their text sat on disk. */
   catalogue: `SELECT b.slug, b.title, b.attribution, b.license, b.source_url,
-                     b.shelf, b.kind, b.part, b.text_key, b.pages,
+                     b.shelf, b.kind, b.part, b.text_key, b.local_file, b.pages,
                      COALESCE(h.status, 'ok') AS health
                 FROM books b
                 LEFT JOIN book_health h ON h.slug = b.slug
@@ -343,8 +347,8 @@ const WRITES = {
 
   // the merge that carries the steward's existing cards UP into the database
   // rather than letting a filename-derived row overwrite real work
-  upsertCard: `INSERT INTO books (slug, title, attribution, license, source_url, shelf, kind, part, text_key, pages)
-               VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,'book'),$8,$9,$10)
+  upsertCard: `INSERT INTO books (slug, title, attribution, license, source_url, shelf, kind, part, text_key, pages, local_file)
+               VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,'book'),$8,$9,$10,$11)
                ON CONFLICT (slug) DO UPDATE SET
                  title       = COALESCE(NULLIF(EXCLUDED.title,''), books.title),
                  attribution = COALESCE(NULLIF(EXCLUDED.attribution,''), books.attribution),
@@ -353,7 +357,13 @@ const WRITES = {
                  shelf       = COALESCE(EXCLUDED.shelf, books.shelf),
                  kind        = COALESCE(EXCLUDED.kind, books.kind),
                  part        = COALESCE(EXCLUDED.part, books.part),
+                 /* NEITHER HOME OVERWRITES THE OTHER WITH NULL. A book can be
+                    in both, and a save that only knows about the local file
+                    must not erase a MinIO pointer the database already had
+                    (or the reverse) — that is the same shape as the shelf
+                    assignment this whole merge exists to protect. */
                  text_key    = COALESCE(EXCLUDED.text_key, books.text_key),
+                 local_file  = COALESCE(EXCLUDED.local_file, books.local_file),
                  pages       = COALESCE(EXCLUDED.pages, books.pages)`,
 
   // a chapter the visitor marked themselves. source='hand' and confirmed

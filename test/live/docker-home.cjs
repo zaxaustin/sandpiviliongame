@@ -128,7 +128,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ok   ' : '  FAIL
      checks is that they survive the round trip and come back through
      notesForBook in the BOOK's order rather than the diary's - which is the
      whole reason to store a page rather than only a date. */
-  await db.write('upsertCard', ['probe-book', 'A Probe Book', null, null, null, null, 'book', null, null, 40]);
+  await db.write('upsertCard', ['probe-book', 'A Probe Book', null, null, null, null, 'book', null, null, 40, null]);
   for (const [key, ch, page, title] of [
         ['probe:docker:p2', 2, 11, 'Later, chapter two'],
         ['probe:docker:p1', 1,  2, 'Earlier, chapter one'],
@@ -149,7 +149,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ok   ' : '  FAIL
      written by NOTHING in the app until 2026-08-07 - only the MinIO loader,
      which needs Docker and a manual run. So on every other install both were
      permanently empty while views and named queries sat on top of them. */
-  await db.write('upsertCard', ['probe-ch', 'A Probe Book With Chapters', null, null, null, null, 'book', null, null, 60]);
+  await db.write('upsertCard', ['probe-ch', 'A Probe Book With Chapters', null, null, null, null, 'book', null, null, 60, null]);
   await db.write('clearDetectedChapters', ['probe-ch']);
   await db.write('addDetectedChapter', ['probe-ch', 1, 0,  'The Opening', 'toc']);
   await db.write('addDetectedChapter', ['probe-ch', 2, 12, 'The Turn',    'toc']);
@@ -171,7 +171,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ok   ' : '  FAIL
   /* v_needs_chapters used to gate on text_key - a MinIO key - so it could
      never return a row anywhere but this machine. Migration 004 drives it off
      what was actually SCANNED instead. */
-  await db.write('upsertCard', ['probe-none', 'A Book With No Divisions', null, null, null, null, 'book', null, null, 20]);
+  await db.write('upsertCard', ['probe-none', 'A Book With No Divisions', null, null, null, null, 'book', null, null, 20, null]);
   await db.write('recordChapterScan', ['probe-none', 'none', 0]);
   /* Asked of the VIEW directly, not through needsChapters' LIMIT. On this
      machine 296 books are already scanned, so a 20-page probe never reaches
@@ -185,7 +185,7 @@ const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '  ok   ' : '  FAIL
   ok(Array.isArray(needs) && needs.length > 0 && needs[0].how,
      'needsChapters answers, and every row says HOW the scan went');
   const unopened = 'probe-never-opened';
-  await db.write('upsertCard', [unopened, 'Never Opened', null, null, null, null, 'book', null, null, 99999]);
+  await db.write('upsertCard', [unopened, 'Never Opened', null, null, null, null, 'book', null, null, 99999, null]);
   ok(!(await inView(unopened)),
      'a book NOBODY HAS OPENED is unknown, not "needs chapters" - the absent-field rule, on a whole row');
 

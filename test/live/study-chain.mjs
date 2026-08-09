@@ -30,6 +30,9 @@
    Exit code 0 = the chain holds end to end.
    ================================================================ */
 import puppeteer from 'puppeteer-core';
+/* WAS the seed book 'dhammapada'. Deleted 2026-08-10; rule 1 wants a book
+   the player brought in anyway, which is now the only kind. */
+import { inlineBook, A_BOOK } from './_books.mjs';
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
@@ -54,13 +57,14 @@ const save = {
      the model's own output back in as evidence is how an analysis quietly
      becomes a hall of mirrors. */
   bookNotes: {
-    dhammapada: [
+    [A_BOOK]: [
       { ts: '2026-08-01', page: 11, text: 'He keeps returning to the mind as the thing that makes the world.' },
       { ts: '2026-08-02', page: 24, text: 'The chapter on the fool reads harsher than the rest.' },
       { ts: '2026-08-02', text: '✨ Overall impression (AI)\nsomething the model wrote' },
     ],
   },
-  read: {}, curriculum: {}, myLessons: [], paths: [], ideas: [], planner: {}, personalLibrary: [],
+  read: {}, curriculum: {}, myLessons: [], paths: [], ideas: [], planner: {},
+  personalLibrary: [inlineBook()],
 };
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
@@ -147,7 +151,7 @@ R.push(['and says why it is the one being offered', /picked up/.test(dayText)]);
 R.push(['only one lesson step is offered', (dayText.match(/step 1 of 3/g) || []).length <= 1]);
 
 /* ---------- LINK 3: a book becomes an analysis you keep ---------- */
-await p.evaluate(() => window.openReader('dhammapada')); await wait(600);
+await p.evaluate(sl => window.openReader(sl), A_BOOK); await wait(600);
 R.push(['the reader offers a way to dissect the book', await press('Dissect this book')]);
 await wait(600);
 R.push(['the dissection opens on its own', await p.evaluate(() =>
@@ -156,7 +160,7 @@ R.push(['the dissection opens on its own', await p.evaluate(() =>
 
 const d3 = await data();
 const rec = (d3.hall.dissections || [])[0];
-R.push(['a dissection was created against the book', !!rec && rec.book === 'dhammapada']);
+R.push(['a dissection was created against the book', !!rec && rec.book === A_BOOK]);
 R.push(['and it did not clobber the pasted-paper shape', !!rec && Array.isArray(rec.passes)]);
 
 /* THE NO-AI FLOOR. Every AI feature in this project has to clear it, and this
@@ -184,13 +188,13 @@ R.push(['pulling the same notes twice is a no-op, and says so',
 const fromSummary = await p.evaluate(() => document.getElementById('hallPanel').textContent.replace(/\s+/g, ' '));
 R.push(['working from the summary says so plainly', /Working from: the book.{0,3}s summary and sections/.test(fromSummary)]);
 
-await p.evaluate(() => window.openReader('dhammapada')); await wait(500);
-await p.evaluate(() => window.openFullText('dhammapada')); await wait(900);
+await p.evaluate(sl => window.openReader(sl), A_BOOK); await wait(500);
+await p.evaluate(sl => window.openFullText(sl), A_BOOK); await wait(900);
 await press('Dissect from here'); await wait(600);
 const fromPage = await p.evaluate(() => document.getElementById('hallPanel').textContent.replace(/\s+/g, ' '));
 R.push(['dissecting from a page names THE PAGE, not the blurb', /Working from: page \d+ of \d+/.test(fromPage)]);
 R.push(['and reopening the same book reuses its dissection rather than starting a new one',
-  (await data()).hall.dissections.filter(x => x.book === 'dhammapada').length === 1]);
+  (await data()).hall.dissections.filter(x => x.book === A_BOOK).length === 1]);
 
 /* ---------- it all survives being closed ----------
    The whole complaint was that a pass over a book evaporated when the panel

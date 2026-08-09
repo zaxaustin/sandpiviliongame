@@ -1,0 +1,604 @@
+================================================================
+DEV LOG - 2026-08-08 (EIGHTH SESSION)
+THE BACKPACK BECOMES THE CONTEXT WINDOW
+================================================================
+
+The session was planned as "item 2, the two AI features" and was
+upside down. The steward turned it over in one sentence:
+
+  "i wanted the back pack to serve the perpouse to make sure the
+   condex of the modles dosent get blown out and so the user can
+   fouce there attention on a few things and not 100 i hope we can
+   streamline that prosses for the user so that game like feel is
+   there and interacive while also being very usefull."
+
+So the backpack is not a convenience that item 2 happens to use. It
+IS the context bound, wearing an inventory as its skin, and the two
+AI features are what it exists to make safe.
+
+
+1. THE FINDING THAT REFRAMED THE DAY
+----------------------------------------------------------------
+
+groundingFor() in data/carrying.js was written, tested, documented
+and shipped on 2026-08-07 -- and HAD NO CALLER ANYWHERE.
+
+  carrying.js:     "what you carry is what a resident can see"
+  visibility.js:94 the backpack "is the one store a resident is
+                    allowed to read"
+
+Neither was true. No resident read the bag at all. The cap of 20,
+the "pick up later" shelf kept deliberately outside the grounding,
+the whole design -- a boundary around a door nobody had opened.
+
+Every unit test passed the entire time. A pure function with no
+caller is perfectly testable and completely inert. That is a new
+shape of this project's oldest bug and it deserves its own name:
+the INERT PURE FUNCTION. npm test now asserts a resident actually
+calls it (see §5).
+
+Worth stating plainly: this was invisible for a day inside a
+session that was otherwise careful, and it was found by reading the
+file rather than by any check.
+
+
+2. THREE STATES ON A NOTE (data/note-reach.js, new)
+----------------------------------------------------------------
+
+  "we should be able to toggle are notes between private and publid
+   and we should also add something like ai can read and private is
+   truly private."
+
+  SEALED    not reachable. Not by a search, not when you ask, not
+            by carrying it in. The ONE state an ask cannot cross.
+  ASKABLE   a resident may search it, but only when you press.
+            THE DEFAULT.
+  PUBLISHED behaves like a book, because you decided that.
+
+lookup.js moved the line from WHO to WHY on 2026-08-07 (asked: yes,
+unasked: no). This puts a per-note boundary OUTSIDE that one, so a
+visitor can say "not this one, ever" about a single note without
+turning the feature off.
+
+ABSENT MEANS ASKABLE, and that is what made it shippable: it is
+exactly the rule that already held, so nothing already written
+changed reach. Hundreds of existing notes, no migration, no
+backfill. The store only ever holds a deliberate departure from the
+default -- and setting a note BACK to askable deletes the entry, so
+there is one representation of the default rather than two that can
+disagree.
+
+A PRESENT BUT UNRECOGNISED VALUE FAILS CLOSED (treated as sealed).
+Absence is a statement we make; a strange string is one we cannot
+read, and the safe reading of "I cannot tell what this permission
+is" is to withhold.
+
+THIS IS NOT visibility.js AND MUST NOT MERGE WITH IT. Two axes:
+
+  visibility.js  CAN THIS LEAVE THE MACHINE?  private/shared/commons
+  note-reach.js  MAY A LOCAL MODEL SEE IT?    sealed/askable/published
+
+A note can be private in every sense that matters -- never leaves
+this computer, no server has heard of it -- and still be one you are
+glad to hand your own resident. If these were one field, sealing a
+note would look like unpublishing it. npm test asserts the two
+vocabularies do not collide.
+
+
+3. THE BACKPACK IS GROUNDING, AND IT IS BOUNDED IN TOKENS
+----------------------------------------------------------------
+
+carriedBlock() in ui/residents.js is groundingFor()'s first caller.
+Given to Quill and the Monk this session; the rest is a named pass.
+
+THE REAL BOUND IS TOKENS, NOT ITEMS. Twenty is a bound on ATTENTION
+and the right one for a person. It is not a bound on a context
+window: twenty notes is nothing and twenty books is a catastrophe.
+The uncapped-prompt bug has now been fixed FOUR times in four
+costumes (the Monk's 294 books, the Investigator's seeded
+investigations, the Science shelf's summaries, and this) and every
+instance was a list capped by COUNT or not at all.
+
+  carrying.js  fitToBudget(items, sizeOf, budget)  - pure, unit-agnostic
+  residents.js CARRY_BUDGET = 2000 tokens, CARRY_EXCERPT = 400 chars
+
+Measured with the SAME estimateTokens() the request itself uses. A
+second way of measuring drifts from the real one and then lies about
+it -- the store.js scar in miniature.
+
+A CARD, NOT A CORPUS. A book contributes its title and shelf; a note
+contributes an excerpt. Pulling real passages out of a carried book
+is retrieval.js and is deliberately NOT in here, because that is
+exactly how a grounding block quietly becomes a corpus again.
+
+fitToBudget ALWAYS KEEPS THE FIRST ITEM, however fat, and reports
+`over`. A grounding block that came back EMPTY because the single
+carried book had a long title is the silent failure the file exists
+to prevent.
+
+SEALED NOTES ARE ABSENT FROM THE PROMPT AND THE MODEL IS NOT TOLD
+THEY EXIST. The VISITOR is told, in the bag. Naming an unreadable
+note in a prompt only invites a resident to ask after it.
+
+
+4. THE METER, AND WHAT LOOKING AT IT FOUND
+----------------------------------------------------------------
+
+Two layers, at the steward's word ("i like the meeter plan lets do
+it! though lets make it a feature we can toggle on and off in the
+settings"):
+
+  ALWAYS ON   a per-item eye mark, and one plain sentence:
+              "3 of 4 things are visible to a resident when you ask.
+               1 sealed - nothing reads it, even if you ask."
+  BEHIND A    the bar and the token numbers.
+  SETTING     data.settings.showContextMeter, DEFAULT OFF, in Your Data.
+
+The numbers come from residents.js's carryGrounding(), built from
+the same carriedLines()/fitToBudget() pair that builds the prompt.
+One computation, two consumers.
+
+FOUND BY READING THE PANEL, not by any test:
+
+  * NOTES IN THE BAG WERE INVISIBLE. renderInventory() rendered
+    carriedOf(...,'book') and nothing else, so a note you carried --
+    and carryNote() has existed since 2026-08-07 -- simply did not
+    appear. With the bag now grounding, a panel showing half of what
+    a resident reads is worse than one showing none of it.
+  * The "not carrying anything" empty state keyed off docs.length,
+    so a bag holding only notes would have said it was empty.
+
+FOUND BY READING THE SCREENSHOT (rule 2, again):
+
+  * The locked search button was a DEAD BUTTON. `disabled`, dimmed
+    by a fraction nobody notices, and pressing it did nothing, with
+    the only explanation in a tooltip that never appears on a first
+    look. That is the house failure mode with a lock icon on it.
+    It is now pressable and ANSWERS, on screen, and says what still
+    works ("anything in your backpack is already being read").
+  * Cosmetic, NOT fixed, recorded so it is not re-discovered: the
+    note glyph renders as TOFU in the pixel font -- and so does the
+    one in index.html's own "Notes" header, so this is a
+    pre-existing font-coverage gap across the app, not something
+    this session introduced. A glyph pass is its own small job.
+
+
+5. ASK A RESIDENT TO SEARCH YOUR NOTES
+----------------------------------------------------------------
+
+groundingPlan(q, carrying, {searchMyNotes:true}) finally has a
+caller. A SECOND SEND BUTTON beside Ask -- one press, one question,
+one search. Deliberately not a toggle: a switch that stays on is a
+standing permission wearing a different word.
+
+state.dialog.askNotes is set immediately before the prompt is built
+and cleared in a FINALLY, so a message that timed out or threw still
+clears the ask. Deleting that finally is the first sabotage case.
+
+The search: syncNotes first (the index is only as fresh as the last
+sync), then dbQuery('searchNotes'), then resolve every save_key back
+through gatherNotes() -- the save owns the note, the index only
+points at it, and a row that will not resolve is dropped rather than
+shown, because there is nothing to open or carry.
+
+WHAT IT FINDS LANDS IN THE BACKPACK -- top 3 in hand, the rest
+offered with a button each, all of them grounding THAT message. The
+steward asked for "dropped straight in"; the top-3 cap is my call on
+top of that, and the reason is §3: the bag is the context now, so one
+search taking a quarter of it re-creates the bug the bag prevents.
+On a full bag they go to the "pick up later" shelf, because
+carrying.js already says a full bag is a redirection and not a wall.
+
+THE SEAL IS HONOURED TWICE -- filtered where the block is built, and
+re-checked by privacyLeaks() at runtime over everything about to
+enter the prompt. Belt and braces on purpose: a guard that is the
+ONLY thing between a sealed note and a model is one edit away from
+being what failed.
+
+LOCKED WITHOUT A DATABASE, per the steward: "we can say locked for
+now... lets get the app done first then we can move on and see what
+a website will need". Never a quieter search wearing the same label.
+
+
+6. TWO OF MY OWN GUARDS WERE BORN DEAD
+----------------------------------------------------------------
+
+Thirteen sabotage cases; all thirteen caught NOW. Two were not:
+
+  ONE. The check grepped the WHOLE FILE for `groundingFor(`.
+  Deleting the call from carriedLines() left the name in the import
+  line and in three comments, so it passed while the backpack was
+  not being read at all. That is verbatim the window-export check "a
+  comment could satisfy" from CLAUDE.md rule 3.
+
+  TWO. The fix stripped string literals as well as comments, and
+  could not parse a REGEX LITERAL. `.replace(/"/g,"'")` in the
+  Monk's own prompt reads as a string opening at `/"`; the scanner
+  desynchronised, silently swallowed two hundred and fifty lines
+  INCLUDING the Monk's `+carriedBlock()`, and reported a real
+  composition as missing.
+
+Final form: comments out, strings LEFT IN, look inside the FUNCTION
+BODY, and a set of ANCHOR assertions that fail loudly if the
+stripper ate real code. A guard that parses has to be held to the
+same standard as the thing it guards -- the same lesson as the
+prompt-budget guard that read apostrophes in comments as quotes.
+
+That is the fourth and fifth inert guard this repo has produced.
+The rate is not falling. Breaking them on purpose is the only thing
+that has ever caught one.
+
+ALSO CAUGHT, by an existing guard doing its job: overlays.js called
+mayReachNote() without importing it. A bare ReferenceError at
+runtime that node --check, the build and every other check would
+have passed. That guard was written after the Learning Tree cut
+crashed twice on exactly this; it has now paid for itself.
+
+
+7. A PROCESS MISTAKE, TWICE, WORTH WRITING DOWN
+----------------------------------------------------------------
+
+I used `git checkout <file>` to undo a deliberate sabotage on a file
+I had ALSO edited earlier in the session. It reverted the sabotage
+and my real work with it -- the DATA_MAP entry the first time, and
+about 200 lines of new tests the second. Both were caught (the
+second only because a guard immediately went quiet), and both were
+rebuilt from context.
+
+The sabotage harness already writes the original back in a `finally`.
+Use that. Never `git checkout` a file with uncommitted work in it.
+
+
+7b. THEN WE RAN IT UNDER ELECTRON, AND IT WAS BROKEN
+----------------------------------------------------------------
+
+The section below was written saying the notes search had never
+executed end to end and that running it was the highest-value hour on
+the board. It was, and it found THREE REAL BUGS in the first run.
+Every one of them was invisible to npm test, node --check, the build,
+and the browser suite -- the browser LOCKS the button, so the browser
+could never have reached this code at all.
+
+  BUG 1 -- A SHADOWED PARAMETER IN THE TEMPORAL DEAD ZONE.
+  I named the new option bag `sendChatMessage(q, opts)`. The body
+  already declared `const opts = chatOptsFor(d.agent)` INSIDE the try
+  block. A block-scoped const shadows the parameter for the WHOLE
+  block, so my line reading `opts` at the top of the try threw
+  "Cannot access 'opts' before initialization" every single time.
+
+  The feature therefore did nothing at all, and the catch reported it
+  to the visitor as "Quill's connection flickers -- the local AI
+  didn't answer." Renamed to `sendOpts`.
+
+  BUG 2 -- THE QUESTION IS NOT THE QUERY.
+  searchNotes uses websearch_to_tsquery, which ANDs every word. I was
+  handing it the visitor's whole sentence. Measured, in the probe:
+
+    "walking"                          -> 2 rows
+    "what did I write about walking?"  -> 0 rows
+
+  So the feature would have returned NOTHING for very nearly every
+  question a person actually types, while looking like it worked.
+  libraryLookupBlock has always used lookupTerms() for exactly this;
+  the notes path now uses the same one road, joined with OR. The
+  receipt shows the extracted terms ("write, walking"), not the raw
+  OR-query -- what was searched is the visitor's business.
+
+  BUG 3 -- THE CONSOLE CAPTURE IN THREE SUITES WAS DEAD.
+  `on('console-message', (...a) => { const m = a[1]; ... })`. a[1] is
+  the LEVEL, a NUMBER, so `typeof m === 'string'` threw every line
+  away and "no console errors" passed no matter what the page logged.
+  That is how BUG 1 stayed invisible for three runs.
+
+  Dead in note-search.cjs, records.cjs and chapters-panel.cjs.
+
+  AND A CORRECTION I HAD TO MAKE TO MYSELF. I first wrote that
+  packaged-boot.cjs -- THE RELEASE GATE -- was dead too, on the theory
+  that Electron 43 emits only an event object. Then I broke its
+  capture on purpose and the self-test still passed, which meant the
+  theory was wrong, so I measured the signature instead of believing
+  it:
+
+    argc = 5
+    a[0]  event object: .message (string), .level ('error'/'warning')
+    a[1]  level as a NUMBER (3 error, 2 warning)
+    a[2]  the message string
+    a[3]  line   a[4]  sourceId
+
+  BOTH forms arrive together. packaged-boot read a[2] and was correct
+  all along; this gate has been honest since it was written. Getting
+  that wrong in the log would have been worse than the original bug --
+  a false claim about the release gate, in the file the next person
+  trusts. Measured, corrected in three places, and the lesson is the
+  house's own: a theory about why something is broken is not evidence
+  that it is.
+
+  All four now tolerate either shape, and TWO of them prove their own
+  capture: note-search asserts it saw the expected "[chat] … turn
+  failed" lines, and packaged-boot deliberately emits a console error
+  of its own and fails unless it catches it. Verified by breaking the
+  reader on purpose.
+
+AND A FOURTH, IN MY OWN NEW TEST. The check for "the ask does not
+linger past one message" reopened the chat with talkTo() before
+sending the second message -- which builds a fresh state.dialog with
+askNotes:false. Deleting the `finally` entirely still passed. Caught
+by sabotage; the second message now stays in the SAME conversation,
+which is where a lingering permission would actually bite.
+
+That is the sixth inert guard of the session and the third I wrote
+myself. The only thing that has ever caught one is breaking it.
+
+ALSO CHANGED, and it is a small honesty fix with a large blast
+radius: sendChatMessage's catch now console.errors the real exception
+before showing the kind sentence. It wraps the whole turn, prompt
+assembly included, so every bug in OUR code has always been reported
+to the visitor as the model failing to answer -- sending them to go
+and check Ollama for something we did.
+
+ELECTRON SABOTAGE, 4 of 4 caught: the finally, the seal under an
+explicit ask, lookupTerms, and the catch landing in the backpack.
+
+
+7c. ONE PATHWAY, N BEHAVIOURS -- MEASURED AT 2 OF 7
+----------------------------------------------------------------
+
+  "i wana have the pathways for each agent really be the same and
+   that how they deal with that knolege be part of there specality
+   ... but also have the sand pavilion have a eazy and streamline
+   prosses for new agents to come in as wel"
+
+data/lookup.js has claimed since 2026-08-07 that every resident
+reaches the Library the same way. MEASURED, IT WAS TWO OUT OF SEVEN:
+
+                  quill steward invest monk computer tutor sebastian
+  look a book up   YES     .      .    YES     .       .       .
+  read the backpack YES    .      .    YES     .       .       .
+  search your notes YES    .      .    YES     .       .       .
+
+Five residents answered from the model's own memory and nothing else
+-- including the Tutor, whose whole job is teaching, and the
+INVESTIGATOR, whose stated duty is "insists on evidence someone else
+could check" and who could not look up a single book.
+
+The cause was not a decision. Each systemPrompt() composed its own
+grounding BY HAND, so a resident had a pathway only if someone
+remembered to add the line. Seven hand-maintained lists is rule 4's
+exact shape, and it drifted precisely the way hideAllOv(), the window
+exports and the overlays map all did.
+
+THE DEFAULT IS NOW INVERTED. pathwayBlock() assembles the whole road
+once -- catalogue lookup, backpack, notes-when-asked, paper shelf,
+reference desk -- identically for everyone. A role cannot opt in and
+cannot forget. What a role declares instead is a LENS: one line in
+roles.js saying what it DOES with what it found, appended after the
+grounding because a person reads the material and then what to do
+with it.
+
+  investigator  "Treat what you find as EVIDENCE and name it as such
+                 ... Say what would refute it."
+  tutor         "Break what you find into the smallest honest steps
+                 ... Prefer a passage they are actually carrying
+                 over an explanation from memory."
+  monk          "Ask what the thing in front of them is FOR. A text
+                 is a mirror, not an authority."
+
+MEASURED AFTER, against a real database with a real backpack, because
+five prompts growing a pathway is exactly how the uncapped-prompt bug
+arrived the previous four times:
+
+  quill 1527   monk 2949   steward 1331   investigator 1950
+  tutor 1480   computer 1255   sebastian 1702      (~tokens)
+
+Heaviest is 36% of the 8192 floor, and every part is bounded by
+construction: the lookup returns only rows matching the visitor's own
+terms (max 12) and is empty when the question has none; the backpack
+is token-capped by fitToBudget; the notes search runs only on a
+button; shelf and reference are capped() at 8. None of them grows
+with the size of the Library or with how much work the visitor has
+done -- which was the exact failure of the 2026-08-04 audit.
+
+ONE EXCEPTION, ARGUED RATHER THAN ASSUMED. Sebastian's READING
+COMPANION branch gets no pathway. It is a MODE, not a role: sitting
+with one book at one page, and it says in its own text "answer
+grounded strictly in the text given below". Handing it a catalogue
+and a backpack would contradict its own instruction in the same
+breath, and a small local model given a contradiction picks one at
+random. Narrowing to the thing in front of you IS the lens there.
+
+AND THE SAME BUG ONE LAYER UP: THREE RESIDENTS HAD NO DOOR.
+overlays.js calls talkTo() "ONE opener for every chat resident". It
+worked for four. The Tutor, the Investigator and the Computer had no
+`chat` entry in roles.js, so talkTo() returned silently -- and a
+colleague's handoff could NAME them without being able to open them.
+Found when the live suite tried to talk to each resident in turn and
+three of them quietly kept talking to the previous one, which also
+means two of those "PASS" lines in the first run were reporting on
+the wrong resident entirely.
+
+They have doors now. `open` deliberately still points at the ROOM
+(the Academy carries the lesson tree; the Hall carries the
+investigations) because a handoff should land where the work is --
+`open` and `chat` are two different things and collapsing them would
+make every handoff poorer to make one function tidier.
+
+GUARDS, 5 of 5 broken on purpose and caught: a resident losing the
+pathway; a resident hand-composing a block as well; the pathway
+losing a limb; a role with no lens; a role with no door. Plus a live
+assertion per resident that a REAL lookup block reaches a REAL prompt
+-- because a unit test can only prove residents.js calls the
+function, not that anything came back.
+
+WHAT THIS BUYS THE NEXT AGENT. Adding an assistant is now an entry in
+roles.js: label, duty, sendMe, where, open, chat, lens. The pathway
+comes free and cannot be forgotten. What is still hand-written is the
+identity paragraph in CHAT_AGENTS and the icon in overlays.js --
+which is the next cut, and it is small.
+
+
+8. WHAT IS TESTED, AND WHAT IS HONESTLY NOT
+----------------------------------------------------------------
+
+  npm test                        green, + ~60 new assertions
+  13 sabotage cases               all caught
+  npm run build:beta              clean, no keys, local-only
+  test/live/carry-grounding.mjs   NEW - 26 checks, real Chrome,
+                                  zero page errors, screenshots read
+
+carry-grounding.mjs proves, against the running app: the meter says
+3 of 4 with one sealed; a carried note appears in the bag at all; a
+sealed note is SHOWN but withheld; the shelf is not the bag; the
+carried block reaches Quill with both a seed book and a hand-added
+one; THE SEALED NOTE IS NOT IN THE PROMPT; sealing a note by hand
+removes it and the meter drops to 2 of 4.
+
+  test/live/note-search.cjs       EXTENDED - 25 checks, Electron,
+                                  fresh embedded database, all green
+  4 Electron sabotage cases       all caught
+  FULL SWEEP, all green:          preflight, backpack, study-tray,
+                                  terminal-carry, study-table,
+                                  writing-desk, study-chain, teacher,
+                                  lab, bench, bundle, librarian-safety,
+                                  backend, notes-by-book,
+                                  reader-chapters, drop, pocket,
+                                  terminal, storage-off,
+                                  carry-grounding
+  records.cjs, chapters-panel.cjs green (embedded + docker homes)
+  docker-home.cjs                 31 passed, container up
+
+note-search.cjs now proves, against a real database: the button is
+LIVE here rather than locked; "walking" finds "walked" for a resident
+as well as for the visitor; the found note lands in the backpack; the
+SEALED note is refused, is reported as refused, and is NOT in the
+message that was actually sent (read out of recordSent, the real
+artifact); the next message does NOT search; and the note the search
+found is still grounding afterwards, from the bag -- which is the
+loop closing.
+
+WHAT IS STILL NOT PROVEN:
+
+  * NO REAL MODEL HAS SEEN ANY OF THIS. Every suite runs with no AI
+    connected, which is right for testing assembly and says nothing
+    about whether a 9B does anything sensible with a notes block. The
+    2026-08-03 lesson stands: the first time a real model was pointed
+    at a prompt that had only run on its no-AI path, it was
+    confidently making things up. Point Ollama at it and read the
+    reply before trusting the wording.
+  * The Study Table's chat and the Writing Desk's picker do NOT get
+    the carried block yet - only Quill and the Monk do.
+  * No installer has been cut. packaged-boot.cjs must be re-run now
+    that its console capture actually works.
+
+
+9. WHERE THE PLAN STANDS
+----------------------------------------------------------------
+
+The eight-item plan, item 2, split into four when the backpack turned
+out to be the real subject:
+
+  0  three states on a note                      DONE
+  1  the backpack is bounded, metered grounding  DONE
+  2  ask a resident to search your notes         BUILT, HALF TESTED
+  3  pull the PASSAGE, not just the title        NOT STARTED
+  4  a knowledge gap becomes a book request      NOT STARTED
+
+3 is the Grand Master answering on the Eightfold Path from the actual
+text: searchPages + passagesBlock from data/retrieval.js, over books
+IN THE BACKPACK, because that boundary now exists and is what makes
+it safe. retrieval.js is complete and has exactly one caller (the
+Reference Desk).
+
+4 is small: libraryLookupBlock()'s zero-hit branch already detects
+the gap in code and throws it away into a sentence the model may or
+may not say. One button in renderChatQuickActions, one prefilled
+Request Board entry.
+
+Then items 3-8 of the original plan: Records Hall search, public
+commentary, password boxes, THE TUTORIAL (the hard one, and the front
+door), profile + inbox, Science Room, the website.
+
+Nothing is committed. Everything above is in the working tree.
+
+
+10. A REAL MODEL FINALLY SAW IT, AND FOUND THREE MORE
+----------------------------------------------------------------
+
+  "if you use a thinking modle you can see how the ai handles the info"
+
+Right, and it is the best debugging idea of the session. deepseek-r1:8b,
+LOCAL (5.2 GB; the :cloud entries are refused by the same two signals
+the app's own guard uses), think:true, against the REAL prompts pulled
+out of the running app via previewPrompt() rather than rebuilt.
+
+Every suite in this project runs with no AI connected. That proves the
+assembly and says nothing about whether an 8B does anything sensible
+with it. Three questions, three bugs.
+
+  1 -- THE ZERO-HIT BRANCH SUPPRESSED TRUE ANSWERS.
+  "whats a classic fiction book from hg wells?" -- nothing by Wells is
+  shelved and there is no fiction shelf. The thinking said, in as many
+  words: "not even his most famous works like War of the Worlds or The
+  Time Machine would be present". IT KNEW. And it said none of it,
+  because the old wording read as "say nothing you cannot find on a
+  shelf". The reply also ECHOED THIS BLOCK'S OWN SENTENCE verbatim
+  ("Searching every title and author on these shelves for...") and
+  invented a handoff to "the Steward, about any texts they carry".
+
+  "We do not have it" and "I do not know what it is" are different
+  claims and only the first was true. The rule being protected -- never
+  imply the Pavilion holds a book it does not -- stays, absolutely. The
+  block now separates the two, says which is which, and is phrased as a
+  SITUATION rather than as a line of dialogue, because an instruction
+  written as dialogue gets delivered as one.
+
+  After: "there are no books by H.G. Wells in our library. If you're
+  looking for one of his classic works like The War of the Worlds, I'd
+  recommend posting a request on the Request Board in the Study."
+
+  2 -- RESIDENTS INVENTED THEIR COLLEAGUES' POWERS, in TWO runs of
+  three. The Investigator: "the Computer, which has access to more
+  extensive research" -- it lists local files. Quill: "the Steward,
+  about any texts they carry" -- he carries none.
+
+  Worse than refusing: the visitor walks to another room and finds
+  nothing, and a handoff is the one claim a model cannot check because
+  the colleague is not there to contradict it. One sentence in
+  rosterBlock(), which all seven read -- and the prompt-budget guard
+  immediately caught it pushing the Monk 15 tokens over, which is the
+  guard doing exactly its job. Budget raised 2150 -> 2175 deliberately,
+  with the measurement written beside it, rather than trimming the
+  Eightfold Path he carries at the steward's request to pay for a fix
+  to an unrelated problem.
+
+  3 -- THE ANSWER DID NOT SHOW ITS WORK. Asked to build a course from
+  two carried notes, the Tutor's REASONING named both precisely --
+  including the quantisation confusion -- and its ANSWER named neither.
+  A visitor would not know it had read anything. The Investigator, same
+  run, did name the note. So it is unreliable, and on an 8B it will not
+  become reliable by asking harder.
+
+  RULE 7 ANSWERS THIS, not more prompt. The application knows exactly
+  what it put in the prompt: carryGrounding() already computes it for
+  the backpack meter. So the APP says it, under every reply --
+
+    "Answered with what you are carrying -- The Dhammapada,
+     1 note of yours, 1 sealed, not read."
+
+  Deterministic, right every time, zero tokens. And it is the trust
+  story made visible: "what you carry is what a resident can see" stops
+  being a promise and becomes a line you can read.
+
+  Two wording bugs in THAT, both found by reading the screenshot: it
+  said "1 of your note", and it said "Answered with" above a greeting
+  before anything had been answered -- a small lie in the one place
+  whose whole job is telling the truth about what the model was given.
+  It now reads "They can see..." until there is a reply.
+
+AFTER THE FIXES, same model, same question: the Investigator quotes the
+carried note back ("context length matters more than parameter count"),
+names the book it could not use, says what would refute the claim --
+its lens, working -- and hands off to nobody it cannot vouch for.
+
+MEASURED, since five prompts grew a pathway today: 1034-1524 tokens in,
+14-24s per reply on this machine including visible reasoning. The
+static worst case is the Monk at ~2949 of an 8192 floor, 36%.

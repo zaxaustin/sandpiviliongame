@@ -27,9 +27,15 @@ const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const R = [];
 const check = (name, ok, detail) => R.push([name, !!ok, detail || '']);
 
-const SLUG = 'dhammapada';                       // a seed book, so it resolves
+/* WAS 'dhammapada' — "a seed book, so it resolves". The seed shelf was
+   deleted 2026-08-10 and nothing resolves that way any more; more to the
+   point, rule 1 says a suite should be run against a book the PLAYER added,
+   which is now the only kind there is. See _books.mjs. */
+import { inlineBook, A_BOOK } from './_books.mjs';
+const SLUG = A_BOOK;
 const SAVE = {
   saveVersion: 2,
+  personalLibrary: [inlineBook()],
   // Two My Notes about the book, one of them the ✨ shape the reader writes,
   // plus one My Note about nothing in particular.
   notes: [

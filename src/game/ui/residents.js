@@ -29,10 +29,16 @@
 import { state, data, persist, todayKey, logActivity, upcomingItems, openSparks } from '../entities.js';
 import { Store } from '../data/store.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
-import { rosterBlock } from '../data/roles.js';
+import { rosterBlock, stanceBlock, ROLES } from '../data/roles.js';
 import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { referenceBlock } from '../data/reference.js';
-import { lookupTerms } from '../data/lookup.js';
+import { lookupTerms, privacyLeaks } from '../data/lookup.js';
+import { groundingFor, fitToBudget, KINDS } from '../data/carrying.js';
+import { mayReachNote } from '../data/note-reach.js';
+/* The SAME estimator the request itself uses. A grounding block bounded by its
+   own private idea of a token would drift from the real one and then lie about
+   how much room it was taking — see fitToBudget's header. */
+import { estimateTokens } from '../ai/provider.js';
 
 /* Filled in once by overlays.js. Every name below is a function that lives
    over there and is called from a prompt-builder in here. */
@@ -50,6 +56,19 @@ const eventsOn               = (...a) => X.eventsOn(...a);
 const hallShelfSummary       = (...a) => X.hallShelfSummary(...a);
 const investigationsForPrompt = (...a) => X.investigationsForPrompt(...a);
 const renderChatQuickActions = (...a) => X.renderChatQuickActions(...a);
+/* The backpack, and the notes in it. `carryList` rather than data.carrying
+   directly because it is the one place that guarantees the shape; `gatherNotes`
+   because a carried note is a REFERENCE and only overlays.js can resolve one. */
+const carryList              = (...a) => X.carryList(...a);
+const gatherNotes            = (...a) => X.gatherNotes(...a);
+/* The notes search itself — it needs Store, the save and persist(), none of
+   which belong in a file that only builds strings. It returns null with no
+   database, and the caller says so rather than searching more quietly. */
+const searchMyNotes          = (...a) => X.searchMyNotes(...a);
+/* Today's tasks, for the butler's day-read. Injected rather than imported so
+   residents.js keeps its one property: it builds strings and imports nothing
+   that could reach back into a panel. */
+const todaysTaskLine         = (...a) => X.todaysTaskLine(...a);
 
 /* ----- AI-backed NPCs — a small registry so more than one resident can
    talk, each grounded in something different, without duplicating the
@@ -114,15 +133,92 @@ async function libraryLookupBlock(question){
   }
   const hits=[...seen.values()].slice(0,12);
   if(!hits.length){
-    return '\n\nYOU LOOKED THIS UP. Searching every title and author on these shelves for '
-      +terms.map(t=>'"'+t+'"').join(', ')+' returned NOTHING. That is a real answer, not a gap in what you '
-      +'were shown: say plainly that it is not on these shelves, and offer the Request Board in the Study. '
-      +'Do not hedge, and do not guess at a title that might be close.';
+    /* TWO DIFFERENT THINGS, AND THE FIRST VERSION CONFLATED THEM — found
+       2026-08-08 by pointing deepseek-r1:8b at this prompt and reading its
+       reasoning, which is the first time a real model had ever seen it.
+
+       Asked "what's a classic fiction book from hg wells?", the model thought:
+       "not even his most famous works like War of the Worlds or The Time
+       Machine would be present on this particular shelf" — IT KNEW THE ANSWER
+       — and then said none of it, because the old wording here read as "say
+       nothing you cannot find on a shelf". It also echoed this block's own
+       sentence back at the visitor verbatim, and invented a handoff to the
+       Steward "about any texts they carry".
+
+       The rule this was protecting is real and stays: never imply the Pavilion
+       holds a book it does not. But "we do not have it" and "I do not know
+       what it is" are different claims, and only the first one is true here.
+       A visitor who asks what a classic Wells novel IS wants the book named.
+
+       So the block now separates the two and says which is which — and is
+       phrased as a situation rather than as a sentence to be repeated, because
+       an instruction written as a line of dialogue gets delivered as one. */
+    return '\n\nWHAT IS ON THESE SHELVES, for '+terms.map(t=>'"'+t+'"').join(', ')+': nothing. '
+      +'The catalogue was searched and returned no match. That is a fact about THIS library, not '
+      +'about the world, and the two must not be blurred together:\n'
+      +'- ABOUT THE LIBRARY: say plainly that it is not here. Never imply the Pavilion holds '
+      +'something it does not, and never guess at a shelved title that might be close. This part is '
+      +'absolute.\n'
+      +'- ABOUT THE SUBJECT: if you genuinely know the answer from your own reading, GIVE IT — '
+      +'briefly, and say it is not from these shelves. Withholding a thing you actually know is not '
+      +'honesty, it is just a worse answer.\n'
+      +'Then, if a specific book would fill the gap, name it and point them at the Request Board in '
+      +'the Study, which is how a book gets fetched. Speak in your own words, not in these.';
   }
   return '\n\nYOU LOOKED THIS UP. Searching the shelves for '+terms.map(t=>'"'+t+'"').join(', ')
     +' found exactly these, and nothing else:\n'
     +hits.map(h=>`- "${h.title}"${h.attribution?' — '+h.attribution:''}${h.shelf?' ('+h.shelf+')':' (unshelved)'}`).join('\n')
     +'\nSpeak from this list. If what they want is not in it, it is not on the shelves — say so plainly.';
+}
+/* WHAT YOU WROTE, BECAUSE YOU ASKED FOR IT.
+
+   The other half of data/lookup.js, and the half that had no caller until
+   2026-08-08. The line moved from WHO to WHY on 2026-08-07 — "asked: yes,
+   unasked: no" — and until now only the "no" could actually happen, which
+   made "Quill, what did I write about impermanence?" unanswerable. As the
+   steward put it: "lets put functionality over privacy the backend should
+   help people."
+
+   THREE THINGS HOLD THE LINE HERE, and none of them is an instruction:
+
+   1 · `state.dialog.askNotes` is a BUTTON PRESS, set for one message and
+       cleared in a finally. Never inferred from wording.
+   2 · The seal is honoured twice — searchMyNotesFor() drops sealed notes
+       before they are ever resolved, and privacyLeaks() below re-checks
+       everything about to enter the prompt. Belt and braces on purpose: a
+       guard that is the ONLY thing between a sealed note and a model is one
+       edit away from being what failed.
+   3 · What was searched and what came back is SHOWN to the visitor, and
+       what was found lands in their backpack. A search that fed a model
+       privately and left no trace is the invisible grounding the carrying
+       plan rules out.
+
+   Zero hits is a real answer and says so — same shape as libraryLookupBlock,
+   and for the same reason: an empty result is information, not a gap. */
+async function notesLookupBlock(agent){
+  const d=state.dialog;
+  if(!(d && d.askNotes && d.agent===agent)) return '';
+  const res=await searchMyNotes(lastAskOf(agent));
+  if(d) d.noteSearch=res;                     // the receipt, shown under the reply
+  if(!res) return '';                          // no database — the button is locked
+  /* THE RUNTIME GUARD. Everything about to be handed over, re-checked against
+     the same rules npm test holds. Anything it returns is dropped and named. */
+  const items=res.hits.map(n=>({kind:'note', ref:n.key}));
+  const leaks=privacyLeaks(items, carryList(), { searchMyNotes:true, noteReach:(data&&data.noteReach)||{} });
+  const bad=new Set(leaks.map(l=>String(l.ref)));
+  if(bad.size) console.warn('[lookup] withheld', bad.size, 'note(s) from', agent, '— privacyLeaks caught what the search did not');
+  const safe=res.hits.filter(n=>!bad.has(String(n.key)));
+  if(!safe.length){
+    return '\n\nTHEY ASKED YOU TO SEARCH THEIR OWN NOTES for "'+res.term+'" and it returned NOTHING'
+      +(res.sealed.length?' that you are permitted to read':'')+'. That is a real answer, not a gap: say '
+      +'plainly that they have not written about this yet, and do not invent what they might have said.';
+  }
+  return '\n\nTHEIR OWN NOTES, BECAUSE THEY ASKED YOU TO LOOK. These are the visitor\'s own words, '
+    +'searched at their request for "'+res.term+'" — not something you went looking through on your own '
+    +'initiative, and not something you may bring up unprompted in a later conversation. Treat them as '
+    +'what this person already thinks, and build on it rather than repeating it back:\n'
+    +capped(safe, n=>`- "${n.title}" (${n.where})\n    ${String(n.text||'').trim().replace(/\s+/g,' ').slice(0,400)}`)
+    +(res.sealed.length?`\n(${res.sealed.length} further note${res.sealed.length===1?' was':'s were'} sealed by them and not read. Do not ask about them.)`:'');
 }
 function pastAsksBlock(agent){
   const mem=agentMemory(agent);
@@ -209,6 +305,171 @@ function referenceShelfBlock(){
     +capped(ds, b=>`- ${b.part||'—'} · "${b.title}"`);
   return s;
 }
+/* ================================================================
+   WHAT THE VISITOR IS CARRYING — the backpack, finally read.
+
+   Built 2026-08-08. groundingFor() had been written, tested and
+   documented since 2026-08-07 and HAD NO CALLER ANYWHERE: carrying.js
+   said "what you carry is what a resident can see", visibility.js said
+   the backpack "is the one store a resident is allowed to read", and
+   no resident read it. The cap of 20, the "pick up later" shelf kept
+   deliberately outside the grounding, the whole design — a boundary
+   around a door nobody had opened.
+
+   The steward's reason for the bag, which is the reason this block is
+   shaped the way it is:
+
+     "i wanted the back pack to serve the perpouse to make sure the
+      condex of the modles dosent get blown out and so the user can
+      fouce there attention on a few things and not 100"
+
+   So this is not "more grounding". It is the FIRST grounding block in
+   this file that is bounded by something a person chose, and bounded
+   in the unit that actually matters. Three rules:
+
+   1 · TOKENS, NOT ITEMS. fitToBudget() with the very same
+       estimateTokens() the request itself uses — never a second
+       estimator, which would drift and then lie.
+   2 · A CARD, NOT A CORPUS. A book contributes its title and shelf;
+       a note contributes an excerpt. Pulling real passages out of a
+       carried book is a separate, deliberate piece of work
+       (data/retrieval.js) and must not sneak in here, because THAT
+       is how a grounding block quietly becomes a corpus again.
+   3 · SEALED NOTES ARE ABSENT, and the model is not told they exist.
+       The VISITOR is told, in the backpack panel, because the bag
+       must not lie about what it holds. But naming an unreadable
+       note in a prompt only invites a resident to ask after it, and
+       "there is something here you may not see" is not information a
+       model can do anything useful with.
+   ================================================================ */
+const CARRY_BUDGET  = 2000;   // tokens of the ~8k floor; measured, not guessed
+const CARRY_EXCERPT = 400;    // characters of a note — a card, not the note
+
+/* Each carried entry with the line it contributes, or WHY it contributes none.
+   Returns the entry alongside the text on purpose: the backpack panel has to
+   mark each item with whether a resident can see it, and computing that a
+   second time over there is how the meter would come to disagree with the
+   prompt it claims to measure. One computation, two consumers. */
+function carriedLines(){
+  const held = groundingFor(carryList(), ['book','note','chapter','paper','lesson']);
+  const reach = (data && data.noteReach) || {};
+  const out = [];
+  for(const e of held){
+    if(e.kind==='book' || e.kind==='paper'){
+      const d=Store.getDoc(e.ref);
+      // a stale reference is not grounding — and the bag says so separately
+      if(!d){ out.push({ e, line:'', why:'gone' }); continue; }
+      out.push({ e, line:`- ${KINDS[e.kind].icon} "${d.title}"${d.attribution?' — '+d.attribution:''}`
+        +`${d.shelf?' ('+d.shelf+')':''}` });
+    } else if(e.kind==='note'){
+      /* THE SEAL, HONOURED HERE TOO. privacyLeaks() is the runtime guard over
+         what is about to be sent, and it would catch this — but a guard that
+         is the only thing standing between a sealed note and a model is one
+         edit away from being the thing that failed. Filter at the source as
+         well; the guard then has nothing to catch, which is what a guard
+         passing should mean. */
+      if(!mayReachNote(reach, e.ref, { asked:true })){ out.push({ e, line:'', why:'sealed' }); continue; }
+      const n=gatherNotes().find(x=>x.key===e.ref);
+      if(!n){ out.push({ e, line:'', why:'gone' }); continue; }
+      const body=String(n.text||'').trim().replace(/\s+/g,' ');
+      out.push({ e, line:`- 🗒 "${n.title}" (${n.where})`
+        +(body?`\n    ${body.slice(0, CARRY_EXCERPT)}${body.length>CARRY_EXCERPT?'…':''}`:'') });
+    } else {
+      out.push({ e, line:`- ${(KINDS[e.kind]||{icon:'·'}).icon} ${e.label||e.ref}` });
+    }
+  }
+  return out;
+}
+/* WHAT A RESIDENT WOULD ACTUALLY SEE, and what it costs — for the backpack's
+   own meter. Built from carriedLines() and fitToBudget(), the same two calls
+   carriedBlock() makes, so the number on screen is the number in the prompt.
+   A meter with its own idea of the answer is the store.js scar in miniature. */
+export function carryGrounding(){
+  const all=carriedLines();
+  const usable=all.filter(x=>x.line);
+  const { kept, dropped, used } = fitToBudget(usable, x=>estimateTokens([{content:x.line}]), CARRY_BUDGET);
+  const seen=new Set(kept.map(x=>x.e.kind+':'+x.e.ref));
+  return {
+    seen,                                                   // "can a resident see THIS one"
+    shown: kept.length,
+    dropped: dropped.length,                                // held back for room
+    sealed: all.filter(x=>x.why==='sealed').length,
+    gone:   all.filter(x=>x.why==='gone').length,
+    tokens: used,
+    budget: CARRY_BUDGET,
+  };
+}
+function carriedBlock(){
+  const lines=carriedLines().filter(x=>x.line);
+  if(!lines.length) return '';
+  const { kept, dropped } = fitToBudget(lines, x=>estimateTokens([{content:x.line}]), CARRY_BUDGET);
+  return "\n\nWHAT THE VISITOR IS CARRYING RIGHT NOW. They put each of these in their backpack "
+    +"deliberately, which is the whole reason you may see them — this is not everything they own, it "
+    +"is the small set they are working on. Treat it as what is on the table between you. If one of "
+    +"them answers the question, work from it and say which; if none of them does, say so plainly "
+    +"rather than stretching one to fit:\n"
+    +kept.map(x=>x.line).join('\n')
+    +(dropped.length?`\n(and ${dropped.length} more in their backpack, left out for room — ask if none of these is the one.)`:'');
+}
+/* ================================================================
+   THE ONE ROAD, FOR EVERY RESIDENT — pathwayBlock(), 2026-08-08.
+
+   Measured this morning, "one pathway, N behaviours" was 2 OUT OF 7:
+   only Quill and the Monk could reach the Library, the backpack or
+   your notes. The Investigator — "insists on evidence someone else
+   could check" — could not look up a book. Every other resident was
+   answering from the model's own memory and nothing else.
+
+   The cause was not a decision. It was that each systemPrompt()
+   composed its own grounding BY HAND, so a resident got a pathway only
+   if someone remembered to add the line. Seven hand-assembled lists is
+   rule 4's exact shape, and it drifted exactly the way every other one
+   in this project has.
+
+   So the grounding is assembled ONCE, here, identically for everyone,
+   and a resident cannot fail to have it. What differs is the LENS —
+   one line from data/roles.js saying what that role does with what it
+   found. That is the whole specialty.
+
+   WHY THIS IS SAFE FOR THE CONTEXT WINDOW, which is the obvious worry
+   when five more prompts grow a pathway. Every part of it is bounded
+   by construction, and by things measured earlier today:
+     · the lookup returns only rows matching the visitor's own terms,
+       capped at 12, and is EMPTY when the question has no terms;
+     · the backpack is capped in TOKENS by fitToBudget();
+     · the notes search only runs when the visitor pressed the button;
+     · the paper shelf and the reference desk are capped() at 8.
+   None of them grows with the size of the Library or with how much
+   work the visitor has done — which is the exact failure the audit of
+   2026-08-04 found in three blocks at once.
+   ================================================================ */
+async function pathwayBlock(key){
+  const lookup = await libraryLookupBlock(lastAskOf(key));
+  const notes  = await notesLookupBlock(key);
+  return (lookup || '')
+    + carriedBlock()
+    + notes
+    + referenceShelfBlock()
+    + referenceBlock(lastAskOf(key))
+    + lensBlock(key)
+    /* THE STANCE GOES LAST, and after the lens on purpose: what you are
+       looking at, then what you do with it, then how you conduct yourself
+       while doing it. Composed here rather than in seven system prompts
+       because seven hand-written personality paragraphs is exactly the
+       drift roles.js exists to stop — and because a resident who reaches
+       the Library but interrogates the visitor is still not useful. */
+    + stanceBlock();
+}
+/* THE ONLY THING THAT DIFFERS. Placed AFTER the grounding on purpose: a
+   model reads the material and then how to use it, which is the order a
+   person would want it in. One line, never a rulebook — see CLAUDE.md,
+   "the room already does the work". */
+function lensBlock(key){
+  const lens = (ROLES[key] || {}).lens;
+  if(!lens) return '';
+  return '\n\nWHAT YOU DO WITH ANY OF THAT, and it is what makes you you rather than '
+    + 'another voice: ' + lens;
+}
 /* See the Monk below. Kept beside CHAT_AGENTS rather than in seed.js because
    it is a fact about a resident, not about the Library. */
 const MONK_SHELVES = new Set(['Theravada','Mahayana','Daoism','Chinese','Hindu',
@@ -256,6 +517,7 @@ const CHAT_AGENTS = {
         +"something kept — an actual course, study plan, or practice plan — when someone wants that; offer "
         +"it only where it genuinely fits, and never push it."
         +'\n\nThe Library catalogue you can look things up in:\n'+shelf+rosterBlock('quill')
+        +(await pathwayBlock('quill'))
         +pastAsksBlock('quill');
     },
     errorLine:"Quill's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -296,7 +558,7 @@ const CHAT_AGENTS = {
         +"what to ask. That is your most useful move, not a failure of yours.\n"
         +"Plain, direct, unceremonious. You are the one who gets things ready.\n"
         +stewardLadderBlock()
-        +referenceBlock(lastAskOf('steward'))
+        +(await pathwayBlock('steward'))
         +rosterBlock('steward')
         +pastAsksBlock('steward');
     },
@@ -372,8 +634,7 @@ const CHAT_AGENTS = {
           : '')
         +"\n\nThe Hall's investigations so far:\n"+investigationsForPrompt()
         +"\n\nThe most relevant shelves, if useful (cite a text by name rather than inventing one):\n"+hallShelfSummary()
-        +referenceShelfBlock()
-        +referenceBlock(lastAskOf('investigator'))
+        +(await pathwayBlock('investigator'))
         +rosterBlock('investigator')
         +pastAsksBlock('investigator');
     },
@@ -517,6 +778,7 @@ const CHAT_AGENTS = {
             +String(state.dialog.noteContext.text).replace(/"/g,"'")+"\""
           : '')
         +rosterBlock('monk')
+        +(await pathwayBlock('monk'))
         +pastAsksBlock('monk');
     },
     errorLine:"The Monk's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
@@ -535,8 +797,7 @@ const CHAT_AGENTS = {
         +"request would genuinely be better as a structured course (the Course Board) or a grounded "
         +"project workspace (the Research Desk, the Grant Desk), say so plainly and point there — "
         +"you're one tool among several here, not the only one."
-        +referenceShelfBlock()
-        +referenceBlock(lastAskOf('computer'))
+        +(await pathwayBlock('computer'))
         +rosterBlock('computer')
         +pastAsksBlock('computer');
     },
@@ -573,8 +834,7 @@ const CHAT_AGENTS = {
         +"bluffing; you are a patient study aid, not an accredited teacher. Encourage; never condescend."
         +(lesson?("\n\nThe visitor is studying this lesson — stay grounded in it; teach and quiz from it, "
           +"and if they are stuck, help with THIS specifically:\n"+lesson):"")
-        +referenceShelfBlock()
-        +referenceBlock(lastAskOf('tutor'))
+        +(await pathwayBlock('tutor'))
         +rosterBlock('tutor')
         +pastAsksBlock('tutor');
     },
@@ -599,7 +859,17 @@ const CHAT_AGENTS = {
           +(book.summary?("SUMMARY: "+book.summary+"\n"):"")
           +(book.where?("\n"+book.where+":\n"+book.text+"\n"):"")
           +rosterBlock('sebastian')
-        +pastAsksBlock('sebastian');
+          /* NO PATHWAY HERE, DELIBERATELY — and this is the one exception in
+             the whole file, so it is argued rather than assumed.
+
+             This branch is a MODE, not a role: the reading companion, sitting
+             with one book at one page, and it says four lines up "answer
+             grounded strictly in the text given below". Handing it a catalogue
+             lookup and a backpack as well would contradict its own instruction
+             in the same breath, and a small local model handed a contradiction
+             picks one at random. Narrowing to the thing in front of you IS the
+             lens here. The pathway is on Sebastian's ordinary prompt below. */
+          +pastAsksBlock('sebastian');
       }
       // scoped folder review — set only when the visitor hands him one folder
       // from the notes log; he sees just those notes, never the whole pile.
@@ -632,12 +902,58 @@ const CHAT_AGENTS = {
         +butlerDayRead()
         +sebModeBlock()
         +reviewBlock
+        +butlerTrainingBlock()
         +rosterBlock('sebastian')
+        +(await pathwayBlock('sebastian'))
         +pastAsksBlock('sebastian');
     },
     errorLine:"Sebastian's connection flickers — the local AI didn't answer. (Check that Ollama is still running.)",
   },
 };
+/* ================================================================
+   SEBASTIAN'S TRAINING — from a book that is actually on the shelves.
+
+     "sebastian is on an endless loop of questions has not proper butler
+      traning, i think theres a book in household manamgement in the
+      library he should refrence it lol. real butler materaial."
+
+   The steward was right, and the book was already here:
+   `library-sources/the-book-of-household-management.txt` — Mrs Isabella
+   Beeton, 1861, 3.1 MB, public domain. Its title page lists BUTLER among
+   the offices it covers, and §2157–2166 are the butler's own chapter.
+
+   WHAT IS TAKEN AND WHY. Not the wine-cellar procedure, charming as it
+   is — this is a day-keeper, not a sommelier. Three things that actually
+   change how he behaves:
+
+     §2163  "superintend the other servants" — the HUB duty, in the
+            book's own words rather than ours
+     §2164  "one of very great trust ... honesty is the best policy" —
+            the reason he is allowed to tell you your day is thin
+     §3     early rising, order, forethought — household management as
+            running a day, which is the whole of his job here
+
+   SHORT ON PURPOSE. Rule 4 and the prompt budget: this is paid for on
+   every single message, forever. Four sentences of real Beeton beat a
+   chapter, and a chapter would push him past the budget for nothing.
+   Quoted rather than paraphrased so it is genuine grounding — and named,
+   so a visitor can go and read the same pages.
+   ================================================================ */
+function butlerTrainingBlock(){
+  return "\n\nYOUR TRAINING, from Mrs Isabella Beeton's Book of Household Management (1861), which "
+    +"stands on this Library's own shelves:\n"
+    +"- The butler's office is “one of very great trust in a household. Here, as elsewhere, honesty "
+    +"is the best policy.” That is why you may say plainly that a day is thin or overfull — candour "
+    +"is the job, not a liberty you are taking.\n"
+    +"- Beyond waiting at table, the butler is “required to pay bills, and superintend the other "
+    +"servants.” You keep the house running and you know whose work is whose. That is your hub duty, "
+    +"and it is older than this Pavilion.\n"
+    +"- “Early rising is one of the most essential qualities which enter into good Household "
+    +"Management”: a house is orderly because someone started it in order. Forethought the night "
+    +"before, and one clear beginning in the morning.\n"
+    +"You may mention the book by name if it is genuinely useful; never invent anything else from it.";
+}
+
 /* Sebastian's read of the actual day — grounded in the real planner, the
    calendar, the upcoming due items, and still-open sparks. The calendar
    folds through upcomingItems() (BUTLER-SEBASTIAN-PLAN.md step 5), and
@@ -679,6 +995,12 @@ function butlerDayRead(){
   const todaysEvents=eventsOn(k);
   const lines=[];
   lines.push(intention ? `Today's stated intention: "${intention}".` : `No intention has been set for today yet.`);
+  /* TODAY'S TASKS — one line, and only when there are any. Sebastian keeps the
+     visitor's TIME; this is the most concrete thing there is to know about it,
+     and it is the one place he can say "you are two steps from done" instead of
+     asking what they would like to do. Costs nothing on a day with no tasks. */
+  const taskLine=todaysTaskLine();
+  if(taskLine) lines.push(taskLine);
   // a busy day is exactly when he must stay fast — capped, remainder named
   if(todaysEvents.length) lines.push(`On the calendar today: ${todaysEvents.slice(0,LIST_CAP).map(e=>`"${e.title}"${e.start?' at '+e.start:''}`).join('; ')}`
     +(todaysEvents.length>LIST_CAP?`, and ${todaysEvents.length-LIST_CAP} more`:'')+'.');

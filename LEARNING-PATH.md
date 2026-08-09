@@ -535,11 +535,14 @@ sits on it today:**
 
 **Two more concepts worth having the words for:**
 - **Streaming.** Some AI UIs show words appearing one at a time; others
-  wait for the whole reply. This project currently waits (`stream:false`
-  in `makeOllamaProvider()`'s request) — a real, working design choice
-  for something as short as a dialogue line, and a genuine future
-  upgrade if replies get longer (the Quill report, say) and waiting in
-  silence starts to feel worse than watching it arrive.
+  wait for the whole reply. **This project does both now, and which one
+  you get depends on the caller** — `makeOllamaProvider()`'s `chat()`
+  streams when it is handed an `onStream` callback and falls back to a
+  single buffered request otherwise. Built 2026-07-11. *(This paragraph
+  said "this project currently waits" until 2026-08-10 — it was written
+  before streaming existed and never moved.)* Nothing about the model got
+  faster; you have chosen to watch it work instead of waiting behind a
+  closed door, which for a long reply is most of the felt difference.
 - **Temperature.** A setting controlling how "safe vs. exploratory" a
   model's word choices are — low temperature gives more predictable,
   repeatable answers; high temperature gives more varied (and more
@@ -1071,14 +1074,27 @@ first** (there's a paste-ready block at the end of this stage), then walk
 it a step at a time. Expect it to take days, not an afternoon — and expect
 to break the chat and fix it again, which is the point.
 
+> **Read this before you start — the project got here first, and that makes
+> this exercise better rather than pointless.** This stage was written when
+> nothing in the Pavilion streamed. **Streaming was built on 2026-07-11**, and
+> the finished implementation is sitting in `src/game/ai/provider.js` right now
+> (`ollamaStreamChat`, `parseOllamaStreamLines`).
+>
+> **Do not read it yet.** Build yours first, exactly as below — the whole value
+> of this stage is meeting the problems yourself. *Then* open the real one and
+> diff it against what you wrote. You will find things you did not think of
+> (two transports, because the desktop bridge buffers by default; a fallback to
+> the plain request so a failure never becomes a dead end) and, more usefully,
+> you will be able to judge whether they were good calls. **Reading a solution
+> after you have earned the question is the best version of this stage.**
+
 **The one idea the whole thing rests on: a reply can arrive as a *stream*
-of small pieces instead of one finished block.** Right now every AI call
-in `src/game/ai/provider.js` sends `stream:false`, which tells the model
-"don't send anything until the whole answer is done." Flip that to
-`stream:true` and the model instead sends a rapid series of tiny chunks —
-a word or two at a time — that you're responsible for reading and stitching
-together yourself as they land. Nothing about the model got faster; you've
-just chosen to *watch it work* instead of waiting behind a closed door.
+of small pieces instead of one finished block.** A call that sends
+`stream:false` tells the model "don't send anything until the whole answer is
+done." Set `stream:true` and the model instead sends a rapid series of tiny
+chunks — a word or two at a time — that you're responsible for reading and
+stitching together yourself as they land. Nothing about the model got faster;
+you've just chosen to *watch it work* instead of waiting behind a closed door.
 
 **Step 1 — see the raw stream with your own eyes, before touching any
 code.** This is the Stage 4 / Stage 10 habit again: prove the thing is real

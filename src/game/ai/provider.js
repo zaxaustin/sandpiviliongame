@@ -60,8 +60,21 @@ async function localFetch(url, { method='GET', headers, body, signalMs }={}){
 /* Live token streaming for Ollama (/api/chat with stream:true → NDJSON: one
    JSON object per line, each carrying a delta of message.content and, when a
    thinking model is asked to reason, message.thinking). We accumulate both
-   and call onStream({content,thinking}) as they grow, so the reply — and the
-   Monk's reasoning — can be watched live instead of only after the fact.
+   and call onStream({content,thinking}) as they grow, so the reply can be
+   watched live instead of only after the fact.
+
+   ⚠ THE `thinking` HALF IS PLUMBED AND NEVER FED — measured 2026-08-10. This
+   comment used to promise "the Monk's reasoning can be watched live", and the
+   whole road for it exists: this accumulator, p.lastThinking, and the
+   `💭 thought for a moment` panel in renderChatView(). But `think` defaults to
+   false in chat() below and **nothing in src/, tools/, electron/ or test/ ever
+   sets think:true**. The only caller that ever did was the Monk's tier in
+   chatOptsFor(), retired 2026-08-07 — so this went with it, unnoticed, the
+   same way the local-only rule did.
+
+   Kept exactly as it is, deliberately: the code is correct and complete, and
+   turning it back on is one option object, not a rebuild. Registered in
+   docs/DOCS-DRIFT.md so it is a decision rather than a ruin.
    Two transports: an ordinary browser reads the fetch body stream directly;
    the desktop app's bridge buffers by default, so it uses a dedicated
    streaming channel when preload exposes one, and otherwise throws so the
@@ -250,11 +263,44 @@ export function bestLocalModel(availableModels, fallback){
    is allowed to spend thinking. A bigger model does not make better counsel;
    it makes slower counsel, on a machine whose cooling is already the limit.
 
-   WHAT DID NOT CHANGE, and must not be quietly lost with it: the Monk is
-   still LOCAL-ONLY by the cloud guard in the transport layer, because the
-   privacy reason was never the same as the depth reason. If a future change
-   makes residents provider-aware, this is the seam where the Monk's answer
-   goes back to "local, always".
+   ⚠ WHAT THIS COMMENT CLAIMED, AND WHAT IS ACTUALLY TRUE — corrected
+   2026-08-10, and the correction is the more useful half.
+
+   It said: "What did NOT change, and must not be quietly lost with it: the
+   Monk is still LOCAL-ONLY by the cloud guard in the transport layer, because
+   the privacy reason was never the same as the depth reason."
+
+   IT WAS LOST WITH IT. The warning was right and the reassurance was wrong, in
+   the same breath, and CLAUDE.md and PROTOCOLS.md both repeated the
+   reassurance for three days. Measured:
+
+     · this function returns {} for EVERY agent, so it decides nothing;
+     · detectAI() picks the first enabled connection that answers and assigns
+       it to every resident — there is NO per-resident routing in src/;
+     · the only cloud-related guard is isCloudModel(), which keeps Ollama's
+       HOSTED models out of bestLocalModel(). That is a different question,
+       and bestLocalModel() no longer feeds any routing decision at all.
+
+   So: configure a cloud provider and the Monk speaks through it.
+
+   AND THAT IS NOW THE DECISION, made the same day it was found:
+
+     "the monk can be cloud if there computer cant run local ai alot of people
+      have laptops just let the user know."
+
+   A laptop that cannot comfortably run a local model must not mean no Mountain
+   Monk — guidance you can reach beats a principle that locks you out of the
+   room. So returning {} for every agent is CORRECT here, not a silent loss, and
+   the honesty is carried by labelling instead: isLocalConn() above is the one
+   definition, detectAI() stamps AI.local, and the CHAT HEADER says 🏠/☁ with
+   what it means. Standing rule: no surface that sends words to a model may omit
+   that label.
+
+   THIS IS STILL THE SEAM if per-resident routing is ever wanted, and npm test
+   still enforces that every AI.chat caller in ui/ can reach it.
+
+   STILL OPEN, and tracked in docs/DOCS-DRIFT.md: think:true. The plumbing is
+   complete and nothing turns it on. Decide it; do not let it drift again.
 
    MOVED HERE FROM ui/overlays.js the same day, where it was private. Three
    call sites remembered to pass it and ui/lesson-tree.js COULD NOT reach it
@@ -494,6 +540,34 @@ export function providerFor(conn){
   return NoProvider;
 }
 
+/* IS THIS CONNECTION ON THIS MACHINE? Moved here from ui/overlays.js on
+   2026-08-10, where it was private to the Connections panel — so the panel
+   could badge 🏠/☁ and the CHAT HEADER, the place a person is actually
+   speaking, could not.
+
+   That gap became load-bearing the same day, when the steward settled the
+   Monk's provider question:
+
+     "the monk can be cloud if there computer cant run local ai alot of people
+      have laptops just let the user know."
+
+   Every resident uses the one detected connection, the Monk included. That is
+   a deliberate choice now rather than an accident — a laptop that cannot run a
+   local model should not mean no Mountain Monk. But it is only an honest
+   choice if the visitor can SEE where their words are going, in the room where
+   they are saying them. Hence one definition, two consumers.
+
+   An Ollama connection counts as local by its kind: it is a server on this
+   machine. The exception — Ollama's HOSTED models, served through the same
+   local endpoint — is a different question and has its own guard,
+   isCloudModel(), which the model picker already warns with. Do not conflate
+   them here; a connection's locality and a model's locality are two facts. */
+export function isLocalConn(conn){
+  if(!conn) return false;
+  if(conn.kind === 'ollama') return true;
+  return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)([:/]|$)/i.test(conn.baseUrl || '');
+}
+
 export let AI = NoProvider;
 export function isAIActive(){ return AI !== NoProvider; }
 
@@ -502,6 +576,10 @@ export function isAIActive(){ return AI !== NoProvider; }
 export async function detectAI(connections){
   for(const conn of (connections||[]).filter(c=>c.enabled!==false)){
     const provider = providerFor(conn);
+    /* Stamped on the provider so any surface can say 🏠 or ☁ without having to
+       find the connection again. THIS connection is what every resident uses —
+       see isLocalConn above for why that has to be visible while you talk. */
+    provider.local = isLocalConn(conn);
     if(await provider.isAvailable()){ AI = provider; return AI; }
   }
   AI = NoProvider;

@@ -263,7 +263,13 @@ function update(dt){
         else{
           state.scene=w.to;
           p.x=w.sx; p.y=w.sy; p.px=p.x; p.py=p.y;
-          p.dir=(w.to==='overworld')?'down':(w.to==='study')?'right':(state.scene==='library'&&w.sx===14)?'left':'up';
+          /* `face` first: a warp that knows which way you should be looking
+             when you arrive says so, rather than being inferred from its
+             destination. Added with the second Grounds — walking east out of
+             the Pavilion and arriving facing DOWN reads as being spun round
+             at the gate. The old inference stays for every door it already
+             got right. */
+          p.dir=w.face||((w.to==='overworld')?'down':(w.to==='study')?'right':(state.scene==='library'&&w.sx===14)?'left':'up');
           setLoc(); persist(); logActivity('Walked into '+scene().name+'.'); blip(392,.1); setTimeout(()=>blip(523,.12),100);
         }
       }

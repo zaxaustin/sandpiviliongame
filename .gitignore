@@ -19,5 +19,15 @@ __pycache__/
 tools/bench-runs/
 .pglite/
 
-# Live-test screenshots — regenerated every run, read once, never diffed
+# Live-test artifacts — regenerated every run, read once, never diffed.
+# The .txt half was missed when the .png rule was written, so eight result
+# logs sat untracked for three sessions looking like real files.
 test/live/_*.png
+test/live/_*.txt
+
+# Database dumps taken before a migration or a reconcile. REAL BACKUPS, kept
+# on disk on purpose — but they are the steward's own 415-book catalogue, and
+# a public repo is not where a person's library contents belong. Nothing here
+# is deleted; it simply never enters history, which is the one place you
+# cannot take something back out of.
+archive/db-backups/

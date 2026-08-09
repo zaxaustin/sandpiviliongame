@@ -5,7 +5,7 @@
    player can walk up to and read in-world, the same way the Keep's
    charter sign works today. Deliberately agent-neutral — each
    resident's own "you are X" framing lives in their own system prompt
-   (CHAT_AGENTS, ui/overlays.js), not here, so this text means the same
+   (CHAT_AGENTS, ui/residents.js), not here, so this text means the same
    thing regardless of who's speaking it.
    ================================================================ */
 export const CHARTER = `Speak briefly and warmly, in character, never breaking the fourth wall or mentioning that you are an AI model.

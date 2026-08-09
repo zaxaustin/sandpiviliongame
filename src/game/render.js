@@ -445,7 +445,20 @@ function drawBuilding(b,ox,oy){
     ctx.fillStyle=wood; ctx.fillRect(x,y+S*1.4,w,h-S*1.4);
     ctx.fillStyle='rgba(0,0,0,.08)';
     for(let r=0;r<3;r++) ctx.fillRect(x,y+S*1.7+r*S,w,2);
-    const doorX=x+((b.type==='library'?7:b.type==='cafe'?24:31)-b.x)*S;
+    /* THE DOOR IS THE BUILDING'S OWN, not the renderer's memory of where that
+       building used to stand. Until 2026-08-10 this line read
+
+         const doorX = x+((b.type==='library'?7:b.type==='cafe'?24:31)-b.x)*S;
+
+       — three ABSOLUTE tile columns of the original Grounds, baked into the
+       drawing code by building TYPE. It was correct only for as long as
+       nothing ever moved, and the moment the Café and the Workshop moved to
+       a second Grounds it would have painted their doors onto blank wall, or
+       clean off the building. `door` is already how the Inheritance Hall's
+       archway is placed (see the 'hall' branch above); every building carries
+       one now, and npm test requires it to land on the footprint AND on the
+       walkable tile the warp actually uses. */
+    const doorX=x+((b.door!==undefined?b.door:b.x)-b.x)*S;
     ctx.fillStyle='#3a2c1e'; ctx.fillRect(doorX,y+h-S*1.4,S*2,S*1.4);
     ctx.fillStyle='#ffe9b0';
     ctx.fillRect(x+S*.7,y+S*2,S*.7,S*.8);

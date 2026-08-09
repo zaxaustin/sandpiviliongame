@@ -74,8 +74,11 @@ file](#running-it-from-source) — the download is the way in for everyone else.
 3. **Go into the Study** (its own door on the Grounds) and set an intention for
    the day at the Writing Desk.
 4. **Walk southwest, down the lane, to the Inheritance Hall** — a walled court
-   of bare sand. It's empty until someone plants something in it. There are
-   three gifts waiting at the Record Stone; put one in the ground.
+   of bare sand, and it is genuinely bare. Nothing standing there was put there
+   by the people who built the Pavilion; everything in it was planted by a
+   visitor. Read the Record Stone, then face any patch of sand and press `E` to
+   plant the first thing. *(Three gifts used to be bundled at the Stone; they
+   were a seed pathway and went with the seed shelf on 2026-08-10.)*
 5. **Fish at the pond.** No reason. It's nice.
 
 None of that needs an account, an internet connection, or an AI.
@@ -137,11 +140,17 @@ clear whose machine a conversation is happening on.
 
 ## Filling your Library
 
-The Pavilion ships with **27 texts** — 6 complete source books (the Dhammapada,
-the Bhagavad Gita, three suttas), 11 written for the Pavilion itself, and 10
-classics carried as summaries. **Those ten say so when you open them**, name
-exactly where the real text lives, and invite you to bring it in. Do that once
-and the same page becomes the whole book.
+**Your shelf starts empty, and that is on purpose.** The Pavilion ships with no
+books at all — not as a gap to apologise for, but because a library nobody chose
+is inert:
+
+> *"filling up your own library makes one have a sence of ownerhip."*
+
+So the first thing you do here is put a book on a shelf, and from then on it is
+genuinely yours. [`docs/BOOKS-TO-SOURCE.md`](docs/BOOKS-TO-SOURCE.md) is a
+starting list of free, legitimately downloadable texts if you want a first
+armful; Standard Ebooks, Project Gutenberg and SuttaCentral's CC0 canon are all
+good doors.
 
 **The easiest way — drag a file onto the window.** A `.txt` or an `.epub`,
 dropped anywhere on the Pavilion, lands on your own shelf and is readable

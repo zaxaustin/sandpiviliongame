@@ -238,6 +238,69 @@ for (const [key, s] of Object.entries(scenes)) {
       fail(`data/records.js names '${o}' as a record's opener, but it is not in the window export block — every card using it would be a dead end (the Records Hall reads openers out of the database as strings, so nothing else can catch this)`);
     }
   }
+
+  /* ---- A DAY YOU ACTUALLY WORKED, 2026-08-10 ----
+     The Records Hall listed no days at all, and said why: "a planner day
+     exists as soon as it is opened, which is not the same as a day you
+     worked." A FINISHED daily task is that missing thing — dated, countable,
+     with a board to point back at. It is also the answer to "how are all the
+     logs connected to this?", so getting the boundary wrong here makes the
+     one honest index over real work start flattering its owner.
+
+     Three ways it can go wrong, all of them quiet:
+       a day taken and abandoned counted as work    -> the count is a lie
+       today's open board filed as history          -> it is not over yet
+       dated by the close-out rather than by doing  -> a record in the wrong
+                                                       day, which a note cites */
+  const { gatherRecords, RECORD_LOOK } = await import('../src/game/data/records.js');
+  const RECORD_LOOK_DAY = RECORD_LOOK.day && RECORD_LOOK.day.icon && RECORD_LOOK.day.label;
+  const dayRows = save => gatherRecords(save).filter(r => r.kind === 'day');
+  const step = done => ({ text: 't', where: 'note', ref: '', done });
+
+  const finished = { dailyTasks: [{ id: 7, title: 'Start on Tesla', taken: '2026-08-01',
+    source: { kind: 'free', ref: '', label: 'Learning electronics' },
+    steps: [step(true), step(true)], closed: true }] };
+  const fin = dayRows(finished);
+  if (fin.length !== 1) fail(`records: a finished day produced ${fin.length} record(s), expected 1`);
+  else {
+    if (fin[0].happened !== '2026-08-01') {
+      fail(`records: a finished day is dated '${fin[0].happened}', not the day it was taken `
+         + `('2026-08-01') - a record in the wrong day is a lie a note can cite`);
+    }
+    if (!/Tesla/.test(fin[0].title)) fail('records: a finished day lost its title');
+    if (!/electronics/i.test(fin[0].detail || '')) {
+      fail('records: a finished day dropped what it was a slice OF - the source is the whole '
+         + 'anti-overwhelm point of the board');
+    }
+    if (fin[0].opener !== 'openDailyTasks') fail('records: a day record points at ' + fin[0].opener + ', not the board');
+  }
+
+  const half = { dailyTasks: [{ id: 8, title: 'Half a day', taken: '2026-08-01',
+    steps: [step(true), step(false)], closed: true }] };
+  if (dayRows(half).length) {
+    fail('records: a day with steps left undone was filed as a day you WORKED. The board records '
+       + 'both halves because a person needs to see both; an index of work done that includes the '
+       + 'days you fell short is the guilt inventory the-day.js exists to prevent.');
+  }
+  const open = { dailyTasks: [{ id: 9, title: 'Still going', taken: '2026-08-01',
+    steps: [step(true), step(true)], closed: false }] };
+  if (dayRows(open).length) fail("records: today's board was filed as history before the day was closed out");
+  const empty = { dailyTasks: [{ id: 10, title: 'Took it, did nothing', taken: '2026-08-01', steps: [], closed: true }] };
+  if (dayRows(empty).length) fail('records: a day with NO steps counted as a day worked');
+  const undated = { dailyTasks: [{ id: 11, title: 'No date', taken: '', steps: [step(true)], closed: true }] };
+  if (dayRows(undated).length) fail('records: an undated day was given a date rather than skipped');
+  if (dayRows({}).length || dayRows({ dailyTasks: null }).length) fail('records: gatherRecords threw on a save with no tasks');
+
+  /* Two finished days must be two records - source_key collided on `title`
+     in an earlier draft, so a second day with the same name vanished. */
+  const twice = { dailyTasks: [
+    { id: 1, title: 'Same name', taken: '2026-08-01', steps: [step(true)], closed: true },
+    { id: 2, title: 'Same name', taken: '2026-08-02', steps: [step(true)], closed: true }] };
+  if (dayRows(twice).length !== 2) {
+    fail('records: two finished days with the same title collapsed into ' + dayRows(twice).length
+       + ' - de-duplication is eating real work');
+  }
+  if (!RECORD_LOOK_DAY) fail('records: RECORD_LOOK has no entry for kind "day" - the card would render blank');
 }
 
 /* ---------- a moved panel must resolve every name it executes ----------
@@ -1079,7 +1142,25 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
      catalogueBrief (~159) plus a lookup on what was actually asked. Spending
      ~90 of the ~12,600 tokens freed on the path he exists to teach is not a
      budget overrun; it is what the room was cleared for. */
-  const BUDGET = { quill: 1100, steward: 820, investigator: 1280, monk: 2150,
+  /* MONK 2150 -> 2175, deliberately, 2026-08-08. rosterBlock() gained one
+     sentence — "never credit a colleague with an ability not written there" —
+     and it is paid for by all seven, which is exactly why this guard exists
+     and why it caught it.
+
+     What the 25 tokens bought, measured rather than assumed: pointing a real
+     local model (deepseek-r1:8b) at these prompts for the first time, TWO RUNS
+     OUT OF THREE invented a colleague's powers — the Investigator sent someone
+     to "the Computer, which has access to more extensive research" (it lists
+     local files) and Quill offered "the Steward, about any texts they carry"
+     (he carries none). A handoff is the one claim a model cannot check,
+     because the colleague is not in the room to contradict it, and the visitor
+     finds out by walking to another room and finding nothing.
+
+     Only the Monk trips the line, because his prose is the longest by far. The
+     alternative was trimming the Eightfold Path he carries whole at the
+     steward's request, to pay for a fix to a different problem — which would
+     be the wrong thing bought with the wrong money. */
+  const BUDGET = { quill: 1100, steward: 820, investigator: 1280, monk: 2175,
                    computer: 810, tutor: 1100, sebastian: 1470 };
   const STR = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
 
@@ -1172,12 +1253,25 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
     await import('../src/game/data/chapters.js');
   const { paginate } = await import('../src/game/data/retrieval.js');
 
+  /* THESE MOVED OUT OF THE SHIPPED BUNDLE, 2026-08-10.
+
+     They used to be imported from src/game/data/library-texts/ — six full
+     books, 248 KB, compiled into every build to back six seed shelf entries.
+     The seed shelf is gone, so shipping them was dead weight AND a pathway
+     back to it. They are TEST DATA and now live where test data lives.
+
+     KEPT, not discarded, and the distinction matters: these two are real
+     ground truth. The Dhammapada has exactly 26 chapters and the Gita 17,
+     counted by hand, which is the only reason this test could ever catch the
+     bug it was written for — the old scanner found ZERO in both and "it
+     found some chapters" would have passed. A fixture with a known answer is
+     worth more than the book it came from. */
   const textOf = async (file) => {
-    const mod = await import(`../src/game/data/library-texts/${file}.js`);
-    return Object.values(mod).find(v => typeof v === 'string');
+    const { readFileSync: rf } = await import('node:fs');
+    return rf(new URL(`./fixtures/chapters/${file}.txt`, import.meta.url), 'utf8');
   };
 
-  /* The two long texts in the seed. */
+  /* The two long texts, now fixtures. */
   for (const [file, want] of [['dhammapada', 26], ['bhagavad-gita', 17]]) {
     const { marks, how } = findChapters(paginate(await textOf(file)));
     if (marks.length !== want) fail(`chapters: ${file} resolved ${marks.length} chapters, expected ${want}`);
@@ -1665,7 +1759,7 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
    tests rather than intentions: never empty, never a wall, one press per item,
    and it notices rather than nags. */
 {
-  const { theDayItems, theDayLine, daysBetween, ICON } = await import('../src/game/data/the-day.js');
+  const { theDayItems, theDayLine, daysBetween, ICON, notesToday, notesTodayLine } = await import('../src/game/data/the-day.js');
   const TODAY = '2026-07-28';
   const bk = (slug, title, extra = {}) => ({ slug, title, ...extra });
 
@@ -1860,6 +1954,96 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
   const done = theDayItems({ today: TODAY, books: [paper], read: { p1: true },
     dissections: [{ title: 'Attention Is All You Need' }] });
   if (done.some(i => i.fn === 'openScienceHall')) fail('the-day: it re-offered a paper already pulled apart');
+
+  /* ---- WHAT YOU WROTE TODAY, 2026-08-10 ----
+     A note's only route back into ☀ Today opened after a FORTNIGHT
+     (forgottenNotes). Write six in a morning and the day knew about none.
+     "lets make proper pathways for the notes to be in the logs."
+
+     THE BOUNDARY IS THE FEATURE. These are a RECORD, not a waiting item:
+     theDayItems is capped at five because "a list of everything
+     outstanding is a guilt inventory", and work you have already done must
+     never compete for those five or turn into another thing asking for
+     you. */
+  const nDay = (date, title) => ({ key: 'k' + title, title, text: 'A real note with enough body to count.', date });
+  const someNotes = [nDay('2026-08-10', 'a'), nDay('2026-08-10', 'b'), nDay('2026-08-09', 'c'), nDay('', 'd')];
+  const mineToday = notesToday(someNotes, '2026-08-10');
+  if (mineToday.length !== 2) fail(`the-day: notesToday found ${mineToday.length} of 2 written today`);
+  if (mineToday.some(n => n.date !== '2026-08-10')) fail("the-day: notesToday returned a note from another day");
+  if (notesToday(someNotes, '').length) fail('the-day: notesToday with no date returned notes anyway');
+  if (notesToday(null, '2026-08-10').length) fail('the-day: notesToday threw on nothing');
+  /* An ISO timestamp is a date too — a note saved as 2026-08-10T09:14:00Z is
+     today's note, and comparing raw strings would silently drop it. */
+  if (notesToday([nDay('2026-08-10T09:14:00Z', 'ts')], '2026-08-10').length !== 1) {
+    fail('the-day: a note dated with a full timestamp was not counted as written today');
+  }
+  /* NEVER TRUNCATED BY COUNT. On a day you wrote eleven notes, eleven is
+     the honest answer and a good day — the five-item cap is about things
+     WAITING, and applying it here would turn a record into a scold. */
+  const elevenNotes = Array.from({ length: 11 }, (_, i) => nDay('2026-08-10', 'n' + i));
+  if (notesToday(elevenNotes, '2026-08-10').length !== 11) {
+    fail('the-day: notesToday capped a record of work already done — the five-item cap is for things '
+       + 'that are WAITING, and a day you wrote eleven notes is a good day, not an overflowing list');
+  }
+  if (notesTodayLine(elevenNotes, '2026-08-10') !== '11 notes written today') {
+    fail('the-day: the written-today line miscounted — ' + notesTodayLine(elevenNotes, '2026-08-10'));
+  }
+  if (notesTodayLine([nDay('2026-08-10', 'x')], '2026-08-10') !== 'one note written today') {
+    fail('the-day: a single note did not read as a sentence');
+  }
+  /* SILENCE ON A DAY YOU WROTE NONE. "0 notes today" is a scold and the
+     four rules at the top of the-day.js exist to keep that out. */
+  if (notesTodayLine([], '2026-08-10') !== '') fail('the-day: an empty day still produced a line — "0 notes" is a scold');
+  if (/\b0\b|none|nothing/i.test(notesTodayLine([], '2026-08-10'))) fail('the-day: the written-today line keeps score on an empty day');
+
+  /* AND IT MUST NOT LEAK INTO THE FIVE. */
+  {
+    const withNotes = theDayItems({ today: '2026-08-10', notes: elevenNotes, sparks: [], upcoming: [],
+      lessons: [], curriculum: {}, books: [], read: {}, dissections: [], catalogue: [] });
+    if (withNotes.some(i => /written today/i.test(i.note || ''))) {
+      fail('the-day: notes written today appeared among the WAITING items — they are a record of work '
+         + 'done and must not compete for the five, or the day becomes the guilt inventory again');
+    }
+  }
+  /* ...and it must actually be rendered, or it is a pure function nobody
+     calls — which is exactly where groundingFor() sat for a day. */
+  {
+    const ovD = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+    const codeD = ovD.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    if (!/notesToday\s*\(/.test(codeD)) fail('the-day: notesToday() is never called in overlays.js - the pathway is inert');
+    /* LOOK INSIDE renderTheDay, NOT AT THE WHOLE FILE. Checking the file
+       for `writtenTodayBlock()` was satisfied by the function's own
+       DEFINITION, so deleting the call left the guard green — the same
+       shape as the window-export check "a comment could satisfy", and the
+       groundingFor() check that passed on its import line. Born dead;
+       found by deleting the call on purpose. */
+    const renderBody = (() => {
+      const at = codeD.search(/function\s+renderTheDay\s*\(/);
+      if (at < 0) return '';
+      let i = codeD.indexOf('{', at), depth = 0;
+      for (let j = i; j < codeD.length; j++) {
+        if (codeD[j] === '{') depth++;
+        else if (codeD[j] === '}') { depth--; if (!depth) return codeD.slice(i, j + 1); }
+      }
+      return '';
+    })();
+    if (!renderBody) fail('the-day: could not find renderTheDay in overlays.js - this guard has drifted');
+    else if (!/writtenTodayBlock\s*\(\s*\)/.test(renderBody)) {
+      fail("the-day: renderTheDay does not compose writtenTodayBlock() - today's notes are computed "
+         + 'and never shown, which is the inert-pure-function bug again');
+    }
+    /* the reach toggle has to be ON that card - the whole point of putting
+       today's notes in the day is deciding there what a resident may read */
+    const body = codeD.slice(codeD.indexOf('function writtenTodayBlock'), codeD.indexOf('function renderTheDay'));
+    /* Either badge function counts — the state has to be SHOWN and it has to
+       be CHANGEABLE from here; which helper draws it is not the property.
+       (reachState is the never-silent variant: reachBadge stays quiet on the
+       default `askable`, which reads as "unknown" beside one marked Sealed.) */
+    if (!/reach(Badge|State)\s*\(/.test(body) || !/toggleNoteSeal\s*\(/.test(body)) {
+      fail("the-day: today's notes render without the reach control — deciding what a resident may read "
+         + 'in a panel three rooms away is how a privacy control goes unused');
+    }
+  }
 
   // the door's sentence is a sentence, not a count
   if (theDayLine(dueToday) !== 'one thing is due today') fail(`the-day: theDayLine gave "${theDayLine(dueToday)}"`);
@@ -2347,6 +2531,354 @@ for (const d of SEED_LIBRARY) {
   if (g.length !== 1 || g[0].kind !== 'book') fail('carrying: groundingFor did not narrow to the asked kinds');
   if (C.groundingFor(withNote).length !== withNote.length) fail('carrying: grounding with no filter changed the set');
   if (C.groundingFor(null).length !== 0) fail('carrying: groundingFor threw on an empty backpack');
+
+  /* THE REAL BOUND IS TOKENS, NOT ITEMS (2026-08-08). Twenty is a bound on
+     attention and the right one for a person; it is not a bound on a context
+     window, where twenty notes is nothing and twenty books is a catastrophe.
+     The uncapped-prompt bug has been fixed three times and every instance was
+     a list capped by COUNT or not at all. */
+  const size = s => s.length;
+  const fit = C.fitToBudget(['aaa', 'bbb', 'ccc', 'ddd'], size, 7);
+  if (fit.kept.length !== 2 || fit.dropped.length !== 2) {
+    fail('carrying: fitToBudget kept ' + fit.kept.length + ' of 4 at a budget of 7 - expected 2');
+  }
+  if (fit.used !== 6) fail('carrying: fitToBudget miscounted what it used - ' + fit.used);
+  if (C.fitToBudget(['aa'], size, 100).dropped.length) fail('carrying: fitToBudget dropped something that fitted');
+  /* THE FIRST ONE IS ALWAYS KEPT. A grounding block that came back EMPTY
+     because the single carried book had a long title is the silent failure
+     this file exists to prevent - better one oversized entry and an honest
+     word about it. */
+  const huge = C.fitToBudget(['x'.repeat(500), 'y'], size, 10);
+  if (!huge.kept.length) fail('carrying: fitToBudget returned NOTHING because the first item was over budget');
+  if (!huge.over) fail('carrying: fitToBudget did not report that it went over on a single oversized item');
+  if (huge.dropped.length !== 1) fail('carrying: fitToBudget kept a second item after already being over');
+  if (C.fitToBudget(null, size, 10).kept.length) fail('carrying: fitToBudget threw on nothing');
+  if (C.fitToBudget(['a'], null, 10).kept.length !== 1) fail('carrying: fitToBudget threw with no sizer');
+  if (C.fitToBudget(['a', 'b'], () => NaN, 10).kept.length !== 2) fail('carrying: a NaN size was not treated as zero');
+
+  /* AND THE ONE THAT WOULD HAVE CAUGHT THE REAL BUG.
+
+     groundingFor() was written, tested and documented on 2026-08-07 and had
+     NO CALLER ANYWHERE until 2026-08-08. carrying.js said "what you carry is
+     what a resident can see"; visibility.js said the backpack "is the one
+     store a resident is allowed to read"; no resident read it. Every unit
+     test above passed the whole time, because a pure function with no caller
+     is perfectly testable and completely inert. */
+  const rtext = readFileSync(new URL('../src/game/ui/residents.js', import.meta.url), 'utf8');
+
+  /* THE CHECK ITSELF WAS BORN DEAD TWICE, and both were caught by breaking it
+     on purpose (2026-08-08).
+
+     ONE: it grepped the WHOLE FILE for `groundingFor(`. Deleting the call left
+     the name in the import line and in three comments, so it passed while the
+     backpack was not being read at all - verbatim the window-export check "a
+     comment could satisfy" from CLAUDE.md rule 3.
+
+     TWO: the fix stripped string literals as well as comments, and could not
+     parse a REGEX LITERAL. `.replace(/"/g,"'")` in the Monk's prompt reads as
+     a string opening at `/"`; the scanner desynchronised, silently swallowed
+     two hundred and fifty lines including the Monk's own `+carriedBlock()`,
+     and reported a real composition missing.
+
+     So: comments out, strings LEFT IN, look inside the FUNCTION BODY, and make
+     a mis-parse loud. A guard that parses has to be held to the same standard
+     as the thing it guards - the prompt-budget guard that read apostrophes in
+     comments as quotes is the same lesson. */
+  const bodyOf = (src, name) => {
+    const at = src.search(new RegExp('function\\s+' + name + '\\s*\\('));
+    if (at < 0) return '';
+    let i = src.indexOf('{', at), depth = 0;
+    for (let j = i; j < src.length; j++) {
+      const c = src[j];
+      if (c === '{') depth++;
+      else if (c === '}') { depth--; if (!depth) return src.slice(i, j + 1); }
+    }
+    return '';
+  };
+  const codeOnly = (s) => s
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  /* A stripper that eats code turns every check below into a report about
+     garbage, in either direction. So make a mis-parse LOUD rather than quiet. */
+  for (const anchor of ['function carriedBlock', 'const CHAT_AGENTS', 'errorLine', 'systemPrompt']) {
+    if (!codeOnly(rtext).includes(anchor)) {
+      fail('smoke: the comment-stripper in the backpack guard ate real code (lost "' + anchor
+         + '") - every assertion built on it is now meaningless');
+    }
+  }
+
+  const linesBody = codeOnly(bodyOf(rtext, 'carriedLines'));
+  const blockBody = codeOnly(bodyOf(rtext, 'carriedBlock'));
+  if (!linesBody || !blockBody) fail('smoke: could not find carriedLines/carriedBlock in residents.js - this guard has drifted');
+
+  if (!/groundingFor\s*\(/.test(linesBody)) {
+    fail('THE BACKPACK IS NOT GROUNDING. carriedLines() does not call groundingFor() - '
+       + 'carrying.js promises "what you carry is what a resident can see" and no resident reads the bag. '
+       + 'That was true, silently, for a whole day.');
+  }
+  if (!/fitToBudget\s*\(/.test(blockBody) || !/estimateTokens\s*\(/.test(blockBody)) {
+    fail('carriedBlock() is not bounded by fitToBudget(estimateTokens) - an uncapped grounding block '
+       + 'is the uncapped-prompt bug in a fourth costume, and a second way of measuring is a second '
+       + 'thing to be wrong');
+  }
+  /* A sealed note must be filtered where the block is BUILT, not only caught
+     by privacyLeaks() on the way out. A guard that is the only thing between
+     a sealed note and a model is one edit away from being what failed. */
+  if (!/mayReachNote\s*\(/.test(linesBody)) {
+    fail('carriedLines() does not check note-reach - a SEALED note in the backpack would be '
+       + 'built straight into a prompt');
+  }
+  /* ...and the block has to actually reach a resident. All of the above can be
+     perfect in a function nobody composes into a prompt - which is exactly the
+     state groundingFor() itself was in for a day. */
+  /* THE BACKPACK REACHES EVERY RESIDENT NOW, through pathwayBlock(). Kept as a
+     check that carriedBlock is composed AT ALL; the per-resident coverage is
+     the much stronger guard in the next block. */
+  const composed = (codeOnly(rtext).match(/carriedBlock\s*\(\)/g) || []).length;
+  if (composed < 2) {
+    fail('carriedBlock() is composed ' + composed + ' time(s) - a grounding block nobody '
+       + 'composes is the inert-pure-function bug again.');
+  }
+}
+
+/* ---------- ONE PATHWAY, N BEHAVIOURS - measured, not asserted ----------
+
+   data/lookup.js has claimed since 2026-08-07 that "every resident reaches the
+   Library the same way ... what differs is what the role DOES with the result."
+
+   MEASURED ON 2026-08-08 IT WAS 2 OUT OF 7. Only Quill and the Monk could
+   reach the Library, the backpack or the visitor's notes. The Investigator -
+   whose stated duty is "insists on evidence someone else could check" - could
+   not look up a single book. Five residents answered from the model's own
+   memory and nothing else.
+
+   The cause was that each systemPrompt() composed its grounding BY HAND, so a
+   resident had a pathway only if someone remembered to add the line. Seven
+   hand-maintained lists is rule 4's exact shape and it drifted exactly the way
+   hideAllOv(), the window exports and the overlays map all did.
+
+   So this guard is the property itself: EVERY role in roles.js has a lens, and
+   EVERY resident with a systemPrompt goes through the one pathway. It is not
+   possible to add an assistant that quietly cannot look anything up. */
+{
+  const { ROLES, ROLE_KEYS } = await import('../src/game/data/roles.js');
+  const src = readFileSync(new URL('../src/game/ui/residents.js', import.meta.url), 'utf8');
+  const code = src
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  for (const anchor of ['function pathwayBlock', 'const CHAT_AGENTS']) {
+    if (!code.includes(anchor)) fail('smoke: the pathway guard\'s comment-stripper ate real code (lost "'
+      + anchor + '") - every assertion below it is meaningless');
+  }
+
+  /* 0 - EVERY RESIDENT HAS A DOOR OF THEIR OWN.
+
+     overlays.js calls talkTo() "ONE opener for every chat resident". It was
+     true for four of seven: the Tutor, the Investigator and the Computer had
+     no `chat` entry, so talkTo() returned silently and a colleague's handoff
+     could NAME them without being able to open them. Found 2026-08-08 when a
+     live suite tried to talk to each resident in turn and three of them
+     quietly kept talking to the previous one.
+
+     Same shape as the pathway being 2-of-7, one layer up: a rule stated once
+     and true for some. `open` stays whatever room is richest; this is the
+     plain door. */
+  for (const k of ROLE_KEYS) {
+    const r = ROLES[k];
+    if (!r.chat || !r.chat.name || !r.chat.line) {
+      fail(`roles.js: '${k}' has no chat door, so talkTo('${k}') does nothing and a handoff to `
+         + `them cannot be opened. Every resident with a prompt needs one.`);
+    }
+    if (!r.open) fail(`roles.js: '${k}' has no opener, so a handoff can name them but not reach them`);
+  }
+
+  // 1 - every role declares what it DOES with what it finds
+  for (const k of ROLE_KEYS) {
+    const lens = ROLES[k].lens;
+    if (!lens || lens.length < 20) {
+      fail(`roles.js: '${k}' has no lens. The pathway is the same for everyone, so the lens is the `
+         + `ONLY thing that makes this role different from a voice.`);
+    }
+    if (lens && lens.length > 260) {
+      fail(`roles.js: '${k}'s lens is ${lens.length} chars - it is meant to be a sentence about what `
+         + `to DO, not a rulebook. Every word is paid for on every message, forever.`);
+    }
+  }
+
+  // 2 - one road: nobody hand-composes grounding any more
+  const agentBodies = {};
+  {
+    const start = code.indexOf('const CHAT_AGENTS = {');
+    const body = code.slice(start);
+    for (const m of body.matchAll(/^  ([a-z]+):\{$/gm)) {
+      let i = body.indexOf('{', m.index), depth = 0;
+      for (let j = i; j < body.length; j++) {
+        if (body[j] === '{') depth++;
+        else if (body[j] === '}') { depth--; if (!depth) { agentBodies[m[1]] = body.slice(i, j); break; } }
+      }
+    }
+  }
+  const found = Object.keys(agentBodies);
+  if (found.length < 7) fail(`smoke: only parsed ${found.length} residents out of CHAT_AGENTS - this guard has drifted`);
+
+  for (const k of found) {
+    if (!ROLE_KEYS.includes(k)) continue;               // roles.js coverage is checked elsewhere
+    if (!new RegExp(`pathwayBlock\\s*\\(\\s*['"]${k}['"]`).test(agentBodies[k])) {
+      fail(`THE PATHWAY IS NOT UNIVERSAL: '${k}' does not call pathwayBlock('${k}'). `
+         + `On 2026-08-08 five of seven residents could not look up a book, see the backpack, or `
+         + `search a note, because each prompt composed its own grounding by hand.`);
+    }
+    /* ...and NOT by hand as well. A resident that calls the pathway and then
+       adds its own copy of a block is the drift starting again, one line at a
+       time, and it double-charges the visitor for the same tokens. */
+    for (const dup of ['carriedBlock', 'referenceShelfBlock', 'libraryLookupBlock', 'notesLookupBlock']) {
+      if (new RegExp(`\\+\\s*(await\\s+)?${dup}\\s*\\(`).test(agentBodies[k])) {
+        fail(`'${k}' composes ${dup}() by hand as well as going through pathwayBlock() - `
+           + `that is the seven-hand-maintained-lists problem growing back.`);
+      }
+    }
+  }
+
+  // 3 - the pathway actually carries the whole road, and ends with the lens
+  const pw = (() => {
+    const at = code.search(/function\s+pathwayBlock\s*\(/);
+    let i = code.indexOf('{', at), depth = 0;
+    for (let j = i; j < code.length; j++) {
+      if (code[j] === '{') depth++;
+      else if (code[j] === '}') { depth--; if (!depth) return code.slice(i, j + 1); }
+    }
+    return '';
+  })();
+  for (const part of ['libraryLookupBlock', 'carriedBlock', 'notesLookupBlock',
+                      'referenceShelfBlock', 'referenceBlock', 'lensBlock']) {
+    if (!new RegExp(part + '\\s*\\(').test(pw)) {
+      fail(`pathwayBlock() no longer includes ${part}() - a resident silently lost part of the one road`);
+    }
+  }
+}
+
+/* ---------- daily tasks: what you sat down to do TODAY ----------------
+   Named by the steward 2026-08-08 - "we can call it daily tasks instead of
+   missions, you cant do missions unless you graduate lol".
+
+   The day boundary is a FRAMING DEVICE, not a stick: it exists so you scope
+   the work to a size you can finish, and so a big goal gets eaten one sitting
+   at a time. Nothing here is ever "overdue", and these tests hold that as
+   firmly as they hold the arithmetic. */
+{
+  const T = await import('../src/game/data/daily-tasks.js');
+  const y = '2026-08-07', d = '2026-08-08', tm = '2026-08-09';
+  const mk = (over) => ({ id: 1, title: 'Tesla', taken: d,
+    steps: [{ text: 'get the book', where: 'world', done: true },
+            { text: 'read it', where: 'read', ref: 'x', done: false }], ...over });
+
+  // TODAY, computed on read - never a timer, nothing moves by itself
+  if (!T.isToday(mk(), d)) fail('daily-tasks: today\'s task did not read as today\'s');
+  if (T.isToday(mk(), tm)) fail('daily-tasks: YESTERDAY\'S TASK IS STILL LIVE - the date is the whole mechanic');
+  if (T.isToday(mk({ closed: true }), d)) fail('daily-tasks: a closed task still read as active');
+  if (T.activeTask([], d)) fail('daily-tasks: found an active task in an empty list');
+  if (!T.activeTask([mk()], d)) fail('daily-tasks: activeTask missed today\'s');
+  /* TWO LOWER HALVES, NOT ONE. Work finished TODAY was appearing under a
+     heading reading "Before today", with its own date printed underneath
+     contradicting it — found by reading the screenshot, 2026-08-08. A closed
+     task is not `isToday` (isToday requires !closed), so everything
+     not-active fell into one bucket and the heading became a quiet lie. */
+  if (T.beforeToday([mk()], d).length) fail('daily-tasks: today\'s task appeared under "before today"');
+  if (T.beforeToday([mk()], tm).length !== 1) fail('daily-tasks: yesterday\'s task is not in the before-today list');
+  if (T.earlierToday([mk()], d).length) fail('daily-tasks: an OPEN task counted as already done today');
+  if (T.earlierToday([mk({ closed: true })], d).length !== 1) fail('daily-tasks: work finished today is not listed as done today');
+  if (T.beforeToday([mk({ closed: true })], d).length) {
+    fail('daily-tasks: work finished TODAY was filed under BEFORE today - the heading would contradict the date on the card');
+  }
+
+  // ONE AT A TIME, refused with a SENTENCE rather than a silent no-op
+  const blocked = T.canTake([mk()], d);
+  if (blocked.ok) fail('daily-tasks: a second task was allowed while one was live - that is a second to-do list');
+  if (!/finish|set it down|already/i.test(blocked.reason || '')) {
+    fail('daily-tasks: the refusal is not a sentence a person could read - "' + blocked.reason + '"');
+  }
+  if (!T.canTake([mk()], tm).ok) fail('daily-tasks: could not take a task the day after');
+  if (!T.canTake([], d).ok) fail('daily-tasks: could not take the first task at all');
+
+  if (T.stepsDone(mk()) !== 1) fail('daily-tasks: stepsDone miscounted');
+  if (T.allDone(mk())) fail('daily-tasks: allDone true with a step outstanding');
+  if (!T.allDone({ steps: [{ done: true }] })) fail('daily-tasks: allDone false when everything is ticked');
+  if (T.allDone({ steps: [] })) fail('daily-tasks: an empty task counted as finished');
+
+  /* CLOSING OUT, and BOTH HALVES. A record that lists only failures is the
+     guilt inventory the-day.js exists to prevent; one that lists only wins is
+     a lie. Two of four done is a day you did two things. */
+  const one = T.closeOut([mk()], tm);
+  if (one.entries.length !== 1) fail('daily-tasks: yesterday was not written into the log');
+  const e = one.entries[0];
+  if (e.dayKey !== d) fail('daily-tasks: the record landed on the wrong day - ' + e.dayKey);
+  if (!/1 of 2 done/.test(e.entry.text)) fail('daily-tasks: the record does not say what was DONE - "' + e.entry.text + '"');
+  if (!/1 left/.test(e.entry.text)) fail('daily-tasks: the record does not say what was LEFT - "' + e.entry.text + '"');
+  if (e.entry.kind !== 'task') fail('daily-tasks: the record is not in the day-log bullet-journal shape');
+  if (e.entry.done) fail('daily-tasks: an unfinished day was recorded as done');
+  if (/overdue|late|fail/i.test(e.entry.text)) {
+    fail('daily-tasks: the record scolds - "' + e.entry.text + '". The date is a framing device, not a stick.');
+  }
+  const whole = T.closeOut([mk({ steps: [{ done: true }, { done: true }] })], tm);
+  if (!whole.entries[0].entry.done) fail('daily-tasks: a fully finished day was not recorded as done');
+
+  /* IDEMPOTENT. Opening the app twice on Tuesday must not write Monday twice.
+     The first sabotage case, and the one most likely to rot. */
+  const again = T.closeOut(one.tasks, tm);
+  if (again.entries.length) fail('daily-tasks: CLOSING OUT TWICE WROTE THE DAY TWICE - open the app twice and your log doubles');
+  if (again.changed) fail('daily-tasks: the second close-out reported a change it did not make');
+  if (!one.tasks[0].closed) fail('daily-tasks: close-out did not mark the task closed, so nothing stops it re-running');
+  if (T.closeOut([mk()], d).entries.length) fail('daily-tasks: TODAY was closed out - the day is not over');
+  if (T.closeOut(null, d).entries.length) fail('daily-tasks: closeOut threw on nothing');
+
+  // THE STREAK - days in a row, from lastDone alone
+  const first = T.streakAfter({}, d);
+  if (first.streak !== 1 || first.done !== 1) fail('daily-tasks: the first finish did not start a streak');
+  const run = T.streakAfter({ done: 1, streak: 1, best: 1, lastDone: y }, d);
+  if (run.streak !== 2 || run.best !== 2) fail('daily-tasks: a consecutive day did not extend the streak');
+  const broke = T.streakAfter({ done: 5, streak: 5, best: 5, lastDone: '2026-08-01' }, d);
+  if (broke.streak !== 1) fail('daily-tasks: a gap did not reset the streak');
+  if (broke.best !== 5) fail('daily-tasks: a broken streak lost the personal best');
+  /* FINISHING TWICE IN ONE DAY IS NOT TWO DAYS - the difference between a
+     streak and a score, and the second sabotage case. */
+  const twice = T.streakAfter({ done: 3, streak: 3, best: 3, lastDone: d }, d);
+  if (twice.streak !== 3 || twice.done !== 3) {
+    fail('daily-tasks: finishing twice in one day counted twice - ' + JSON.stringify(twice));
+  }
+  if (T.daysApart('nonsense', d) !== null) fail('daily-tasks: daysApart did not reject an unreadable date');
+
+  /* EVERY DOOR A STEP CAN NAME MUST EXIST — THE GUARD THAT WAS MISSING.
+
+     This is why the feature exists at all: `mission` sat in carrying.js
+     KINDS.places for a full day as a place NO SURFACE implemented, and npm
+     test had nothing to say, because it only ever checked the other direction
+     (a surface accepting a kind nothing offers). A step pointing at a door
+     nobody wired is the same dead drop, and this closes it.
+
+     The export set is re-derived here rather than shared: every block in this
+     file is self-contained on purpose, so one block's refactor cannot silently
+     disarm another's. */
+  const ovSrc = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const winBlock = ovSrc.slice(ovSrc.lastIndexOf('Object.assign(window'));
+  const noComments = winBlock.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+  const exportedNames = new Set(noComments.match(/[A-Za-z_$][\w$]*/g) || []);
+  for (const m of ovSrc.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) exportedNames.add(m[1]);
+  if (exportedNames.size < 50) fail('daily-tasks: could not read the window export block - this guard is reporting on nothing');
+
+  for (const k of T.WHERE_KEYS) {
+    const w = T.STEP_WHERE[k];
+    if (!w.icon || !w.label) fail(`daily-tasks: step kind '${k}' has no icon or label - it cannot be shown`);
+    if (w.door && !exportedNames.has(w.door)) {
+      fail(`daily-tasks: step kind '${k}' points at '${w.door}()', which is NOT a window export. `
+         + `That step's button would silently do nothing - the dead drop this feature was born from.`);
+    }
+  }
+  if (!T.STEP_WHERE.world) fail('daily-tasks: the `world` step is gone - the Pavilion SUPPORTS a real study session, it does not replace one');
+  if (T.STEP_WHERE.world.door) fail('daily-tasks: `world` grew a door. Going to the library and wiring a circuit happen out there; a button would pretend otherwise.');
+  if (!T.STEP_DOORS.length) fail('daily-tasks: STEP_DOORS derived nothing');
+  if (T.STEP_DOORS.includes(null)) fail('daily-tasks: STEP_DOORS kept the doorless kind');
+  if (!/today/i.test(T.TASKS_NOTICE)) fail('daily-tasks: the notice does not explain the framing to the person it is for');
+  if (/overdue|late/i.test(T.TASKS_NOTICE)) fail('daily-tasks: the notice threatens. Nothing here is ever late.');
 }
 
 /* ---------- lookup: one road, and the line no resident crosses ----------
@@ -2434,6 +2966,116 @@ for (const d of SEED_LIBRARY) {
   if (/const LOOKUP_STOP\s*=\s*new Set/.test(rsrc)) {
     fail('residents.js: still has its own LOOKUP_STOP - the lookup pathway must be shared, '
        + 'or a new plugin either re-implements it or goes without');
+  }
+}
+
+/* ---------- note reach: the one state an ASK cannot cross ----------
+   Set 2026-08-08: "we should be able to toggle are notes between private and
+   publid and we should also add something like ai can read and private is
+   truly private."
+
+   lookup.js moved the line from WHO to WHY on 2026-08-07 (asked: yes, unasked:
+   no). This puts a per-note boundary OUTSIDE that one, so a visitor can say
+   "not this one, ever" about a single note without turning the feature off.
+
+   The default is what makes it safe to ship: ABSENT MEANS ASKABLE, which is
+   exactly the rule that already held, so nothing already written changes reach
+   the day it lands. Hundreds of existing notes, no migration. */
+{
+  const R = await import('../src/game/data/note-reach.js');
+  const L = await import('../src/game/data/lookup.js');
+
+  // the default, and the reason there is no migration
+  if (R.DEFAULT_REACH !== 'askable') fail('note-reach: the default is not askable - every existing note just changed reach');
+  if (R.reachOf({}, 'n1') !== 'askable') fail('note-reach: an untouched note is not askable');
+  if (R.reachOf(undefined, 'n1') !== 'askable') fail('note-reach: threw on an absent map');
+  if (R.reachOf({ n1: '' }, 'n1') !== 'askable') fail('note-reach: an empty string should read as the default');
+
+  // ...but a value we cannot READ fails closed, which is not the same thing
+  if (R.reachOf({ n1: 'kinda-private' }, 'n1') !== 'sealed') {
+    fail('note-reach: an UNRECOGNISED permission fell back to the default - an unreadable '
+       + 'permission must withhold, not permit. Absence is a statement; a strange string is not.');
+  }
+
+  // THE BOUNDARY ITSELF
+  if (R.mayReach('sealed', { asked: true })) fail('note-reach: A SEALED NOTE WAS REACHABLE BY ASKING. That is the entire point of the state.');
+  if (R.mayReach('sealed', {})) fail('note-reach: a sealed note was reachable unasked');
+  if (R.mayReach('askable', {})) fail('note-reach: an askable note was read WITHOUT being asked for');
+  if (!R.mayReach('askable', { asked: true })) fail('note-reach: the visitor asked and an askable note was still withheld');
+  if (!R.mayReach('published', {})) fail('note-reach: a published note should behave like a book');
+  if (R.mayReach(undefined, { asked: true })) fail('note-reach: an undefined state was treated as permission');
+
+  // setting it is pure, and going back to the default REMOVES the entry
+  const m1 = R.setReach({}, 'n1', 'sealed');
+  if (m1.n1 !== 'sealed') fail('note-reach: setReach did not seal');
+  if (R.setReach(m1, 'n1', 'askable').n1 !== undefined) {
+    fail('note-reach: setting a note back to the default RECORDED it - two representations of '
+       + 'the default is two things that can disagree');
+  }
+  if (Object.keys(R.setReach({}, 'n1', 'nonsense')).length) fail('note-reach: an invalid state was stored');
+  if (R.setReach({ n1: 'sealed' }, 'n2', 'sealed').n1 !== 'sealed') fail('note-reach: setReach lost an unrelated entry');
+  const before = { n1: 'sealed' };
+  R.setReach(before, 'n1', 'askable');
+  if (before.n1 !== 'sealed') fail('note-reach: setReach MUTATED the map it was given - it must be pure');
+  if (R.sealedCount({ a: 'sealed', b: 'published', c: 'sealed' }) !== 2) fail('note-reach: sealedCount is wrong');
+
+  // both halves come back, because the bag has to SHOW what it is withholding
+  const part = R.partitionByReach(
+    [{ key: 'open' }, { key: 'shut' }], { shut: 'sealed' }, { asked: true });
+  if (part.seen.length !== 1 || part.seen[0].note.key !== 'open') fail('note-reach: partition kept the wrong note');
+  if (part.withheld.length !== 1 || part.withheld[0].reach !== 'sealed') {
+    fail('note-reach: partition dropped the withheld note instead of reporting it - a bag that '
+       + 'silently hides what it holds is not a boundary anyone can read');
+  }
+
+  /* AND NOW THE JOIN, which is where this could quietly stop working.
+     lookup.js composes note-reach rather than copying it; if that composition
+     is broken, every test above still passes and a sealed note goes to a
+     model. This is the assertion to break on purpose. */
+  const sealed = { SEALED: 'sealed' };
+  const asked = { searchMyNotes: true, noteReach: sealed };
+  const leak = L.privacyLeaks([{ kind: 'note', ref: 'SEALED' }], [], asked);
+  if (leak.length !== 1) {
+    fail('lookup: A SEALED NOTE REACHED THE MODEL BECAUSE THE VISITOR ASKED. Sealed outranks '
+       + 'asked - that is the whole difference between this state and askable.');
+  }
+  // ...and carrying it in is not a way around the seal either
+  const heldSealed = [{ kind: 'note', ref: 'SEALED', label: 'x' }];
+  if (!L.privacyLeaks([{ kind: 'note', ref: 'SEALED' }], heldSealed, { noteReach: sealed }).length) {
+    fail('lookup: putting a SEALED note in the backpack let it through. "Truly private" would '
+       + 'mean very little if dropping it in the bag were the way around it.');
+  }
+  // an askable note still behaves exactly as it did before any of this existed
+  if (L.privacyLeaks([{ kind: 'note', ref: 'n9' }], [], { searchMyNotes: true, noteReach: sealed }).length) {
+    fail('lookup: an ordinary askable note stopped being reachable when the seal was added');
+  }
+  // the plan filters the bag, and SAYS what it held back
+  const plan = L.groundingPlan('impermanence', heldSealed, { searchMyNotes: true, noteReach: sealed });
+  if (plan.carried.length) fail('lookup: the grounding plan handed over a sealed note from the backpack');
+  if (plan.sealed.length !== 1) fail('lookup: the plan dropped the sealed note silently instead of reporting it');
+  // with no map at all, nothing changes - this must not break an ordinary save
+  if (L.groundingPlan('impermanence', heldSealed, { searchMyNotes: true }).carried.length !== 1) {
+    fail('lookup: with no noteReach map, a carried note stopped reaching the resident');
+  }
+
+  // the visitor is told, in the interface, not only in a prompt
+  if (!/ask/i.test(R.REACH_NOTICE) || !/seal/i.test(R.REACH_NOTICE)) {
+    fail('note-reach: the notice does not explain the rule to the person it protects');
+  }
+  for (const k of R.REACH_KEYS) {
+    if (!R.REACH_STATES[k].icon || !R.REACH_STATES[k].label || !R.REACH_STATES[k].help) {
+      fail('note-reach: state ' + k + ' has no icon, label or help - it cannot be shown or explained');
+    }
+  }
+
+  /* TWO AXES, NOT ONE. visibility.js answers "can this leave the machine";
+     this answers "may a local model see it". A note can be private in every
+     sense and still be one you are glad to hand your own resident. If these
+     ever merge, sealing a note starts to look like unpublishing it. */
+  const V = await import('../src/game/data/visibility.js');
+  for (const k of R.REACH_KEYS) {
+    if (V.VIS[k]) fail('note-reach: state "' + k + '" collides with a visibility.js state - '
+       + 'these are two different questions and must not share a vocabulary');
   }
 }
 
@@ -2584,6 +3226,838 @@ for (const d of SEED_LIBRARY) {
     }
     if (!/readingPos/.test(entSrc2)) {
       fail('Your Data says where you are in a book is kept, but readingPos is not in the save');
+    }
+  }
+}
+
+/* ---------- TWO GROUNDS - the road, the doors, and what you can walk to ----
+
+   2026-08-10. The Workshop, the Cafe, the Inheritance Hall and the pond moved
+   to a second Grounds. Three things could go silently wrong in a move like
+   that, and all three are the same failure the Lab taught: something exists
+   and cannot be got to.
+
+   ONE - A DOOR PAINTED ON THE WRONG WALL. render.js placed doorways from
+   THREE HARD-CODED TILE COLUMNS of the original Grounds, keyed off building
+   TYPE: `b.type==='library'?7:b.type==='cafe'?24:31`. Correct only for as
+   long as nothing ever moved. Every building carries its own `door` now.
+
+   TWO - A ONE-WAY ROAD. A warp out with no warp back is a room you can enter
+   and not leave, and nothing checked it.
+
+   THREE - A TILE YOU CANNOT REACH ON FOOT. Warp sanity has always checked
+   that a warp LANDS somewhere sensible; nothing checked you could ever WALK
+   to the warp in the first place. A second Grounds is exactly where a road
+   forgets to join up, and the wall of trees around it makes that invisible
+   from the code. So: flood-fill from the spawn and require every warp, every
+   station, every sign and every resident to be standing somewhere a person
+   can actually get to. Break it on purpose by walling off the east gate. */
+{
+  const walkable = (sc, x, y) =>
+    x >= 0 && y >= 0 && x < sc.w && y < sc.h && !SOLID.has(sc.tiles[y][x]);
+
+  /* AND render.js HAS TO ACTUALLY USE IT. Requiring every building to carry a
+     `door` proves nothing if the drawing code still ignores the field and
+     paints from its own remembered coordinates — the data would be correct
+     and the picture still wrong. Caught by breaking it on purpose: reverting
+     render.js to the hard-coded columns left this whole block green. */
+  {
+    const rSrc = readFileSync(new URL('../src/game/render.js', import.meta.url), 'utf8');
+    const rCode = rSrc.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    /* EVERY doorX, not the first one. This guard was BORN DEAD and breaking
+       it on purpose is the only reason that is known: render.js declares
+       doorX TWICE — once in the Inheritance Hall's archway branch, which
+       already read b.door and was always right, and once in the general
+       building branch, which was the broken one. `.find()` returned the
+       correct line, the check passed, and the wrong line sat underneath it.
+       A guard that inspects "the" occurrence of anything is one duplicate
+       away from being decorative. */
+    const doorLines = rCode.split('\n').map(l => l.trim()).filter(l => /const\s+doorX\s*=/.test(l));
+    if (!doorLines.length) fail('scenes: could not find doorX in render.js - this guard has drifted');
+    if (doorLines.length < 2) {
+      fail('scenes: found ' + doorLines.length + ' doorX declaration(s) in render.js, expected 2 '
+         + '(the archway branch and the general building branch). If one was removed this guard '
+         + 'may now be watching only half of what draws a door.');
+    }
+    for (const line of doorLines) {
+      if (!/b\.door/.test(line)) {
+        fail('render.js draws building doorways without reading b.door: ' + line
+           + ' — the doorway is being placed from something other than the building itself, which '
+           + 'is how three absolute tile columns of the old Grounds ended up baked into the renderer');
+      }
+      if (/b\.type\s*===/.test(line)) {
+        fail('render.js is placing doorways by building TYPE again: ' + line
+           + ' — that is exactly the line that would have painted the Cafe’s door onto blank wall '
+           + 'the moment it moved to a second Grounds');
+      }
+    }
+  }
+
+  for (const [key, sc] of Object.entries(scenes)) {
+    /* --- the doorway is on the building's own wall --- */
+    for (const b of sc.buildings || []) {
+      if (b.door === undefined) {
+        fail(`${key}: building '${b.label}' has no 'door' column. render.js used to guess it from `
+           + `the building TYPE and three absolute tile numbers of the old Grounds - a building that `
+           + `moves would have its doorway painted onto blank wall.`);
+        continue;
+      }
+      if (b.door < b.x || b.door + 1 > b.x + b.w) {
+        fail(`${key}: building '${b.label}' has door column ${b.door}, outside its own footprint `
+           + `(x ${b.x}..${b.x + b.w - 1}) - the doorway would be drawn off the building`);
+      }
+      const bottom = b.y + b.h - 1;
+      const hasWarp = (sc.warps || []).some(w =>
+        (w.x === b.door || w.x === b.door + 1) && (w.y === bottom || w.y === bottom + 1));
+      if (!hasWarp) {
+        fail(`${key}: building '${b.label}' draws a doorway at column ${b.door} but no warp stands `
+           + `there - a painted door onto nothing, which is the staircase-that-was-only-a-sign bug`);
+      }
+    }
+
+    /* --- you can walk to everything in this room --- */
+    const seen = new Set();
+    const stack = [[sc.spawn.x, sc.spawn.y]];
+    if (walkable(sc, sc.spawn.x, sc.spawn.y)) seen.add(sc.spawn.x + ',' + sc.spawn.y);
+    else stack.length = 0;
+    while (stack.length) {
+      const [x, y] = stack.pop();
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy, k = nx + ',' + ny;
+        if (seen.has(k) || !walkable(sc, nx, ny)) continue;
+        seen.add(k); stack.push([nx, ny]);
+      }
+    }
+    if (seen.size < 4) fail(`${key}: the flood fill from spawn reached ${seen.size} tiles - this `
+      + `check is reporting on nothing and everything below it is meaningless`);
+
+    for (const w of sc.warps || []) {
+      if (!seen.has(w.x + ',' + w.y)) {
+        fail(`${key}: the warp at (${w.x},${w.y}) -> '${w.to}' cannot be WALKED to from the spawn. `
+           + `It lands somewhere fine; nobody can ever stand on it. Built and unreachable is the `
+           + `same as unbuilt.`);
+      }
+      /* A DOOR MUST NOT PUT YOU ON ANOTHER DOOR. Landing on a warp tile makes
+         the two rooms a revolving door: your next step in any direction sends
+         you straight back, and the room you meant to enter is unenterable.
+         Exact geometry, so it is checked here rather than nudged at in a live
+         suite — the walking version of this check failed on its own footwork
+         and blamed the road. */
+      const dest = scenes[w.to];
+      if (dest && (dest.warps || []).some(v => v.x === w.sx && v.y === w.sy)) {
+        fail(`${key}: the warp at (${w.x},${w.y}) drops you onto ANOTHER warp at (${w.sx},${w.sy}) `
+           + `in '${w.to}' - one step in any direction and you are bounced straight back out`);
+      }
+    }
+    /* You interact by FACING a thing from beside it, so what has to be
+       reachable is a neighbouring tile, not the thing's own square. */
+    const besideIsReachable = (x, y) =>
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has((x + dx) + ',' + (y + dy)));
+    for (const st of sc.stations || []) {
+      if (!besideIsReachable(st.x, st.y)) {
+        fail(`${key}: nobody can stand next to '${st.name}' at (${st.x},${st.y}) - a station you `
+           + `cannot face is a station you cannot press E at`);
+      }
+    }
+    for (const sg of sc.signs || []) {
+      if (!besideIsReachable(sg.x, sg.y)) fail(`${key}: the sign '${sg.name}' at (${sg.x},${sg.y}) cannot be read from any reachable tile`);
+    }
+    for (const n of sc.npcs || []) {
+      if (!besideIsReachable(n.x, n.y)) fail(`${key}: '${n.name || n.species}' at (${n.x},${n.y}) stands where nobody can reach them`);
+    }
+  }
+
+  /* --- THE ROAD RUNS BOTH WAYS, AND EVERY ROOM IS ON IT ---
+     Two Grounds is the first time this world has had a component that could
+     come adrift. A scene you can walk into and not out of is a trap; a scene
+     no walk reaches at all is the Lab again, one level up. */
+  const start = 'overworld';
+  const out = new Map(Object.keys(scenes).map(k => [k, new Set()]));
+  for (const [k, sc] of Object.entries(scenes)) {
+    for (const w of sc.warps || []) if (!w.locked && scenes[w.to]) out.get(k).add(w.to);
+  }
+  const reach = (from, edges) => {
+    const s = new Set([from]), q = [from];
+    while (q.length) for (const n of edges.get(q.pop()) || []) if (!s.has(n)) { s.add(n); q.push(n); }
+    return s;
+  };
+  const forward = reach(start, out);
+  for (const k of Object.keys(scenes)) {
+    if (!forward.has(k)) fail(`scenes: '${k}' (${scenes[k].name}) cannot be WALKED to from the `
+      + `Pavilion Grounds at all. The pause menu may open what is inside it; the room itself is cut off.`);
+  }
+  const back = new Map(Object.keys(scenes).map(k => [k, new Set()]));
+  for (const [k, tos] of out) for (const to of tos) back.get(to).add(k);
+  const backward = reach(start, back);
+  for (const k of Object.keys(scenes)) {
+    if (!backward.has(k)) fail(`scenes: you can walk INTO '${k}' (${scenes[k].name}) and never walk `
+      + `back out to the Grounds - a one-way road is a trap`);
+  }
+}
+
+/* ---------- ONE KEYSTROKE TO ANYWHERE - every room has a door ----------
+
+   The standing decision, verbatim:
+
+     "nothing may be a dead end ... ONE KEYSTROKE TO ANYWHERE beats a
+      beautiful room you must walk to (built and unreachable is the same as
+      unbuilt - learned with the Lab)."
+
+   MEASURED 2026-08-10: the pause menu reached ~25 panels and named NOT ONE
+   ROOM. Eleven exported room openers appeared in it nowhere, and a twelfth,
+   openArchive(), was on no window at all - no click anywhere in the whole
+   application could open the Archive Desk, only main.js's E key.
+
+   THE POINT OF THIS BLOCK IS THE DIRECTION THAT HAS NEVER BEEN CHECKED HERE.
+   The existing inline-handler guard runs handlers -> exports. The carrying
+   guard ran kinds -> places and MISSED a `mission` place that no surface
+   implemented, for weeks, because it never ran places -> kinds. So this one
+   runs BOTH: a station in the world with no menu entry fails, and a menu
+   entry naming a station that is not in the world fails. A room can never
+   again be built and left unreachable, and a door can never point at nothing.
+
+   Break it on purpose: add a station kind to any scene in scenes.js. */
+{
+  const P = await import('../src/game/data/places.js');
+  const ovSrcP = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+
+  /* WHAT THE WORLD ACTUALLY HAS - read from scenes.js, never listed here. */
+  const inWorld = new Map();   // station kind -> Set of scene keys it stands in
+  for (const [key, sc] of Object.entries(scenes)) {
+    for (const st of (sc.stations || [])) {
+      if (!inWorld.has(st.kind)) inWorld.set(st.kind, new Set());
+      inWorld.get(st.kind).add(key);
+    }
+  }
+  if (inWorld.size < 10) {
+    fail('places: read only ' + inWorld.size + ' station kinds out of scenes.js - this guard is '
+       + 'reporting on nothing and every assertion below it is meaningless');
+  }
+
+  /* 1 - WORLD -> MENU. Every station a visitor can walk up to is either a
+     place with a door, or is named in NOT_A_PLACE with the reason said out
+     loud. This is the half that makes "built and unreachable" impossible. */
+  const claimed = new Set(P.PLACE_KEYS.map(k => P.PLACES[k].station).filter(Boolean));
+  for (const [kind, where] of inWorld) {
+    if (claimed.has(kind)) continue;
+    if (!(kind in P.NOT_A_PLACE)) {
+      fail(`places: the '${kind}' station stands in ${[...where].join(', ')} and has NO menu door `
+         + `and no entry in NOT_A_PLACE. A room reachable only by walking to it is the Lab's bug: `
+         + `built and unreachable is the same as unbuilt. Give it a door, or say why it has none.`);
+    } else if (!String(P.NOT_A_PLACE[kind] || '').trim()) {
+      fail(`places: '${kind}' is in NOT_A_PLACE with an empty reason - rule 6 wants the reason said, `
+         + `not the entry ticked`);
+    }
+  }
+
+  /* 2 - MENU -> WORLD. The direction the carrying guard was missing. An entry
+     naming a station that is not in that scene is a door onto nothing, and
+     the whole point of deriving is that it cannot survive a move. */
+  for (const k of P.PLACE_KEYS) {
+    const p = P.PLACES[k];
+    if (!p.icon || !p.label) fail(`places: '${k}' has no icon or label - it cannot be shown in a menu`);
+    if (!p.scene) fail(`places: '${k}' names no scene - it would file under no room at all`);
+    else if (!scenes[p.scene]) fail(`places: '${k}' files under scene '${p.scene}', which does not exist`);
+    if (p.station) {
+      if (!inWorld.has(p.station)) {
+        fail(`places: '${k}' points at a '${p.station}' station that exists in NO scene - a door onto nothing`);
+      } else if (!inWorld.get(p.station).has(p.scene)) {
+        fail(`places: '${k}' says the '${p.station}' station is in ${p.scene}, but it actually stands in `
+           + `${[...inWorld.get(p.station)].join(', ')}. Moving a room must move its menu entry with it.`);
+      }
+    } else if (!String(p.note || '').trim()) {
+      /* A panel with no furniture has to say where it really is, or nobody
+         can find it in the world and the menu is the only way in - which is
+         the same dead end pointing the other way. */
+      fail(`places: '${k}' has no station and no note saying where it really is`);
+    }
+  }
+
+  /* 3 - EVERY DOOR IS REALLY ON WINDOW. A menu button calls through window at
+     click time; an unexported name is a button that silently does nothing,
+     which is this project's oldest gotcha AND the house failure mode. This is
+     what would have caught openArchive() before it was listed. */
+  const winBlockP = ovSrcP.slice(ovSrcP.lastIndexOf('Object.assign(window'));
+  const namesP = new Set(winBlockP.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+    .match(/[A-Za-z_$][\w$]*/g) || []);
+  for (const m of ovSrcP.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) namesP.add(m[1]);
+  if (namesP.size < 50) fail('places: could not read the window export block - this guard is reporting on nothing');
+  for (const door of P.placeDoors()) {
+    if (!door) fail('places: an entry has no door at all');
+    else if (!namesP.has(door)) {
+      fail(`places: the menu lists a room whose door is '${door}()', which is NOT a window export - `
+         + `that button silently does nothing`);
+    }
+  }
+
+  /* 4 - EVERY SCENE IS ACCOUNTED FOR. A whole ROOM added with no places in it
+     is the same failure one level up: the Lab's floor said "nothing open
+     here" for months. Either it has places, or it says why it has none. */
+  for (const key of Object.keys(scenes)) {
+    const listed = P.SCENE_ORDER.includes(key);
+    const excused = key in P.SCENE_WITHOUT_PLACES;
+    if (!listed && !excused) {
+      fail(`places: the scene '${key}' (${scenes[key].name}) is in neither SCENE_ORDER nor `
+         + `SCENE_WITHOUT_PLACES - a whole room with no keystroke to anything in it, and nothing said about it`);
+    }
+    if (listed && excused) fail(`places: '${key}' is both listed and excused - which is it?`);
+    if (excused && !String(P.SCENE_WITHOUT_PLACES[key] || '').trim()) {
+      fail(`places: scene '${key}' is excused with an empty reason`);
+    }
+  }
+  for (const key of P.SCENE_ORDER) {
+    if (!scenes[key]) fail(`places: SCENE_ORDER names '${key}', which is not a scene`);
+    if (!P.PLACE_KEYS.some(k => P.PLACES[k].scene === key)) {
+      fail(`places: SCENE_ORDER lists '${key}' but no place files under it - an empty heading`);
+    }
+  }
+
+  /* 5 - AND THE MENU REALLY RENDERS IT. Everything above can be perfect in a
+     table nobody reads: exactly the state groundingFor() was in for a whole
+     day. placesByScene() must be composed into the menu itself. */
+  const bodyP = (src, name) => {
+    const at = src.search(new RegExp('function\\s+' + name + '\\s*\\('));
+    if (at < 0) return '';
+    let i = src.indexOf('{', at), depth = 0;
+    for (let j = i; j < src.length; j++) {
+      if (src[j] === '{') depth++;
+      else if (src[j] === '}') { depth--; if (!depth) return src.slice(i, j + 1); }
+    }
+    return '';
+  };
+  const stripP = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const menuBody = stripP(bodyP(ovSrcP, 'renderMenu'));
+  const secBody = stripP(bodyP(ovSrcP, 'placesSections'));
+  if (!menuBody || !secBody) fail('places: could not find renderMenu/placesSections in overlays.js - this guard has drifted');
+  if (!/placesSections\s*\(\s*\)/.test(menuBody)) {
+    fail('THE MENU DOES NOT LIST THE ROOMS. renderMenu() does not compose placesSections() - '
+       + 'the whole table is inert, which is the inert-pure-function bug again.');
+  }
+  if (!/placesByScene\s*\(/.test(secBody)) {
+    fail('placesSections() does not call placesByScene() - the menu is listing rooms from '
+       + 'somewhere other than the one table, which is rule 4 all over again');
+  }
+
+  /* 6 - A DIALOG IS WORLD-LEVEL AND CLOSES THE PANEL OVER IT.
+
+     Four rooms in this table - the Hearth, the Counter, the Notice Board and
+     the Residents' Board - are scripted beats rather than workspaces: they
+     open the world's dialog box, not an overlay. The first time the menu
+     could reach them, all four appeared to do NOTHING. The dialog really
+     opened, underneath a full-screen overlay that stayed up, and because
+     state.ui was still 'menu' onAction() returned early, so E could not even
+     advance the thing that could not be seen.
+
+     Every caller of openDialog is world-level, so the fix belongs in
+     openDialog itself and it must stay there. */
+  const dlgBody = stripP(bodyP(ovSrcP, 'openDialog'));
+  if (!dlgBody) fail('places: could not find openDialog in overlays.js - this guard has drifted');
+  if (!/hideAllOv\s*\(/.test(dlgBody) || !/state\.ui\s*=\s*null/.test(dlgBody)) {
+    fail('openDialog() no longer clears the panel above it. A scripted room opened from the pause '
+       + 'menu would show its dialog UNDERNEATH the menu, with state.ui still set so E cannot '
+       + 'advance it - four menu buttons that silently do nothing.');
+  }
+  for (const k of P.PLACE_KEYS) {
+    if (!P.PLACES[k].dialog) continue;
+    const b = stripP(bodyP(ovSrcP, P.PLACES[k].door));
+    if (!b) fail(`places: '${k}' is marked dialog:true but ${P.PLACES[k].door}() is not in overlays.js`);
+    else if (!/openDialog\s*\(|comingCommons\s*\(/.test(b)) {
+      fail(`places: '${k}' is marked dialog:true but ${P.PLACES[k].door}() opens no dialog - `
+         + `the live suite is checking the wrong thing for it, and would pass either way`);
+    }
+  }
+
+  /* 7 - the rendered markup, checked once end to end. A room in the table
+     has to come out the other side as a button that calls its own door. */
+  const groups = P.placesByScene(scenes);
+  if (!groups.length) fail('places: placesByScene returned no groups');
+  const flat = groups.flatMap(g => g.items);
+  if (flat.length !== P.PLACE_KEYS.length) {
+    fail(`places: ${P.PLACE_KEYS.length} places went in and ${flat.length} came out of placesByScene - `
+       + `one is filed under a scene the order never visits`);
+  }
+  for (const g of groups) {
+    if (!g.name || g.name === '???') fail(`places: the '${g.scene}' heading came out as '${g.name}' - `
+      + `the scene it names has no name, so a whole group of rooms would show up unlabelled`);
+  }
+}
+
+/* ---------- THE ROOM THAT EXPLAINS DOCKER ----------
+   2026-08-10. There was NO in-game path to Docker at all — setup lived
+   only as terminal commands in PROTOCOLS.md, against the standing rule
+   "no terminal required, no config file". A capability nobody can find
+   is a capability nobody has.
+
+   The two properties that make this room safe rather than another way to
+   mislead someone: it must never pretend to DO the install, and it must
+   never imply the Pavilion is broken without it. The Pavilion being
+   complete with nothing installed is a release gate with its own tests. */
+{
+  const ovS = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const bodyS = (name) => {
+    const at = ovS.search(new RegExp('function\\s+' + name + '\\s*\\('));
+    if (at < 0) return '';
+    let i = ovS.indexOf('{', at), depth = 0;
+    for (let j = i; j < ovS.length; j++) {
+      if (ovS[j] === '{') depth++;
+      else if (ovS[j] === '}') { depth--; if (!depth) return ovS.slice(i, j + 1); }
+    }
+    return '';
+  };
+  const room = bodyS('renderStorage');
+  if (!room) fail('storage: could not find renderStorage() in overlays.js - this guard has drifted');
+  else {
+    /* NO FAKE INSTALL BUTTON. We cannot shell out to Docker, and a button
+       that appears to would be the worst dead end: one that looks like it
+       worked. Say the step, make it copyable, then detect the result. */
+    if (/onclick="[^"]*(installDocker|startDocker|runDocker|dockerUp)\s*\(/.test(room)) {
+      fail('storage: the room has a button that claims to start Docker. The app cannot shell out to '
+         + 'Docker — a button that pretends to is a dead end that LOOKS like it worked, which is worse '
+         + 'than no button. Say the step and make it copyable.');
+    }
+    /* The command has to be the real one, and copyable rather than typed —
+       a mistyped command is the commonest way setup fails for someone who
+       does not live in a terminal. */
+    if (!/docker compose up -d/.test(room)) fail('storage: the room no longer shows the real start command');
+    if (!/copyStorageCommand\s*\(/.test(room)) fail('storage: the command is not copyable - a mistyped command is the commonest setup failure');
+    if (!/docker compose stop/.test(room)) {
+      fail('storage: the room explains how to turn Docker ON and not how to turn it OFF — a door that '
+         + 'only opens one way is not a door someone will walk through');
+    }
+    /* IT MUST NOT READ AS A DEFECT. */
+    for (const word of ['broken', 'failed', 'error', 'misconfigured']) {
+      if (new RegExp('>[^<]*\\b' + word + '\\b', 'i').test(room)) {
+        fail(`storage: the room uses the word "${word}" in its copy. The Pavilion is COMPLETE without `
+           + 'Docker — that is a release gate with tests behind it — and this room is an offer, not a '
+           + 'diagnosis.');
+      }
+    }
+    /* All three ceilings, because a partial answer here is how someone
+       fills a browser tab with 5 MB of book and wonders why it stopped. */
+    for (const tier of [/10.20/, /hundreds/, /no practical limit/i]) {
+      if (!tier.test(room)) fail('storage: the room no longer states all three storage ceilings - ' + tier);
+    }
+    /* Read from REAL state, never a setting. */
+    if (!/storageSummary\s*\(/.test(room) || !/localRoom\s*\(/.test(room)) {
+      fail('storage: the room does not count where the books really are — a panel that says "Docker: on" '
+         + 'because a setting says so is how someone ends up staring at an empty shelf');
+    }
+  }
+  /* And it is REACHABLE. A room built and not listed is the Lab's bug, and
+     data/places.js exists because that happened eleven times at once. */
+  const menuBody = bodyS('renderMenu');
+  if (menuBody && !/openStorage\s*\(\s*\)/.test(menuBody)) {
+    fail('storage: the pause menu does not list the storage room — built and unreachable is the same as unbuilt');
+  }
+}
+
+/* ---------- THE COMPUTER'S COMMANDS AND ITS MANUAL ----------
+   2026-08-10. `help` lists the commands, termRun() implements them, and
+   MAN_PAGES documents them — THREE hand-maintained lists that must agree,
+   which is rule 4's exact shape and had no guard at all. `man <command>`
+   is itself a command, so a missing page is a dud answer in the one place
+   a person goes when they are already lost.
+
+   Derived from the `help` output, because that is the list a visitor is
+   actually shown; a command that works but is never listed is invisible,
+   and one that is listed but not implemented is a lie. */
+{
+  const ovT = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const { MAN_PAGES } = await import('../src/game/data/man-pages.js');
+
+  const helpAt = ovT.indexOf("if(c==='help') return [");
+  if (helpAt < 0) fail("smoke: could not find the Computer's help block - this guard is reporting on nothing");
+  else {
+    const helpBlock = ovT.slice(helpAt, ovT.indexOf('];', helpAt));
+    /* "  ls                 everything on your own shelves" -> ls */
+    const listed = [...helpBlock.matchAll(/'\s{2}([a-z]+)[\s<\[]/g)].map(m => m[1]);
+    const uniq = [...new Set(listed)];
+    if (uniq.length < 8) fail(`smoke: read only ${uniq.length} commands out of the help block - the parse has drifted`);
+
+    for (const cmd of uniq) {
+      if (cmd === 'help') continue;                 // help is not a man page subject
+      if (!MAN_PAGES[cmd]) {
+        fail(`the Computer lists '${cmd}' in help but MAN_PAGES has no page for it — 'man ${cmd}' is a `
+           + `dud answer in the one place someone goes when they are already lost`);
+      }
+      /* ...and it has to be IMPLEMENTED. A listed command that falls through
+         to "unknown command" is the silent-failure house rule in a terminal. */
+      if (!new RegExp("c\\s*===\\s*'" + cmd + "'").test(ovT)) {
+        fail(`the Computer lists '${cmd}' in help but termRun() never handles it — the command is `
+           + `advertised and does nothing`);
+      }
+    }
+    /* The other direction: a page for a command nobody can run. */
+    for (const cmd of Object.keys(MAN_PAGES)) {
+      if (cmd === 'man') continue;
+      if (!uniq.includes(cmd)) {
+        fail(`MAN_PAGES documents '${cmd}' but the Computer's help never lists it — a command a visitor `
+           + `cannot discover is one that does not exist for them`);
+      }
+    }
+  }
+  for (const [cmd, page] of Object.entries(MAN_PAGES)) {
+    for (const field of ['use', 'what', 'more', 'real']) {
+      if (!String(page[field] || '').trim()) fail(`man-pages: '${cmd}' has no '${field}'`);
+    }
+  }
+}
+
+/* ---------- A LOCAL FILE IS A HOME THE DATABASE KNOWS ABOUT ----------
+   Migration 005, 2026-08-10. `text_key` only ever meant "the MinIO
+   object", so a book whose text was written to userData/library — the
+   fallback whenever the container is not answering — had NO pointer in
+   the database at all. 89 of 415 rows looked like books owned on paper
+   while 59 real .txt files sat on disk, and the only record of which
+   file belonged to which book lived in localStorage.
+
+   A column nothing writes and nothing reads is worse than no column, so
+   this holds all four ends: the migration exists, the SELECT returns it,
+   the UPSERT carries it, and the app both sends and reads it. */
+{
+  const mig = readFileSync(new URL('../tools/migrations/005-local-text.sql', import.meta.url), 'utf8');
+  if (!/ADD COLUMN IF NOT EXISTS local_file/.test(mig)) {
+    fail('migration 005 no longer adds books.local_file');
+  }
+  if (!/IF NOT EXISTS/.test(mig)) {
+    fail('migration 005 is not idempotent — applySchema() runs every migration on BOTH homes on EVERY open');
+  }
+  const dbSrc = readFileSync(new URL('../electron/db.cjs', import.meta.url), 'utf8');
+  /* Slice to the END OF THE TEMPLATE LITERAL, not a fixed character count.
+     900 chars stopped short of `local_file = COALESCE(...)` once a comment
+     was added inside the query and reported a fix that was right there — a
+     guard that measures a window instead of the thing is one edit from
+     lying in either direction. */
+  const q = (name) => {
+    const at = dbSrc.indexOf(name + ': `');
+    if (at < 0) return '';
+    const start = dbSrc.indexOf('`', at);
+    const end = dbSrc.indexOf('`', start + 1);
+    return end < 0 ? dbSrc.slice(start) : dbSrc.slice(start, end);
+  };
+  if (!/local_file/.test(q('catalogue'))) {
+    fail("the 'catalogue' query does not SELECT local_file — every locally-stored book would hydrate "
+       + 'as a card with no text behind it, which is what migration 005 exists to stop');
+  }
+  if (!/local_file/.test(q('upsertCard'))) {
+    fail("the 'upsertCard' query does not carry local_file — the column would never be written and "
+       + 'the database would stay blind to half the Library');
+  }
+  if (!/local_file\s*=\s*COALESCE\(EXCLUDED\.local_file, books\.local_file\)/.test(q('upsertCard'))) {
+    fail('upsertCard overwrites local_file instead of COALESCEing it — a save that knows only the '
+       + 'MinIO pointer would erase the local one, and a book can legitimately be in both homes');
+  }
+  /* ---- EVERY CALLER PASSES AS MANY PARAMETERS AS THE QUERY DECLARES ----
+
+     Migration 005 took upsertCard from 10 placeholders to 11, and one
+     caller in store.js plus four in docker-home.cjs still passed 10.
+     Postgres refuses the whole prepared statement ("bind message supplies
+     10 parameters, but prepared statement requires 11"), so chapter
+     syncing stopped entirely — twelve checks in docker-home.cjs went red
+     at once, and NOTHING in npm test noticed.
+
+     That is rule 4 in its purest form: a count in one file that must match
+     a count in five others. Derived here from the SQL itself, so the next
+     column cannot break every write in silence. */
+  const maxPlaceholder = (sql) => {
+    let n = 0;
+    for (const m of sql.matchAll(/\$(\d+)/g)) n = Math.max(n, Number(m[1]));
+    return n;
+  };
+  /* Count top-level elements of a literal array argument. Depth-aware and
+     quote-aware, because a title with a comma in it would otherwise read
+     as two parameters — the guard would then be wrong in the direction
+     that matters least loudly. */
+  const countArgs = (src, from) => {
+    const open = src.indexOf('[', from);
+    if (open < 0) return -1;
+    let depth = 0, n = 1, q = null;
+    for (let i = open; i < src.length; i++) {
+      const c = src[i];
+      if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
+      if (c === '"' || c === "'" || c === '`') { q = c; continue; }
+      if (c === '[' || c === '(' || c === '{') depth++;
+      else if (c === ']' || c === ')' || c === '}') { depth--; if (!depth) return n; }
+      else if (c === ',' && depth === 1) n++;
+    }
+    return -1;
+  };
+  {
+    const want = maxPlaceholder(q('upsertCard'));
+    if (want < 2) fail('smoke: could not read upsertCard placeholders - this guard is reporting on nothing');
+    const files = ['../src/game/data/store.js', '../test/live/docker-home.cjs'];
+    for (const rel of files) {
+      const text = readFileSync(new URL(rel, import.meta.url), 'utf8');
+      for (const m of text.matchAll(/upsertCard'\s*,/g)) {
+        const got = countArgs(text, m.index);
+        /* dbWriteMany passes an array OF arrays built elsewhere; only the
+           literal single-row calls can be counted here, and those are the
+           ones that broke. A -1 means no literal array followed. */
+        if (got > 0 && got !== want) {
+          fail(`${rel.replace('../', '')}: an upsertCard call passes ${got} parameters, but the query `
+             + `declares ${want}. Postgres rejects the whole prepared statement, so every write through `
+             + `it fails at once — this is exactly what migration 005 did on 2026-08-10.`);
+        }
+      }
+    }
+  }
+
+  const storeSrc = readFileSync(new URL('../src/game/data/store.js', import.meta.url), 'utf8');
+  const storeCode = storeSrc.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  if (!/r\.local_file/.test(storeCode)) {
+    fail('docFromRow() ignores local_file — a book stored on this machine comes back from the '
+       + 'database unopenable, which is the bug migration 005 was written for');
+  }
+  if (!/storage\.personal/.test(storeCode)) {
+    fail('store.js never sends storage.personal up — local books would stay invisible to the database');
+  }
+}
+
+/* ---------- NO BOOK IS GUARANTEED TO EXIST ANY MORE ----------
+   2026-08-10. Until today a hardcoded slug like `openReader('dhammapada')`
+   was safe, because twenty-seven books shipped in every build. The seed
+   shelf is gone: the Library now contains exactly what its owner brought
+   in, which on a fresh install is NOTHING.
+
+   So a literal book slug in the UI is a button that opens nothing — and
+   openReader() returns silently on a slug it cannot resolve, which makes it
+   the quiet kind. One was left behind by the deletion (the intake table's
+   "Read the full guide", pointing at `filling-your-shelves`) and this is
+   what found it.
+
+   Break it on purpose: put openReader('dhammapada') anywhere in ui/. */
+{
+  const uiDir2 = new URL('../src/game/ui/', import.meta.url);
+  for (const file of readdirSync(uiDir2).filter(f => f.endsWith('.js'))) {
+    const text = readFileSync(new URL(file, uiDir2), 'utf8');
+    const code = text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    for (const m of code.matchAll(/\bopen(?:Reader|FullText)\s*\(\s*'([a-z0-9][a-z0-9-]*)'/g)) {
+      fail(`ui/${file}: open…('${m[1]}') hardcodes a book slug. No book ships any more — the seed `
+         + `shelf was deleted 2026-08-10 — so on a fresh install that button opens NOTHING, silently. `
+         + `Point at a room the visitor can act in, or resolve a real slug at runtime.`);
+    }
+  }
+}
+
+/* ---------- WHERE A BOOK'S TEXT ACTUALLY LIVES ----------
+   2026-08-10. Three homes have existed for a text since the beginning and
+   the Library never said which one a book was in — there was one global
+   line ("Local Library storage connected") answering a question nobody
+   asked. Standing in front of a book that will not open, what a person
+   wants is where THIS one is kept.
+
+   The badge must be read off the BOOK, never off what happens to be
+   running: a book written to MinIO in June still says Docker in December
+   with the container stopped. Those are two true things and the badge
+   must not collapse them into one. */
+{
+  const B = await import('../src/game/data/book-storage.js');
+  const doc = (fullText) => ({ slug:'x', doc:{ fullText } });
+
+  if (B.storageOf(doc({ storage:{ bucket:'sand-pavilion-library', key:'a.txt' } })) !== 'docker') fail('book-storage: a MinIO pointer did not read as Docker');
+  if (B.storageOf(doc({ storage:{ personal:'personal-a.txt' } })) !== 'machine') fail('book-storage: a local file pointer did not read as this machine');
+  if (B.storageOf(doc({ text:'hello' })) !== 'save') fail('book-storage: an inline text did not read as in the save');
+  if (B.storageOf(doc(undefined)) !== 'summary') fail('book-storage: a card with no full text did not read as summary only');
+  if (B.storageOf(null) !== 'summary') fail('book-storage: threw on nothing');
+  if (B.storageOf({ doc:{} }) !== 'summary') fail('book-storage: threw on a doc with no fullText');
+  /* A fullText object naming NO home is a card claiming a text it cannot
+     point at. Rule 6: say "nothing here" rather than invent a home. */
+  if (B.storageOf(doc({ license:'CC0' })) !== 'summary') fail('book-storage: a pointerless fullText invented a home for itself');
+  if (B.storageOf(doc({ text:'' })) !== 'summary') fail('book-storage: an EMPTY inline text counted as a readable book');
+
+  /* MINIO IS THE ONLY ONE THAT NEEDS A SERVICE. A local file counting as
+     "needs MinIO" is a bug this codebase has already had — it put a storage
+     warning in front of people who had no container and needed none. */
+  if (!B.needsService(doc({ storage:{ bucket:'b', key:'k' } }))) fail('book-storage: a Docker book does not report needing the service');
+  if (B.needsService(doc({ storage:{ personal:'p.txt' } }))) fail('book-storage: a LOCAL FILE claims it needs MinIO running - that warning would be shown to people who need no container');
+  if (B.needsService(doc({ text:'hi' }))) fail('book-storage: an inline text claims it needs a service');
+
+  for (const k of B.STORAGE_KEYS) {
+    const s = B.STORAGE_STATES[k];
+    if (!s.icon || !s.label || !s.hint) fail(`book-storage: state '${k}' has no icon, label or hint - it cannot be shown`);
+  }
+
+  const shelf = [
+    doc({ storage:{ bucket:'b', key:'1' } }), doc({ storage:{ bucket:'b', key:'2' } }),
+    doc({ storage:{ personal:'a.txt' } }), doc({ text:'t' }), doc(undefined),
+  ];
+  const c = B.storageCounts(shelf);
+  if (c.docker !== 2 || c.machine !== 1 || c.save !== 1 || c.summary !== 1) {
+    fail('book-storage: storageCounts miscounted - ' + JSON.stringify(c));
+  }
+  if (B.storageCounts([]).docker !== 0) fail('book-storage: storageCounts threw on an empty shelf');
+  if (B.storageCounts(null).docker !== 0) fail('book-storage: storageCounts threw on nothing');
+  /* A home nothing is in must not be recited. "0 in Docker" on a machine
+     with no container is noise dressed as information. */
+  const sum = B.storageSummary([doc({ text:'t' })]);
+  if (/Docker/.test(sum)) fail('book-storage: the summary recited a home nothing is in - "' + sum + '"');
+  if (!/in the save/.test(sum)) fail('book-storage: the summary dropped the home the book IS in - "' + sum + '"');
+  if (B.storageSummary([]) !== '') fail('book-storage: an empty shelf produced a summary line');
+
+  /* ---- THE LOCAL CAP, AND THE WAY PAST IT ----
+     "there should be 2 pathways a local file that limmits to 100 books but
+     the docker setup should be the main path". A refusal that does not name
+     the way through is the silent failure this project keeps removing. */
+  if (B.LOCAL_BOOK_CAP !== 100) fail('book-storage: the local cap is no longer 100 - ' + B.LOCAL_BOOK_CAP);
+  const many = Array.from({ length: 100 }, (_, i) => doc({ storage:{ personal:i + '.txt' } }));
+  const room = B.localRoom(many);
+  if (!room.full || room.left !== 0) fail('book-storage: 100 local books did not fill the local shelf');
+  if (!B.localRoom(many.slice(0, 40)).left) fail('book-storage: a 40-book shelf reported no room left');
+  if (B.localRoom([]).used !== 0) fail('book-storage: localRoom threw on an empty shelf');
+  /* Books in Docker must not count against the LOCAL cap - they are not
+     on this machine's shelf at all, and counting them would refuse an
+     import for space it is not using. */
+  if (B.localRoom([doc({ storage:{ bucket:'b', key:'k' } })]).used !== 0) {
+    fail('book-storage: a book in Docker counted against the LOCAL 100-book cap');
+  }
+
+  const dockerNext = B.nextDestination(many, { hasDocker:true, hasFiles:true });
+  if (dockerNext.where !== 'docker') fail('book-storage: Docker is not the main path even when it is up');
+  if (dockerNext.full) fail('book-storage: a full LOCAL shelf blocked an import that was going to Docker');
+  const localNext = B.nextDestination(many.slice(0, 3), { hasDocker:false, hasFiles:true });
+  if (localNext.where !== 'machine' || !/3 of 100/.test(localNext.line)) {
+    fail('book-storage: the local destination does not say how much room is left - "' + localNext.line + '"');
+  }
+  const fullNext = B.nextDestination(many, { hasDocker:false, hasFiles:true });
+  if (fullNext.where) fail('book-storage: a full local shelf still claimed a destination');
+  if (!/Docker/.test(fullNext.line)) {
+    fail('THE REFUSAL DOES NOT NAME THE WAY THROUGH. A full local shelf must say that Docker '
+       + 'is how you get past it - a refusal with no next step is the dead end this project keeps removing.');
+  }
+  const browserNext = B.nextDestination([], { hasDocker:false, hasFiles:false });
+  if (browserNext.where !== 'save') fail('book-storage: a browser tab was not told its text goes into the save');
+
+  /* AND IT REACHES THE LIBRARY. All of the above can be perfect in a module
+     nobody renders - which is exactly where groundingFor() sat for a day. */
+  const ovS = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const codeS = ovS.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  if (!/storageBadge\s*\(/.test(codeS)) {
+    fail('book-storage: storageBadge() is never called in overlays.js - the badge exists and no '
+       + 'book wears it, which is the inert-pure-function bug again');
+  }
+  if (!/from '\.\.\/data\/book-storage\.js'/.test(ovS)) fail('book-storage: overlays.js does not import it');
+}
+
+/* ---------- NO DOCUMENT MAY CLAIM A SHIPPED BOOK COUNT THAT ISN'T TRUE ----------
+   2026-08-10, and this guard exists because the same wrong number was in FOUR
+   files at once. SEED_LIBRARY went to [] on 2026-08-10 and these did not move:
+
+     README.md      "The Pavilion ships with **27 texts**"   <- the front door
+     CLAUDE.md      "27 books ship in seed.js"               <- rule 1's own example
+     MAINTAINING.md "**27 texts in the shipped seed**"       <- and 250 lines later
+                    the same file correctly said the shelf was empty
+
+   A hand-copied number that must match a source of truth is rule 4's exact
+   shape, and every such number in this project has drifted. So it is DERIVED:
+   the count comes from SEED_LIBRARY.length, and a doc that disagrees fails.
+
+   HISTORY IS ALLOWED, and has to be — half the value of this project's docs is
+   in recording what a thing used to be. A line may state an old count if it
+   marks itself as history with one of the tokens below. That keeps the guard
+   from punishing exactly the corrections it is meant to produce. */
+{
+  /* WHAT COUNTS AS MARKING A LINE AS HISTORY. `deleted` earns its place the
+     same way the rest do: "All 27 books deleted at the steward's instruction"
+     is unambiguously past tense, and failing it would be the guard punishing a
+     correct sentence. */
+  const HISTORY = /SUPERSEDED|until 2026-|used to|Earlier versions|formerly|no longer|were removed|deleted|⚠/i;
+  /* THE MARKER MAY BE ON A NEARBY LINE, NOT THE SAME ONE. Markdown wraps prose,
+     and a "⚠ SUPERSEDED" heading naturally sits above the sentence it governs —
+     the first version of this guard failed two already-correct passages for
+     exactly that reason. Checked against the four real drifted claims this was
+     written for: all four still fail with the window open, because none of them
+     had a marker anywhere near. */
+  const WINDOW = 2;
+  const DOCS = ['README.md', 'CLAUDE.md', 'MAINTAINING.md', 'MANUAL.md', 'PROTOCOLS.md',
+                'LEARNING-PATH.md', 'AI-BACKEND-WALKTHROUGH.md'];
+  let claimsSeen = 0;
+  for (const doc of DOCS) {
+    let text;
+    try { text = readFileSync(new URL('../' + doc, import.meta.url), 'utf8'); }
+    catch (e) { continue; }                    // an absent doc is not this guard's business
+    const all = text.split('\n');
+    all.forEach((line, i) => {
+      const num = line.match(/\b(\d+)\s+(?:texts?|books?)\b/);
+      if (!num) return;
+      // only lines actually ASSERTING what ships — not every mention of a number
+      if (!/\bship|\bcomes with\b|\bseed\b/i.test(line)) return;
+      claimsSeen++;
+      const near = all.slice(Math.max(0, i - WINDOW), i + 1).join('\n');
+      if (HISTORY.test(near)) return;          // marked as past, here or just above
+      if (Number(num[1]) !== SEED_LIBRARY.length) {
+        fail(`${doc}:${i + 1} claims ${num[1]} book(s)/text(s) ship, but SEED_LIBRARY.length is `
+           + `${SEED_LIBRARY.length}. Fix the number, or mark the line as history `
+           + `(e.g. "until 2026-08-10", "Earlier versions", "SUPERSEDED").`);
+      }
+    });
+  }
+  /* THE GUARD MUST BE LOOKING AT SOMETHING. If a future edit rewords every one
+     of these sentences past the pattern, this block would pass by reading
+     nothing at all — which is this project's own "born invisible" failure. */
+  if (!claimsSeen) {
+    fail('smoke: the shipped-book-count guard matched no sentences in any doc - its pattern has '
+       + 'drifted and it is now reporting on nothing');
+  }
+}
+
+/* ---------- MANUAL.md QUOTES THE SCREEN, SO THE SCREEN MUST STILL SAY IT ----------
+   2026-08-10. MANUAL.md quotes real UI strings verbatim, with a `> ●` / `> ○`
+   blockquote, so a visitor can match what this page says against what is in
+   front of them. Those quotes drift silently the moment a string is reworded.
+
+   Found by hand: MANUAL.md quoted the title screen as "everything works, but
+   nothing is indexed" for six days after that string was replaced. Worse than
+   stale - the new line says a browser tab is a SEPARATE Pavilion with no access
+   to your books, which is the opposite kind of statement from "not indexed",
+   and it is exactly what the visitor had gone to the manual to understand.
+
+   Normalising to letters and digits only is what makes this work against
+   source: the real strings are split across '...' + '...' concatenation with
+   escaped apostrophes and em-dashes, none of which survives a literal compare. */
+{
+  const manual = readFileSync(new URL('../MANUAL.md', import.meta.url), 'utf8');
+  const src = [];
+  (function walk(dir) {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(new URL(e.name + '/', dir));
+      else if (e.name.endsWith('.js')) src.push(readFileSync(new URL(e.name, dir), 'utf8'));
+    }
+  })(new URL('../src/', import.meta.url));
+  /* COMMENTS ARE STRIPPED FIRST, and this is not tidiness — it is the specific
+     way guards in this project have been born dead. A prompt-budget check once
+     parsed apostrophes in COMMENTS as string literals; a window-export check
+     could be satisfied by a COMMENT naming the function. Here the failure would
+     be quieter and worse: delete a UI string, leave behind a comment quoting the
+     old wording — which is exactly what a careful person does when they change
+     it — and the manual would go on being certified against text no visitor can
+     ever see. Verified by doing it: with comments included the guard passed;
+     with them stripped it fails. */
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^[ \t]*\/\/.*$/gm, ' ');
+  const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const haystack = norm(src.map(strip).join('\n'));
+
+  const lines = manual.split('\n');
+  const quotes = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^>\s*[●○]/.test(lines[i])) continue;
+    const at = i + 1;
+    let text = lines[i].replace(/^>\s*/, '');
+    // a quote may wrap across several `> ` lines; a blank or a new bullet ends it
+    while (i + 1 < lines.length && /^>\s*\S/.test(lines[i + 1]) && !/^>\s*[●○]/.test(lines[i + 1])) {
+      text += ' ' + lines[++i].replace(/^>\s*/, '');
+    }
+    quotes.push({ at, text: text.replace(/^[●○]\s*/, '') });
+  }
+
+  if (quotes.length < 3) {
+    fail(`smoke: read only ${quotes.length} quoted screen line(s) out of MANUAL.md - the `
+       + `\`> ●\` convention has drifted and this guard is reporting on nothing`);
+  }
+  for (const q of quotes) {
+    if (!haystack.includes(norm(q.text))) {
+      fail(`MANUAL.md:${q.at} quotes a screen line that no longer exists in src/: `
+         + `"${q.text.slice(0, 70)}…" - reword the manual, or the manual is lying about `
+         + `what the visitor will see`);
     }
   }
 }

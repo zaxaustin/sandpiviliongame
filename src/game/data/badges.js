@@ -17,4 +17,16 @@ export const BADGES = [
   { id:'first-waypoint', icon:'🔗', name:'A Trail Marked',     desc:'Add a link to your Waypoints list.' },
   { id:'first-carry',    icon:'🎒', name:'Packed for the Road', desc:'Take a book with you from the Reader.' },
   { id:'first-note',     icon:'📝', name:'A Thought Kept',     desc:'Add a note to a book in the Reader.' },
+  /* THE FIRST BADGES THAT COUNT. Everything above fires once, the first time a
+     mechanic is used, which is right for a soft tutorial and wrong for the
+     thing daily tasks are for: showing up again. These six are awarded from
+     data.taskStats by ui/daily-tasks.js, and only on a day where EVERYTHING
+     was ticked — a half-finished day is honestly recorded and does not count,
+     or the streak means nothing. */
+  { id:'first-task',     icon:'📋', name:'A Day\'s Work',      desc:'Finish everything you set out to do in one day.' },
+  { id:'five-tasks',     icon:'📗', name:'Five Days\' Work',   desc:'Finish five days of work, whenever they fall.' },
+  { id:'twentyfive-tasks', icon:'📚', name:'A Habit',          desc:'Finish twenty-five days of work.' },
+  { id:'streak-3',       icon:'🔥', name:'Three in a Row',     desc:'Finish what you set out to do three days running.' },
+  { id:'streak-7',       icon:'🔥', name:'A Full Week',        desc:'Seven days running.' },
+  { id:'streak-30',      icon:'🏔', name:'A Month of Mornings', desc:'Thirty days running.' },
 ];

@@ -28,7 +28,7 @@ up."
   decision-making behind it.
 - **Conversation**: `ai:true` residents (Quill, the Monk, the Steward,
   the Computer) call `AI.chat()` with a system prompt when the player
-  initiates — see `CHAT_AGENTS` in `overlays.js`. This only ever runs
+  initiates — see `CHAT_AGENTS` in `ui/residents.js`. This only ever runs
   in response to the player; nothing happens if nobody's talking to them.
 - **No resident has ever taken an action other than replying with
   text.** No resident has read a book, written a note, or moved with

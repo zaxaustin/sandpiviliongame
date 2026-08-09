@@ -20,9 +20,27 @@ const errs = [];
 p.on('pageerror', e => errs.push(e.message));
 await p.evaluateOnNewDocument((t) => localStorage.setItem('sandPavilionSave.v2', JSON.stringify({
   seenWelcome: true, aiConnections: [],          // no AI: a teacher must not need one
-  personalLibrary: [{ slug:'personal-discourses', title:'Discourses Of Epictetus',
-    tradition:'Personal', personal:true, license:'', added:'2026-08-03', category:'personal',
-    attribution:'Epictetus', doc:{ summary:'', sections:[], fullText:{ text:t } } }],
+  /* THE SHELF USED TO COME FROM seed.js. It was deleted 2026-08-10, and the
+     "set texts" picker needs a real shelf to offer — some books with full
+     text (which can carry a reading) and some summary-only (which cannot,
+     and must say so instead of leaving a dead button). Both kinds are built
+     here now, which is also rule 1: these are books a PLAYER brought in. */
+  personalLibrary: [
+    { slug:'personal-discourses', title:'Discourses Of Epictetus',
+      tradition:'Personal', personal:true, license:'', added:'2026-08-03', category:'personal',
+      attribution:'Epictetus', doc:{ summary:'', sections:[], fullText:{ text:t } } },
+    ...Array.from({ length: 14 }, (_, i) => ({
+      slug: 'personal-full-' + i, title: 'A Book With Its Text #' + i,
+      tradition: 'Classics', personal: true, license: 'Personal', added: '2026-08-03',
+      attribution: 'You', doc: { summary: 'Has a full text behind it.', sections: [],
+        fullText: { text: 'A page of it.\n\nAnd another.' } },
+    })),
+    ...Array.from({ length: 8 }, (_, i) => ({
+      slug: 'personal-summary-' + i, title: 'A Book On Paper #' + i,
+      tradition: 'Non-fiction', personal: true, license: 'Personal', added: '2026-08-03',
+      attribution: 'You', doc: { summary: 'On a real shelf; no text here.', sections: [] },
+    })),
+  ],
 })), BOOK);
 await p.goto('http://localhost:4173', { waitUntil: 'networkidle2' });
 await p.click('#startBtn');

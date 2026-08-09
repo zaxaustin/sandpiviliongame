@@ -54,11 +54,21 @@ export const CARRY_CAP = 20;
    and every surface that already accepts it works, with nothing else
    edited — which is the opposite of the bespoke-button problem this
    replaces. */
+/* `mission` WAS HERE, AND NOTHING IMPLEMENTED IT — for a full day, on both
+   `book` and `lesson`. A place named by a kind with no surface behind it is a
+   dead drop, and npm test could not see it: the guard only ever ran the other
+   way (a surface accepting a kind nothing offers). Renamed to `dailyTask` on
+   2026-08-08 when the board was actually built, and data/daily-tasks.js now
+   carries the missing half of that guard.
+
+   `mission` is deliberately NOT reused. The steward: "you cant do missions
+   unless you graduate lol" — a mission is a thing you earn, and the name stays
+   unclaimed until there is something to earn it with. */
 export const KINDS = {
-  book:    { icon: '📖', label: 'book',    places: ['studyTable', 'reader', 'mission'] },
+  book:    { icon: '📖', label: 'book',    places: ['studyTable', 'reader', 'dailyTask'] },
   note:    { icon: '🗒', label: 'note',    places: ['studyTable', 'writingDesk', 'lesson'] },
   chapter: { icon: '🔖', label: 'chapter', places: ['studyTable', 'writingDesk', 'lesson'] },
-  lesson:  { icon: '🌱', label: 'lesson',  places: ['today', 'mission'] },
+  lesson:  { icon: '🌱', label: 'lesson',  places: ['today', 'dailyTask'] },
   paper:   { icon: '📄', label: 'paper',   places: ['bench', 'investigation', 'studyTable'] },
 };
 export const KIND_KEYS = Object.keys(KINDS);
@@ -228,4 +238,49 @@ export function groundingFor(list, kinds) {
      not in your hands, and "what you carry is what a resident can see" has to
      stay literally true or it is just a slogan. */
   return carried(list).filter(e => want.includes(e.kind));
+}
+
+/* THE REAL BOUND IS TOKENS, NOT ITEMS.
+
+   Added 2026-08-08, when the backpack finally became grounding and the
+   steward said what it had always been for:
+
+     "i wanted the back pack to serve the perpouse to make sure the condex
+      of the modles dosent get blown out and so the user can fouce there
+      attention on a few things and not 100"
+
+   Twenty is a bound on ATTENTION and it is the right one for a person.
+   It is not a bound on a context window: twenty notes is nothing and
+   twenty books is a catastrophe. The uncapped-prompt bug has been fixed
+   three times in three costumes — the Monk carrying all 294 books, the
+   Investigator's seeded investigations, the Science shelf's summaries —
+   and every one of them was a list that was capped by COUNT or not at all.
+
+   So the count keeps the bag glanceable and this keeps the prompt honest.
+   Two different jobs, and neither can do the other's.
+
+   Pure and unit-agnostic on purpose: `sizeOf` is supplied by the caller, so
+   this file needs to know nothing about tokens, and the caller can pass the
+   very same estimator the request itself uses. A second way of measuring
+   would drift from the real one and then lie about it, which is the store.js
+   scar in miniature.
+
+   WHAT IS LEFT OUT IS RETURNED, never silently dropped — "and 6 more" is
+   information; a truncated list pretending to be complete is the confident
+   wrong answer this project refuses. */
+export function fitToBudget(items, sizeOf, budget) {
+  const list = Array.isArray(items) ? items : [];
+  const cap = typeof budget === 'number' && budget > 0 ? budget : 0;
+  const kept = [], dropped = [];
+  let used = 0;
+  for (const it of list) {
+    const n = Math.max(0, Number(sizeOf ? sizeOf(it) : 0) || 0);
+    /* Always keep the first one, however fat. A grounding block that came
+       back EMPTY because the single carried book had a long title would be
+       the silent failure this whole file exists to prevent — better one
+       oversized entry, plus an honest note that it was oversized. */
+    if (kept.length && used + n > cap) { dropped.push(it); continue; }
+    kept.push(it); used += n;
+  }
+  return { kept, dropped, used, over: kept.length === 1 && used > cap };
 }

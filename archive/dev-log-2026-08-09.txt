@@ -1,0 +1,203 @@
+================================================================
+DEV LOG - 2026-08-09 (NINTH SESSION)
+TODAY'S TASKS - a study session you can actually digest
+================================================================
+
+Two questions from the steward: one about Sebastian, one about
+complexity. The second had a measurable answer, and it changed where
+the first got built.
+
+
+1. THE COMPLEXITY WORRY WAS POINTED AT THE WRONG THING
+----------------------------------------------------------------
+
+  "whats your thoughts on the agent pathways in the game, there
+   connected to alot but so im worried about the complexity of it all"
+
+Measured rather than reassured:
+
+  ui/overlays.js      12,317 lines   was 11,138 after two extractions
+  data/roles.js          284         pure, one table
+  carrying / lookup /
+    note-reach / the-day ~200-300 ea pure, tested, one road each
+  ui/residents.js        955         ONE pathwayBlock() for all seven
+
+The agent pathways are the SIMPLEST part of this codebase, and they
+got simpler the day before: seven hand-composed grounding lists became
+one function, which is why five residents gained the Library in a
+single edit. What reads as tangle is roles.js being a HUB, which is
+the opposite of tangle.
+
+overlays.js is the actual complexity, and the previous session put
+~1,200 lines back into a file two sessions had been cutting down.
+
+So the conclusion was not "slow down on agents", it was "stop putting
+new rooms in the monolith". This feature is the first one built that
+way on purpose -- data/daily-tasks.js (pure) and ui/daily-tasks.js
+(the panel), with overlays.js gaining only the window exports, one
+initDailyTasks() call, and one pause-menu line. The ui/study-table.js
+seam exactly.
+
+
+2. WHY IT IS "DAILY TASKS" AND NOT "MISSIONS"
+----------------------------------------------------------------
+
+  "we can call it daily tasks instead of missions, you cant do
+   missions unless you graduate lol"
+
+A mission is something you earn; a task is what you sit down and do
+this afternoon. `mission` STAYS UNCLAIMED in carrying.js KINDS for the
+graduated thing, whenever that arrives.
+
+AND `mission` WAS ALREADY THERE, AS A DEAD DROP. `book` and `lesson`
+both declared places: [... 'mission'] and NO SURFACE EXISTED. It had
+been that way since the carry model was built. npm test could not see
+it: the guard only ever ran one way -- a surface accepting a kind
+nothing offers -- never the other, a place no surface implements.
+Renamed to `dailyTask` now that there is a board, and the missing half
+of that guard is in the tests.
+
+
+3. THE DATE IS A FRAMING DEVICE, NOT A STICK
+----------------------------------------------------------------
+
+The steward's correction, and it changed the wording everywhere:
+
+  "the expiry is for the user to see so he knows that this is for
+   today, so make a plan for today and what you are able to digest
+   today. this also lets people taclke bigger goals like learning
+   eletroinics one step at a time rather than getting over welmed."
+
+No countdown, nothing turns red, and the words "overdue" and "late" do
+not appear -- a test fails on either of them, in the notice AND in the
+recorded log line, so a future edit cannot reintroduce the framing by
+being reassuring about it.
+
+  isToday()   computed ON READ, never a timer. No background polling,
+              nothing moves by itself. A task does not expire by any
+              mechanism; it stops being today's the moment today is a
+              different string.
+  closeOut()  pure and IDEMPOTENT. Opening the app twice on Tuesday
+              must not write Monday twice.
+  BOTH HALVES recorded -- what you did AND what you did not. A record
+              listing only failures is the guilt inventory the-day.js
+              exists to prevent; one listing only wins is a lie. Two
+              of four done is a day you did two things.
+  source      the anti-overwhelm mechanic: "Learning electronics" is
+              the source, today is one slice, the board says so.
+  ONE AT A TIME, refused with a SENTENCE. data.study settled this
+              already and wrote the reason down.
+
+
+4. THE AI DOES NO LEGWORK, AND `world` IS WHY
+----------------------------------------------------------------
+
+  "the tesla chain is for the user to go and do not the ai so we need
+   a mission plan that supprts the user doing the lifting to mantian
+   privacy and to ground the user more in what he is doing"
+
+STEP_WHERE is one table, and every door in it already existed:
+
+  library  get a text      openRequests
+  read     read it here    openReader             (needs a book)
+  plan     draft a lesson  writeLessonOnThisBook  (needs a book)
+  learn    on the path     openLearningTree
+  work     at the desk     openPlanner
+  build    at the bench    openLab
+  ask      ask someone     talkTo                 (needs a resident)
+  note     write a note    openNotesLog
+  world    OUT THERE       - no door, on purpose -
+
+`world` is "go to the town library", "wire the 555 timer", "read pages
+40-60 on paper". Giving it a button would pretend the app can do it
+for you. A test fails if it ever grows one.
+
+THE ARC THE STEWARD NAMED NEEDED NO NEW CODE: "once the books are in
+we can say talk to the tutor to make a lesson plan draft and to start
+the first course". writeLessonOnThisBook(slug) opens the lesson writer
+with that book already chosen, and draftLessonWithAI() drafts from it
+-- both already existed. So get the book -> read it -> have the Tutor
+draft a plan -> walk the course is four existing doors in a row.
+
+THIS BOARD DIRECTS; IT NEVER DUPLICATES A SURFACE.
+
+
+5. WHAT THE GUARDS AND THE SCREENSHOTS CAUGHT
+----------------------------------------------------------------
+
+NINE SABOTAGE CASES, all nine caught: idempotence; closing a day
+before it is over; ignoring the date; two tasks at once; a same-day
+finish counting twice; dropping "what was left" from the record; a
+step naming a door that is not exported; `world` growing a door; and
+the notice threatening.
+
+THE NEW DOOR GUARD CAUGHT ITS FIRST BUG IMMEDIATELY. The first draft
+pointed `work` at openStudyTable(), WHICH DOES NOT EXIST -- the Study
+Table is a tool inside the Writing Desk, not a room with its own
+opener. That is precisely the dead drop this feature came from,
+reproduced inside the feature itself within the hour.
+
+THE LIVE SUITE CAUGHT THE SECOND. Pressing a `read` step opened
+NOTHING. The form saved every step with an empty ref, so it called
+openReader(undefined), which returns silently. `needsRef` had been
+declared in STEP_WHERE from the first draft and HONOURED BY NOTHING.
+The form now shows a real picker -- books from Store.allDocs(),
+residents from ROLES -- for the kinds that need one, refuses to save a
+step without a target, and dailyTaskGo() says so out loud if one ever
+slips through.
+
+READING THE SCREENSHOTS CAUGHT THREE MORE, two of them the same
+species of quiet lie:
+
+  * Work FINISHED TODAY appeared under a heading reading "Before
+    today", with its own date printed underneath contradicting it. A
+    closed task is not isToday() (isToday requires !closed), so
+    everything not-active fell into one bucket. Split into
+    earlierToday() and beforeToday().
+  * "Nothing set for today yet" showed while two things were already
+    finished today. Two states, two sentences.
+  * The `where` dropdowns truncated -- "bring a text i..." -- so you
+    could not read what you were choosing. Labels shortened to fit the
+    control they actually live in.
+
+
+6. WHAT IS TESTED
+----------------------------------------------------------------
+
+  npm test                     green, ~40 new assertions
+  9 sabotage cases             all caught
+  npm run build:beta           clean, no keys, local-only
+  test/live/daily-tasks.mjs    NEW - 24 checks, real Chrome, zero page
+                               errors, both screenshots read
+  FULL SWEEP green:            preflight, backpack, carry-grounding,
+                               study-tray, terminal-carry, study-table,
+                               writing-desk, study-chain, teacher, lab,
+                               bench
+  ELECTRON green:              note-search, records, chapters-panel,
+                               packaged-boot (SHIPPABLE)
+
+daily-tasks.mjs proves, against the running app: a task taken
+YESTERDAY is off the board the next morning, recorded in YESTERDAY's
+log rather than today's, and retakeable; opening the board three times
+records it ONCE; a step that needs a target offers a picker and one
+that does not, does not; pressing a step actually opens the reader;
+the streak advances and earns its badge; and a second finish on the
+same day does NOT bump it.
+
+
+7. NOT DONE, NAMED SO IT IS NOT LOST
+----------------------------------------------------------------
+
+  * SEBASTIAN DRAFTING THE OUTLINE. He directs to the board and reads
+    the day's state into his prompt (one line in butlerDayRead, which
+    costs nothing on a day with no tasks). Turning "i wanna read
+    tesla" into a three-step chain is stage 2, and the board had to be
+    proven first.
+  * Steps that tick themselves from what you actually did.
+  * Chains where finishing one sitting offers the next.
+  * NO REAL MODEL has seen butlerDayRead() with the new task line in
+    it. The 2026-08-03 lesson stands.
+  * The two-walkable-places idea is NOT this: the world already has
+    eleven scenes with warps. The real complaint is that work happens
+    in overlay panels on top of the world, which is the overlays.js
+    split, and this feature is the first cut done right.

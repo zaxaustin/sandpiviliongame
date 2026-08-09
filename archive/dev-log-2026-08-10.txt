@@ -1,0 +1,1067 @@
+================================================================
+DEV LOG - 2026-08-10 (TENTH SESSION)
+TWO GROUNDS, EVERY ROOM A DOOR - AND THE DAY THE LIBRARY
+CAME BACK
+================================================================
+
+Three pieces of work, and the third one was not planned. It started
+with a sentence:
+
+  "i cant find my books in the library ... i tried in npm run dev and i
+   cant find the books there ... this issue keeps happening the books
+   havent been working for a while."
+
+
+PART ONE - EVERY ROOM GETS A KEYSTROKE DOOR
+================================================================
+
+Before moving any room, one measurement: the pause menu reached about
+twenty-five PANELS and named NOT ONE ROOM. Eleven exported room openers
+appeared in it nowhere -
+
+  openCommonsTable  openInheritanceHall  openGrantDesk  openCoffee
+  openIndex  openCatalog  openRequests  openScienceHall  openComputer
+  openPlanner  openCalendar
+
+- so the Commons Table, the Inheritance Hall, the Science Hall, the
+Writing Desk and the pond were reachable only by remembering where they
+were and walking. Against a standing decision that predates all of it:
+"built and unreachable is the same as unbuilt."
+
+A TWELFTH WAS WORSE. openArchive() was exported from overlays.js and on
+NO window at all - no click anywhere in the application could open the
+Archive Desk. Found by building data/places.js, which is the argument
+for having one table.
+
+data/places.js is that table. The menu is DERIVED from it, grouped under
+each room's own name (read from scenes.js, not spelled twice). The guard
+runs BOTH directions - a station in the world with no menu door fails,
+and a menu entry naming a station that is not there fails. The second
+direction is the one this project has never had, and it is where the
+dead `mission` place hid for weeks.
+
+FOUR MENU BUTTONS SILENTLY DID NOTHING. The Hearth, the Counter, the
+Notice Board and the Residents' Board are scripted beats, not panels.
+openDialog() never closed the panel above it, so from the menu the
+dialog opened UNDERNEATH a full-screen overlay with state.ui still
+'menu' - which makes onAction() return early, so E could not even
+advance the thing you could not see. Fixed in openDialog itself: every
+caller is world-level.
+
+
+PART TWO - TWO GROUNDS
+================================================================
+
+  "i dont wana loose features but we can move things like the pond and
+   the inhertince hall to a second overlays screen. mabie even the
+   workshop and the cafe as well"
+
+  THE PAVILION            THE WORKS
+  the Keep                the Workshop (3 floors)
+  the Library (+2)        the Cafe
+  the Study               the Inheritance Hall
+                          the pond, the dock, SAGARA, the Hearth
+
+One road east/west, signposted at both ends, cutting straight through
+the treeline and off the edge of the map - his call: "lets get rid of
+the trees and make it like a road to the next part." A road that
+visibly continues is a road you believe leads somewhere.
+
+RENDER.JS HAD A LANDMINE. Doorways were placed from THREE ABSOLUTE TILE
+COLUMNS of the old Grounds, keyed off building TYPE:
+
+  const doorX = x+((b.type==='library'?7:b.type==='cafe'?24:31)-b.x)*S;
+
+Correct only while nothing ever moved. Every building carries its own
+`door` now. THAT GUARD WAS BORN DEAD and only breaking it on purpose
+found out: render.js declares doorX TWICE, and .find() returned the
+correct one while the broken one sat underneath.
+
+npm test now floods every scene from its spawn: every warp, station,
+sign and resident must stand somewhere a person can walk to; the scene
+graph must be connected BOTH ways; and no warp may land on another warp.
+That last one found a pre-existing bug immediately - walking into the
+Study dropped you onto the Study's own exit warp, so one sideways step
+ejected you. Months old, never reported.
+
+
+PART THREE - THE LIBRARY, AND TWO WRONG DIAGNOSES OF MINE
+================================================================
+
+I GOT THE FIRST COUNT WRONG. I reported 255 ghost books - rows pointing
+at text that was not there. I had listed only the MinIO bucket ROOT and
+never looked inside the `personal/` prefix, where 285 of the 326 objects
+live. There were ZERO ghosts. Nothing was ever lost. Corrected before
+any destructive SQL ran, which is the only reason it cost nothing.
+
+THE REAL BUG WAS NOT STORAGE AT ALL:
+
+  indexItems() groups by `category` and filters to the selected one.
+  ONLY seed.js ever set that field, via
+  SEED_LIBRARY.map(d => ({ category:'classical', ...d })).
+
+  docFromRow() (the database) does not set it. shelveAsPersonal() (your
+  own imports) does not set it. So every book that was actually YOURS
+  arrived with category: undefined, matched no tab, and the Index
+  rendered ZERO CARDS - while the storage line beneath it correctly read
+  "326 Docker".
+
+The catalogue was loaded the whole time. The room filtered it all out.
+
+AND IT WAS INVISIBLE BECAUSE THE SEED BOOKS HAD A CATEGORY. Twenty-seven
+stubs rendered perfectly and hid the fact that nothing else could. That
+is CLAUDE.md rule 1 stated as a bug - TEST THE PLAYER'S BOOKS, NOT THE
+SEED - and every live suite I had written seeded an EMPTY save, so I had
+been exercising the seed shelf and nothing else. He asked directly:
+"have you been testing things with the shitty books that i dident import
+on epub?" Yes. That was the whole of it.
+
+Fixed at mergedDocs(), the one gate every reader passes through. The
+category is DERIVED from the shelf, not defaulted to one bucket - a
+first fix that put all 415 in `personal` made them visible and dumped
+them beside the Archive Desk's own documents, which is what "it looks
+like its saving my notes as books" actually was.
+
+  Fiction 98 · Personal 93 · Classics 82 · Science 52 · Non-fiction 25
+  Practice 18 · Hindu 12 · Theravada 12 · Native American 7 · Tantra 7
+
+THE OTHER TWO FAULTS, both real:
+
+  254 DUPLICATE ROWS. slugOf() in tools/load-library.mjs stripped
+  `personal-`, so walking MinIO's personal/personal-X.txt minted a row
+  keyed X while the app already had personal-X. Same book, twice. That
+  .replace is gone.
+
+  31 ORPHANS - objects in MinIO with no catalogue row at all. Books
+  imported and never shown to anyone.
+
+tools/reconcile-library.mjs is the missing half of load-library: it
+emits SQL, connects to nothing, dry-runs by default. Proved on a
+RESTORED COPY of the database before it touched the real one.
+
+  638 rows -> 415        254 duplicates merged
+  295 -> 326 texts       31 orphans adopted
+  0 text pointers lost   322 hand-assigned shelves preserved
+
+IT WAS NOT IDEMPOTENT AT FIRST, and running it twice against the copy is
+the only reason that is known: a slug freed by the delete came free too
+late to be refilled, so run two added a row. The canonical-row pass is
+emitted twice now, and the second run is a genuine no-op - the property
+the whole tool exists to have and the one load-library never had.
+
+
+WHY THE BROWSER SHOWED NOTHING, AND STILL DID
+================================================================
+
+  "if i run npm run dev im not seeing anything on the shelves still."
+
+bridge() in data/store.js needs window.desktopBridge. A browser tab has
+none: no Postgres, no MinIO, no book files. And localStorage is
+per-origin, so :5173, :4173 and the desktop app are three separate
+saves. A 415-book library renders as an empty shelf and says nothing.
+
+The title screen said "everything works, but nothing is indexed" - which
+names a SEARCH limitation for what is an ABSENCE. It now says the tab is
+a separate Pavilion and names the app.
+
+BUT THE TITLE SCREEN WAS NOT ENOUGH, because nobody reads a status line
+and then walks to a bookcase. The shelf itself said, in full: "This
+shelf waits for its first text." True, useless, blaming the wrong thing.
+An empty shelf now names the cause and the command - `npm run
+electron:dev` - and offers the intake door.
+
+
+THE SEED SHELF IS GONE, ALL OF IT
+================================================================
+
+  "delete the seed books all of them with not a single thing left."
+
+Twenty-one of the twenty-seven were TWO-SECTION EXCERPTS pretending to
+be books. Opening The Republic gave you a paragraph and a footnote under
+a real title, a real author and a real licence. Worse than an empty
+shelf, because an empty shelf tells the truth.
+
+Nine were OURS - A Visitor's Handbook, When Something Goes Wrong, and
+the rest. Documentation shelved as literature.
+
+All 27 preserved verbatim in archive/seed-texts-2026-08-10/ (117 KB) and
+docs/BOOKS-TO-SOURCE.md is the re-download list: Standard Ebooks or
+Gutenberg for the classics, SuttaCentral CC0 for the five suttas.
+
+THE PATHWAYS WENT TOO, and finding them took a sweep:
+
+  src/game/data/library-texts/   248 KB of full book text compiled into
+                                 EVERY BUILD for six books nobody could
+                                 open. Six texts recovered from git into
+                                 test/fixtures/chapters/ where the
+                                 chapter-finder's ground truth belongs.
+  GATE_BEQUESTS                  planted five TEXTLESS BOOK CARDS and
+                                 gated a gift behind READING a deleted
+                                 book - a permanently locked dead end.
+                                 The Hall's own sign is finally true:
+                                 "every one of them was planted by a
+                                 visitor."
+  openReader('filling-your-...') a button that opened nothing. npm test
+                                 now forbids ANY hardcoded book slug in
+                                 ui/, because no book is guaranteed to
+                                 exist any more.
+
+A carried seed book is dropped from the backpack on load and said out
+loud in the activity log. Only those 27 exact slugs - anything else
+stale still goes through the loud "no longer exists" path, because a
+list of known-dead names is not a licence to prune whatever fails to
+resolve today.
+
+
+TWO HOMES, AND DOCKER IS DISPLAYED NOW
+================================================================
+
+  "the docker pathway shuld be the main but dont ignore a place for a
+   new user to put notes and books either."
+
+data/book-storage.js is pure and tested: the badge is read off the
+BOOK's own pointer, never off what is running, so a book written to
+MinIO in June still says Docker in December with the container stopped.
+Those are two true things and the badge must not collapse them.
+
+  🐳 Docker · 💾 this machine · 📄 in the save · 📝 summary only
+
+Per book, plus a shelf line ("🐳 326 Docker · 📝 89 summary only ·
+local shelf 6/100"), plus the intake saying where the NEXT book goes
+before you drop it. The local path caps at 100 books and refuses by
+NAMING DOCKER as the way through - a refusal with no next step is the
+dead end this project keeps removing.
+
+WHERE THINGS ACTUALLY LIVE, measured:
+  MinIO (Docker)   326 objects, 229 MB - 41 root + 285 personal/
+  userData/library  59 .txt, 66 MB - the fallback when Docker is down
+
+
+MIGRATION 005 - THE LOCAL SHELF IS IN THE DATABASE NOW
+================================================================
+
+  "we can add local files to the personal book shelf, lets update the
+   databaste to reflect it."
+
+`text_key` only ever meant "the MinIO object". There was no column for
+the other home, so 89 of 415 rows looked - from the database's side -
+like books owned on paper with nothing behind them. They were not:
+
+  A Tale of Two Cities · Heart of Darkness · Dracula · Emma ·
+  Don Quixote · The Divine Comedy · The Complete Works of Shakespeare
+
+Their text was in 59 real .txt files under userData/library, written by
+shelveAsPersonal()'s fallback whenever MinIO was not answering. THE ONLY
+RECORD OF WHICH FILE BELONGED TO WHICH BOOK LIVED IN localStorage. Lose
+the save and those 59 become unopenable with the files untouched on
+disk.
+
+  books.local_file           the filename, nullable, alongside text_key
+  v_book_homes               the honest three-way answer in SQL, matching
+                             storageOf() in data/book-storage.js
+  books_has_text             an index on "can I actually open this"
+
+TWO NULLABLE COLUMNS, NOT A SCHEME INSIDE ONE. A book can legitimately
+be in BOTH homes - written to MinIO and cached locally, or moved between
+them - and squeezing two into one column forces a parse and loses the
+ability to say "both". upsertCard COALESCEs each independently, so a
+save that knows only one pointer can never erase the other. That is the
+same shape as the shelf-assignment merge, and one of the seven sabotage
+cases.
+
+  BEFORE   326 docker · 89 with no pointer at all
+  AFTER    326 docker · 59 this machine · 30 genuinely summary-only
+
+The 30 are real: books owned on paper, cards with no text yet. They are
+supposed to look like that, and now they are the ONLY things that do.
+
+Backfilled deterministically from the filenames (they match the slugs
+exactly, 59 of 59), and going forward hydrateFromDb carries the pointer
+up on its own. Verified with an EMPTY save against the real container:
+the shelf line reads "🐳 326 Docker · 💾 59 this machine · 📝 30 summary
+only · local shelf 59/100" with nothing in localStorage at all - which
+is precisely the thing that was impossible yesterday.
+
+AND THE MIGRATION BROKE EVERY WRITE FOR TEN MINUTES. upsertCard went
+from 10 placeholders to 11; one caller in store.js and four in
+docker-home.cjs still passed 10. Postgres refuses the WHOLE prepared
+statement on a parameter-count mismatch, so chapter syncing stopped
+dead - twelve checks in docker-home.cjs went red at once (31/31 -> 19)
+and NPM TEST NOTICED NOTHING.
+
+  bind message supplies 10 parameters, but prepared statement "" requires 11
+
+Rule 4 in its purest form: a count in one file that must match a count
+in five others. npm test now DERIVES the expected count from the SQL's
+own $n placeholders and checks every literal call site - depth-aware and
+quote-aware, so a title containing a comma cannot be read as two
+parameters. Broken on purpose; caught.
+
+This is the second time today the container suite has been the only
+thing standing between a schema change and a silent half-broken
+database. It is not optional and it is not redundant with the embedded
+one.
+
+
+NOTES HAVE A PATHWAY INTO THE DAY NOW
+================================================================
+
+  "lets make proper pathways for the notes to be in the logs and that
+   the ai can reach the ones in the back pack with we can toggle private
+   or view"
+
+MEASURED FIRST, and half the worry was already handled: data.notes appear
+in NO book surface at all. The things sitting in the Index beside books
+are Archive Desk DOCUMENTS (data.workshop.docs — your own writing, with a
+title, licence and source), not notes. "it looks like its saving my notes
+as books" was those plus the category collapse, which is fixed.
+
+WHAT WAS GENUINELY MISSING was the near end. A note's only route back into
+☀ Today was forgottenNotes(), which opens after A FORTNIGHT. Write six
+notes in a morning and the day knew about none of them — writing a note
+was the end of its life rather than the start, which is the complaint that
+rule was written for. It fixed the far end and left the near one open.
+
+  notesToday(notes, today)      pure, in data/the-day.js
+  notesTodayLine(notes, today)  one sentence, or SILENCE on a day you
+                                wrote none — "0 notes today" is a scold
+
+RENDERED BELOW THE FIVE AND APART FROM THEM, and that boundary is the
+feature. theDayItems is capped at five because "a list of everything
+outstanding is a guilt inventory"; a note you have ALREADY WRITTEN is the
+opposite of outstanding. It is a record, it never competes for the five,
+and it is never truncated by count — on a day you wrote eleven notes,
+eleven is the honest answer and a good day. A test holds each of those.
+
+THE REACH CONTROL LIVES ON THAT CARD, which is the other half of the same
+request. All three states stay (his call): sealed / askable / published.
+Deciding what a resident may read in a settings panel three rooms away is
+how a privacy control goes unused; the one place you look at today's notes
+is the right place to decide it.
+
+READING THE SCREENSHOT CAUGHT THE LAST BIT. reachBadge() stays silent on
+`askable` — correct in a long list, wrong here: a note with NO badge
+beside one marked "Sealed" reads as UNKNOWN, not as askable, under a
+sentence that says "the badge is what a resident may read". reachState()
+is the never-silent variant. Green "🔎 Askable" and red "🔒 Sealed", both
+with the button that flips them.
+
+Six sabotage cases, all caught — including one guard that was BORN DEAD:
+checking the file for `writtenTodayBlock()` was satisfied by the
+function's own DEFINITION, so deleting the call left it green. It looks
+inside renderTheDay's body now. Same shape as the window-export check "a
+comment could satisfy" and the groundingFor() check that passed on its
+import line. That is three times this exact mistake has been made in this
+codebase and three times only breaking it on purpose has found it.
+
+
+WHAT IS TESTED
+================================================================
+
+  npm test                    green - 12 scenes, 0 seed books
+  46 sabotage cases           17 places, 11 world, 8 records, 10 storage
+  npm run build:beta          clean, no keys, local-only
+  every-room.mjs      NEW     all 25 rooms pressed from the menu
+  two-grounds.mjs     NEW     walked both ways, held keys
+  library-shelves.mjs NEW     5 screenshots, READ
+  shelf-walk.cjs      NEW     REAL container: 82 books on Classics, 98
+                              on Fiction, first book opens
+  library-homes.cjs   NEW     REAL container: 415 cards, 326 Docker
+  records.cjs         ext.    the day record, through Postgres
+  docker-home.cjs             31/31, container up
+
+THE SUITES THEMSELVES WERE THE PROBLEM. Nine of them reached for
+`dhammapada`. test/live/_books.mjs is the fixture now - a book the way a
+real one arrives, through personalLibrary, with a personal- slug. Eight
+migrated: carry-grounding (30/30), backpack, notes-by-book, pocket,
+study-chain (39/39), teacher, daily-tasks (24/24), drop.
+
+Two of the old assertions were only ever true on an empty save, and the
+fixture exposed both: drop.mjs checked that EVERY book was unfiled
+(scoped to the dropped one now), and backpack.mjs filled the bag from
+`allDocs().slice(0,40)` - it needed the seed shelf to have twenty books
+in it. It builds its own forty now.
+
+ALL NINE ARE GREEN. note-search.cjs "hung" for fifteen minutes and it
+was not the fixture: a scripted patch mangled an apostrophe inside
+check('including the visitor's own book...'), and ELECTRON WITH A SYNTAX
+ERROR DOES NOT EXIT - it starts, fails to load the script, and sits
+there forever with nothing to quit it. Worth knowing, because it looks
+exactly like a slow test and it is not one. `node --check` on a .cjs
+suite before running it costs nothing and would have said so instantly.
+
+That is the third time today a scripted string replace has broken source
+it was editing (the others: a \n that became a real newline, and two
+regexes that matched nothing because this repo is CRLF). CLAUDE.md
+already warns about heredocs; the same caution applies to any generated
+patch, and `node --check` immediately afterwards is the cheap guard.
+
+
+ONE BOOK, NOT A WALL - `random` AND `test`
+================================================================
+
+  "we can make a command like test book random instead of scanning the
+   whole library alot that cant work since we got rid of those 26 books
+   seed."
+
+CORRECTION FIRST: the Computer ALREADY indexed the real Library. I had
+said it could not. termRun() reads Store.allDocs() and personalBooks(),
+so `ls`, `find`, `owned` and the rest have been answering over all 415
+books the whole time. The gap was narrower and more precise than "wire it
+up": `ls` was a LIST when twenty-seven books shipped and is a WALL against
+415, and a wall is not an index. Every other command narrows by something
+you already know. Nothing existed for the days you know nothing.
+
+  random [shelf]    one book, unread preferred, with its card
+  test <n|random>   carry it and open the Study Table on it
+
+`test` opens the desk rather than telling you where it is - a terminal
+that says "now go to the Study" is the walking-to-a-room problem in text.
+`random` sits FIRST in the quick-button row, ahead of `ls`, because a
+quick button is the only part of that room a person presses without
+knowing the command exists.
+
+A REAL BUG, CAUGHT BY THE FIXTURE HAVING BOTH SHELVES. The first version
+matched the shelf name by plain substring, so `random fiction` swept in
+every NON-fiction book. On these shelves that is 98 against 25 - the
+likeliest pair anyone types, and invisible to a fixture with only one of
+them. Exact match first now, loose only when nothing matches exactly, so
+`random non` still works. Measured against the real catalogue afterwards:
+415 / 98 on fiction / 25 on non-fiction / 12 on theravada.
+
+AND A TEST BUG THAT LOOKED LIKE A CODE BUG, which is the more dangerous
+of the two: #termOut is CUMULATIVE - it is a terminal - so reading it
+whole made every assertion about the entire session. The suite reported
+`random fiction` returning a Science book; it had found that row in one of
+twelve earlier draws. run() now slices from the last prompt.
+
+THE MAN-PAGE GUARD FOUND THREE PRE-EXISTING GAPS ON ITS FIRST RUN. `help`
+lists the commands, termRun() implements them, MAN_PAGES documents them -
+three hand-maintained lists that must agree, with no guard at all. `ref`,
+`notes` and `carry` had been listed in help for weeks with nothing behind
+`man`, which is a dud answer in the one place someone goes when they are
+already lost. All three written; the guard runs both directions and also
+fails on a listed command termRun never handles.
+
+  test/live/terminal-random.mjs   NEW - 16 checks, browser
+  3 sabotage cases                all caught
+
+NOTED, NOT FIXED: `stats` reports "0 books of your own" beside "415 in the
+catalogue" when the save is empty and the catalogue comes from Postgres.
+On a real save both are populated, so this is only visible in a test - but
+the two numbers are answering different questions with the same word.
+
+
+DOCKER HAS A ROOM NOW, INSTEAD OF A README
+================================================================
+
+Measured before building: there was NO in-game path to Docker AT ALL.
+Setup existed only as terminal commands in PROTOCOLS.md and
+LEARNING-PATH.md, against a standing decision -
+
+  "it is for a lay user: no terminal required, no config file."
+
+- and it is the difference between "about a dozen books" and "no
+practical limit" for everyone who is not the steward. A capability nobody
+can find is a capability nobody has.
+
+📦 Where your books are kept, in the pause menu. Three rules it follows,
+each with a sabotage case:
+
+  READS REAL STATE, NEVER CONFIGURATION. dbStatus() names the home that
+  actually answered; storageSummary() counts where the books really are.
+  A panel saying "Docker: enabled" because a setting says so is how a
+  person ends up staring at an empty shelf - which is exactly what
+  happened this morning for a different reason.
+
+  NO FAKE INSTALL BUTTON. The app cannot shell out to Docker. A button
+  that pretended to would be the worst kind of dead end: one that LOOKS
+  like it worked. It shows the real command, copyable (the same thing
+  copyPullCommand already does for Ollama), and detects the result.
+
+  IT NEVER IMPLIES ANYTHING IS BROKEN. The Pavilion is complete with
+  nothing installed - a release gate with its own tests. This is an
+  OFFER. npm test fails on the words broken/failed/error in its copy.
+
+The three ceilings are stated in full and in one place, because a partial
+answer is how someone fills a browser tab with 5 MB of book and wonders
+why it stopped: a tab ~10-20 books · the app hundreds · Docker no
+practical limit.
+
+IT IS OFFERED WHERE A PERSON ACTUALLY CARES, not only from the menu: the
+intake table's "the text of your next book goes:" line carries a "give it
+more room" button - shown only when Docker is NOT already carrying it,
+because an offer already taken is noise - and the full-local-shelf refusal
+opens the room rather than naming a terminal command with no home.
+
+IN A BROWSER TAB THE DOCKER STEP IS HIDDEN, on purpose. A tab cannot act
+on it, and an instruction you are shown but cannot follow is worse than
+none. The tab gets the honest sentence and `npm run electron:dev`.
+
+  test/live/storage-room.mjs   NEW - 12 checks, browser
+  6 sabotage cases             all caught
+  verified against the LIVE container: "● Docker is running and the
+  Pavilion is using it" beside "🐳 326 Docker · 💾 59 this machine ·
+  📝 30 summary only"
+
+
+A REAL MODEL SAW IT — deepseek-r1:8b, THREE FINDINGS
+================================================================
+
+Nothing written this session had been shown to a model. The 2026-08-03
+lesson stands, so it was shown to one.
+
+FIRST, THE QUESTION THAT NEEDED NO MODEL AT ALL. Does a 415-book library
+blow the prompt budget where 27 did not? Measured against the real
+catalogue in Electron, per message, before a word of the question:
+
+  monk 2386 · investigator 1526 · sebastian 1432 · quill 1059
+  tutor 1019 · steward 892 · computer 827   (~tokens)
+
+NO. The capping holds. For scale, the Monk once carried the whole
+catalogue on every message at about 12,800 tokens; he is at 2,386 with
+fifteen times as many books. That is catalogueBrief and the lookup
+doing exactly what they were built for, and it is worth writing down
+because the opposite was the reasonable fear.
+
+SECOND, THE 2026-08-03 BUG IS DEAD. "Do you have anything by Epictetus?"
+— the question that once got "no Enchiridion, no discourses, nothing like
+it" while both sat on the shelf — now returns:
+
+  "Yes. We have Discourses by Epictetus (Personal) and The Enchiridion
+   by Epictetus (Personal)."
+
+Answered from the real lookup, naming real shelved books. And the macro→
+micro handoff is clean: "Teach me thermodynamics" goes to the Tutor by
+name, briefly, with no half-teaching and no trailing offer.
+
+THIRD, AND STILL OPEN: SEBASTIAN MIS-ROUTES "help me understand X".
+"I want to understand entropy properly. Who here helps with that?" goes
+to the INVESTIGATOR, twice, where it plainly belongs to the Tutor.
+
+The first hypothesis was the wording. The Tutor said "explaining
+something properly" and the Investigator "whether SOMETHING is actually
+true" — two lines competing for one question. Both were sharpened, and
+they are better lines regardless: the Tutor now owns "understanding",
+and the Investigator is for "whether a CLAIM SOMEONE HAS MADE is true",
+which matches his own duty line ("turns a claim into a question").
+
+IT DID NOT FIX IT. Second run, same destination — and the answer got
+WORSE in a way worth noticing: it went from a sentence to a verbatim
+recitation of the roster line. Sharpening the words made the model
+parrot them.
+
+The remaining hypothesis, untested: the attractor is not sendMe at all
+but `where` — the Investigator lives in the SCIENCE & Research Hall, and
+"entropy" is a science word. If so, no amount of rewording sendMe will
+move it, and the honest options are to leave it (he does hand over by
+name, to a real resident, in one line) or to test a non-science
+"understand X" question and find out. NOT GUESSED AT FURTHER, because
+the standing decision is explicit: "we dont have to force the modles to
+conform so stricly."
+
+The trailing-offer tic the STANCE targets survives in about one answer
+in three ("Let me know if that doesn't meet your needs"). Reduced, not
+gone. On a 8B model that is roughly what one line of stance can buy, and
+buying more of it with more rules is the trade that decision refuses.
+
+
+A BULK DROP NEVER REACHED THE DATABASE
+================================================================
+
+  "would adding new books update the backend data for them?"
+  "the multi load did not but one at a time did"
+
+Exactly right, reported from real use, and the cause was one line.
+
+The ONLY call to upsertCard from the app lived inside chapterInfo(),
+which runs when a book's full text is PAGINATED - that is, when you OPEN
+it. So:
+
+  one at a time   you drop it, you read it, chapterInfo fires, the row
+                  lands in the catalogue                          ✓
+  forty at once   you drop forty and open none of them, and NOT ONE of
+                  them exists to the database                      ✗
+
+Every consequence is invisible until you go looking. A resident's
+catalogue lookup could not find them (searchBooks reads the books table),
+a note could not point at one (notes.slug is a foreign key into it), and
+they were missing from the Records Hall. The books were fine the whole
+time; the index simply did not know they existed. This is the same shape
+as the category bug earlier today - the data was there and one join was
+not - and it is why "is it in the save" and "is it in the catalogue" are
+two different questions that must both be asked.
+
+shelveAsPersonal() now writes the card at IMPORT, and all four import
+paths funnel through it (drop-anywhere, bulk drop, the review queue, the
+by-hand form). Fire-and-forget like syncChapters: nothing waits on it, a
+browser falls straight through, and a failure cannot cost you the book,
+which is already shelved and persisted two lines above.
+
+AN UNFILED BOOK GOES UP AS NULL, not 'Personal'. `shelf IS NULL` is what
+the sorter's work queue asks for, and writing 'Personal' would quietly
+empty the pile of books waiting to be sorted - the tool would report
+nothing to do while the pile sat there.
+
+  test/live/import-reaches-db.mjs   NEW - 8 checks
+  measured with the fix removed:    0 upsertCard calls for 5 books
+  measured with it in place:        5
+
+THE SUITE STUBS THE BRIDGE rather than using Postgres, and that was a
+correction: the first version drove the real container, took five
+minutes, timed out, and proved nothing. The property under test is "the
+app ASKS the database to record it" - a stub answers that in seconds.
+Whether the write then LANDS is docker-home.cjs's job and already has
+its own suite.
+
+
+NOT DONE, NAMED SO IT IS NOT LOST
+================================================================
+
+Planned in full for next session:
+plans/AFTER-THE-LIBRARY.md
+
+  * (done - see ONE BOOK, NOT A WALL above)
+  * A NEW USER AND DOCKER - the ROOM is built (see above). What is still
+    untested is a person who has never installed Docker Desktop walking
+    the whole path on a clean machine. The room can only say the step;
+    whether the step is enough is a thing only a stranger can tell us.
+  * SEBASTIAN MIS-ROUTES "help me understand X" to the Investigator (see
+    above). Untested hypothesis: the attractor is `where` — the Science &
+    Research Hall — not sendMe. One non-science "understand X" question
+    would settle it.
+  * SEBASTIAN'S MRS BEETON GROUNDING has still not been read in an
+    answer. The bench asked him a routing question, which is not the one
+    that would show whether his training reads as training.
+  * AI NOTE SCOPE - today's notes now have a pathway INTO the day and a
+    reach control on the card. The other half of his idea - older notes
+    pulled from the ARCHIVE on request rather than being in reach by
+    default - is not built.
+  * THE NOTICE BOARD - global missions hint, and a "help us get books
+    legally, work in progress" notice. Not started. It is currently
+    comingCommons(), a dialog that explains what it would be.
+  * MANUAL.md section 4 has not caught up with the two homes, the
+    100-book cap, the storage badges, or the empty seed shelf.
+
+CLOSED TODAY, so the list above is the whole of it: the keystroke doors,
+the two Grounds, the catalogue reconciliation, the seed shelf and every
+pathway to it, the browser's honesty, migration 005, the nine seed-bound
+test suites, and the note pathway into the day.
+
+
+================================================================
+PART SIX - THE DOCUMENTS HAD GOT AWAY FROM THE PROGRAM
+(a later session the same day, and it wrote no features at all)
+================================================================
+
+  "the priority should be updating what we did in the dev logs to the
+   other parts where we need to update what is said, then we can fix the
+   backend after we get more famalar with this project that has seemed
+   to get away from be a bit."
+
+Four heavy sessions changed the Library, the storage layer, the
+residents' grounding and the world map. THE DEV LOGS RECORDED ALL OF IT.
+ALMOST NOTHING ELSE WAS UPDATED. So the feeling of a project getting
+away from you was the accurate reading of a map that no longer matched
+the ground.
+
+THE RULE THIS SESSION RAN ON: verify every claim against the code before
+rewriting it. Never propagate a dev-log sentence without checking. This
+very file retracted two wrong diagnoses earlier today - the 255 "ghost
+books" that never existed, and "the Computer cannot index the Library"
+when it always could. A doc rebuilt from an uncorrected log is the same
+problem with a fresher date on it.
+
+Twenty-three findings. Every one measured today.
+
+
+THE PATTERN: ONE WRONG NUMBER IN FOUR FILES
+----------------------------------------------------------------
+SEED_LIBRARY is []. Zero books. Four files still said 27:
+
+  README.md      "The Pavilion ships with 27 texts"    <- THE FRONT DOOR
+  CLAUDE.md      "27 books ship in seed.js"            <- rule 1's own
+                                                          worked example
+  MAINTAINING.md "27 texts in the shipped seed"
+  MAINTAINING.md ...and 250 lines later, correctly, that the shelf is
+                 empty. THE FILE CONTRADICTED ITSELF.
+
+A hand-copied number that must match a source of truth is rule 4's exact
+shape. So it is DERIVED now, not merely fixed: a guard reads
+SEED_LIBRARY.length and fails any doc that disagrees. It immediately
+found TWO MORE stale lines than the hand sweep had.
+
+README also promised "three gifts waiting at the Record Stone" in its
+first-ten-minutes walkthrough. GATE_BEQUESTS is []. A new user would
+have walked down that lane and found bare sand. The PANEL was already
+honest about it - "this court ships bare and stays bare" - so only the
+front door lied.
+
+
+THE REAL FIND: RETIRING THE MONK'S TIER COST THREE THINGS, NOT ONE
+----------------------------------------------------------------
+On 2026-08-07 chatOptsFor() was emptied to `return {}`. One property was
+meant to go. Three did.
+
+  the largest local model    INTENDED, documented, correctly retired
+  LOCAL-ONLY FOR THE MONK    lost silently - AND STILL PROMISED
+  think:true / visible       lost silently - AND STILL PROMISED
+    reasoning
+
+CLAUDE.md said, in one paragraph: "What did NOT change: he is still
+local-only, by the cloud guard in the transport layer... losing one must
+not quietly lose the other."
+
+THE WARNING WAS RIGHT AND THE REASSURANCE WAS WRONG, IN THE SAME BREATH.
+There is no cloud guard. Measured: chatOptsFor() returns {} for every
+agent; detectAI() takes the first enabled connection that answers and
+hands it to all seven residents; no per-resident routing exists anywhere
+in src/. The only cloud-related code is isCloudModel(), which keeps
+Ollama's HOSTED models out of bestLocalModel() - a different question,
+and bestLocalModel() now feeds no routing decision at all. Configure a
+cloud provider and the Monk speaks through it.
+
+And bestLocalModel()'s ONE remaining caller was a sentence in the
+Connections panel telling the visitor the Monk would claim the largest
+model. A panel whose entire job is saying where a conversation goes,
+saying something false about where a conversation goes.
+
+think:true has NO CALLER ANYWHERE - zero in src/, tools/, electron/,
+test/. The whole road is built: parseOllamaStreamLines accumulates
+message.thinking, p.lastThinking holds it, renderChatView has a
+"thought for a moment" panel ready. Nothing turns it on. PROTOCOLS.md
+was telling people to install a thinking model so they could watch it
+think.
+
+THE SHAPE IS THE LESSON. npm test genuinely enforces that every AI.chat
+caller in ui/ can REACH chatOptsFor() - a real guard, and it passed
+throughout. A REACHABLE SEAM THAT RETURNS {} ENFORCES NOTHING. That is
+groundingFor() again: written, tested, documented, called by nobody.
+
+Both are one option object from working. NOTHING WAS DELETED - the
+steward's instruction, and it is the right one: "lets make sure not to
+delete fucntions that are not wired in but to fix the writing and delete
+the things that where holding the project back." So bestLocalModel, the
+deep tier, the thinking plumbing, GATE_BEQUESTS and its render branch
+all stay. The WRITING around them changed.
+
+Both are logged in docs/DOCS-DRIFT.md as the top items, each with two
+honest options - restore the rule, or drop the promise - and the
+standing instruction not to restate either claim in any document until
+one is chosen. A privacy promise is the one kind of stale doc that can
+actually harm somebody.
+
+
+I ALMOST WROTE THE FALSE CLAIM MYSELF
+----------------------------------------------------------------
+Worth recording. Rewriting PROTOCOLS.md, I wrote "What did NOT change:
+the Monk is still local-only" straight out of CLAUDE.md - the exact
+failure mode this session was called to fix, replacing a wrong sentence
+with a differently wrong one. It survived about ninety seconds, because
+the session rule is VERIFY BEFORE WRITING and the grep for the cloud
+guard came back empty. Then the same thing nearly happened again with
+"a thinking model streams its reasoning live," which I had just put into
+two places.
+
+Documentation work needs the same discipline as code. The temptation is
+to trust the document you are correcting FROM.
+
+
+WHAT THE BACKEND ACTUALLY IS - docs/THE-BACKEND.md
+----------------------------------------------------------------
+  "the backend is a bit complecated the docker has all the books and the
+   backeds are somewhat twisted. i wanted docker for privacy and that the
+   game can run without it so its a bit wierd"
+
+Three separate things, routinely confused as one:
+
+  the save     your day, notes, courses, AND the personal catalogue
+               needs nothing, always there
+  Postgres     the KNOWLEDGE - cards, shelves, chapters, notes index
+               NEEDS NO DOCKER: PGlite in the app, same SQL, same schema
+  MinIO        the book TEXT and only that
+               needs Docker; falls back to a .txt under userData, then
+               inline in the save
+
+DOCKER BUYS CAPACITY FOR TEXT. NOT PRIVACY, AND NOT SEARCH.
+
+The privacy half is the one that dissolves the weirdness. Measured with
+both containers up: postgres 127.0.0.1:5432, minio 127.0.0.1:9000 -
+LOOPBACK ONLY, as the compose file intends ("on a laptop that means the
+coffee shop's wifi"). Nothing off this machine can reach either. The
+privacy property comes from localhost-binding plus no cloud account, and
+PGlite under userData has exactly the same property. MAKING DOCKER
+OPTIONAL COST NO PRIVACY AT ALL. Two goods that were never in tension -
+which is precisely why holding both felt strange.
+
+And "npm run dev is empty" is THREE reasons stacked, not one, and
+nothing anywhere said so:
+  1. no desktop bridge -> dbAvailable() false -> hydrateFromDb() never
+     runs -> libraryDocs stays SEED_LIBRARY, which is now []
+  2. localStorage is PER-ORIGIN - :5173, :4173 and the app are three
+     separate saves
+  3. VITE_MINIO_ENDPOINT is deliberately blank in .env.beta
+Correct by construction. Use npm run electron:dev.
+
+TWO REAL KNOTS, measured and NOT fixed (plans/THE-BACKEND-UNTANGLE.md):
+
+  A. loadBookTextResult() and openFullText() EACH implement inline ->
+     libraryRead -> MinIO-fetch, with their own error messages. Two paths
+     for one decision. The store.js scar exactly.
+
+  B. Reads and writes reach MinIO by unrelated doors. Writes go through
+     mc in a throwaway container, authenticated from .env. Reads are a
+     bare UNAUTHENTICATED fetch() from the renderer - minioRead DOES NOT
+     EXIST on the bridge, zero occurrences in preload.cjs or main.cjs -
+     and the bucket answers an anonymous request with HTTP 200. That
+     policy was set by hand and is in no compose file, no protocol doc
+     and no test. Loopback-only, so low risk today, but A FRESH MACHINE
+     WILL NOT HAVE IT. This is the concrete reason the layer feels
+     twisted: one storage system, two unrelated doors, one undocumented.
+
+
+TWO GUARDS, EACH BROKEN ON PURPOSE
+----------------------------------------------------------------
+1. NO DOC MAY CLAIM A SHIPPED BOOK COUNT that disagrees with
+   SEED_LIBRARY.length. History is allowed when the line marks itself
+   (SUPERSEDED, "until 2026-", "used to", "deleted"), checked in a
+   two-line window because markdown wraps - the first version failed two
+   ALREADY-CORRECT passages, which was the guard being wrong, not the
+   docs. It fails loudly if its own pattern ever stops matching anything.
+
+2. EVERY "> *" QUOTED SCREEN LINE IN MANUAL.md MUST EXIST IN src/.
+   Normalised to letters and digits so it survives concatenated string
+   literals and escaped apostrophes.
+
+   COMMENTS ARE STRIPPED FIRST, and that mattered. Sabotage: delete a UI
+   string, leave a comment quoting the old wording - which is exactly
+   what a careful person does. WITH COMMENTS INCLUDED THE GUARD PASSED.
+   That is how three guards in this project were born dead, and it took
+   deliberately doing it to find out.
+
+Proven in three directions: change the manual -> red; change the source
+-> red; replace the source string with a comment -> red.
+
+MANUAL section 8 also turned out to quote THREE title-screen states when
+there are FOUR, and the one it got wrong named a SEARCH limitation
+("everything works, but nothing is indexed") for what is actually an
+ABSENCE - the exact thing a visitor opens the manual to understand.
+
+
+WHAT ALSO CAME OUT TRUE
+----------------------------------------------------------------
+  * TWELVE scenes, not eleven (works was added this morning). npm test
+    prints the number, so it is derived now.
+  * SEVEN role keys, SIX people - the Steward and the Investigator are
+    the same resident in two rooms under two charters. Both numbers
+    matter: seven is what a guard counts, six is who a visitor meets.
+  * overlays.js is 12,966 lines - 74% code, 732 top-level definitions,
+    ~2,000 lines carrying HTML. MAINTAINING said "~10k" and the FILE'S
+    OWN HEADER said "~10,000 lines, and that is fine". Both understated
+    it by 3,000.
+  * FIVE modules were missing from the code map entirely: places.js,
+    lookup.js, note-reach.js, carrying.js, book-storage.js (and
+    daily-tasks.js). All load-bearing, all added since the map was
+    written.
+  * REPLY_TIMEOUT is 90/240/360s. AI-INTEGRATION-NOTES.md said
+    45/120/180s - raised at the steward's ask, and the file never
+    followed.
+  * FOUR of AFTER-THE-LIBRARY's six are done, three of them unmarked:
+    the Computer's random/test, the in-game Docker room (openStorage, a
+    copyable command, never a fake install button), a real model on 415
+    books - and MANUAL section 4, closed today.
+
+
+THE OVERLAYS SPLIT - A PLAN INSTEAD OF A RATCHET
+----------------------------------------------------------------
+  "lets do what is recomend with no celied but i need a real plan on how
+   to taclke this completely later, theres other work to do but lets not
+   let this get too out of hand."
+
+The measurement that made the case: ONE REGION CAME OUT since 2026-08-04
+and the file still GREW BY 850 LINES. termRun alone went 212 -> 380,
++79%.
+
+The two Grounds moved no panel code - it changed scenes.js, tile grids
+and warps. But Stage 0 of that same work built data/places.js, and every
+room in it carries a `scene` field that npm test already crosses against
+scenes.js in BOTH directions. THAT TABLE IS THE SPLIT ORDER, and it
+maintains itself. So the rewritten plan is indexed by it rather than by
+a hand-written list that goes stale - which is what the old one had done.
+
+A committed line-count ceiling was proposed and DECLINED, and is written
+into the plan as the tool deliberately left on the shelf, so it is one
+move rather than an argument to re-have.
+
+One thing found while scoping it: test/smoke.mjs's Computer command
+guard reads overlays.js BY FILENAME. The moment termRun moves it fails
+loudly - the right kind of break - but the fix is to read the whole ui/
+directory, as UI_SOURCE in the same file already does for the
+prompt-budget and inline-handler checks. It is the last guard that does
+not.
+
+
+NOT DONE, AND NAMED SO IT IS NOT LOST
+----------------------------------------------------------------
+  * THE TWO UNBACKED PROMISES. Decide (a) restore or (b) drop, for
+    local-only and for think:true. Nothing else should be layered on an
+    unresolved privacy claim.
+  * BACKEND KNOTS A AND B - plans/THE-BACKEND-UNTANGLE.md, A first
+    because it makes B a one-line change.
+  * THE RESIDENT REACH GAP - plans/RESIDENT-REACH-PLAN.md, fully
+    designed, not built. Two corrections found while designing it: gap 3
+    (NOTHING_HERE_YET) must NOT depend on the database, or the one state
+    a new visitor hits is the one that never fires; and the live suite
+    must be ELECTRON, not Chrome, because libraryLookupBlock() returns
+    null with no bridge, so a browser suite would test nothing.
+  * RETRIEVAL REACHES THE RESIDENTS - searchPages/passagesBlock, built
+    and tested, ONE caller. The design problem is named in
+    AI-INTEGRATION-NOTES.md: carriedLines() is synchronous and
+    carryGrounding() draws the meter from it, so making one async makes
+    both, and THE METER MUST KEEP AGREEING WITH THE PROMPT.
+  * ui/computer.js extraction - first commit of the split.
+  * notesInReach (half built) and the notice board (not started).
+
+VERIFIED: npm test green throughout; four sabotage cases, all caught;
+node --check on every touched module. No feature code changed - the only
+src/ edits are comments, two Connections-panel strings that were false,
+and one file path.
+
+
+PART SEVEN - WHAT VERIFICATION FOUND, AND ONE DECISION MADE
+================================================================
+
+THE MONK MAY BE CLOUD. Settled the same day the gap was found:
+
+  "the monk can be cloud if there computer cant run local ai alot of
+   people have laptops just let the user know."
+
+So the local-only promise is DROPPED ON PURPOSE, not merely found
+broken - option (b) of the two that were put. A laptop that cannot
+comfortably run a local model must not mean no Mountain Monk; guidance
+you can reach beats a principle that locks you out of the room.
+chatOptsFor() returning {} for every agent is now CORRECT rather than a
+silent loss.
+
+WHAT MADE IT HONEST, because a choice the visitor cannot see is not a
+choice: isLocalConn() moved into ai/provider.js as the ONE definition
+(it had been private to the Connections panel), detectAI() stamps
+AI.local, and THE CHAT HEADER now reads
+
+  "🏠 connected — Ollama (local) · llama3.2:latest · stays on this computer"
+
+or the ☁ form with "leaves this device". The settings panel had badged
+this all along and the room where people actually speak did not.
+
+NEW STANDING RULE: no surface that sends words to a model may omit the
+🏠/☁ label.
+
+think:true IS STILL UNDECIDED and stays in the register.
+
+
+A FOURTH STALE MONK CLAIM, found only by pressing the button
+----------------------------------------------------------------
+data/machine-advice.js told anyone with 24GB+ of RAM:
+
+  "If you later pull something larger, the Mountain Monk will claim it
+   automatically - the biggest model on your machine is always his."
+
+Three greps of the documentation had missed it, because it lives in a
+PURE-LOGIC MODULE nobody thinks of as user-facing copy. It surfaced when
+the live test pressed "Check this computer" and read the output.
+
+ADVICE A PERSON ACTS ON IS USER-FACING COPY. That is the lesson worth
+keeping - the doc sweep found three instances of the retired rule and
+the fourth needed the app to actually run.
+
+
+READING THE .PNG - AND A CORRECTION TO MYSELF
+----------------------------------------------------------------
+First look at the chat header, I read the 🏠 as TOFU - the pixel font
+already renders the 🗒 glyph as an empty box, so it was a plausible
+read. IT WAS WRONG. Measured instead of squinted at: rendering 🏠
+against U+10FFFF (guaranteed unassigned, so whatever it measures IS
+tofu here) gave 15.8px vs 6.9px, and a 3x clipped screenshot showed a
+proper colour house. ☁ measures 10.0. Both are fine.
+
+Worth recording because the method is the point: WHEN A SCREENSHOT IS
+AMBIGUOUS, MEASURE THE THING RATHER THAN LOOK HARDER.
+
+
+THREE TIMES TODAY THE CHECK WAS THE BROKEN THING
+----------------------------------------------------------------
+  1. The seed-count guard failed two ALREADY-CORRECT passages, because
+     a history marker often sits a line above the sentence it governs.
+     Fixed with a two-line window, verified against all four real
+     drifted claims to be sure it still fires.
+  2. The live check for "no Monk claims the largest model" failed on
+     the panel's own CORRECTION - "The Monk used to claim the largest
+     model ... that was retired". Present tense only.
+  3. Two panel checks read innerText, which skips a collapsed <details>
+     and a card that only renders after a button press. The copy was
+     right; the test never saw it.
+
+None of these were bugs in the program. All three would have been read
+as bugs if the failure had been trusted at face value.
+
+
+ANSWERS TO TWO QUESTIONS ASKED DURING THE SESSION
+----------------------------------------------------------------
+MULTI-FILE DROP LOSES THE METADATA - confirmed, and it is ONE LINE:
+
+  overlays.js:  if(files.length>1) return bulkShelveDroppedFiles(files, msg);
+
+One file goes to fillDropForm() (title/author derived, reviewable);
+many files skip straight past it. The steward's fix - stack them and
+walk the same one-at-a-time review, defaulting to Your Shelf - has an
+obvious home at exactly that branch. Not built; it belongs with the
+"flow like water" pass rather than as a new feature.
+
+CAN YOU ADD A PAPER? Supported, but the pathway is BACKWARDS. KINDS.paper
+exists (places: bench, investigation, studyTable), the Computer has a
+`papers` command, and the-day.js notices an undissected paper. But the
+only way to MARK something a paper is setBookKind() in
+"⚙ Manage my books", AFTER it is already shelved as a book. the-day.js's
+own comment says "kind:'paper' is set at intake by the person who
+actually knows" - which is aspirational: the intake table never asks.
+The person knows at the moment they drop the file, which is the one
+moment they are not offered the choice.
+
+
+THE WELCOME PACKET - planned, not started
+----------------------------------------------------------------
+plans/THE-WELCOME-PACKET.md. A first armful of books as a REWARD FOR
+FINISHING THE TUTORIAL. The design constraint is the whole plan: IT MUST
+NOT BECOME A NEW SEED SHELF. The word that makes the difference is
+EARNED - and it depends on the tutorial, which is unbuilt. A reward with
+nothing to earn it is a seed shelf with a delay.
+
+Recommendation recorded: a guided list that walks you to real sources
+one at a time (cheapest, most honest, matches "a first armful is a
+documentation problem"), with on-demand fetching as the upgrade where
+the desktop bridge exists.
+
+
+WHAT A LOCAL MODEL IS GOOD AT - recorded in AI-INTEGRATION-NOTES.md
+----------------------------------------------------------------
+The steward brought outside advice on local-model strengths and
+weaknesses. The line that matters:
+
+  "The difference between 'mediocre local AI' and 'genuinely useful
+   local AI' is almost never the model alone - it is the loop you put
+   around it (plan -> act -> observe -> correct)."
+
+Which is this project's own principle arrived at from the other side.
+Two conclusions written into that file:
+
+  * RETRIEVAL ANSWERS TWO of the listed weaknesses at once ("needs the
+    error plus the relevant code", "weak without good retrieval"). That
+    is why it outranks anything that makes a resident more elaborate.
+  * THE PAVILION'S LOOP IS A PERSON, and all four steps already exist:
+    choose what goes in the backpack (plan), ask (act), read the receipt
+    showing exactly what was used (observe), carry something different
+    (correct). Protect that loop before adding to either end of it.
+
+VERIFIED THIS PART: npm test green; build:beta clean and beta-verified;
+real Chrome against :4173 with pageerror attached, screenshots read;
+node --check on provider.js, overlays.js, machine-advice.js.

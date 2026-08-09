@@ -41,9 +41,18 @@ app.whenReady().then(async () => {
       contextIsolation: true, sandbox: false } });
   const js = expr => win.webContents.executeJavaScript(expr);
   const errs = [];
+  /* `a[1]` is the console LEVEL, not the message — this capture was dead and
+     "no console errors" passed no matter what the page logged. Found and
+     explained in full in test/live/note-search.cjs, 2026-08-08. */
+  const msgOf = (a) => {
+    const ev = a[0];
+    if (ev && typeof ev === 'object' && typeof ev.message === 'string') return ev.message;
+    for (let i = 1; i < a.length; i++) if (typeof a[i] === 'string') return a[i];
+    return '';
+  };
   win.webContents.on('console-message', (...a) => {
-    const m = a.length > 1 ? a[1] : (a[0] && a[0].message);
-    if (typeof m === 'string' && /error|not defined|undefined is not/i.test(m)) errs.push(m);
+    const m = msgOf(a);
+    if (m && /error|not defined|undefined is not|before initialization/i.test(m)) errs.push(m);
   });
 
   await win.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'));

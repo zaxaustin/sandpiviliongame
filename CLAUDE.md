@@ -38,12 +38,20 @@ before starting. This project asks to be built with care, not rushed.
 
 ## The rules that were paid for
 
-**1 · TEST THE PLAYER'S BOOKS, NOT THE SEED.** 27 books ship in `seed.js`; 270+
-were added by the player, and that gap only widens. A seed book is tidier in
-every way a test cares about — clean sections, known licence, guaranteed shape.
-The chapter finder once passed on six seed texts and was **wrong on 62% of the
-real 296**. Use `library-sources/`, or `test/fixtures/chapters/`. Sweep the
-whole library when changing a rule that applies to all of them.
+**1 · TEST THE PLAYER'S BOOKS, NOT THE SEED.** **`SEED_LIBRARY` is now `[]` —
+there is no seed left to hide behind** (all 27 deleted 2026-08-10; texts kept in
+`archive/seed-texts-2026-08-10/`). The rule is stronger for it, not obsolete: a
+seed book was tidier in every way a test cares about — clean sections, known
+licence, guaranteed shape — and that tidiness is exactly what made it lie. The
+chapter finder once passed on six seed texts and was **wrong on 62% of the real
+296**; the Index rendered **zero of 415 real books** while 27 seed stubs
+rendered perfectly and hid it.
+
+So a suite that seeds an **empty save** is now the same mistake in a new
+costume — it tests a Pavilion with no books in it. Use `test/live/_books.mjs`
+(the fixture, in all three storage homes), `library-sources/`, or
+`test/fixtures/chapters/`. Sweep the whole library when changing a rule that
+applies to all of them.
 
 **2 · LOOK AT IT.** Every serious bug this project has had was found by looking,
 none by reasoning.
@@ -130,8 +138,15 @@ mentions in docs are historical or cleanup targets, never instructions.
 **Local and self-hosted.** Book text in local MinIO, the catalogue local,
 runnable with no cloud account. The Library is **built from scratch by its
 owner** — and the reason is the person, not the privacy: *"filling up your own
-library makes one have a sence of ownerhip."* A book nobody chose is inert. The
-seed shelf is an on-ramp, not a library; its small size is correct.
+library makes one have a sence of ownerhip."* A book nobody chose is inert.
+
+**THE SHELF STARTS EMPTY, AND THAT IS THE FINISHED POSITION** (2026-08-10). This
+used to read "the seed shelf is an on-ramp, not a library; its small size is
+correct." There is no on-ramp now — `SEED_LIBRARY` is `[]`, and that is
+permanent. The argument got simpler rather than weaker: a shelf of 27 books
+nobody chose was doing the ownership argument harm, and it was actively hiding
+bugs (see rule 1). **A first armful is a documentation problem, not a shipping
+problem** — `docs/BOOKS-TO-SOURCE.md` is the list.
 
 **The low-res look is a resource choice.** Plain pixel art costs almost nothing
 so the machine's power goes to a local AI actually running and a big Library
@@ -153,12 +168,45 @@ what everyone gets. Guidance is carried by who he is and what he is grounded
 in, not by how long he is allowed to think — and a bigger model on this machine
 buys slower counsel, not better counsel, since cooling is the real limit.
 
-**What did NOT change: he is still local-only**, by the cloud guard in the
-transport layer. The privacy reason was never the same as the depth reason, and
-losing one must not quietly lose the other. `chatOptsFor()` in
-`src/game/ai/provider.js` is the single seam where any of this is decided —
-every `AI.chat` caller in `ui/` must be able to reach it, and `npm test`
-enforces that whatever the rule currently says.
+**⚠ AND THE LOCAL-ONLY PROPERTY WENT WITH IT. Measured 2026-08-10.** This
+paragraph used to say *"What did NOT change: he is still local-only, by the
+cloud guard in the transport layer"* — and warned in the same breath that
+"losing one must not quietly lose the other." **That is exactly what happened,
+and the doc asserted the opposite for three days.**
+
+There is **no cloud guard in the transport layer**, and there never was one for
+this. Verified: `chatOptsFor()` returns `{}` for every agent
+(`ai/provider.js`); `detectAI()` picks the **first enabled connection that
+answers and assigns it to every resident** — there is no per-resident routing
+anywhere in `src/`. The only cloud-related guard is `isCloudModel()`, which
+excludes Ollama's *hosted* models from `bestLocalModel()`, and `bestLocalModel()`
+now has exactly one caller: a sentence in the Connections panel that was itself
+false until today. **Configure a cloud provider and the Monk uses it.**
+
+`chatOptsFor()` IS still the single seam where this would be decided, and
+`npm test` genuinely enforces that every `AI.chat` caller in `ui/` can reach it
+(`test/smoke.mjs`, the guard is real). But **a reachable seam that returns `{}`
+enforces nothing** — which is this project's oldest bug shape, the one
+`groundingFor()` already wore: a boundary around a door nobody opened.
+
+**RESOLVED THE SAME DAY, and the answer is that the Monk MAY be cloud:**
+
+> *"the monk can be cloud if there computer cant run local ai alot of people
+> have laptops just let the user know."*
+
+So the promise is **dropped on purpose**, not merely found broken. A laptop that
+cannot comfortably run a local model must not mean no Mountain Monk — guidance
+you can reach beats a principle that locks you out of the room. Every resident
+uses the one detected connection, and that is now a stated decision.
+
+**What carries it instead is labelling, and labelling has to be where the person
+is.** `isLocalConn()` lives in `ai/provider.js` (one definition), `detectAI()`
+stamps `AI.local`, and the **chat header** now reads `🏠 connected — <model> ·
+stays on this computer` or `☁ … · leaves this device`. The Connections panel had
+badged this all along; the room where people actually speak did not.
+
+**`chatOptsFor()` is still the seam** if per-resident routing is ever wanted —
+and it still returns `{}`, which is now correct rather than a silent loss.
 
 **DON'T FORCE THE MODEL TO CONFORM.** Stated 2026-08-04:
 
