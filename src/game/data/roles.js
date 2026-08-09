@@ -82,6 +82,87 @@
    it. npm test fails if a role has no lens, and fails if any resident
    is composing grounding by hand instead of through the pathway.
    ================================================================ */
+
+/* ================================================================
+   WHAT EACH ROLE IS ACTUALLY GIVEN — declared, 2026-08-10.
+
+   The inversion above was right and went one step too far. "Every
+   resident gets the whole pathway" fixed a real bug (2 of 7 could
+   reach the Library) by making the grounding UNCONDITIONAL — which
+   was free while every block was cheap, and stops being free the
+   moment one of them is not.
+
+   Retrieval is that moment. Pulling real passages out of a carried
+   book costs a page index, a tokenise and a chunk of context, and the
+   Computer — whose job is this machine's files — has no use whatsoever
+   for a page of Walden. Handing it one anyway is the catalogue bug in
+   its fourth costume: a block that grows with how much the visitor has
+   done, given to someone who cannot use it.
+
+   So a role DECLARES what it is given. `pathwayBlock()` is still the
+   single composer and still assembles everything identically; it just
+   consults this list rather than assuming all of it. That keeps the
+   property the inversion bought — nobody can forget to include the
+   Library — while letting a role opt OUT of something it cannot use.
+
+   THE KINDS, and every one of them must be one pathwayBlock() knows.
+   npm test checks BOTH directions: a role with no `grounding` fails
+   rather than silently defaulting to everything, and a kind named here
+   that the composer does not implement fails too. A declaration that
+   quietly does nothing is this project's oldest bug shape.
+
+     shelves     the Library lookup on the visitor's own question
+     carried     the backpack — what they deliberately picked up
+     notes       their own notes, and ONLY when they pressed the button
+     papershelf  books they own ON PAPER, and their datasheets
+     reference   the Reference Desk constants, when a term appears
+     training    this role's own book — see below
+
+   `passages` is deliberately NOT a kind yet. It arrives with retrieval,
+   and it arrives in BOTH places at once — the composer and the roles
+   that opt in — because a kind declared before the composer knows it
+   would fail the guard, and a kind implemented before anyone declares
+   it would be dead code. That is the whole point of guarding both
+   directions.
+
+   ---------------------------------------------------------------
+   `training` — A RESIDENT'S OWN BOOK, and the steward's idea:
+
+     "hopfully the ais in the sand pavilion can use there roles as a
+      contex to have the books for themselves to spelize like the book
+      of household management for sebastian lol"
+
+   Sebastian already had exactly this, hand-written into residents.js
+   as butlerTrainingBlock(): four sentences of real Mrs Beeton, because
+   "sebastian is on an endless loop of questions has not proper butler
+   traning, i think theres a book in household manamgement in the
+   library he should refrence it lol." It worked. It was also one
+   resident's worth of hardcode in a file this one exists to keep
+   hand-maintained lists out of — so it moves here, where a second
+   resident claiming a book is a data change rather than a new function.
+
+   THREE RULES, and the first is the one that makes it honest:
+
+   1 · IT MUST BE A BOOK THAT IS ACTUALLY ON THE SHELVES. Beeton earned
+       her place by being real — `library-sources/the-book-of-household-
+       management.txt`, 1861, public domain, and §2157-2166 are the
+       butler's own chapter. A resident grounded in a book the visitor
+       cannot go and read is a resident quoting something invented.
+   2 · QUOTED, NOT PARAPHRASED, AND NAMED. Same reason: a visitor can
+       turn to the same pages and check.
+   3 · FOUR SENTENCES, NOT A CHAPTER. This is paid for on every single
+       message, forever. Real Beeton beats more Beeton.
+
+   Only Sebastian has one today, and that is not a gap to be filled for
+   its own sake — the steward's librarian's-handbook example was an
+   example, and no such text is on these shelves. When one is, it is a
+   `training` block here and nothing else.
+   ================================================================ */
+export const GROUNDING_KINDS = ['shelves','carried','notes','papershelf','reference','training'];
+/* Everything but `training`, which is per-role by definition. The default a
+   role gets by writing `grounding: [...FULL_PATHWAY]` — spelled out rather
+   than implied, so opting out of something is visible in the diff. */
+export const FULL_PATHWAY = ['shelves','carried','notes','papershelf','reference'];
 export const ROLES = {
   sebastian: {
     label: 'Sebastian',
@@ -103,6 +184,36 @@ export const ROLES = {
     chat: { name:'SEBASTIAN · Butler', color:'#4a6a8a', glow:'#a9c7e8',
       line:'At your service. What are we doing today — or is there someone here you need pointing to?' },
     hub: true,
+    /* NO `reference`. The Reference Desk is a table of physical and technical
+       constants; his work is a day, and a melting point is never the next move
+       on one. He keeps the paper shelf — "you own that one, it is across the
+       room" is a genuinely useful thing for the hub to be able to say. */
+    grounding: ['shelves','carried','notes','papershelf','training'],
+    /* HIS OWN BOOK, moved here from a hardcoded function in ui/residents.js on
+       2026-08-10. Mrs Isabella Beeton, Book of Household Management, 1861 —
+       genuinely on these shelves, public domain, and the butler's own chapter
+       is §2157-2166. Three passages, chosen because each changes what he DOES
+       rather than how he sounds:
+         §2164  "very great trust ... honesty is the best policy" — the reason
+                he may tell you your day is thin, rather than a liberty
+         §2163  "pay bills, and superintend the other servants" — the hub duty,
+                in the book's own words instead of ours
+         §3     early rising and forethought — household management as running
+                a day, which is the whole of his job here */
+    training: {
+      book: 'Mrs Isabella Beeton\'s Book of Household Management (1861)',
+      lines: [
+        'The butler\'s office is “one of very great trust in a household. Here, as elsewhere, '
+          + 'honesty is the best policy.” That is why you may say plainly that a day is thin or '
+          + 'overfull — candour is the job, not a liberty you are taking.',
+        'Beyond waiting at table, the butler is “required to pay bills, and superintend the other '
+          + 'servants.” You keep the house running and you know whose work is whose. That is your '
+          + 'hub duty, and it is older than this Pavilion.',
+        '“Early rising is one of the most essential qualities which enter into good Household '
+          + 'Management”: a house is orderly because someone started it in order. Forethought the '
+          + 'night before, and one clear beginning in the morning.',
+      ],
+    },
   },
   quill: {
     label: 'Quill',
@@ -116,6 +227,11 @@ export const ROLES = {
     open: "talkTo('quill')",
     chat: { name:'QUILL · Librarian', color:'#8a6a3a', glow:'#e0c48a',
       line:'The shelves are yours. Looking for something in particular, or want to know what a book is about?' },
+    /* NO `reference`. A constants table is not a librarian's tool — his job is
+       which book, where it sits, and what else here is like it. The paper shelf
+       very much IS his: knowing you already own it on paper is the difference
+       between "we do not have that" and "you do, it is behind you." */
+    grounding: ['shelves','carried','notes','papershelf'],
   },
   tutor: {
     label: 'the Tutor',
@@ -148,6 +264,12 @@ export const ROLES = {
        every resident now has. */
     chat: { name:'THE TUTOR', color:'#5a7a5a', glow:'#a9d0a9',
       line:'What are we working on? Tell me where you got stuck and I will start from there.' },
+    /* THE WHOLE PATHWAY. Teaching draws on everything: the book, the note they
+       already wrote, the one on their real shelf, and the constant they are
+       about to need in a worked example. He is the clearest case for `passages`
+       when retrieval lands — a worked example from the actual page beats one
+       from the model's memory of the page. */
+    grounding: [...FULL_PATHWAY],
   },
   steward: {
     label: 'the Steward',
@@ -174,6 +296,9 @@ export const ROLES = {
        the table derives its default instead of hard-coding a name. Exactly
        one resident may carry it; npm test checks that. */
     studio: true,
+    /* THE WHOLE PATHWAY, and he has the strongest claim to all of it — his duty
+       is preparing raw material, which means whatever material is to hand. */
+    grounding: [...FULL_PATHWAY],
   },
   investigator: {
     label: 'the Investigator',
@@ -192,6 +317,9 @@ export const ROLES = {
     open: 'openScienceHall()',
     chat: { name:'THE INVESTIGATOR', color:'#2a2118', glow:'#8fb4d9',
       line:'What claim are we testing? Give me the thing you believe, and what would show it was wrong.' },
+    /* THE WHOLE PATHWAY. Evidence is wherever it is, and a datasheet or a
+       constant is evidence of exactly the checkable kind he insists on. */
+    grounding: [...FULL_PATHWAY],
   },
   monk: {
     label: 'the Mountain Monk',
@@ -224,6 +352,15 @@ export const ROLES = {
        instant — a librarian who made you wait for a shelf number would be an
        affectation. */
     pace: 34,
+    /* THE NARROWEST OF THE SEVEN, and it is his character rather than a saving.
+       No `papershelf` and no `reference`: an inventory of the visitor's paper
+       books and a table of physical constants are both answers to "where do I
+       look it up", and his own lens says the opposite — "never answer a life
+       with a citation". He is the one resident for whom more material to cite
+       makes the answer worse. He keeps the Library (a text as a mirror), the
+       backpack (what they chose to bring), and their notes when they ask —
+       which his lens calls "where they already are". */
+    grounding: ['shelves','carried','notes'],
   },
   computer: {
     label: 'the Computer',
@@ -237,6 +374,13 @@ export const ROLES = {
     open: 'openComputer()',
     chat: { name:'THE COMPUTER', color:'#3a5a6a', glow:'#a9dcf0',
       line:'Online. Ask for a list, a search, or something opened.' },
+    /* THE WHOLE PATHWAY — every part of it is a thing that IS here, which is
+       precisely its lens ("never describe a thing you could instead point at").
+       The datasheets are literally reached at this desk with `ds <part>`.
+       It is, however, the one resident that must NOT get `passages` when
+       retrieval lands: a page of prose out of a carried book is the opposite of
+       "names, counts, the command that opens it". */
+    grounding: [...FULL_PATHWAY],
   },
 };
 

@@ -497,14 +497,44 @@ function carriedBlock(){
    work the visitor has done — which is the exact failure the audit of
    2026-08-04 found in three blocks at once.
    ================================================================ */
+/* WHAT THIS ROLE DECLARED IT NEEDS. Absent is a FAILURE, not "everything" —
+   a role added without a declaration would silently inherit the whole pathway
+   including, later, retrieval, which is the exact thing declaring is for.
+   npm test fails first; this is the runtime half, and it fails loud rather
+   than guessing. */
+function wants(key, kind){
+  const g = (ROLES[key] || {}).grounding;
+  if(!Array.isArray(g)){
+    console.warn('[pathway] role', key, 'declares no grounding — giving it nothing but its lens. '
+      + 'Add a `grounding: [...]` to data/roles.js.');
+    return false;
+  }
+  return g.includes(kind);
+}
+/* A RESIDENT'S OWN BOOK. Declared in roles.js, quoted rather than paraphrased,
+   and named so the visitor can turn to the same pages. Sebastian's Beeton lived
+   here as a hardcoded function until 2026-08-10; a second resident claiming a
+   book is now a data change instead of a new function. */
+function trainingBlock(key){
+  const t = (ROLES[key] || {}).training;
+  if(!t || !Array.isArray(t.lines) || !t.lines.length) return '';
+  return '\n\nYOUR TRAINING, from ' + t.book + ', which stands on this Library\'s own shelves:\n'
+    + t.lines.map(l => '- ' + l).join('\n')
+    + '\nYou may mention the book by name if it is genuinely useful; never invent anything else from it.';
+}
 async function pathwayBlock(key){
-  const lookup = await libraryLookupBlock(lastAskOf(key));
-  const notes  = await notesLookupBlock(key);
+  /* THE LOOKUP IS STILL ONE PER TURN even for a role that does not want it —
+     shelfLookup() is not called at all here unless `shelves` is declared, and
+     when it is, the memo means the resident's own systemPrompt() gets the same
+     rows for free. Opting out saves the block AND the round-trips. */
+  const lookup = wants(key,'shelves') ? await libraryLookupBlock(lastAskOf(key)) : '';
+  const notes  = wants(key,'notes')   ? await notesLookupBlock(key) : '';
   return (lookup || '')
-    + carriedBlock()
+    + (wants(key,'carried')    ? carriedBlock() : '')
     + notes
-    + referenceShelfBlock()
-    + referenceBlock(lastAskOf(key))
+    + (wants(key,'papershelf') ? referenceShelfBlock() : '')
+    + (wants(key,'reference')  ? referenceBlock(lastAskOf(key)) : '')
+    + trainingBlock(key)
     + lensBlock(key)
     /* THE STANCE GOES LAST, and after the lens on purpose: what you are
        looking at, then what you do with it, then how you conduct yourself
@@ -956,7 +986,9 @@ const CHAT_AGENTS = {
         +butlerDayRead()
         +sebModeBlock()
         +reviewBlock
-        +butlerTrainingBlock()
+        /* His Beeton used to be composed here by hand. It is `training` in
+           data/roles.js now and arrives through pathwayBlock() below with
+           everything else he is given — see the note there. */
         +rosterBlock('sebastian')
         +(await pathwayBlock('sebastian'))
         +pastAsksBlock('sebastian');
@@ -965,7 +997,7 @@ const CHAT_AGENTS = {
   },
 };
 /* ================================================================
-   SEBASTIAN'S TRAINING — from a book that is actually on the shelves.
+   SEBASTIAN'S TRAINING LIVES IN data/roles.js NOW — moved 2026-08-10.
 
      "sebastian is on an endless loop of questions has not proper butler
       traning, i think theres a book in household manamgement in the
@@ -976,38 +1008,20 @@ const CHAT_AGENTS = {
    Beeton, 1861, 3.1 MB, public domain. Its title page lists BUTLER among
    the offices it covers, and §2157–2166 are the butler's own chapter.
 
-   WHAT IS TAKEN AND WHY. Not the wine-cellar procedure, charming as it
-   is — this is a day-keeper, not a sommelier. Three things that actually
-   change how he behaves:
+   It worked, and it was also one resident's worth of hardcode. When the
+   steward asked for the general version —
 
-     §2163  "superintend the other servants" — the HUB duty, in the
-            book's own words rather than ours
-     §2164  "one of very great trust ... honesty is the best policy" —
-            the reason he is allowed to tell you your day is thin
-     §3     early rising, order, forethought — household management as
-            running a day, which is the whole of his job here
+     "hopfully the ais in the sand pavilion can use there roles as a
+      contex to have the books for themselves to spelize"
 
-   SHORT ON PURPOSE. Rule 4 and the prompt budget: this is paid for on
-   every single message, forever. Four sentences of real Beeton beat a
-   chapter, and a chapter would push him past the budget for nothing.
-   Quoted rather than paraphrased so it is genuine grounding — and named,
-   so a visitor can go and read the same pages.
+   — the choice was a second function or a second data entry, and this
+   project has paid for hand-maintained lists too many times to pick the
+   function. So the passages, the reasons each was chosen, and the three
+   rules that keep it honest (a book actually on the shelves; quoted and
+   named, never paraphrased; four sentences, never a chapter) are all in
+   `data/roles.js` under `training`, and trainingBlock() above renders
+   whatever a role declares.
    ================================================================ */
-function butlerTrainingBlock(){
-  return "\n\nYOUR TRAINING, from Mrs Isabella Beeton's Book of Household Management (1861), which "
-    +"stands on this Library's own shelves:\n"
-    +"- The butler's office is “one of very great trust in a household. Here, as elsewhere, honesty "
-    +"is the best policy.” That is why you may say plainly that a day is thin or overfull — candour "
-    +"is the job, not a liberty you are taking.\n"
-    +"- Beyond waiting at table, the butler is “required to pay bills, and superintend the other "
-    +"servants.” You keep the house running and you know whose work is whose. That is your hub duty, "
-    +"and it is older than this Pavilion.\n"
-    +"- “Early rising is one of the most essential qualities which enter into good Household "
-    +"Management”: a house is orderly because someone started it in order. Forethought the night "
-    +"before, and one clear beginning in the morning.\n"
-    +"You may mention the book by name if it is genuinely useful; never invent anything else from it.";
-}
-
 /* Sebastian's read of the actual day — grounded in the real planner, the
    calendar, the upcoming due items, and still-open sparks. The calendar
    folds through upcomingItems() (BUTLER-SEBASTIAN-PLAN.md step 5), and

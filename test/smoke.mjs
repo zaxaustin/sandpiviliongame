@@ -2750,9 +2750,134 @@ for (const d of SEED_LIBRARY) {
     return '';
   })();
   for (const part of ['libraryLookupBlock', 'carriedBlock', 'notesLookupBlock',
-                      'referenceShelfBlock', 'referenceBlock', 'lensBlock']) {
+                      'referenceShelfBlock', 'referenceBlock', 'lensBlock', 'trainingBlock']) {
     if (!new RegExp(part + '\\s*\\(').test(pw)) {
       fail(`pathwayBlock() no longer includes ${part}() - a resident silently lost part of the one road`);
+    }
+  }
+
+  /* ---------- 4 - WHAT EACH ROLE DECLARES, CHECKED BOTH WAYS ----------
+
+     Added 2026-08-10 with `grounding: [...]`. The inversion of 2026-08-08
+     ("everyone gets everything") fixed the 2-of-7 bug and was free only while
+     every block was cheap. Retrieval ends that, so a role opts out of what it
+     cannot use — and the moment opting out is possible, TWO new silent
+     failures become possible, so both are checked:
+
+       a role that declares nothing        -> would inherit everything, which
+                                              is the thing declaring is for
+       a kind nobody implements            -> a declaration that does nothing,
+                                              this project's oldest bug shape
+
+     And the floor, which is the 2-of-7 bug made unrepeatable: shelves, carried
+     and notes are THE pathway. A role may decline an enrichment; it may not
+     decline the road. */
+  const { GROUNDING_KINDS, FULL_PATHWAY } = await import('../src/game/data/roles.js');
+  const FLOOR = ['shelves', 'carried', 'notes'];
+
+  for (const k of ROLE_KEYS) {
+    const g = ROLES[k].grounding;
+    if (!Array.isArray(g) || !g.length) {
+      fail(`roles.js: '${k}' declares no grounding. Absent must not mean "everything" - that is `
+         + `exactly how the Computer would end up being handed a page of Walden.`);
+      continue;
+    }
+    for (const kind of g) {
+      if (!GROUNDING_KINDS.includes(kind)) {
+        fail(`roles.js: '${k}' declares grounding kind '${kind}', which is not in GROUNDING_KINDS. `
+           + `It would be silently ignored by pathwayBlock().`);
+      }
+    }
+    for (const need of FLOOR) {
+      if (!g.includes(need)) {
+        fail(`roles.js: '${k}' does not declare '${need}'. Those three ARE the pathway - on `
+           + `2026-08-08 five of seven residents could not reach them and answered from the `
+           + `model's own memory. A role may decline an enrichment, never the road.`);
+      }
+    }
+    if (new Set(g).size !== g.length) fail(`roles.js: '${k}' declares a grounding kind twice`);
+  }
+
+  /* THE OTHER DIRECTION: every kind in the vocabulary must actually be
+     consulted by the composer. Break it by adding a word to GROUNDING_KINDS
+     and nothing else - the declaration would read fine and do nothing. */
+  for (const kind of GROUNDING_KINDS) {
+    if (kind === 'training') {
+      if (!/ROLES\s*\[\s*key\s*\]\s*\|\|\s*\{\}\s*\)\s*\.training/.test(pw + code)) {
+        fail(`roles.js declares a 'training' kind and residents.js never reads ROLES[key].training`);
+      }
+      continue;
+    }
+    if (!new RegExp(`wants\\s*\\(\\s*key\\s*,\\s*['"]${kind}['"]\\s*\\)`).test(pw)) {
+      fail(`GROUNDING_KINDS lists '${kind}' and pathwayBlock() never asks wants(key,'${kind}') - `
+         + `every role declaring it would be declaring nothing.`);
+    }
+  }
+  if (!FULL_PATHWAY.every(k => GROUNDING_KINDS.includes(k))) {
+    fail('roles.js: FULL_PATHWAY names a kind that is not in GROUNDING_KINDS');
+  }
+  /* `wants()` must FAIL CLOSED. A role with no declaration getting everything
+     is the exact regression this whole section prevents, and a missing `return
+     false` would restore it while every check above still passed. */
+  const wantsBody = (() => {
+    const at = code.search(/function\s+wants\s*\(/);
+    if (at < 0) return '';
+    let i = code.indexOf('{', at), depth = 0;
+    for (let j = i; j < code.length; j++) {
+      if (code[j] === '{') depth++;
+      else if (code[j] === '}') { depth--; if (!depth) return code.slice(i, j + 1); }
+    }
+    return '';
+  })();
+  if (!wantsBody) fail('smoke: could not find wants() in residents.js - the fail-closed check has drifted');
+  else if (!/if\s*\(\s*!Array\.isArray\(\s*g\s*\)\s*\)\s*\{[\s\S]*?return false;/.test(wantsBody)) {
+    fail('wants() does not fail closed on a role with no declaration - an undeclared role would '
+       + 'silently inherit the whole pathway, including retrieval');
+  }
+
+  /* ---------- 5 - A RESIDENT'S OWN BOOK, DECLARED AND REAL ----------
+     `training` moved out of a hardcoded butlerTrainingBlock() on 2026-08-10.
+     A move is where text gets silently dropped, so the actual Beeton is
+     checked - not merely that Sebastian has *a* training entry. */
+  for (const k of ROLE_KEYS) {
+    const t = ROLES[k].training;
+    const declared = (ROLES[k].grounding || []).includes('training');
+    if (t && !declared) {
+      fail(`roles.js: '${k}' has a training text and does not declare 'training' - it would never `
+         + `reach the prompt, which is a book written and handed to nobody`);
+    }
+    if (declared && !t) {
+      fail(`roles.js: '${k}' declares 'training' and has no training text - an empty promise`);
+    }
+    if (!t) continue;
+    if (!t.book || !Array.isArray(t.lines) || !t.lines.length) {
+      fail(`roles.js: '${k}'s training must NAME the book and carry real lines - unnamed grounding `
+         + `cannot be checked by the person it is quoted at`);
+    }
+    /* Paid for on every message, forever. Four sentences of real Beeton beat a
+       chapter; a chapter would push a resident past budget for nothing. */
+    const chars = (t.lines || []).join(' ').length;
+    if (chars > 1400) {
+      fail(`roles.js: '${k}'s training is ${chars} chars - it is meant to be a few quoted sentences, `
+         + `and every one of them is paid for on every single message`);
+    }
+  }
+  {
+    const beeton = ((ROLES.sebastian.training || {}).lines || []).join(' ');
+    for (const quote of ['very great trust', 'honesty is the best policy',
+                         'superintend the other servants', 'Early rising']) {
+      if (!beeton.includes(quote)) {
+        fail(`roles.js: Sebastian's Beeton lost "${quote}" in the move out of residents.js. `
+           + `His training is quoted, not paraphrased, precisely so a visitor can check it.`);
+      }
+    }
+    if (!/Beeton/.test(ROLES.sebastian.training.book)) {
+      fail('roles.js: Sebastian\'s training no longer names Beeton');
+    }
+    /* ...and it must be GONE from where it was, or the move made two copies. */
+    if (/function\s+butlerTrainingBlock/.test(code)) {
+      fail('residents.js still defines butlerTrainingBlock() - the training text now lives in '
+         + 'roles.js, and two copies of it is the drift roles.js exists to stop');
     }
   }
 }
@@ -3378,6 +3503,52 @@ for (const d of SEED_LIBRARY) {
   if (!/onchange="toggleShowThinking\(\)"/.test(ovSrc)) {
     fail('the data panel has no checkbox wired to toggleShowThinking() - the switch exists and '
        + 'nothing presses it, which is this project\'s oldest bug shape');
+  }
+
+  /* ---------- EVERY PROVIDER FUNCTION A UI FILE CALLS MUST BE IMPORTED ----------
+
+     Found 2026-08-10 by photographing the prompt-inspector panel: previewPrompt()
+     called estimateTokens(), which overlays.js had NEVER imported. It had been
+     broken since 06b892a. The panel wrote "building…", threw on the next line,
+     and stayed that way forever - the house failure mode exactly, and invisible
+     to `npm run build` because a bare identifier is only a ReferenceError when
+     the line actually runs.
+
+     A module-level import list that must match the identifiers used in the file
+     is rule 4's shape, so it is DERIVED from provider.js's own exports rather
+     than hand-listed here. Break it by deleting a name from any ui/ import. */
+  const provExports = [...provSrc2.matchAll(/export\s+(?:function|const|let)\s+([A-Za-z_$][\w$]*)/g)]
+    .map(m => m[1]);
+  if (provExports.length < 8) {
+    fail('smoke: only found ' + provExports.length + ' exports in ai/provider.js - the import '
+       + 'guard has drifted and is checking almost nothing');
+  }
+  for (const f of readdirSync(aiDir).filter(x => x.endsWith('.js'))) {
+    const raw = readFileSync(new URL(f, aiDir), 'utf8');
+    const code = raw
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    /* ALL of them, not the first. A file may legitimately import from the same
+       module twice - ui/lesson-tree.js does - and reading only the first match
+       made this guard report a false positive on its very first run. A guard
+       that has to be argued with is worse than none; diagnose red before
+       believing it (three checks in this project WERE the broken thing). */
+    const imps = [...code.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"][^'"]*ai\/provider\.js['"]/g)];
+    if (!imps.length) continue;               // this file does not use the provider at all
+    const imported = new Set(imps.flatMap(m =>
+      m[1].split(',').map(s => s.trim().split(/\s+as\s+/)[0]).filter(Boolean)));
+    /* Local definitions shadow an import legitimately - a file that defines its
+       own helper of the same name is not missing anything. */
+    const body = code;
+    for (const name of provExports) {
+      if (imported.has(name)) continue;
+      if (new RegExp('(function|const|let|var)\\s+' + name + '\\b').test(body)) continue;
+      if (new RegExp('(^|[^\\w$.])' + name + '\\s*\\(').test(body)) {
+        fail(`ui/${f} calls ${name}() and does not import it from ai/provider.js. That is a `
+           + `ReferenceError on whichever code path reaches it, and nothing but running that exact `
+           + `path will tell you - estimateTokens() sat like this in previewPrompt() for days.`);
+      }
+    }
   }
 }
 

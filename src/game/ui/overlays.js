@@ -46,7 +46,13 @@ import { storageBadge, storageOf, storageSummary, localRoom, nextDestination,
 import { scenes } from '../scenes.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
-import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, isLocalConn, chatOptsFor, initProviderSettings } from '../ai/provider.js';
+/* `estimateTokens` was MISSING from this list until 2026-08-10 and is used at
+   the bottom of previewPrompt() — so "👁 What would they be told right now?"
+   threw, left "building…" on screen and never recovered. Silent since 06b892a.
+   Found by taking a screenshot of the panel; there is a derived guard for the
+   whole of this import in npm test now, because a bare identifier that only
+   throws on one code path is exactly what a build will not tell you about. */
+import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, isLocalConn, chatOptsFor, initProviderSettings, estimateTokens } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';

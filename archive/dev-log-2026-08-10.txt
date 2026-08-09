@@ -1264,3 +1264,176 @@ land BEFORE retrieval, because once passages make the carried block
 expensive, "everyone gets every block" stops being free. Measure the
 prompt budgets after it: they should FALL, and if nothing falls the
 declaration is not being consulted and the part is inert.
+
+
+================================================================
+PART NINE - WHAT EACH ROLE IS GIVEN, DECLARED (plan Part 4)
+================================================================
+
+Steward: "lets get going on the ground in roles ... i relised somthign
+this platform lets ai slow down enough for people to have a sence of
+ownership of what there doing and hopfully the ais in the sand pavilion
+can use there roles as a contex to have the books for themselves to
+spelize like the book of household management for sebastian lol"
+
+
+THE INVERSION WAS RIGHT AND WENT ONE STEP TOO FAR
+--------------------------------------------------
+On 2026-08-08 the pathway was measured at 2 of 7 and the fix was to make
+it unconditional: every resident gets the catalogue, the backpack, your
+notes, the paper shelf, the reference desk. That was correct, and it was
+free only while every block was cheap.
+
+Retrieval ends that. A page pulled out of a carried book costs a page
+index, a tokenise and a chunk of context - and the Computer, whose lens
+is literally "never describe a thing you could instead point at", has no
+use whatsoever for a page of Walden.
+
+So a role DECLARES. `grounding: [...]` in data/roles.js; pathwayBlock()
+is still the single composer and just consults it.
+
+  sebastian   shelves carried notes papershelf         training
+  quill       shelves carried notes papershelf
+  tutor       shelves carried notes papershelf reference
+  steward     shelves carried notes papershelf reference
+  investigator shelves carried notes papershelf reference
+  monk        shelves carried notes
+  computer    shelves carried notes papershelf reference
+
+Every opt-out is argued in the file rather than assumed. The Monk is the
+narrowest and it is his CHARACTER, not a saving: a paper-shelf inventory
+and a table of physical constants are both answers to "where do I look
+it up", and his own lens says the opposite - "never answer a life with a
+citation". He is the one resident for whom more material to cite makes
+the answer worse.
+
+`passages` is deliberately NOT a kind yet. It arrives with retrieval, in
+BOTH places at once, because a kind declared before the composer knows
+it fails the guard and a kind implemented before anyone declares it is
+dead code. That is the point of guarding both directions.
+
+
+MEASURED - AND IT IS NOT INERT
+-------------------------------
+The plan said: if nothing falls, the declaration is not being consulted.
+Measured in Electron on a realistic save (3 paper books, 2 datasheets, a
+note, two things carried, and a question hitting both the Library lookup
+and the Reference Desk), characters in the full system prompt:
+
+                  before   after     delta
+  sebastian         7601    7292      -309
+  quill             6405    6096      -309
+  tutor             5931    5931         0
+  steward           5427    5427         0
+  investigator      8134    8134         0
+  monk             10471    9442     -1029   (~10%)
+  computer          5183    5183         0
+  TOTAL            49152   47505     -1647   (~-484 tokens)
+
+The four that declared the full pathway are unchanged, which is the
+control: the mechanism is not shaving anything off by accident.
+
+
+A RESIDENT'S OWN BOOK - `training`
+------------------------------------
+The steward's idea, and Sebastian already had it: four sentences of real
+Mrs Beeton, hand-written into residents.js as butlerTrainingBlock(),
+because "sebastian is on an endless loop of questions has not proper
+butler traning, i think theres a book in household manamgement in the
+library he should refrence it lol."
+
+It worked, and it was one resident's worth of hardcode in the blast
+radius of the file that exists to keep hand-maintained lists out. So it
+MOVED to data/roles.js as `training`, with the three rules that keep it
+honest written beside it:
+
+  1. it must be a book ACTUALLY ON THE SHELVES (Beeton is:
+     library-sources/the-book-of-household-management.txt, 1861, public
+     domain, and SS2157-2166 are the butler's own chapter)
+  2. quoted and named, never paraphrased - so a visitor can check it
+  3. four sentences, never a chapter - paid for on every message forever
+
+A second resident claiming a book is now a data change, not a function.
+
+ON QUILL'S LIBRARY HANDBOOK: the steward said "no hand book for libary
+was just an example". Good, because there isn't one - the catalogue was
+searched (419 rows, titles matching librar/catalog/bibliograph/
+classification/book) and it holds no librarianship text. Inventing one
+would have broken rule 1 above on the first use of the mechanism.
+
+
+BREAKING EVERY GUARD ON PURPOSE - 10 SABOTAGES, 10 CAUGHT
+-----------------------------------------------------------
+  1  quill declares no grounding                      caught
+  2  a role declares an unknown kind                  caught
+  3  the monk loses the Library (floor breach)        caught
+  4  a kind in GROUNDING_KINDS nobody consults        caught
+  5  composer ignores 'papershelf'                    caught
+  6  wants() fails OPEN                               caught
+  7  training declared with no text                   caught
+  8  Beeton loses a real quotation                    caught
+  9  trainingBlock dropped from the pathway           caught
+ 10  butlerTrainingBlock resurrected in residents.js  caught
+
+Ten for ten first time, which is the first clean sabotage run in three
+sessions. The FLOOR is the guard worth naming: shelves/carried/notes are
+THE pathway and no role may decline them. A role may opt out of an
+enrichment; it may not opt out of the road. That makes the 2-of-7 bug
+unrepeatable rather than merely fixed.
+
+
+AND THE SCREENSHOT FOUND A BUG THAT HAD BEEN LIVE FOR DAYS
+------------------------------------------------------------
+Photographing the prompt inspector to prove Beeton survived the move:
+
+  [Error: estimateTokens is not defined]
+
+overlays.js CALLS estimateTokens() in previewPrompt() and had NEVER
+IMPORTED IT. Broken since 06b892a, an earlier session. The function
+writes "building..." into the panel, builds the text, then throws on the
+very next line - so the button "What would they be told right now?" left
+"building..." on screen forever. The house failure mode, inside the one
+panel whose entire job is proving what a resident is handed.
+
+NOTHING BUT RUNNING THAT PATH COULD HAVE FOUND IT. A build is happy with
+a bare identifier. npm test never opened the panel. And previewPrompt()
+RETURNS THE TEXT CORRECTLY when #promptPreview is absent - which is
+exactly how every test had ever called it. It needed a screenshot.
+
+Fixed with one import, and then made derived: npm test now reads
+provider.js's own export list and fails if any ui/*.js calls one of them
+without importing it.
+
+THE GUARD'S FIRST RUN REPORTED A SECOND CASE, AND WAS WRONG.
+ui/lesson-tree.js "calls isAIActive() without importing it" - it imports
+from the module TWICE and the check read only the first statement.
+Diagnosed before believing it, which is now the fourth time a red result
+in this project was the check rather than the code.
+
+
+VERIFIED THIS PART
+-------------------
+npm test green. build:beta clean and beta-verified.
+Electron: note-search.cjs (all seven residents still reach the Library
+and still get their lens), records.cjs, packaged-boot.cjs.
+docker-home.cjs against the live container, 31 passed.
+Chrome at :4173: preflight, study-chain, teacher, writing-desk,
+study-table - 0 failures, no page errors.
+
+SCREENSHOT READ: the prompt inspector for Sebastian, showing the token
+badge that used to throw, his Beeton arriving through the declaration,
+then his lens, then the stance - in that order. Also probed the Monk's
+prompt directly: no training, no paper shelf, no reference. The
+declaration is doing what it says.
+
+A note on the harness: the first capture came back a dark, empty frame.
+An offscreen BrowserWindow can hand back a STALE frame; showing the
+window and discarding the first capturePage() fixes it. Worth
+remembering - a screenshot that shows nothing is not evidence of
+nothing.
+
+NEXT: Part 5, retrieval. The cap goes in on the FIRST commit, not as a
+follow-up, and the multi-slot page cache is required rather than a
+nicety - tokenising a 563 KB book on every message is real heat on a
+machine whose limit is cooling. Then measure again: the residents who
+opt into `passages` should RISE, and the rise is what the cap governs.

@@ -242,3 +242,26 @@ mistake took.
 **And prefer a derived guard to a fix.** Both guards above came out of a single
 wrong number sitting in four files, which is CLAUDE.md rule 4 exactly. If a claim
 can be computed, compute it.
+
+---
+
+## 🔵 Found by looking, 2026-08-10 — an import that was never there
+
+**`overlays.js` called `estimateTokens()` and never imported it.** Broken since
+`06b892a`. `previewPrompt()` writes *"building…"* into the panel, builds the
+text, and then throws on the very next line — so **👁 "What would they be told
+right now?" showed "building…" forever**, in the one panel whose entire job is
+proving what a resident is handed. The house failure mode, in the honesty
+feature.
+
+**Nothing could have caught it but running that path.** `npm run build` is happy
+with a bare identifier; `npm test` never opened the panel; and `previewPrompt()`
+*returns the text correctly* when `#promptPreview` is absent, which is exactly
+how every test had called it. It surfaced the moment a screenshot was taken of
+the panel itself.
+
+**Now derived** (rule 4): `npm test` reads `ai/provider.js`'s own export list
+and fails if any `ui/*.js` file calls one of those functions without importing
+it. It found a **second** apparent case on its first run — and that one was the
+*guard* being wrong: `ui/lesson-tree.js` imports from the module twice and the
+check read only the first statement. **Diagnose red before believing it.**

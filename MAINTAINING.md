@@ -424,14 +424,19 @@ two Grounds, earlier the same day).
 demoted, the three courts written down, the grounding path streamlined). 4, 5
 and 6 are the rest of the same chain and are meant to go in that order.
 
-1. **Declarative per-role grounding** — a `grounding: [...]` field in
-   `data/roles.js`, and `pathwayBlock()` composes only what a role declares.
-   Guard in both directions: every role declares one, and every kind named is
-   one the composer knows. **This must precede retrieval** — once passages make
-   the carried-books block expensive, "everyone gets every block" stops being
-   free, and the Computer has no use for a page of *Walden*.
-   **Measure the prompt budgets after it: they should FALL. If nothing falls,
-   the declaration is not being consulted and the whole part is inert.**
+1. ~~**Declarative per-role grounding**~~ — ✅ **done 2026-08-10.** `grounding:
+   [...]` in `data/roles.js`; `pathwayBlock()` composes only what a role
+   declares, and `wants()` fails CLOSED so an undeclared role gets nothing but
+   its lens. Guarded both ways, plus a **floor**: `shelves`/`carried`/`notes`
+   are the pathway and no role may decline them, which makes the 2-of-7 bug
+   unrepeatable. **Measured, and it is not inert** — total across seven
+   residents **49,152 → 47,505 chars (~−484 tokens)**, the Monk **−1,029**
+   (~10%), on a save with paper books, datasheets and a full backpack.
+   `training` landed with it: a resident's own book, declared as data.
+   **`passages` is deliberately still absent** — it arrives with retrieval, in
+   both the composer and the roles at once, because a kind declared before the
+   composer knows it fails the guard and a kind implemented before anyone
+   declares it is dead code.
 2. **Retrieval reaches the residents** — `searchPages()`/`passagesBlock()` are
    built and tested with exactly one caller (the Science Hall), so a carried
    book still cannot be quoted from. **The cap goes in on the first commit**,
