@@ -20,7 +20,7 @@ are written up separately in
 |---|---|---|---|
 | **the save** | your day, notes, courses, progress, **and the personal catalogue** | no | always present — `localStorage`, key `sandPavilionSave.v2` |
 | **Postgres** | the *knowledge*: book cards, shelves, chapters, the notes index | **no** | **PGlite inside the app** — same SQL, same schema, same files in `tools/` |
-| **MinIO** | the book **TEXT**, and only that | **yes** | a `.txt` under `userData` (100-book cap) → then inline in the save |
+| **MinIO** | the book **TEXT**, and only that | **yes** | a `.txt` under `userData` (500 by default, visitor-set) → then inline in the save |
 
 **They are independent.** You can have all three, any two, or just the save.
 
@@ -87,7 +87,7 @@ says **Docker**, *and* it will not open, which are two true things.
 | badge | pointer | notes |
 |---|---|---|
 | 🐳 **Docker** | `fullText.storage.bucket` | no practical limit; shared between machines reaching the same container |
-| 💾 **this machine** | `fullText.storage.personal` | a real file under `userData`. Hundreds fit. **Capped at 100 books** |
+| 💾 **this machine** | `fullText.storage.personal` | a real file under `userData`. **Limit 500 by default, set by the visitor** (25–5,000) |
 | 📄 **in the save** | `fullText.text` | only a few fit — a browser has ~5–10 MB in total |
 | 📝 **summary only** | none | a card with no text behind it |
 
@@ -100,7 +100,7 @@ deliberately the same, **so the badge can never disagree with what happened.**
 | where | ceiling |
 |---|---|
 | web build | **~10–20 books** (text goes inline into a ~5–10 MB quota) |
-| desktop app | **hundreds** (100-book cap on the local shelf, then it names Docker) |
+| desktop app | **500 by default, visitor-set up to 5,000** (~2.7 GB at 563 KB a book) |
 | + Docker | no practical limit |
 
 The dev machine today: **415 catalogued** — 326 Docker · 59 this machine · 30

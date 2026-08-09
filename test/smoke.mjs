@@ -3605,6 +3605,9 @@ for (const d of SEED_LIBRARY) {
     return '';
   };
   const room = bodyS('renderStorage');
+  /* The cap the room must state, read from the module that owns it rather than
+     re-typed here — see the ceilings check below for why that matters. */
+  const BS = await import('../src/game/data/book-storage.js');
   if (!room) fail('storage: could not find renderStorage() in overlays.js - this guard has drifted');
   else {
     /* NO FAKE INSTALL BUTTON. We cannot shell out to Docker, and a button
@@ -3633,9 +3636,59 @@ for (const d of SEED_LIBRARY) {
       }
     }
     /* All three ceilings, because a partial answer here is how someone
-       fills a browser tab with 5 MB of book and wonders why it stopped. */
-    for (const tier of [/10.20/, /hundreds/, /no practical limit/i]) {
+       fills a browser tab with 5 MB of book and wonders why it stopped.
+
+       THE DESKTOP TIER MUST BE DERIVED, AND SO MUST THIS CHECK. It used to
+       look for the word "hundreds", which was true when the cap was 100 —
+       except one hundred is not hundreds, so the guard was pinning a claim
+       that was already wrong and would have kept it wrong indefinitely.
+
+       The cap is now the visitor's own (500 by default), so the room must
+       render it from the constant rather than typing a number. That is also
+       why this looks for the SYMBOL and not the digits: this guard reads
+       renderStorage's SOURCE, where the number only ever appears as
+       `${DEFAULT_LOCAL_BOOK_CAP}` or `${room.cap}`. A check for /\b500\b/
+       would fail against perfectly correct code — and "fix" it by inviting
+       someone to hardcode 500 in the panel, which is the exact drift the
+       derivation exists to prevent. */
+    const capTier = /DEFAULT_LOCAL_BOOK_CAP|room\.cap/;
+    if (BS.DEFAULT_LOCAL_BOOK_CAP !== 500) {
+      fail('storage guard: the default cap moved to ' + BS.DEFAULT_LOCAL_BOOK_CAP
+         + ' — check the docs and MANUAL still say the same number');
+    }
+    for (const tier of [/10.20/, capTier, /no practical limit/i]) {
       if (!tier.test(room)) fail('storage: the room no longer states all three storage ceilings - ' + tier);
+    }
+    /* AND THE NUMBER IS NEVER TYPED, which is the half that actually bites.
+       Requiring `room.cap` to APPEAR is satisfied by any one leftover mention,
+       so a sabotage that hardcoded the digits in three places out of four
+       still passed. Forbidding the literal is the check that cannot be
+       half-satisfied: the moment someone writes 500 into the panel, the panel
+       and the module can disagree, which is how "hundreds" outlived a cap of
+       one hundred for weeks. */
+    const literal = new RegExp('[^A-Za-z0-9_$]' + BS.DEFAULT_LOCAL_BOOK_CAP + '\\b');
+    if (literal.test(room)) {
+      fail('storage: the room hardcodes ' + BS.DEFAULT_LOCAL_BOOK_CAP + ' instead of rendering '
+         + 'DEFAULT_LOCAL_BOOK_CAP / room.cap. The cap is the visitor\'s and it moves; a typed number '
+         + 'is a claim that stops being true the moment they change it.');
+    }
+    /* And the visitor can actually change the middle one, which is the whole
+       point of it being theirs. A stated limit with no control is a wall.
+
+       BOTH HALVES, BECAUSE ONE HALF WAS A DEAD GUARD. The first version tested
+       only /setBookCap\s*\(/ — and passed a sabotage that removed the Set
+       button entirely, because the optional "reset to default" button mentions
+       setBookCap too. A guard satisfied by a leftover reference to the thing it
+       is checking for is the same failure as one satisfied by a comment. So it
+       now requires the INPUT the number is typed into as well; remove either
+       and the control is gone in a way a person would notice. */
+    if (!/id="capInput"/.test(room)) {
+      fail('storage: the room has no field to type a shelf limit into — the limit is the visitor\'s, '
+         + 'and a number they cannot move is just a smaller wall');
+    }
+    if (!/setBookCap\s*\(\s*document\.getElementById\('capInput'\)/.test(room)) {
+      fail('storage: the shelf-limit field is not wired to setBookCap() — the input exists and does '
+         + 'nothing, which is the house failure mode with a text box on it');
     }
     /* Read from REAL state, never a setting. */
     if (!/storageSummary\s*\(/.test(room) || !/localRoom\s*\(/.test(room)) {
@@ -3898,31 +3951,66 @@ for (const d of SEED_LIBRARY) {
      "there should be 2 pathways a local file that limmits to 100 books but
      the docker setup should be the main path". A refusal that does not name
      the way through is the silent failure this project keeps removing. */
-  if (B.LOCAL_BOOK_CAP !== 100) fail('book-storage: the local cap is no longer 100 - ' + B.LOCAL_BOOK_CAP);
-  const many = Array.from({ length: 100 }, (_, i) => doc({ storage:{ personal:i + '.txt' } }));
+  /* THE DEFAULT MOVED 100 -> 500 on 2026-08-10 and the cap became the
+     VISITOR'S, not the app's. While Docker was one copyable command away a
+     wall at 100 was a nudge; once Docker sits behind the Inner Pavilion it is
+     a wall, and the Outer court has to support itself. 500 x 563 KB is ~282 MB,
+     which is nothing on a modern disk. */
+  if (B.DEFAULT_LOCAL_BOOK_CAP !== 500) {
+    fail('book-storage: the default local cap is no longer 500 - ' + B.DEFAULT_LOCAL_BOOK_CAP);
+  }
+  const many = Array.from({ length: 500 }, (_, i) => doc({ storage:{ personal:i + '.txt' } }));
   const room = B.localRoom(many);
-  if (!room.full || room.left !== 0) fail('book-storage: 100 local books did not fill the local shelf');
+  if (!room.full || room.left !== 0) fail('book-storage: 500 local books did not fill the default shelf');
   if (!B.localRoom(many.slice(0, 40)).left) fail('book-storage: a 40-book shelf reported no room left');
   if (B.localRoom([]).used !== 0) fail('book-storage: localRoom threw on an empty shelf');
+
+  /* THE VISITOR'S OWN LIMIT IS HONOURED, which is the whole point of the
+     change - a default nobody can move is just a smaller wall. */
+  const at120 = B.localRoom(many.slice(0, 150), 120);
+  if (!at120.full || at120.cap !== 120) fail('book-storage: a visitor-set cap of 120 was not honoured');
+  if (B.localRoom(many.slice(0, 150), 200).full) fail('book-storage: 150 books wrongly filled a 200 cap');
+  /* Nonsense in, sane out. A mistyped 0 must not make the shelf unusable and
+     a fat-fingered 999999 must not silently promise what a disk cannot hold. */
+  if (B.normalizeCap(0) !== B.LOCAL_CAP_MIN) fail('book-storage: a cap of 0 was not clamped to the floor');
+  if (B.normalizeCap(9e9) !== B.LOCAL_CAP_MAX) fail('book-storage: an absurd cap was not clamped to the ceiling');
+  if (B.normalizeCap('nonsense') !== B.DEFAULT_LOCAL_BOOK_CAP) fail('book-storage: a junk cap did not fall back to the default');
+  if (B.localRoom(many.slice(0, 10), 'nonsense').cap !== B.DEFAULT_LOCAL_BOOK_CAP) {
+    fail('book-storage: localRoom did not normalise a junk cap');
+  }
+
   /* Books in Docker must not count against the LOCAL cap - they are not
      on this machine's shelf at all, and counting them would refuse an
      import for space it is not using. */
   if (B.localRoom([doc({ storage:{ bucket:'b', key:'k' } })]).used !== 0) {
-    fail('book-storage: a book in Docker counted against the LOCAL 100-book cap');
+    fail('book-storage: a book in Docker counted against the LOCAL cap');
   }
 
   const dockerNext = B.nextDestination(many, { hasDocker:true, hasFiles:true });
   if (dockerNext.where !== 'docker') fail('book-storage: Docker is not the main path even when it is up');
   if (dockerNext.full) fail('book-storage: a full LOCAL shelf blocked an import that was going to Docker');
   const localNext = B.nextDestination(many.slice(0, 3), { hasDocker:false, hasFiles:true });
-  if (localNext.where !== 'machine' || !/3 of 100/.test(localNext.line)) {
+  if (localNext.where !== 'machine' || !/3 of 500/.test(localNext.line)) {
     fail('book-storage: the local destination does not say how much room is left - "' + localNext.line + '"');
   }
   const fullNext = B.nextDestination(many, { hasDocker:false, hasFiles:true });
   if (fullNext.where) fail('book-storage: a full local shelf still claimed a destination');
+  /* THE REFUSAL MUST NAME A WAY THROUGH THE OUTER COURT CAN ACTUALLY WALK.
+     It used to name only Docker, which was fair while Docker was a copyable
+     command. Docker now sits behind the Inner Pavilion, so a refusal whose
+     only exit is "become a contributor" is a dead end with a signpost on it.
+     Raising your own limit has to come first. */
+  if (!/[Rr]aise the limit/.test(fullNext.line)) {
+    fail('THE REFUSAL DOES NOT NAME THE WAY THROUGH. A full local shelf must first offer to raise the '
+       + 'visitor\'s OWN limit - Docker is behind the Inner Pavilion now and cannot be the only exit.');
+  }
   if (!/Docker/.test(fullNext.line)) {
-    fail('THE REFUSAL DOES NOT NAME THE WAY THROUGH. A full local shelf must say that Docker '
-       + 'is how you get past it - a refusal with no next step is the dead end this project keeps removing.');
+    fail('book-storage: the refusal no longer mentions Docker at all - it is still the way past the disk '
+       + 'entirely, and dropping it replaces one dead end with another');
+  }
+  const customFull = B.nextDestination(many.slice(0, 60), { hasDocker:false, hasFiles:true, cap:60 });
+  if (!customFull.full || !/60 books/.test(customFull.line)) {
+    fail('book-storage: a full shelf did not report the visitor\'s OWN limit - "' + customFull.line + '"');
   }
   const browserNext = B.nextDestination([], { hasDocker:false, hasFiles:false });
   if (browserNext.where !== 'save') fail('book-storage: a browser tab was not told its text goes into the save');

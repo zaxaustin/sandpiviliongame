@@ -288,11 +288,23 @@ rather than "on nothing", so a third case exists: **neither**.
 | where | ceiling | why |
 |---|---|---|
 | **web build** | **~10–20 books** | text goes inline into a ~5–10 MB localStorage quota |
-| **desktop app** | hundreds | `libraryWrite` puts text in `.txt` under userData; the save keeps only the catalogue row |
+| **desktop app** | **500 by default, the VISITOR sets it** (25–5,000) | `libraryWrite` puts text in `.txt` under userData; the save keeps only the catalogue row |
 | **+ Docker** | no practical limit | MinIO holds the text outside the app |
 
-**Docker buys capacity for TEXT, not search** — search comes with the app now.
-That is the reverse of what this table said this morning, and the honest version.
+**The desktop row said "hundreds" until 2026-08-10 while the cap was 100** —
+one hundred is not hundreds, and the number was invisible to every doc guard
+because it was a word rather than a figure. It is now `DEFAULT_LOCAL_BOOK_CAP`
+in `data/book-storage.js`, rendered from the constant (a `npm test` guard fails
+if the panel types the digits), and **settable by the visitor** once the storage
+room has shown them what their library weighs and what the disk has spare:
+*"let the user set a limit after they understand there own disk space."*
+
+**Docker buys capacity for the book TEXT, and the ability to share one library
+between machines. It does NOT buy privacy, and it does NOT buy search.** Search
+comes with the app; both containers bind `127.0.0.1` only and PGlite under
+userData is exactly as private, so privacy was never Docker's contribution. Keep
+this claim exactly this narrow — the wider version is what sent the backend
+sideways for weeks.
 
 **PGlite, measured:** 25 MB in the installer (all of it `app.asar.unpacked`),
 40 MB for an empty cluster under userData, **1.5 s cold open — do it after the

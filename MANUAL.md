@@ -372,10 +372,16 @@ your own standing instructions, so you can watch them take effect.
   There is a **shelf line** showing the whole tally, and the intake table tells
   you where the *next* book will go **before** you drop it.
 
-  **The local shelf holds 100 books.** Past that the Pavilion does not simply
-  refuse — it says so plainly and names the way through: start Docker, and new
-  text goes there instead with no practical limit. Nothing you already have
-  moves or is lost.
+  **The local shelf holds 500 books, and the number is yours to change.**
+  📦 *Where your books are kept* shows what your library actually weighs and
+  what the disk has spare, then lets you set the limit anywhere between 25 and
+  5,000. It is a guardrail against a runaway import filling your disk — not a
+  limit on what the Pavilion can hold.
+
+  Past your limit the Pavilion does not simply refuse: it offers to raise it,
+  and mentions Docker as the way past the disk entirely. **Lowering the limit
+  never removes a book you already have** — it only stops the next one going to
+  this machine.
 - **Use `npm run electron:dev`, not `npm run dev`, if you run from source.** A
   browser tab cannot reach the database, your book files, or Docker, and browser
   storage is per address — so your library will look empty there even though it

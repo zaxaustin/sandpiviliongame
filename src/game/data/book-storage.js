@@ -85,36 +85,84 @@ export function storageSummary(docs) {
   return parts.join(' · ');
 }
 
-/* THE LOCAL SHELF HAS A CEILING AND IT IS SAID OUT LOUD.
+/* THE LOCAL SHELF HAS A CEILING, IT IS SAID OUT LOUD, AND YOU SET IT.
 
-   The steward's own split: "there should be 2 pathways a local file that
-   limmits to 100 books but the docker setup should be the main path".
+   The steward's original split was "a local file that limmits to 100 books
+   but the docker setup should be the main path" — and 100 was chosen for
+   holdability, not for safety: real books average 563 KB, so 100 is about
+   56 MB under userData.
 
-   Measured 2026-08-04: real books average 563 KB, so 100 of them is about
-   56 MB under userData — fine on any machine, and a number a person can
-   hold in their head. Past it the answer is not "no", it is "turn Docker on",
-   which is why the refusal names the way through rather than just refusing.
-   A silent failure here would be the house failure mode on the one action
-   the whole Library depends on. */
-export const LOCAL_BOOK_CAP = 100;
+   THAT NUMBER STOPPED BEING RIGHT ON 2026-08-10, when Docker moved to the
+   Inner Pavilion. While Docker was one copyable command away, a wall at 100
+   was a nudge. Once the way past it is EARNED, a wall at 100 is a wall — and
+   the Outer court is supposed to support itself. Worse, every document said
+   the desktop app held "hundreds", which one hundred is not.
 
-export function localRoom(docs) {
+     "let the user set a limit after they understand there own disk space
+      500 is a good defult"
+
+   So: 500 by default (~282 MB, nothing on a modern machine), and the visitor
+   may set their own once the panel has shown them what their library actually
+   weighs and what the disk has spare. The cap is a guardrail a person chooses,
+   not a limit the app imposes.
+
+   PURE, so the cap ARRIVES AS AN ARGUMENT. This module must not read `data` —
+   that is what keeps it testable, and it is why the caller passes the number
+   rather than this file reaching for it. */
+export const DEFAULT_LOCAL_BOOK_CAP = 500;
+
+/* The floor exists so a mistyped 0 cannot make the shelf unusable, and the
+   ceiling so a fat-fingered 999999 does not silently promise what a disk
+   cannot hold. Both are advisory bounds on a person's own choice. */
+export const LOCAL_CAP_MIN = 25;
+export const LOCAL_CAP_MAX = 5000;
+
+export function normalizeCap(n) {
+  const v = Math.round(Number(n));
+  if (!Number.isFinite(v)) return DEFAULT_LOCAL_BOOK_CAP;
+  return Math.min(LOCAL_CAP_MAX, Math.max(LOCAL_CAP_MIN, v));
+}
+
+export function localRoom(docs, cap) {
+  const limit = cap == null ? DEFAULT_LOCAL_BOOK_CAP : normalizeCap(cap);
   const used = storageCounts(docs).machine;
-  return { used, cap: LOCAL_BOOK_CAP, left: Math.max(0, LOCAL_BOOK_CAP - used), full: used >= LOCAL_BOOK_CAP };
+  return { used, cap: limit, left: Math.max(0, limit - used), full: used >= limit };
+}
+
+/* WHAT THE SHELF WEIGHS, from the same 563 KB measurement the cap is reasoned
+   from. An estimate, and labelled as one wherever it is shown — the desktop
+   bridge can report the real bytes on disk, and where it does, that wins. */
+export const AVG_BOOK_BYTES = 563 * 1024;
+export function estimatedBytes(docs) { return storageCounts(docs).machine * AVG_BOOK_BYTES; }
+export function humanBytes(n) {
+  const b = Number(n) || 0;
+  if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' GB';
+  if (b >= 1048576) return Math.round(b / 1048576) + ' MB';
+  if (b >= 1024) return Math.round(b / 1024) + ' KB';
+  return b + ' B';
 }
 
 /* Where the NEXT book will go, said before it is written rather than after.
    `hasDocker`/`hasFiles` are passed in — this file must not know what is
    running, or it stops being testable. */
-export function nextDestination(docs, { hasDocker, hasFiles } = {}) {
+export function nextDestination(docs, { hasDocker, hasFiles, cap } = {}) {
   if (hasDocker) return { where:'docker', line:'→ Docker (MinIO) — no practical limit' };
-  const room = localRoom(docs);
+  const room = localRoom(docs, cap);
   if (hasFiles && !room.full) {
     return { where:'machine', line:`→ this machine (${room.used} of ${room.cap} books used)` };
   }
   if (hasFiles && room.full) {
+    /* THE REFUSAL NAMES TWO WAYS THROUGH, not one. It used to name only
+       Docker, which was fair while Docker was a copyable command; now that it
+       sits behind the Inner Pavilion, a refusal whose only exit is "become a
+       contributor" would be a dead end wearing a signpost. The limit is the
+       visitor's own setting, so raising it is the first answer and the one
+       almost everybody wants. */
     return { where:null, full:true,
-      line:`The local shelf is full — ${room.cap} books. Start Docker and the text goes there instead, with no practical limit.` };
+      line:`The local shelf is full at your limit of ${room.cap} books. Raise the limit in `
+         + `"Where your books are kept" — it is your disk, and the panel shows what is left on it. `
+         + `Docker lifts it entirely, with no practical limit.` };
   }
-  return { where:'save', line:'→ inside the save — only a few books fit; the desktop app holds hundreds' };
+  return { where:'save',
+    line:`→ inside the save — only a few books fit; the desktop app holds ${DEFAULT_LOCAL_BOOK_CAP} by default` };
 }

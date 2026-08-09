@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('desktopBridge', {
   // personal book's full text lives as a plain file in the app's own data
   // folder, not in the save and not in any container. Read back on demand
   // by the Reader's openFullText().
+  /* Real bytes on disk plus free space, for the visitor-set shelf limit — a
+     limit chosen against a guess is not an informed one. Read-only. */
+  libraryUsage: () => ipcRenderer.invoke('desktop-library-usage'),
   libraryWrite: (name, content) => ipcRenderer.invoke('desktop-library-write', { name, content }),
   libraryRead: (name) => ipcRenderer.invoke('desktop-library-read', { name }),
   libraryDelete: (name) => ipcRenderer.invoke('desktop-library-delete', { name }),

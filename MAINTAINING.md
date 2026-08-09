@@ -244,7 +244,8 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
     `fitToBudget()` bounding grounding in **tokens** rather than items
   - **`data/book-storage.js`** — where a book's text actually lives, read from
     the book's own pointer and never from what is running: 🐳 Docker · 💾 this
-    machine · 📄 in the save · 📝 summary only, plus the 100-book local cap
+    machine · 📄 in the save · 📝 summary only, plus the local shelf limit —
+    500 by default and **set by the visitor** (`data.settings.localBookCap`)
   - **`data/daily-tasks.js`** + **`ui/daily-tasks.js`** — Today's Tasks, and the
     first room built entirely outside the monolith
 - **`electron/`** — `main.cjs` (Ollama proxy, save dialog, MinIO write/delete
@@ -474,7 +475,8 @@ the book's own pointer — never from what is running:
 `🐳 Docker` · `💾 this machine` · `📄 in the save` · `📝 summary only`
 
 Per book, plus a shelf line, plus the intake saying where the next book goes
-*before* you drop it. Local storage caps at **100 books** and refuses by naming
+*before* you drop it. Local storage caps at **500 books by default, a number the
+visitor sets**, and refuses by naming
 Docker as the way through.
 
 **Migration 005 — `books.local_file`.** `text_key` only ever meant "the MinIO

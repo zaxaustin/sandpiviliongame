@@ -120,7 +120,8 @@ part. `SEED_LIBRARY` went to `[]` and **four files kept the old number**.
 | `MAINTAINING.md` | *"Eleven scenes"* · *"Six AI-backed residents"* · `overlays.js` *"~10k lines"* | **twelve** scenes · **seven role keys, six people** · **12,966** lines |
 | `MAINTAINING.md` | code map omitted five modules | `places.js`, `lookup.js`, `note-reach.js`, `carrying.js`, `book-storage.js`, `daily-tasks.js` added |
 | `MANUAL.md` §8 | quoted the title screen as *"everything works, but nothing is indexed"* — a **search** limitation named for what is actually an **absence** | all four real states, quoted verbatim and now guarded |
-| `MANUAL.md` §4 | one storage home, no cap, seed implied | four storage badges, the 100-book cap, the empty shelf, `electron:dev` vs `dev` |
+| `MANUAL.md` §4 | one storage home, no cap, seed implied | four storage badges, the shelf limit, the empty shelf, `electron:dev` vs `dev` |
+| everywhere | *"the desktop app holds **hundreds**"* while `LOCAL_BOOK_CAP` was **100** | one hundred is not hundreds. Now **500 by default and set by the visitor**, rendered from the constant — and a `npm test` guard fails if the panel types the digits instead of deriving them |
 | `PROTOCOLS.md` | *"the biggest model on your machine is, in effect, **his**"* | one model for everyone; **cooling** is the real limit |
 | `plans/AI-INTEGRATION-NOTES.md` | dated 2026-07-10; *"no live token streaming"*, `bestLocalModel()` for the Monk, `CHAT_AGENTS` in `overlays.js`, timeouts 45/120/180s | fully rewritten from the code; timeouts are **90/240/360s** |
 | `LEARNING-PATH.md` | taught `stream:false` as current | tense fixed; the streaming exercise now says *build yours first, then read the real one and diff* |

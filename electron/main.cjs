@@ -194,6 +194,38 @@ ipcMain.handle('desktop-machine-info', async () => {
     };
   }catch(e){ return { ok:false, error:String(e) }; }
 });
+/* WHAT THE LIBRARY ACTUALLY WEIGHS, AND WHAT THE DISK HAS SPARE.
+   Added 2026-08-10 with the visitor-set shelf limit — the steward's condition
+   was "let the user set a limit AFTER they understand there own disk space",
+   and a limit chosen against a guess is not an informed one.
+
+   Two real numbers, not an estimate: the summed size of the .txt files this
+   app actually wrote, and the free space on the volume holding them. Both are
+   read-only and cheap; the directory is flat and holds one file per book.
+
+   Fails SOFT and partially. statfs is newer than the rest of this bridge, and
+   a platform without it must still get the bytes-used half rather than an
+   error — the panel falls back to its own estimate for anything missing. */
+ipcMain.handle('desktop-library-usage', async () => {
+  const out = { ok:true, bytes:null, files:null, freeBytes:null, totalBytes:null, dir:libraryDir() };
+  try{
+    const names = await fs.readdir(libraryDir());
+    let bytes = 0, files = 0;
+    for(const n of names){
+      try{ const st = await fs.stat(path.join(libraryDir(), n)); if(st.isFile()){ bytes += st.size; files++; } }
+      catch(e){ /* a file that vanished mid-walk is not an error worth failing on */ }
+    }
+    out.bytes = bytes; out.files = files;
+  }catch(e){ /* no library directory yet — nothing written, which is not a failure */
+    out.bytes = 0; out.files = 0;
+  }
+  try{
+    const st = await fs.statfs(libraryDir());
+    out.freeBytes  = st.bsize * st.bavail;
+    out.totalBytes = st.bsize * st.blocks;
+  }catch(e){ /* older Node, or a platform without statfs — the used half still stands */ }
+  return out;
+});
 ipcMain.handle('desktop-library-write', async (event, { name, content }) => {
   if(!safeLibraryName(name) || typeof content !== 'string') return { ok:false, error:'bad name or content' };
   try{

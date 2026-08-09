@@ -31,13 +31,27 @@ clear *private-before-release* path.
 
 ---
 
-## The Docker insight, made into the plan: private workbench → public release
+## The insight, made into the plan: private workbench → public release
 
-The steward's point is the key organizing idea: **local storage (Docker/MinIO,
-your own machine) is the private workbench.** You draft, test, and keep things
-there — nothing shared, nothing certified — until *you* decide to release them to
-the commons. This isn't new plumbing; it's naming a workflow the pieces already
-support:
+> **⚠ Wording corrected 2026-08-10, because the original attributed this to the
+> wrong thing.** This section used to say *"local storage (Docker/MinIO, your own
+> machine) is the private workbench"* — which reads as though **Docker** is what
+> makes the work private. It is not, and believing so is what sent the whole
+> backend sideways for weeks.
+>
+> **"Private" here means UNPUBLISHED, not unreachable.** That axis is owned by
+> `data/visibility.js` (yours / shared / commons) and it applies identically
+> whether your text sits in MinIO, in a file under `userData`, or inline in the
+> save. **Everything local is private**; Docker only decides *how much* fits.
+> **Docker buys capacity for book text, and sharing one library between
+> machines. It does not buy privacy, and it does not buy search.**
+>
+> The workflow below is unaffected and still right — only the attribution moved.
+
+The key organizing idea: **your own machine is the private workbench.** You
+draft, test, and keep things there — nothing shared, nothing certified — until
+*you* decide to release them to the commons. This isn't new plumbing; it's
+naming a workflow the pieces already support:
 
 1. **Private (yours, local):** Research Desk notes, Hall investigations/
    experiments, pasted papers, personal library files — all local, none shared.

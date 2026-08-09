@@ -41,7 +41,8 @@ import { initDailyTasks, openDailyTasks, takeDailyTask, toggleDailyTaskStep,
 import { lookupTerms } from '../data/lookup.js';
 import { placesByScene } from '../data/places.js';
 import { storageBadge, storageOf, storageSummary, localRoom, nextDestination,
-         STORAGE_STATES, LOCAL_BOOK_CAP } from '../data/book-storage.js';
+         STORAGE_STATES, DEFAULT_LOCAL_BOOK_CAP, LOCAL_CAP_MIN, LOCAL_CAP_MAX,
+         normalizeCap, estimatedBytes, humanBytes, AVG_BOOK_BYTES } from '../data/book-storage.js';
 import { scenes } from '../scenes.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
@@ -2164,6 +2165,7 @@ export function openStorage(){
      known and fill the live line in when it answers, rather than holding
      an empty panel open while a container is asked. */
   refreshStorageStatus();
+  fillStorageDisk();
 }
 async function refreshStorageStatus(){
   const el=document.getElementById('storageLive'); if(!el) return;
@@ -2180,20 +2182,39 @@ async function refreshStorageStatus(){
     el.innerHTML = '<b style="color:#7fa36b">● Docker is running and the Pavilion is using it.</b> '
       + 'Your book text goes to local object storage, and there is no practical limit on how much.';
   } else if(st && st.up){
-    el.innerHTML = '<b style="color:#c9a227">● The built-in database is running.</b> Everything works: '
-      + 'search, chapters, sorting. Book TEXT is written as files on this machine, which is good for '
-      + 'hundreds of books. Docker is how you go past that — the step is below.';
+    /* THE DEFAULT PATH, AND IT READS LIKE ONE NOW. This used to end "Docker is
+       how you go past that — the step is below", which framed the ordinary
+       case as a waiting room for the advanced one. It is not: hundreds of
+       books is where almost everyone stops. Docker is an offer further down
+       the panel, behind a disclosure, for the two cases that need it. */
+    el.innerHTML = '<b style="color:#7fa36b">● The built-in database is running, and nothing had to be '
+      + 'installed.</b> Everything works: search, chapters, sorting. Book text is written as real files on '
+      + 'this machine, up to the shelf limit you set below.';
   } else {
     el.innerHTML = '<b style="color:#c9a227">○ No database opened.</b> Nothing is lost and nothing is '
       + 'broken; search and sorting are the parts that want one.';
   }
+}
+/* THE VISITOR'S OWN SHELF LIMIT. One reader, so the panel, the intake table
+   and the refusal can never disagree about what the number is. book-storage.js
+   stays pure and takes it as an argument — it must not reach for `data`. */
+export function bookCap(){
+  const v = data && data.settings && data.settings.localBookCap;
+  return v == null ? DEFAULT_LOCAL_BOOK_CAP : normalizeCap(v);
+}
+export function setBookCap(n){
+  if(!data.settings) data.settings={};
+  data.settings.localBookCap = normalizeCap(n);
+  persist();
+  renderStorage();
+  showToast('Shelf limit set to ' + data.settings.localBookCap + ' books on this machine.');
 }
 function renderStorage(){
   const el=document.getElementById('storagePanel'); if(!el) return;
   const bridge = typeof window!=='undefined' && window.desktopBridge;
   const docs = Store.allDocs();
   const split = storageSummary(docs);
-  const room = localRoom(docs);
+  const room = localRoom(docs, bookCap());
   /* ONE command, and it is the real one from docker-compose.yml. Copyable
      rather than typed, because a mistyped command is the commonest way a
      setup fails for someone who does not live in a terminal. */
@@ -2208,53 +2229,109 @@ function renderStorage(){
       <div class="t">Right now</div>
       <div class="s" id="storageLive" style="margin-top:6px">checking…</div>
       ${split?`<div class="s" style="margin-top:8px">Your shelves: ${esc(split)}</div>`:''}
-      ${room.used?`<div class="s" style="margin-top:4px">The local shelf holds <b>${room.used} of ${room.cap}</b> books.${
-        room.full?' It is full — Docker is how you go past it.':''}</div>`:''}
-    </div>
-
-    <div class="menuSection" style="margin-top:16px">How much fits, honestly</div>
-    <div class="card" style="cursor:default">
-      <div class="s"><b>A browser tab</b> — about <b>10–20 books</b>. The text goes inside the save itself,
-        against a browser's own few-megabyte limit. Real books average about half a megabyte.</div>
-      <div class="s" style="margin-top:6px"><b>The desktop app</b> — <b>hundreds</b>. Each book is written
-        as a real file in the app's own folder; the save only keeps the catalogue card.</div>
-      <div class="s" style="margin-top:6px"><b>With Docker</b> — <b>no practical limit</b>. The text lives
-        in local object storage beside the app, and two machines can share one library.</div>
+      ${room.used?`<div class="s" style="margin-top:4px">The local shelf holds <b>${room.used} of ${room.cap}</b> books
+        — roughly <b>${esc(humanBytes(estimatedBytes(docs)))}</b> on this disk.${
+        room.full?' <b style="color:#c8574a">It is full.</b> Raise your limit below.':''}</div>`:''}
     </div>
 
     ${bridge ? `
-    <div class="menuSection" style="margin-top:16px">Turning Docker on</div>
-    <div class="card" style="cursor:default">
-      <div class="s">One command, once. It needs <b>Docker Desktop</b> installed and running — that part is
-        a normal download from docker.com, and the Pavilion cannot do it for you.</div>
-      <div class="s" style="margin-top:8px">Then, in this project's folder:</div>
-      <div class="row" style="margin-top:6px;align-items:center;gap:8px">
-        <code style="background:var(--field);padding:6px 10px;border-radius:4px">${esc(CMD)}</code>
-        <button class="btn ghost" style="font-size:11.5px;padding:3px 10px"
-          onclick="copyStorageCommand('${jsq(CMD)}')">copy</button>
-        <span class="s" id="storageCopied" style="color:#7fa36b"></span>
-      </div>
-      <div class="s" style="margin-top:8px">Come back to this panel afterwards and the line at the top
-        will say so itself. Nothing needs restarting and nothing already saved moves.</div>
-    </div>
-
-    <div class="menuSection" style="margin-top:16px">What it adds</div>
-    <div class="card" style="cursor:default">
-      ${BACKEND_UPGRADES.map(u=>`<div class="s">· ${esc(u)}</div>`).join('')}
-      <div class="s" style="margin-top:6px">· Room for a library with no practical ceiling.</div>
-    </div>
-
-    <div class="menuSection" style="margin-top:16px">Turning it off again</div>
-    <div class="card" style="cursor:default">
-      <div class="s"><code>docker compose stop</code> — the app falls back to its own built-in database
-        and keeps working. Books already in Docker wait there until you start it again.</div>
+    <div class="menuSection" style="margin-top:16px">What you already have</div>
+    <div class="card" style="cursor:default;border-color:#7fa36b">
+      <div class="s"><b>The app carries its own database. There is nothing to install.</b> That is what
+        gives you:</div>
+      ${BACKEND_UPGRADES.map(u=>`<div class="s" style="margin-top:4px">· ${esc(u)}</div>`).join('')}
+      <div class="s" style="margin-top:6px">All of it works right now, offline, on this computer alone.</div>
     </div>` : ''}
+
+    <div class="menuSection" style="margin-top:16px">How much fits, honestly</div>
+    <div class="card" style="cursor:default">
+      <div class="s"><b>The desktop app</b> — <b>${room.cap} books</b> by default, with nothing to install,
+        and <b>you can change that number below</b>. Each one is written as a real file in the app's own
+        folder; the save only keeps the catalogue card. <b>This is the normal way to use the Pavilion</b>,
+        and for almost everyone it is the only one needed.</div>
+      <div class="s" style="margin-top:6px"><b>A browser tab</b> — about <b>10–20 books</b>. The text goes
+        inside the save itself, against a browser's own few-megabyte limit. Real books average about half a
+        megabyte.</div>
+    </div>
+
+    ${bridge ? `
+    <div class="menuSection" style="margin-top:16px">Your shelf limit</div>
+    <div class="card" style="cursor:default">
+      <div class="s"><b>You set this, not the app.</b> It is a guardrail so a runaway import cannot quietly
+        fill your disk — not a limit on what the Pavilion can hold. Books average about half a megabyte, so
+        the default ${DEFAULT_LOCAL_BOOK_CAP} is roughly ${esc(humanBytes(DEFAULT_LOCAL_BOOK_CAP * AVG_BOOK_BYTES))}.</div>
+      <div class="s" style="margin-top:6px" id="storageDisk">checking what this disk has spare…</div>
+      <div class="row" style="margin-top:8px;align-items:center;gap:8px;flex-wrap:wrap">
+        <label class="s" for="capInput">Stop at</label>
+        <input id="capInput" type="number" min="${LOCAL_CAP_MIN}" max="${LOCAL_CAP_MAX}" step="25"
+          value="${room.cap}" style="width:90px">
+        <span class="s">books</span>
+        <button class="btn" style="font-size:11.5px;padding:3px 12px"
+          onclick="setBookCap(document.getElementById('capInput').value)">Set</button>
+        ${room.cap!==DEFAULT_LOCAL_BOOK_CAP?`<button class="btn ghost" style="font-size:11.5px;padding:3px 10px"
+          onclick="setBookCap(${DEFAULT_LOCAL_BOOK_CAP})">reset to ${DEFAULT_LOCAL_BOOK_CAP}</button>`:''}
+      </div>
+      <div class="s" style="margin-top:6px">Between ${LOCAL_CAP_MIN} and ${LOCAL_CAP_MAX}. Lowering it never
+        removes a book you already have — it only stops the next one going to this machine.</div>
+    </div>
+
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;color:#e0a43c;font-size:13px">⚙ Advanced — a library with no limit at all (Docker)</summary>
+      <div class="card" style="cursor:default;margin-top:8px">
+        <div class="s"><b>You do not need this.</b> It is for two situations: a library bigger than the local
+          shelf holds, or wanting the same library on more than one computer.</div>
+        <div class="s" style="margin-top:6px">What it buys, exactly:
+          <b>book text with no practical limit</b>, and <b>one library shared between machines</b>.
+          It does <b>not</b> make anything more private — the built-in database and your book files already
+          never leave this computer — and it does <b>not</b> add search, which the app already has.</div>
+      </div>
+      <div class="card" style="cursor:default;margin-top:8px">
+        <div class="s">One command, once. It needs <b>Docker Desktop</b> installed and running — that part is
+          a normal download from docker.com, and the Pavilion cannot do it for you.</div>
+        <div class="s" style="margin-top:8px">Then, in this project's folder:</div>
+        <div class="row" style="margin-top:6px;align-items:center;gap:8px">
+          <code style="background:var(--field);padding:6px 10px;border-radius:4px">${esc(CMD)}</code>
+          <button class="btn ghost" style="font-size:11.5px;padding:3px 10px"
+            onclick="copyStorageCommand('${jsq(CMD)}')">copy</button>
+          <span class="s" id="storageCopied" style="color:#7fa36b"></span>
+        </div>
+        <div class="s" style="margin-top:8px">Come back to this panel afterwards and the line at the top
+          will say so itself. Nothing needs restarting and nothing already saved moves.</div>
+        <div class="s" style="margin-top:8px"><code>docker compose stop</code> turns it off again — the app
+          falls back to its own built-in database and keeps working. Books already in Docker wait there
+          until you start it again.</div>
+      </div>
+    </details>` : ''}
 
     <div class="row" style="margin-top:14px;gap:6px;flex-wrap:wrap">
       <button class="btn" onclick="openBookIntake()">📥 Bring a book in</button>
       <button class="btn ghost" onclick="openIndex()">📑 The Index</button>
       <button class="btn ghost" onclick="openDataPanel()">📊 Your Data</button>
     </div>`;
+}
+/* THE REAL NUMBERS, ASKED FOR ONCE THE PANEL IS ON SCREEN. Deliberately after
+   the render rather than blocking it: reading a directory and a filesystem is
+   fast but not free, and the panel is useful before it arrives. The line says
+   what it is doing until it can say something true — never a zero that looks
+   like an answer. */
+async function fillStorageDisk(){
+  const el=document.getElementById('storageDisk'); if(!el) return;
+  const bridge=window.desktopBridge;
+  if(!(bridge && bridge.libraryUsage)){
+    el.textContent='';   // no bridge: the estimate above is all there is, and it says so
+    return;
+  }
+  let u=null;
+  try{ u=await bridge.libraryUsage(); }catch(e){ /* falls through to the honest line below */ }
+  if(!u || !u.ok){ el.textContent='Could not read this disk — the estimate above still holds.'; return; }
+  const used = u.bytes!=null ? `Your book files actually use <b>${esc(humanBytes(u.bytes))}</b>`
+                             + (u.files!=null?` across ${u.files} file${u.files===1?'':'s'}`:'') : '';
+  /* Free space is the half that decides the number, so when it is missing the
+     line says so rather than quietly showing only the reassuring half. */
+  const free = u.freeBytes!=null
+    ? ` · <b>${esc(humanBytes(u.freeBytes))}</b> free on this disk`
+    : ' · free space unavailable on this platform';
+  el.innerHTML = used ? used + free : ('This disk' + free);
 }
 export function copyStorageCommand(cmd){
   try{ navigator.clipboard.writeText(cmd); blip(760,.06);
@@ -4332,9 +4409,9 @@ function bookStorageBadge(slug){
 function shelfStorageLine(){
   const line = storageSummary(Store.allDocs());
   if(!line) return '';
-  const room = localRoom(Store.allDocs());
+  const room = localRoom(Store.allDocs(), bookCap());
   const capNote = room.used
-    ? ` · local shelf ${room.used}/${room.cap}${room.full?' — FULL, start Docker for more':''}`
+    ? ` · local shelf ${room.used}/${room.cap}${room.full?' — FULL, raise your limit in 📦 Where books are kept':''}`
     : '';
   return `<div class="meta" style="margin:10px 0 4px;color:#c9a227">${esc(line)}${esc(capNote)}</div>`;
 }
@@ -10901,7 +10978,7 @@ async function shelveAsPersonal({title, body, author, license, source, tradition
      names Docker, because a refusal with no next step is the dead end this
      project keeps removing. */
   if(!storedAsFile && bridge && bridge.libraryWrite){
-    const room = localRoom(Store.allDocs());
+    const room = localRoom(Store.allDocs(), bookCap());
     if(room.full && body.length>INLINE_PERSONAL_MAX){
       /* The refusal names the way through AND opens the door to it — since
          2026-08-10 there is a room that explains Docker in one panel, so
@@ -12272,6 +12349,7 @@ function destinationLine(){
   const dest = nextDestination(Store.allDocs(), {
     hasDocker: !!(bridge && bridge.minioWrite),
     hasFiles:  !!(bridge && bridge.libraryWrite),
+    cap: bookCap(),
   });
   const colour = dest.full ? '#c8574a' : dest.where === 'docker' ? '#7fa36b' : '#c9a227';
   /* AND A DOOR TO THE ROOM THAT EXPLAINS IT. Saying where the text goes
@@ -12916,7 +12994,7 @@ Object.assign(window, {
   openStillOpen, toggleSparkDone, toggleCarryForward, openDataPanel, pruneOldPlannerDays,
   forgetMemoryItem, forgetAllMemory,
   openLocalAIPanel, renderLocalAIPanel,
-  openStorage, copyStorageCommand,
+  openStorage, copyStorageCommand, setBookCap,
   closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
   openBadges, openRecordsHall, recordOpen, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openCatalog, catalogOpen,
