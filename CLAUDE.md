@@ -97,6 +97,64 @@ before any installer moves. **Never plain `electron:build`** — it bakes
 `.env.local` keys into the installer. `npm run verify:release` checks the docs
 *and* that the .exe isn't older than the source.
 
+**9 · THE VISITOR IS THE AUTHOR. Speed is free; authorship is not.**
+
+Written 2026-08-09, and written **after** the code it describes — deliberately.
+The steward named the thing this project had been circling for months:
+
+> *"what is missing in ai intergration with human use... its that the pace is
+> too fast... the sand pavilion, espically using the local modles, might not be
+> as fast as a ai chat window but it slows the pace down where alot can happen
+> but i want it to feel like its the users doing it and they have a sence of
+> ownership. a difficult line to walk indeed."*
+
+An audit against that sentence found **eleven contradictions in this codebase:
+5 real, 5 defensible, 2 arguable.** The rule below is what closing the five
+turned out to mean. Writing it first would have made it a wish.
+
+**Three questions, in order:**
+
+1. **Does it write into the visitor's record?** (notes, log, shelves, backpack,
+   plan, tasks, save) → **it needs a press.** And if a model produced the words,
+   they are stamped as the model's and **never read back as the visitor's own**.
+2. **Does it move the visitor?** (opens, closes, navigates, turns a page)
+   → **it needs a press.**
+3. **Neither?** → make it as fast as the machine can go. An instant shelf
+   lookup is this rule *working*, not an exception to it.
+
+**Pacing corollary.** The Pavilion is slow only where the slowness *is someone*
+— a character's speaking rate: **a constant per character, never a budget per
+reply**, and one click ends it, one click holds it. Machine latency is a
+**cost**, never dressed up as pace; the answer to a cost is the pocket, not a
+spinner.
+
+**What this permits, recorded so the next audit does not re-litigate it:**
+`sweepReminders` (you rang the bell; a clock comparison, never an AI call) ·
+boot probes (the app learning about itself) · read-aloud auto-advance (*"read
+this to me"* obviously scopes to the book) · chat-note autosave (**autosave
+protects authorship** — the test is *whose words*, not who pressed save) ·
+`suggestInventoryCategories` (one press, writes nothing, moves nothing).
+
+**Stated exception: the daily-task streak**, kept deliberately 2026-08-09 at the
+steward's instruction. `🔥 N in a row` is a stick however gently drawn, and
+`data/daily-tasks.js` now says so in its own header rather than claiming
+otherwise. No guard is written for it — a rule with an exception the size of the
+rule is not a rule.
+
+**`npm test` holds three of these** (A: one speaking rate · B: no note read back
+as the wrong person's · D: nothing moves the visitor without a press). **Guard B
+was written before the fix and failed seven ways on untouched code**, which is
+the only reason to trust any of them.
+
+**THE LIMIT, and it belongs inside the rule rather than outside it.** This suite
+holds the *preconditions*, not the goal. Their words stay theirs, the numbers do
+not judge them, the view does not move under them. **Whether a person actually
+feels like the author is measured by use, never by a test** — and a feature can
+pass all three questions and still be managing them. A suggestion that writes
+nothing and moves nothing is legal here and may still be the wrong feature. So
+is 34 cps if it does not *feel* like speech. Taste is the right instrument for
+both, and rule 2 settles them.
+
 ### Gotchas that cost a session each
 
 - **localStorage is per-origin.** `:5173`, `:4173` and `file://` are three

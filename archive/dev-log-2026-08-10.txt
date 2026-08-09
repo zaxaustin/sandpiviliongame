@@ -2176,3 +2176,153 @@ failure. Queued for the Connections panel.
 
 NEXT: 1f (a reason on a published note), then 1c/1d/1e, guard D, and
 only then CLAUDE.md rule 9.
+
+
+================================================================
+PART FOURTEEN - THE OUTLET, THE LAST THREE, AND THE CHARTER
+================================================================
+
+Violations 3, 4 and 5 of the five, the "give things an outlet"
+feature, guard D, and then - last, deliberately - CLAUDE.md rule 9.
+
+
+THE OUTLET: WHY YOU PASSED IT ON
+----------------------------------------------------------------
+  "we can also have people post the notes they think are important
+   and just give a reason why, small thing lets give things an
+   outlet if they want one."
+
+Publishing already existed. What it could not carry was the one thing
+that makes a handed-over note worth more than a file. This project's
+own answer to "a book nobody chose is inert" is that the choosing IS
+the value - and a reason is the choosing, written down.
+
+publishFrom() is now one screen: "why is this worth passing on?" The
+box is OPTIONAL - that is the "if they want one" - but being ASKED is
+not, because handing something to another person is worth a second of
+thought. A screen rather than a prompt(), because a reason is a
+sentence someone should be able to write, read back and edit.
+
+The reason travels: into the packet, into the .json file, and into the
+note of whoever takes a copy - which is the most perishable part of a
+packet and the part that says why anyone bothered. An AI-drafted
+packet is marked aiDrafted and keeps saying so after it lands
+somewhere else; once a packet is a file, the sparkle in its body is
+just a character.
+
+MAKING publishFrom() A SCREEN VERY NEARLY BROKE IT. ui/lesson-tree.js
+has its own "Publish it" button and calls publishFrom() from inside
+its OWN overlay, with the Commons Table shut - so the "why" step would
+have rendered into a hidden panel and the button would have done
+nothing at all. Rule 5, introduced by the fix for a different rule. It
+opens the table now, and the live suite calls it with everything
+closed to prove it.
+
+The suite also tries the whole round trip through the real file input:
+publish -> write the packet object -> hand it back in through
+#packetFile with a foreign id and author -> take it. Both halves,
+through shipped code. The first version tried to take its OWN
+published packet, which takePacket() cannot do (it only reads
+COMMONS_PACKETS + received) - a test of an impossible flow.
+
+
+1c - A DROP DOES NOT TURN YOUR PAGE
+----------------------------------------------------------------
+Dropping a book file called reopenIfReplaced() and navigated the
+Reader to the newly shelved copy. The drop IS a press - it means "take
+this", and shelving on it is right. It does not mean "and turn my
+page": you can be reading one book while filing another.
+
+The original problem was real and this is not a retreat from it. A
+summary-only entry promises "drag the file onto this window and this
+page becomes the real book", and in 2026-08-03 it did not. So the
+promise is kept by an OFFER in the toast that is already on screen -
+"Open your copy" / "Stay here" - and the toast no longer auto-hides
+when it carries one, because an offer that vanishes after nine seconds
+is a dead end.
+
+drop.mjs asserted the OLD behaviour and went red, correctly. Rewritten
+to test both halves: the page does not move, and pressing the button
+lands you on the real text.
+
+
+1d - THE BOOT DOES NOT WRITE IN YOUR DIARY
+----------------------------------------------------------------
+main.js logged "Read the catalogue from the local database - N books."
+into the activity log on every launch. That log is a record of what
+THEY did. The status line is where the machine talks about itself, and
+refreshBackendStatus() was already putting it there.
+
+
+1e - THE STREAK STAYS, SO THE DOCUMENT CHANGES
+----------------------------------------------------------------
+daily-tasks.js's header said "a framing device, not a stick... nothing
+turns red" while the UI showed a running tally of consecutive days. A
+tally is a stick however gently drawn.
+
+Put to the steward as a thing to remove; the answer was to keep it. So
+the header now carries the exception, dated and argued, and says where
+the line is (a broken-streak notice, a red number, a nag). NO GUARD -
+a rule with an exception the size of the rule is not a rule, and a
+test asserting "nothing here judges you, except this" would be
+theatre.
+
+
+GUARD D, AND IT SAYS ITS OWN WEAKNESS OUT LOUD
+----------------------------------------------------------------
+Navigators DERIVED from places.js `door` values plus the four reader
+openers; a short hand-written list of the entry points a visitor did
+not press (a dropped file, a clock); fail if any of those bodies calls
+any of those navigators. Plus: the hydrateFromDb callback may not call
+logActivity.
+
+It strips inline on*= handlers before looking, or the toast's own
+"Open your copy" button reads as the auto-navigation it replaced - the
+guard would have failed the exact fix it exists to require.
+
+IT FAILED ON CORRECT CODE FIRST. The main.js half read 500 characters
+forward from hydrateFromDb() and swallowed
+logActivity('Took the lift to ...') twenty lines below, which is a
+press and entirely legitimate. Brace-matched to the callback now.
+Fourth time in this project a red result was the check rather than the
+code; diagnose before believing.
+
+Four sabotages: the drop re-navigating (caught), a timer opening a
+room (caught), the boot log returning (caught), and PLACES renamed -
+which crashes the suite loudly rather than failing politely, which is
+acceptable. Renaming every `door:` key is caught by an older places
+guard before D's sentinel gets there.
+
+
+RULE 9, WRITTEN AFTER THE CODE
+----------------------------------------------------------------
+THE VISITOR IS THE AUTHOR. SPEED IS FREE; AUTHORSHIP IS NOT.
+
+  1. Writes into their record? -> needs a press, and a model's words
+     are stamped as the model's.
+  2. Moves the visitor? -> needs a press.
+  3. Neither? -> as fast as the machine can go. An instant shelf
+     lookup is this rule WORKING, not an exception to it.
+
+Plus the pacing corollary (slow only where the slowness IS someone),
+the five defensible cases recorded so the next audit does not
+re-litigate them, and the streak as a stated exception.
+
+AND ITS OWN LIMIT, INSIDE THE RULE: the suite holds the
+PRECONDITIONS, not the goal. A feature can pass all three questions
+and still be managing someone. Whether a person feels like the author
+is measured by use, never by a test.
+
+Writing this first would have made it a wish - the exact failure the
+grounding chain spent a week undoing.
+
+
+VERIFIED
+----------------------------------------------------------------
+npm test with guards A, B and D, each broken on purpose (six, seven
+and four sabotages). publish-reason 16/16 including the round trip
+through the file input; drop 13/13 rewritten; note-authorship,
+preflight, every-room, backpack. Screenshots read.
+
+NEXT: the tutorial. Five stages on data/badges.js, and the steward has
+notes to add before it starts.

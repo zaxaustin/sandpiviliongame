@@ -1113,9 +1113,19 @@ that takes you straight to the table.
   touches the original, and the original stays on the table for the next person.
 - **🤝 Shared by you** — what you've published, and where you write out the file
   to hand over.
-- **📤 Publish something** — your own papers, courses and notes, one click each.
-  Publishing copies the work into a packet with your name on it. **Your original
-  never leaves your private store.**
+- **📤 Publish something** — your own papers, courses and notes. Publishing
+  copies the work into a packet with your name on it. **Your original never
+  leaves your private store.**
+    - **It asks you why, once.** Before anything is published you get one small
+      screen: *why is this worth passing on?* One line is plenty, it travels
+      with the packet, and it is **the first thing the next person reads** —
+      including if they take a copy, where it lands in the note itself. A packet
+      with a reason on it is worth more than a file.
+    - **The box is optional and the step is not.** Publish with it empty and
+      nothing is lost. You are asked because handing something to another person
+      is worth a second of thought, not because we want the text.
+    - **If a model drafted it, the packet says so**, and keeps saying so after
+      it reaches someone else. Once a packet is a file, nothing else records it.
 - **👤 What stays private** — the plain list.
 
 **The full accounting** — every store in your save, and one honest sentence on

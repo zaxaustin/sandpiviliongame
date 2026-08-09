@@ -9671,7 +9671,13 @@ export function openPacket(id){ state.commonsView={mode:'one', id}; renderCommon
 export function takePacket(id){
   const p=allCommonsPackets().find(x=>x.id===id); if(!p) return;
   const g=commonsStore();
-  const credit=`\n\n— from the Commons: “${p.title}” by ${p.by||'unknown'} (${p.license||'license unrecorded'})`;
+  /* THE REASON TRAVELS INTO YOUR COPY. It is the most perishable part of a
+     packet — read once on the table and gone — and it is the part that says
+     why anyone bothered. Same for the AI mark: once this is a note in your
+     save, nothing else records that a model drafted it. */
+  const credit=`\n\n— from the Commons: “${p.title}” by ${p.by||'unknown'} (${p.license||'license unrecorded'})`
+    + (p.aiDrafted?'\n  Drafted by an AI, and published as such.':'')
+    + (p.reason?`\n  Why they passed it on: ${p.reason}`:'');
   if(p.kind==='course'){
     data.courses.unshift({ id:Date.now(), title:p.title, why:(p.why||p.summary||'')+credit, category:'personal',
       due:null, steps:(p.steps||[]).map(t=>({title:t,practice:'',url:'',done:false})), begun:todayKey(), archived:false });
@@ -9710,9 +9716,60 @@ export function takePacket(id){
 /* Publishing. Your work becomes a packet — a file — and the copy in your save
    is marked as shared so you can see, from the Table, exactly what of yours is
    out in the world. The original never leaves your private store. */
+/* ---------- THE OUTLET: why you thought it was worth passing on ----------
+   Asked for 2026-08-09, in the same breath as note attribution:
+
+     "we can also have people post the notes they think are important and
+      just give a reason why, small thing lets give things an outlet if
+      they want one."
+
+   Publishing already existed. What it could not carry was the ONE thing
+   that makes a handed-over note worth more than a file: why this person
+   thought it mattered. This project's own answer to "a book nobody chose
+   is inert" is that choosing is the whole value — and a reason is the
+   choosing, written down.
+
+   IT IS OPTIONAL, and that is the "if they want one". Publishing with the
+   box empty works exactly as it did before. What is NOT optional is being
+   asked: the step exists so that passing something on is a considered act
+   rather than a click, which is the same argument as the backpack.
+
+   A SCREEN RATHER THAN A prompt(). The reason is a sentence someone should
+   be able to write, read back and edit, and a native modal is none of
+   those. It also keeps publishing a two-press act. */
 export function publishFrom(kind, id){
+  /* OPENS THE TABLE, not just the view state. ui/lesson-tree.js calls this
+     from inside its own overlay, where #commonsOv is closed — rendering into
+     a hidden panel would have made that button do precisely nothing, which is
+     the house failure mode and would have been introduced by this very change.
+     Publishing taking you to the publishing screen is also the honest thing:
+     you pressed publish, and the next thing you must do is here. */
+  state.ui='commons';
+  state.commonsView={ mode:'why', kind, id:String(id) };
+  hideAllOv(); renderCommons(); showOv('commonsOv');
+}
+export function cancelPublish(){ state.commonsView={mode:'publish'}; renderCommons(); }
+/* Name the thing on the "why" screen. Publishing something whose title you
+   cannot see is exactly the kind of blind press this step exists to stop. */
+function publishSourceTitle(kind, id){
+  if(kind==='course') return ((data.courses||[]).find(x=>String(x.id)===String(id))||{}).title||'';
+  if(kind==='paper'){
+    const h=(data.hall||{});
+    const d=((h.dissections||[]).find(x=>x.id===id))||((h.investigations||[]).find(x=>x.id===id))||{};
+    return d.title||d.claim||'';
+  }
+  if(kind==='lesson') return (curriculumNode(id)||{}).title||'';
+  return ((data.notes||[]).find(x=>String(x.id)===String(id))||{}).title||'';
+}
+export function confirmPublish(){
+  const v=state.commonsView||{};
+  if(v.mode!=='why') return;
+  const box=document.getElementById('pubReason');
+  doPublish(v.kind, v.id, box ? box.value.trim() : '');
+}
+function doPublish(kind, id, reason){
   const g=commonsStore();
-  let p=null;
+  let p=null, source=null;
   if(kind==='course'){
     const c=(data.courses||[]).find(x=>String(x.id)===String(id)); if(!c) return;
     p={ id:newPacketId(), kind:'course', title:c.title, why:c.why||'', steps:(c.steps||[]).map(s=>s.title||s.text||''), summary:c.why||'' };
@@ -9732,12 +9789,23 @@ export function publishFrom(kind, id){
         track:node.track||'', level:Number(node.level)||101 };
   } else {
     const n=(data.notes||[]).find(x=>String(x.id)===String(id)); if(!n) return;
+    source=n;
     p={ id:newPacketId(), kind:(/lesson/i.test(n.title||'')?'lesson':'note'), title:n.title||'A note', body:noteBody(n), summary:noteBody(n).slice(0,160) };
   }
   p.sandPavilionPacket=1;
   p.by=(g.signedAs||'').trim()||'unsigned';
   p.license='Original — shared by its author';
   p.created=todayKey();
+  /* WHY IT WAS PASSED ON. Absent when the visitor left the box empty —
+     an absent field, not an empty string, so a packet from before this
+     existed and a packet deliberately published without a reason look
+     the same, which they should. */
+  if(reason) p.reason=reason;
+  /* AND WHETHER A MODEL WROTE IT. The receiving Pavilion has no other way
+     to know: once a packet is a file, the ✨ in its body is just a
+     character. Same argument as note.by one layer out — a thing handed to
+     someone else has to carry who made it. */
+  if(isAiNote(source)) p.aiDrafted=true;
   p.sourceKind=kind; p.sourceId=String(id);
   g.published.unshift(p); persist();
   logActivity('Published “'+p.title+'” to the Commons.'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
@@ -9801,6 +9869,27 @@ function renderCommons(){
     <button class="btn ${active==='private'?'':'ghost'}" onclick="commonsTab('private')">👤 What stays private</button>
   </div>`;
 
+  /* The one screen between "publish this" and it being published. */
+  if(v.mode==='why'){
+    const title=publishSourceTitle(v.kind, v.id);
+    el.innerHTML=`${back}
+      <div class="row" style="margin-bottom:8px"><button class="btn ghost" onclick="cancelPublish()">← Not yet</button></div>
+      <h2>📤 Why is this worth passing on?</h2>
+      <div class="meta">You are about to publish <b>${esc(title||'this')}</b>.</div>
+      <div class="meta" style="margin-top:8px">A packet with a reason on it is worth more than a file. Say what made
+        you think someone else should have this — one line is plenty. It travels with the packet and is the first
+        thing the next person reads.
+        <br><br><b>It is optional.</b> Publish with the box empty and nothing is lost; the reason is an outlet, not a toll.</div>
+      <textarea id="pubReason" rows="3" style="margin-top:10px"
+        placeholder="e.g. this changed how I plan a week — the bit about small units is the part that matters"></textarea>
+      <div class="row" style="margin-top:10px;gap:6px">
+        <button class="btn" onclick="confirmPublish()">🤝 Publish it</button>
+        <button class="btn ghost" onclick="cancelPublish()">Cancel</button>
+      </div>`;
+    setTimeout(()=>{ const t=document.getElementById('pubReason'); if(t) t.focus(); },30);
+    return;
+  }
+
   if(v.mode==='one'){
     const p=allCommonsPackets().find(x=>x.id===v.id)||g.published.find(x=>x.id===v.id);
     if(!p){ state.commonsView={mode:'shelf'}; return renderCommons(); }
@@ -9810,7 +9899,11 @@ function renderCommons(){
     el.innerHTML=`${back}
       <div class="row" style="margin-bottom:8px"><button class="btn ghost" onclick="commonsTab('${mine?'mine':'shelf'}')">← Back to the table</button></div>
       <h2>${k.icon} ${esc(p.title)}</h2>
-      <div class="meta">${mine?visBadge('shared'):visBadge('commons')} ${k.label} · by <b>${esc(p.by||'unknown')}</b>${p.license?' · '+esc(p.license):''}${p.created?' · '+esc(p.created):''}${p.receivedOn?' · received '+esc(p.receivedOn):''}</div>
+      <div class="meta">${mine?visBadge('shared'):visBadge('commons')} ${k.label} · by <b>${esc(p.by||'unknown')}</b>${p.license?' · '+esc(p.license):''}${p.created?' · '+esc(p.created):''}${p.receivedOn?' · received '+esc(p.receivedOn):''}${p.aiDrafted?' · <b>✨ drafted by an AI</b>':''}</div>
+      ${p.reason?`<div class="card" style="cursor:default;margin-top:10px;border-color:#7fa36b">
+          <div class="s" style="color:#7fa36b">Why ${p.by && p.by!=='unsigned' ? esc(p.by)+' passed this on' : 'this was passed on'}</div>
+          <div style="white-space:pre-wrap;margin-top:4px">${esc(p.reason)}</div>
+        </div>`:''}
       ${p.summary?`<div class="meta" style="margin-top:8px">${esc(p.summary)}</div>`:''}
       ${p.steps&&p.steps.length?`<ol style="margin:12px 0 0 18px">${p.steps.map(s=>`<li style="margin:4px 0">${esc(s)}</li>`).join('')}</ol>`:''}
       ${p.body?`<div class="card" style="cursor:default;margin-top:12px"><div style="white-space:pre-wrap">${esc(p.body)}</div></div>`:''}
@@ -10690,16 +10783,31 @@ async function acceptDropAnywhere(fileList){
   const openOn=(state.ui==='reader') ? state.currentDoc : null;
   await bulkShelveDroppedFiles(files, toast);
   if(state.ui==='mylib') renderMyLibrary();       // if the shelf is open, show it arrive
-  /* THE PAGE HAS TO ACTUALLY BECOME THE BOOK. A summary-only seed entry says,
-     in as many words, "drag the file onto this window … and this page becomes
-     the real book." Measured 2026-08-03: it did not. The file shelved as a
-     separate personal copy, the seed entry stayed summary-only, and the visitor
-     was left staring at a page still telling them it was not the book — now
-     owning two Tao Te Chings, one of them unreachable from where they stood.
+  /* THE PAGE HAS TO ACTUALLY BECOME THE BOOK — but you have to say so.
 
-     A promise printed on the page is a promise. If a drop lands while that
-     page is open and it is plainly the same book, go to it. */
-  if(openOn) reopenIfReplaced(openOn);
+     The original problem was real and this is not a retreat from it: a
+     summary-only entry says "drag the file onto this window … and this page
+     becomes the real book", and measured 2026-08-03 it did not. The file
+     shelved as a separate personal copy, the page went on claiming it was not
+     the book, and the visitor owned two Tao Te Chings with the good one
+     unreachable from where they stood.
+
+     WHAT CHANGED, 2026-08-09: it used to call reopenIfReplaced() and turn your
+     page for you. The drop IS a press — it means "take this" — and shelving on
+     it is right. It does not mean "and navigate me". You could be reading one
+     book and filing another; the page moving under you is the interface
+     deciding what you meant. So the offer goes in the toast that is already on
+     screen, and the answer is one click away instead of already made. */
+  const twin = openOn ? fullTextTwinOf(openOn) : null;
+  if(twin){
+    toast.innerHTML += `<div style="margin-top:8px">Your full copy of <b>${esc(twin.title)}</b> is shelved.
+      The page behind this is still the summary.</div>
+      <div class="row" style="margin-top:6px;gap:6px">
+        <button class="btn" style="font-size:11px;padding:3px 10px" onclick="openReplacedCopy('${jsq(twin.slug)}')">📖 Open your copy</button>
+        <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="dismissDropToast()">Stay here</button>
+      </div>`;
+    return;   // an offer that vanishes after nine seconds is a dead end
+  }
   dropToastTimer=setTimeout(()=>toast.classList.remove('on'), 9000);
 }
 /* Did a personal copy of the book we are looking at just arrive? Matched on
@@ -10713,10 +10821,11 @@ function fullTextTwinOf(slug){
   return Store.allDocs().find(x=>x.personal && x.doc.fullText && x.slug!==slug
     && String(x.title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()===want) || null;
 }
-function reopenIfReplaced(slug){
-  const twin=fullTextTwinOf(slug);
-  if(!twin) return;
-  openReader(twin.slug);
+/* The same move reopenIfReplaced() used to make on its own — now behind the
+   toast's button, so it happens because someone asked for it. */
+export function openReplacedCopy(slug){
+  dismissDropToast();
+  openReader(slug);
   const msg=document.getElementById('rdSpokenNote');
   if(msg) msg.textContent='✓ This is your copy now — the whole text, not the summary.';
 }
@@ -13469,7 +13578,8 @@ Object.assign(window, {
   setNotesLogSort,
   myLibSelectAll, myLibMoveSelected, suggestShelvesWithAI, copyWorkOrder, dismissWorkOrder,
   openLift, takeLift, acceptBundle, initGlobalDrop, dismissDropToast, setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
-  openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, unpublishPacket,
+  openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, confirmPublish, cancelPublish, unpublishPacket,
+  openReplacedCopy,
   writePacketFile, triggerImportPacket, setCommonsName,
 });
 

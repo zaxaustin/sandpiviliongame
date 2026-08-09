@@ -85,19 +85,28 @@ R.push(['a BUNDLE dropped on the world opens for review',
   await p.evaluate(()=>document.getElementById('bundleOv').className.includes('open'))]);
 R.push(['and still adds nothing without a press', (await count())===before]);
 
-/* THE SUMMARY BOOK'S PROMISE MUST HOLD. Ten shipped classics are carried as
-   summaries, and each says in as many words: "drag the file onto this window
-   — and this page becomes the real book."
+/* THE SUMMARY BOOK'S PROMISE MUST HOLD — AND IT IS OFFERED, NOT TAKEN.
 
-   Measured 2026-08-03: it did not. The file shelved as a separate personal
-   copy, the seed entry stayed summary-only, and the visitor was left on a page
-   still telling them it was not the book — now owning two copies, one of them
-   unreachable from where they stood. This is the first-ten-minutes path, so a
-   lie here is the one a new tester meets. */
+   Ten shipped classics are carried as summaries, and each says in as many
+   words: "drag the file onto this window — and this page becomes the real
+   book." Measured 2026-08-03 it did not: the file shelved as a separate
+   personal copy, the seed entry stayed summary-only, and the visitor was left
+   on a page still telling them it was not the book, now owning two copies with
+   the good one unreachable. This is the first-ten-minutes path.
+
+   REWRITTEN 2026-08-09, and the change is deliberate rather than a regression.
+   The fix used to call reopenIfReplaced() and turn the page for you. A drop IS
+   a press — it means "take this", and shelving on it is right — but it does
+   not mean "and navigate me": you can be reading one book while filing
+   another. So the promise is kept by an OFFER in the toast that is already on
+   screen, and this suite tests both halves: the offer appears, and pressing it
+   lands you on the real text. CLAUDE.md rule 9, and `npm test` guard D holds
+   the other direction (that acceptDropAnywhere calls no navigator itself). */
 {
-  const opened = await p.evaluate(async () => {
+  const dropped = await p.evaluate(async () => {
     closeUI(); openReader('personal-tao-te-ching');
     await new Promise(r => setTimeout(r, 300));
+    const before = window.currentDocSlug ? window.currentDocSlug() : '';
     const lines = ['Title: Tao Te Ching', 'Author: Laozi', '', 'Chapter 1', '',
       'The way that can be told is not the eternal way.'];
     for (let i = 2; i < 42; i++) lines.push('', 'Chapter ' + i, '', 'Words of the way, at length, for pagination.');
@@ -105,15 +114,33 @@ R.push(['and still adds nothing without a press', (await count())===before]);
     dt.items.add(new File([lines.join('\n')], 'tao-te-ching.txt', { type: 'text/plain' }));
     document.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
     await new Promise(r => setTimeout(r, 2500));
+    const toast = document.getElementById('dropToast');
     return {
+      before,
+      stayedPut: (window.currentDocSlug ? window.currentDocSlug() : '') === before,
+      offered: !!toast && /Open your copy/.test(toast.textContent),
+      toastOn: !!toast && toast.className.includes('on'),
+    };
+  });
+  R.push(['a dropped book does NOT turn the page you were on', dropped.stayedPut]);
+  R.push(['it offers, in the toast already on screen', dropped.offered && dropped.toastOn]);
+
+  const took = await p.evaluate(async () => {
+    const btn = [...document.querySelectorAll('#dropToast button')]
+      .find(b => /Open your copy/.test(b.textContent));
+    if (!btn) return { pressed: false };
+    btn.click();
+    await new Promise(r => setTimeout(r, 900));
+    return {
+      pressed: true,
       slug: window.currentDocSlug ? window.currentDocSlug() : '',
       stillSaysSummary: /not the book itself/i.test(document.getElementById('rdBody').textContent),
       canReadFullText: document.getElementById('rdFullTextBtn')?.style.display === 'inline-block',
     };
   });
-  R.push(['dropping the file onto a summary-only book gives you the real text', !!opened.slug && opened.canReadFullText]);
-  R.push(['and the page stops calling itself a summary', !opened.stillSaysSummary]);
-  R.push(['and the full text is actually readable', opened.canReadFullText]);
+  R.push(['and pressing it gives you the real text', !!took.slug && took.slug !== dropped.before && took.canReadFullText]);
+  R.push(['the page stops calling itself a summary', took.pressed && !took.stillSaysSummary]);
+  R.push(['the full text is actually readable', !!took.canReadFullText]);
 }
 
 let bad=0; for(const [n,ok] of R){ console.log((ok?'  PASS  ':'  FAIL  ')+n); if(!ok) bad++; }

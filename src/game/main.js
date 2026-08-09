@@ -110,7 +110,15 @@ window.__store = Store;
 if(Store.dbAvailable && Store.dbAvailable()){
   Store.hydrateFromDb().then(r=>{
     if(r && r.ok){
-      logActivity('Read the catalogue from the local database — '+r.books+' books.');
+      /* NO logActivity HERE. Until 2026-08-09 this wrote "Read the catalogue
+         from the local database — N books." into the visitor's activity log on
+         every single boot. That log is a record of what THEY did; a sentence
+         they did not cause, at the top of it every time they open the app, is
+         the machine narrating itself in a diary that is not its own.
+
+         The information is not lost and was never missing from anywhere it
+         belonged: refreshBackendStatus() puts it on the status line, which is
+         the machine's own place to talk about itself. */
       refreshLibraryStorageStatus(); refreshBackendStatus();
     }
   }).catch(()=>{ /* the Pavilion is complete without it */ });

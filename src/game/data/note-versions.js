@@ -172,12 +172,17 @@ export function byLine(who, model) {
    are stamping notes properly that must not turn their writing into the
    assistant's. The prefix is a fallback for history, never an override. */
 export const AI_PREFIX = '✨ ';
+/* `text` OR `body`, because the two note stores spell it differently:
+   data.bookNotes uses `text`, data.notes (Your Notes) uses `body`. An
+   AI-drafted lesson lands in the second one — deskDraftLesson() writes
+   "✨ Drafted by your local AI…" — so a predicate that only read `text`
+   would call it the visitor's the moment it was published. */
 export function isAiNote(note) {
   if (!note) return false;
   const who = note.by && note.by.who;
   if (who === 'ai') return true;
   if (who === 'you') return false;
-  return String(note.text || '').startsWith(AI_PREFIX);
+  return String(note.text || note.body || '').startsWith(AI_PREFIX);
 }
 
 /* IN WORDS, because both a person and a model read this. The model gets

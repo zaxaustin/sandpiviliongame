@@ -5174,6 +5174,117 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- GUARD D · NOTHING MOVES THE VISITOR WITHOUT A PRESS ----------
+   2026-08-09. The third of the pace-charter guards, and the weakest of them —
+   which is said here rather than discovered later.
+
+   THE RULE. Opening a room, closing a panel or turning a page changes what is
+   in front of a person. That is allowed to happen because they asked, and for
+   no other reason. A drop, a timer, a boot probe and a finished sentence are
+   all things that happen NEAR the visitor without being a request from them.
+
+   THE ONE THIS WAS WRITTEN FOR: dropping a book file used to call
+   reopenIfReplaced(), which navigated the Reader to the newly shelved copy.
+   The drop means "take this". It does not mean "and turn my page" — you can
+   be reading one book while filing another. The offer moved into the toast.
+
+   WHY IT IS WEAK, STATED PLAINLY. It extracts function bodies with a regex and
+   asks whether a navigator is named inside them. It cannot follow a call two
+   levels down, and it cannot tell an event handler that IS a press (a click)
+   from one that is not (a timer). So it carries a short hand-written list of
+   the unpressed entry points, and the list is the part a human has to keep
+   honest. It also carries a `checkedAny` sentinel, because the failure mode of
+   a regex guard is matching nothing and passing forever.
+
+   NOT COVERED, AND NOT A GAP: soft pressure. A suggestion that writes nothing
+   and moves nothing passes every check here and can still feel like being
+   managed. See the charter — this suite holds the preconditions, not the goal. */
+{
+  const { PLACES } = await import('../src/game/data/places.js');
+  /* DERIVED FROM places.js, not typed. Renaming a room's door has to change
+     what this guard watches, or it quietly stops watching that room — the same
+     argument reachGap() already makes for the doors a resident names. */
+  const doors = [...new Set(Object.values(PLACES).map(p => p && p.door).filter(Boolean))];
+  const NAVIGATORS = [...doors, 'openReader', 'openFullText', 'reopenIfReplaced', 'openReplacedCopy'];
+  if (doors.length < 10) {
+    fail(`smoke: guard D derived only ${doors.length} doors from places.js — the shape has changed and `
+       + 'it is watching almost nothing');
+  }
+
+  /* The entry points a visitor did NOT press. Each one is here because it runs
+     on something other than a click: a dropped file, a clock, a promise, the
+     end of a spoken sentence. Adding one to this list is a claim that it can
+     fire without being asked — which is exactly when this check matters. */
+  const UNPRESSED = {
+    acceptDropAnywhere: 'a file dropped on the window — the drop is a press to SHELVE, never to navigate',
+    sweepReminders:     'a clock comparison, not a request',
+  };
+  const ovD = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const codeD = ovD.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  let bodiesD = 0;
+  for (const fn of Object.keys(UNPRESSED)) {
+    const at = codeD.search(new RegExp('(?:export\\s+)?(?:async\\s+)?function\\s+' + fn + '\\s*\\('));
+    if (at < 0) {
+      fail(`smoke: guard D cannot find ${fn}() in overlays.js — it is watching a function that no `
+         + 'longer exists, so it is watching nothing');
+      continue;
+    }
+    bodiesD++;
+    let i = codeD.indexOf('{', at), depth = 0, end = i;
+    for (; end < codeD.length; end++) {
+      if (codeD[end] === '{') depth++;
+      else if (codeD[end] === '}') { depth--; if (!depth) break; }
+    }
+    const body = codeD.slice(i, end + 1);
+    for (const nav of NAVIGATORS) {
+      /* A NAME INSIDE AN onclick= IS THE OPPOSITE OF A VIOLATION — it is the
+         button. Strip the inline handlers before looking, or the toast's own
+         "📖 Open your copy" offer reads as the auto-navigation it replaced,
+         and this guard fails the exact fix it was written to require. */
+      const withoutHandlers = body.replace(/on(?:click|change|input)="[^"]*"/g, ' ');
+      if (new RegExp('(^|[^\\w$.])' + nav + '\\s*\\(').test(withoutHandlers)) {
+        fail(`overlays.js: ${fn}() calls ${nav}() — ${UNPRESSED[fn]}. Moving the visitor there is a `
+           + 'decision they did not make. Offer it (a button in the toast, a link in the panel) '
+           + 'instead of doing it.');
+      }
+    }
+  }
+  if (bodiesD !== Object.keys(UNPRESSED).length) {
+    fail(`smoke: guard D read ${bodiesD} of ${Object.keys(UNPRESSED).length} unpressed entry points`);
+  }
+
+  /* AND THE BOOT DOES NOT WRITE INTO THE VISITOR'S RECORD. main.js's database
+     hydration logged "Read the catalogue from the local database — N books."
+     on every launch, into the log of what THEY did. The status line is where
+     the machine talks about itself. */
+  const mainD = readFileSync(new URL('../src/game/main.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const hydrate = mainD.indexOf('hydrateFromDb()');
+  /* THE CALLBACK BODY, BRACE-MATCHED — not a character window. The first
+     version read 500 characters forward and swallowed
+     `logActivity('Took the lift to '+scene().name)` twenty lines below, which
+     is a press and entirely legitimate. It failed on already-correct code.
+     Diagnose red before believing it: three checks in this project WERE the
+     broken thing, and this was very nearly a fourth. */
+  let cb = '';
+  if (hydrate >= 0) {
+    const open = mainD.indexOf('{', mainD.indexOf('.then(', hydrate));
+    let depth = 0, end = open;
+    for (; end < mainD.length && open >= 0; end++) {
+      if (mainD[end] === '{') depth++;
+      else if (mainD[end] === '}') { depth--; if (!depth) break; }
+    }
+    cb = open >= 0 ? mainD.slice(open, end + 1) : '';
+  }
+  if (hydrate < 0 || !cb) {
+    fail('smoke: guard D cannot find the hydrateFromDb() callback in main.js');
+  } else if (/logActivity\s*\(/.test(cb)) {
+    fail('main.js: the database hydration calls logActivity() — that writes a sentence the visitor '
+       + 'did not cause into their own activity log, on every boot. Put it on the status line '
+       + '(refreshBackendStatus) instead.');
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list

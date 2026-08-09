@@ -24,6 +24,26 @@
    a real day — and let a big goal (learn electronics) be eaten one
    sitting at a time through `source`.
 
+   ⚠ ONE EXCEPTION, AND IT IS DELIBERATE — THE STREAK (2026-08-09).
+   The paragraph above is the design and it stays the design, but the
+   UI shows `🔥 N in a row · best N`, and a running tally of consecutive
+   days is a stick however gently it is drawn. A day you miss makes a
+   number go down; nothing else in this file can do that.
+
+   It was put to the steward as a thing to remove and the answer was to
+   KEEP IT. So this is a stated exception rather than a contradiction —
+   which matters, because a document asserting something the code does
+   not do is this project's oldest and most expensive failure, and the
+   pace audit that found this found ten other things by looking for
+   exactly that shape.
+
+   NO GUARD IS WRITTEN FOR IT. A rule with an exception the size of the
+   rule is not a rule, and a test asserting "nothing here judges you,
+   except this" would be theatre. What holds it is this paragraph and
+   the argument in CLAUDE.md rule 9. If the streak ever grows teeth —
+   a broken-streak notice, a red number, a nag — that is the line, and
+   this note is where to come back to.
+
    THE PAVILION SUPPORTS A REAL STUDY SESSION; IT DOES NOT SIMULATE
    ONE. The steward again, and it is why `world` exists below:
 

@@ -193,7 +193,7 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one: 13,481 lines** (740 top-level
+- **`ui/overlays.js`** — **the big one: 13,591 lines** (740 top-level
   definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
   chat stack, and the window-export block, which it owns permanently. **It opens
   with a map of itself**, anchored to searchable text rather than line numbers
@@ -409,9 +409,25 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 >   `paceOf()` resolves for every role, both reveals compute their head from the
 >   clock. **The visitor can now HOLD a reply** (⏸, asked for mid-session) —
 >   pocketing does not pause it either.
-> - **NEXT — 1b, note attribution**, and **guard B must FAIL on today's code
->   before it is fixed**, or it is vacuous. Then 1f (a reason on a published
->   note), 1c/1d/1e, then rule 9.
+> - **DONE — every note says who wrote it.** `note.by = {who,user,model}` in
+>   `data/note-versions.js`, read-time backfill for the 415 books' worth that
+>   predate it, and **AI notes stay in grounding, labelled** (the steward
+>   overruled filtering them out, and was right). The live bug: `deskDraftLesson()`
+>   handed a model its own earlier output under *"THEIR OWN NOTES ON THIS BOOK"*.
+>   **Guard B was written first and failed seven ways** on untouched code.
+> - **DONE — the outlet.** Publishing asks *why is this worth passing on?* once,
+>   optionally, and the reason travels into the file and into the copy whoever
+>   takes it makes. An AI-drafted packet says so.
+> - **DONE — 1c/1d/1e.** A drop offers rather than turns your page; the boot no
+>   longer writes into your activity log; the streak STAYS and
+>   `data/daily-tasks.js` now records it as a stated exception.
+> - **DONE — rule 9 is written**, and written LAST on purpose. Guards A, B and D
+>   in `npm test`, each broken on purpose.
+> - **NEXT — the tutorial (Part 3)**, five stages built on `data/badges.js`.
+>   Also queued, found live 2026-08-09: **the Connections panel says the same
+>   sentence for four different AI failures** — nothing on the port, no models,
+>   misconfigured, or no *enabled* connection. That last one makes zero network
+>   calls, so nothing anywhere records a failure. Rules 5 and 6 both.
 > - **The `overlays.js` split is OFF the critical path** for the beta, on
 >   Grok's advice — see [`plans/OVERLAYS-SPLIT-PLAN.md`](plans/OVERLAYS-SPLIT-PLAN.md).
 >   The tutorial comes first.
