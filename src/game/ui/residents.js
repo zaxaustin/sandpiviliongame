@@ -38,6 +38,8 @@ import { referenceBlock } from '../data/reference.js';
    boundary nobody consulted. See shelfLookup() below. */
 import { groundingPlan, privacyLeaks } from '../data/lookup.js';
 import { groundingFor, fitToBudget, KINDS } from '../data/carrying.js';
+import { pagesOf, searchPages, passagesBlock,
+         RESIDENT_PASSAGE_CAP, RESIDENT_PASSAGES_PER_BOOK, RESIDENT_PASSAGE_BOOKS } from '../data/retrieval.js';
 import { mayReachNote } from '../data/note-reach.js';
 /* The SAME estimator the request itself uses. A grounding block bounded by its
    own private idea of a token would drift from the real one and then lie about
@@ -73,6 +75,13 @@ const searchMyNotes          = (...a) => X.searchMyNotes(...a);
    residents.js keeps its one property: it builds strings and imports nothing
    that could reach back into a panel. */
 const todaysTaskLine         = (...a) => X.todaysTaskLine(...a);
+/* THE ACTUAL TEXT OF A BOOK, for retrieval. Injected because reading it may
+   mean the desktop bridge, a file under userData, or MinIO — three things this
+   file must never know about. Absent (an older host, a browser without the
+   bridge) means passagesFor() returns nothing and says so, rather than throwing
+   inside a prompt build, which the catch in sendChatMessage would have reported
+   to the visitor as "your local AI didn't answer". */
+const loadBookText           = (...a) => X.loadBookText(...a);
 
 /* ----- AI-backed NPCs — a small registry so more than one resident can
    talk, each grounded in something different, without duplicating the
@@ -497,6 +506,82 @@ function carriedBlock(){
    work the visitor has done — which is the exact failure the audit of
    2026-08-04 found in three blocks at once.
    ================================================================ */
+/* ================================================================
+   THE BOOK ITSELF, NOT THE CARD — passagesFor(), 2026-08-10.
+
+   carriedBlock() above is explicit that it is "A CARD, NOT A CORPUS",
+   and that pulling real passages out of a carried book is "a separate,
+   deliberate piece of work (data/retrieval.js)". This is that work.
+
+   Until today `searchPages()`/`passagesBlock()` were built, tested and
+   had exactly ONE caller — the Science Hall. So you could carry Walden
+   to the Monk and he could tell you its title, its shelf, and nothing
+   whatsoever that is IN it. The fourth thing in this project written,
+   tested, documented and reachable by almost nobody.
+
+   FOUR BOUNDARIES, and the first three are why this is safe:
+
+   1 · CARRIED BOOKS ONLY. The backpack is the boundary that makes this
+       legitimate at all — a person put the book there. Never the shelf,
+       never a search hit, never something merely mentioned.
+   2 · A HARD CHARACTER CAP ACROSS ALL BOOKS (RESIDENT_PASSAGE_CAP),
+       and only the deepest two books in the bag. The cap is not a
+       tuning knob; it is the difference between the rule this file
+       obeys and the catalogue bug returning in its fifth costume.
+   3 · OPT-IN BY ROLE. Only residents that declare `passages` in
+       roles.js. The Computer answers with "names, counts, the command
+       that opens it" and would be actively worsened by a page of prose.
+   4 · THE CACHE. Paginating and tokenising a 563 KB book per message is
+       real heat on a machine whose limit is cooling — pagesOf() holds
+       four books.
+
+   IT STASHES WHAT IT ACTUALLY INCLUDED, on d.passages, and the receipt
+   under the reply names the book and the page numbers. A resident that
+   quietly read three pages of your book and did not say so is invisible
+   grounding, which is the thing the backpack exists to prevent.
+
+   ZERO HITS IS A REAL ANSWER and is stashed too: "you are carrying it
+   and nothing in it matches" is information, and rule 6 says say so.
+   ================================================================ */
+async function passagesFor(question, key){
+  const d=state.dialog;
+  const q=String(question||'').trim();
+  if(!q) return '';
+  if(typeof X.loadBookText !== 'function') return '';   // no way to read text here
+  /* The same groundingFor() the card block uses, so the two can never disagree
+     about WHICH books are in play — only about how much of each is shown. */
+  const held=groundingFor(carryList(), ['book','paper']).slice(0, RESIDENT_PASSAGE_BOOKS);
+  if(!held.length) return '';
+  let left=RESIDENT_PASSAGE_CAP;
+  const parts=[], receipt=[];
+  for(const e of held){
+    if(left < 400) break;                    // not enough room left to be worth a page
+    const doc=Store.getDoc(e.ref); if(!doc) continue;
+    let text=null;
+    /* A book with no text behind it is a CARD, and that is a normal, common
+       state on this shelf (30 of the steward's 415 are summary-only). It is not
+       an error and must not read like one. */
+    try{ text=await loadBookText(e.ref); }catch(err){ continue; }
+    if(!text || text.length < 400){ receipt.push({ title:doc.title, slug:e.ref, pages:[], why:'no text' }); continue; }
+    const pages=pagesOf(e.ref, text, (doc.doc&&doc.doc.fullText&&doc.doc.fullText.storage) ? 'file' : 'inline');
+    const hits=searchPages(pages, q, { limit: RESIDENT_PASSAGES_PER_BOOK });
+    if(!hits.length){ receipt.push({ title:doc.title, slug:e.ref, pages:[], why:'no match' }); continue; }
+    const block=passagesBlock(hits, { cap: left });
+    if(!block) continue;
+    left -= block.length;
+    parts.push(`FROM "${doc.title}"${doc.attribution?' — '+doc.attribution:''}, which they are carrying:\n`+block);
+    receipt.push({ title:doc.title, slug:e.ref, pages:hits.map(h=>h.page+1) });
+  }
+  if(d) d.passages={ q, books:receipt, chars: RESIDENT_PASSAGE_CAP-left, cap: RESIDENT_PASSAGE_CAP };
+  if(!parts.length) return '';
+  return "\n\nPASSAGES FROM THE BOOK ITSELF. These are the actual words on the actual pages of "
+    +"something in their backpack, found by searching it for what they just asked. Each is labelled "
+    +"with its page number, and the page numbers are the ones the reader shows — so you may quote "
+    +"these, and you may say which page, and they can go and check you. Work from what is here rather "
+    +"than from what you remember of the book; if these passages do not answer the question, say so "
+    +"plainly, because a search of the whole book found nothing better:\n\n"
+    +parts.join('\n\n');
+}
 /* WHAT THIS ROLE DECLARED IT NEEDS. Absent is a FAILURE, not "everything" —
    a role added without a declaration would silently inherit the whole pathway
    including, later, retrieval, which is the exact thing declaring is for.
@@ -529,8 +614,13 @@ async function pathwayBlock(key){
      rows for free. Opting out saves the block AND the round-trips. */
   const lookup = wants(key,'shelves') ? await libraryLookupBlock(lastAskOf(key)) : '';
   const notes  = wants(key,'notes')   ? await notesLookupBlock(key) : '';
+  /* AFTER the card block and before the notes, deliberately: the card says what
+     is on the table, the passages say what is in it. Reversing them hands a
+     model three pages of prose before it knows whose book they are. */
+  const pass   = wants(key,'passages') ? await passagesFor(lastAskOf(key), key) : '';
   return (lookup || '')
     + (wants(key,'carried')    ? carriedBlock() : '')
+    + pass
     + notes
     + (wants(key,'papershelf') ? referenceShelfBlock() : '')
     + (wants(key,'reference')  ? referenceBlock(lastAskOf(key)) : '')

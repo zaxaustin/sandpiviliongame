@@ -437,14 +437,20 @@ and 6 are the rest of the same chain and are meant to go in that order.
    both the composer and the roles at once, because a kind declared before the
    composer knows it fails the guard and a kind implemented before anyone
    declares it is dead code.
-2. **Retrieval reaches the residents** — `searchPages()`/`passagesBlock()` are
-   built and tested with exactly one caller (the Science Hall), so a carried
-   book still cannot be quoted from. **The cap goes in on the first commit**,
-   not as a follow-up, and **the page cache is required, not a nicety**:
-   tokenising a 563 KB book per message is real heat on a machine whose limit
-   is cooling. Plan at the end of
-   [`plans/AI-INTEGRATION-NOTES.md`](plans/AI-INTEGRATION-NOTES.md).
-   **Measure again: the residents who opted in should RISE, against the cap.**
+2. ~~**Retrieval reaches the residents**~~ — ✅ **done 2026-08-10.** A carried
+   book can now be quoted from, with page numbers the reader agrees with.
+   `passagesFor()` in `ui/residents.js`, opt-in by role, **carried books only**.
+   Cap went in on the first commit as `RESIDENT_PASSAGE_CAP` (2,600 chars across
+   all books, 2 passages a book, 2 books) and **it binds**: worst case measured
+   at 3 books carried and 7 very common words → **1,939 of 2,600 used**, third
+   book correctly absent. Rise on the Monk: **+2,589 chars (~761 tokens)**,
+   whole prompt 12,874 — well inside the 8,192-token floor's headroom.
+   Multi-slot page cache in `retrieval.js` (4 books, oldest-used evicted);
+   second ask on a warm cache is **~10 ms**.
+   **Acceptance passed on a real 300 KB *Walden*:** `ornith:9b` quoted it
+   verbatim and cited both pages; `llama3.2:3b` used the text but did **not**
+   cite — which is why `passagesReceipt()` states the pages deterministically
+   (rule 7), rather than hoping the model does.
 3. **The resident reach gap** — [`plans/RESIDENT-REACH-PLAN.md`](plans/RESIDENT-REACH-PLAN.md),
    fully designed and not built. *"i dont have acces to this can you please put
    the book in your back pack."* Mostly assembly now: `d.shelfLookup` is already

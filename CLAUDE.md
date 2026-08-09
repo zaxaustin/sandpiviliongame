@@ -110,6 +110,18 @@ before any installer moves. **Never plain `electron:build`** — it bakes
   ate `overlays.js` once. Commit messages via `git commit -F`.
 - **electron-builder EPERM on `release/`:** an editor is watching it. Build to
   `$TEMP/sp-build` via `--config.directories.output`, copy back.
+- **An offscreen Electron window hands back a STALE frame.** `capturePage()` on
+  a `show:false` window returned a dark, empty screenshot of a panel that was
+  provably open (`opacity 1`, full size, right content). `win.show()`, wait,
+  and **discard the first `capturePage()`**. A screenshot showing nothing is not
+  evidence of nothing — verify the harness before believing the picture.
+- **A bare identifier is only a ReferenceError on the path that runs it.**
+  `overlays.js` called `estimateTokens()` and never imported it, for days: the
+  build was happy, and every test called the enclosing function on a path that
+  returned *before* the throw. `npm test` now derives this check from
+  `ai/provider.js`'s exports. **A wider one-off scan across every local import
+  in `src/game` found no other instance** (validated by re-introducing the known
+  bug — a clean scan from an unproven scanner is a vacuous pass).
 
 ---
 

@@ -282,7 +282,7 @@ export function openChatDialog(npc){
        residents.js, read by shelfLookupReceipt() below, and it doubles as the
        once-a-turn memo that stopped four residents making eight database
        round-trips for four questions. */
-    askNotes:false, noteSearch:null, shelfLookup:null,
+    askNotes:false, noteSearch:null, shelfLookup:null, passages:null,
   };
   document.getElementById('chatOv').classList.add('open');
   renderChatView(); blip(740,.06,'square',.03);
@@ -515,7 +515,7 @@ function renderChatQuickActions(d){
      including what was refused — rule 3 of the lookup design. A search whose
      only evidence is a better answer is indistinguishable from a resident
      making something up. */
-  html = groundedInLine(d) + shelfLookupReceipt(d) + noteSearchReceipt(d) + html;
+  html = groundedInLine(d) + passagesReceipt(d) + shelfLookupReceipt(d) + noteSearchReceipt(d) + html;
   el.innerHTML=html;
   el.style.display=html?'block':'none';
   updateAskNotesBtn();
@@ -588,6 +588,38 @@ function groundedInLine(d){
     <button class="btn ghost" style="font-size:10.5px;padding:2px 8px;margin-left:4px"
       onclick="openInventory()" title="Open your backpack">🎒</button></div>`;
 }
+/* ----- WHICH PAGES OF YOUR OWN BOOK WERE READ -----
+
+   The fourth receipt, and the one that most needed to exist: this is the only
+   block that puts real prose from YOUR book into a prompt, so it is the only
+   one where "what did it actually read" is a question with pages for an answer.
+
+   TWO NUMBERS, LABELLED APART. The backpack meter says what is AVAILABLE before
+   you send; this says what was USED this turn. They are different questions and
+   conflating them is how a meter starts disagreeing with the prompt it claims
+   to measure — the store.js scar, which the carried block already carries a
+   warning about.
+
+   "You are carrying it and nothing in it matched" is REPORTED, not swallowed.
+   That is rule 6: a real answer beats a gap, and it tells the visitor something
+   true about their own book. */
+function passagesReceipt(d){
+  const p=d && d.passages; if(!p || !Array.isArray(p.books) || !p.books.length) return '';
+  const read=p.books.filter(b=>b.pages && b.pages.length);
+  const missed=p.books.filter(b=>!b.pages || !b.pages.length);
+  if(!read.length && !missed.length) return '';
+  const bits=read.map(b=>`<b>${esc(String(b.title||b.slug))}</b> (p.${b.pages.join(', p.')})`);
+  return `<div class="meta" style="border-left:2px solid #c8a24a;padding-left:8px;margin:0 0 8px">
+      📖 ${read.length
+        ? `Read ${read.reduce((n,b)=>n+b.pages.length,0)} passage${read.reduce((n,b)=>n+b.pages.length,0)===1?'':'s'} from ${bits.join(' · ')}.`
+        : ''}
+      ${missed.length
+        ? `<span style="opacity:.85">Nothing matched in ${missed.map(b=>esc(String(b.title||b.slug))
+            +(b.why==='no text'?' (no text on this device)':'')).join(', ')} — which is a real answer about that book.</span>`
+        : ''}
+      ${read.length ? `<span style="opacity:.6"> ${p.chars} of ${p.cap} characters used.</span>` : ''}
+    </div>`;
+}
 /* ----- WHAT THE SHELVES WERE ACTUALLY ASKED -----
 
    The third receipt, and the one the pathway had been running silently since
@@ -617,7 +649,9 @@ function shelfLookupReceipt(d){
   return `<div class="meta" style="border-left:2px solid #8a7fb0;padding-left:8px;margin:0 0 8px">
       📚 Searched the shelves for ${asked} — <b>${r.hits.length}</b> found${
         r.hits.length ? ': '+names+(rest>0?`, and ${rest} more`:'') : ''}.
-      ${r.hits.length ? '' : 'Nothing on these shelves matches, which is a real answer about this library — not about the subject.'}
+      ${r.hits.length ? '' : 'Nothing matched — and that is a real answer about this library, not about the subject. '
+        + '<span style="opacity:.75">This searches titles, authors and shelves, not the words inside a book; '
+        + 'for that, carry it.</span>'}
     </div>`;
 }
 function noteSearchReceipt(d){
@@ -4958,6 +4992,10 @@ initResidents({
      caller lives over there. gatherNotes resolves a carried note, which is a
      reference and not a copy, so only this file can do it. */
   carryList, gatherNotes, searchMyNotes: searchMyNotesFor, todaysTaskLine,
+  /* Retrieval's one dependency, 2026-08-10. Reading a book's text may mean the
+     desktop bridge, a .txt under userData, or MinIO — three things residents.js
+     must never learn about. */
+  loadBookText,
 });
 /* Today's Tasks — the same seam again. `plannerDayFor` is the one thing it
    genuinely cannot reach: a finished day is recorded into the log of the day

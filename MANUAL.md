@@ -315,8 +315,20 @@ your own standing instructions, so you can watch them take effect.
   - *📚 Searched the shelves for "x", "y" — 2 found: "…", "…"* — the Library
     search every resident makes on every question. **Nothing found is a real
     answer**, and it says so: it is a fact about your library, not the subject.
+  - *📖 Read 2 passages from Walden (p.161, p.56). 853 of 2600 characters used.*
+    — the pages of a **carried** book that were actually put in front of them.
   - *🔎 Searched your notes for "…"* — only when you pressed the 🔎 send button,
     never otherwise.
+- **Carry a book and they can quote it.** The shelf search finds books by title,
+  author and shelf; it does not read inside them. **Putting a book in your 🎒
+  backpack does** — the Pavilion searches its actual pages for what you just
+  asked and hands the resident the two best passages, labelled with the page
+  numbers the reader shows you, so you can turn to them and check. Only what you
+  are carrying, only the two books you picked up most recently, and never more
+  than a couple of paragraphs in total. If nothing in the book matches, the
+  receipt says so — that is a real answer about your book.
+  Sebastian and the Computer do not get passages: one keeps your day and the
+  other lists what is on this machine, and a page of prose helps neither.
 - **Watching the model think.** **Your Data → "Let the model show its reasoning,
   and show it to me"**, off by default. With it on, a reasoning model thinks out
   loud first and a **💭 thought for a moment** panel appears under the reply. It

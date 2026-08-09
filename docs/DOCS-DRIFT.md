@@ -243,6 +243,31 @@ mistake took.
 wrong number sitting in four files, which is CLAUDE.md rule 4 exactly. If a claim
 can be computed, compute it.
 
+### The fourth callerless thing, and the last of them
+
+**`searchPages()` / `passagesBlock()` were built, tested and had one caller** —
+the Science Hall — so a book in your backpack could be named and never quoted.
+Closed 2026-08-10 by `passagesFor()`. That is the complete list of this shape
+found in one week: `groundingFor()`, `chatOptsFor()`, `groundingPlan()`,
+`searchPages()`. Every one was written well, tested, documented, and reached by
+almost nobody, and **in every case a document asserted the feature existed.**
+
+### And a guard that had quietly stopped measuring
+
+**The prompt-budget check reads a file region, not the text a model receives.**
+It slices `residents.js` from `sebastian:{` to `errorLine` and counts the string
+literals — so Sebastian's Beeton, composed by a helper function *defined outside
+that slice*, was **never counted, by either version of the code**. He has been
+at ~1,590 tokens against a stated budget of 1,470 the whole time, not 1,290.
+Counting `training` properly is what surfaced it; the budget is now 1,620,
+raised deliberately and on the record.
+
+**The blind spot is wider than the fix.** Any always-on prose composed by a
+helper is still uncounted — `sebModeBlock()` and parts of `butlerDayRead()` are
+the candidates. **Registered, not chased**: a guard that measures a file region
+instead of the text a model receives will keep finding new ways to be slack, and
+the real repair is to measure a built prompt rather than a slice of source.
+
 ---
 
 ## 🔵 Found by looking, 2026-08-10 — an import that was never there

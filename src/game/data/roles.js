@@ -116,14 +116,34 @@
      notes       their own notes, and ONLY when they pressed the button
      papershelf  books they own ON PAPER, and their datasheets
      reference   the Reference Desk constants, when a term appears
+     passages    the ACTUAL TEXT of a carried book — see below
      training    this role's own book — see below
 
-   `passages` is deliberately NOT a kind yet. It arrives with retrieval,
-   and it arrives in BOTH places at once — the composer and the roles
-   that opt in — because a kind declared before the composer knows it
-   would fail the guard, and a kind implemented before anyone declares
-   it would be dead code. That is the whole point of guarding both
-   directions.
+   ---------------------------------------------------------------
+   `passages` — THE REASON THIS FILE GAINED A `grounding` FIELD AT ALL,
+   and it landed one commit later, on 2026-08-10.
+
+   Everything above is cheap. This one is not: it reads a whole book,
+   paginates it, tokenises it for BM25 and puts real prose in the
+   prompt. It is exactly the block that makes "everyone gets every
+   block" stop being free, which is why the declaration went in first.
+
+   OPT-IN, and the five who have it work with book TEXT:
+     quill        what a book actually says, not only where it sits
+     tutor        a worked example from the real page beats a remembered one
+     steward      his duty is pre-notes on a book, and he keeps the Study Table
+     investigator a quotation with a page number is checkable evidence
+     monk         he declines every other enrichment and keeps this one,
+                  because a text as a mirror is his whole use for a book
+
+   AND THE TWO WHO DO NOT:
+     computer     "names, counts, the command that opens it" — a page of
+                  prose is the opposite of its lens, and would make it worse
+     sebastian    he keeps a day. A carried book is something to schedule
+                  time for, which is what his own lens says.
+
+   The cap, the per-book limit and the two-book limit are all in
+   data/retrieval.js, stated once. This field only decides WHO.
 
    ---------------------------------------------------------------
    `training` — A RESIDENT'S OWN BOOK, and the steward's idea:
@@ -158,7 +178,7 @@
    example, and no such text is on these shelves. When one is, it is a
    `training` block here and nothing else.
    ================================================================ */
-export const GROUNDING_KINDS = ['shelves','carried','notes','papershelf','reference','training'];
+export const GROUNDING_KINDS = ['shelves','carried','notes','papershelf','reference','passages','training'];
 /* Everything but `training`, which is per-role by definition. The default a
    role gets by writing `grounding: [...FULL_PATHWAY]` — spelled out rather
    than implied, so opting out of something is visible in the diff. */
@@ -231,7 +251,7 @@ export const ROLES = {
        which book, where it sits, and what else here is like it. The paper shelf
        very much IS his: knowing you already own it on paper is the difference
        between "we do not have that" and "you do, it is behind you." */
-    grounding: ['shelves','carried','notes','papershelf'],
+    grounding: ['shelves','carried','notes','papershelf','passages'],
   },
   tutor: {
     label: 'the Tutor',
@@ -269,7 +289,7 @@ export const ROLES = {
        about to need in a worked example. He is the clearest case for `passages`
        when retrieval lands — a worked example from the actual page beats one
        from the model's memory of the page. */
-    grounding: [...FULL_PATHWAY],
+    grounding: [...FULL_PATHWAY, 'passages'],
   },
   steward: {
     label: 'the Steward',
@@ -298,7 +318,7 @@ export const ROLES = {
     studio: true,
     /* THE WHOLE PATHWAY, and he has the strongest claim to all of it — his duty
        is preparing raw material, which means whatever material is to hand. */
-    grounding: [...FULL_PATHWAY],
+    grounding: [...FULL_PATHWAY, 'passages'],
   },
   investigator: {
     label: 'the Investigator',
@@ -319,7 +339,7 @@ export const ROLES = {
       line:'What claim are we testing? Give me the thing you believe, and what would show it was wrong.' },
     /* THE WHOLE PATHWAY. Evidence is wherever it is, and a datasheet or a
        constant is evidence of exactly the checkable kind he insists on. */
-    grounding: [...FULL_PATHWAY],
+    grounding: [...FULL_PATHWAY, 'passages'],
   },
   monk: {
     label: 'the Mountain Monk',
@@ -360,7 +380,7 @@ export const ROLES = {
        makes the answer worse. He keeps the Library (a text as a mirror), the
        backpack (what they chose to bring), and their notes when they ask —
        which his lens calls "where they already are". */
-    grounding: ['shelves','carried','notes'],
+    grounding: ['shelves','carried','notes','passages'],
   },
   computer: {
     label: 'the Computer',

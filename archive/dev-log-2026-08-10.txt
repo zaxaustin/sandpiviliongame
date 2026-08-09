@@ -1437,3 +1437,190 @@ follow-up, and the multi-slot page cache is required rather than a
 nicety - tokenising a 563 KB book on every message is real heat on a
 machine whose limit is cooling. Then measure again: the residents who
 opt into `passages` should RISE, and the rise is what the cap governs.
+
+
+================================================================
+PART TEN - A CARRIED BOOK CAN BE QUOTED (plan Part 5)
+================================================================
+
+The last of the four callerless things. searchPages() and
+passagesBlock() have been built, tested and documented since the
+Reference-and-Retrieval plan, with exactly ONE caller - the Science
+Hall. So you could carry Walden to the Monk and he could tell you its
+title, its shelf, and nothing whatsoever that is IN it.
+
+
+THE CAP WENT IN FIRST, AND IT BINDS
+------------------------------------
+Not as a follow-up. RESIDENT_PASSAGE_CAP = 2600 characters across ALL
+carried books, RESIDENT_PASSAGES_PER_BOOK = 2, RESIDENT_PASSAGE_BOOKS =
+2. passagesBlock()'s own default is 6000, which is right for a panel a
+person is reading and would roughly DOUBLE the heaviest resident if
+handed over on every message.
+
+WORST CASE, MEASURED - three real books carried (Walden, Emerson's
+Essays, the Tao Teh King) and a question of seven very common words
+("nature life world truth thought heart living"):
+
+  whole prompt        12,874 chars
+  passage block        2,589 chars (incl. ~640 of preamble)
+  passage TEXT         1,939 of 2,600 - the cap governs it
+  books quoted         2, not 3 - the third is correctly absent
+  pages                p.83, p.85, p.124, p.48
+
+So the rise on the Monk is +2,589 chars (~761 tokens), against an 8,192
+token floor. Measured against the cap rather than against a feeling,
+which is what the plan asked for.
+
+
+THE PAGE CACHE IS REQUIRED, NOT A NICETY
+------------------------------------------
+Paginating a 563 KB book and tokenising it for BM25 on every message is
+real repeated CPU on a machine whose actual limit is COOLING. pagesOf()
+in retrieval.js: four slots, keyed on slug + stamp + text length,
+oldest-used evicted.
+
+MULTI-SLOT because the backpack holds more than one book and a single
+slot would THRASH between two carried texts - worse than no cache,
+since it pays the eviction as well as the work. Measured: a warm second
+ask, different question, rebuilt the Monk's whole prompt in ~10 ms.
+
+study-table.js keeps its own cache and that is not duplication - it
+caches UNITS and detected chapters, not just pages.
+
+
+OPT-IN, AND THE TWO WHO DO NOT GET IT
+---------------------------------------
+`passages` landed in GROUNDING_KINDS and in five roles in the SAME
+commit, which is the whole reason Part 4 went first: a kind declared
+before the composer knows it fails the guard, and a kind implemented
+before anyone declares it is dead code.
+
+  quill tutor steward investigator monk    yes
+  computer                                 no - "names, counts, the
+    command that opens it" is its lens, and a page of prose is the
+    opposite of it
+  sebastian                                no - he keeps a day; a
+    carried book is something to schedule time for
+
+Four boundaries make this safe: carried books only (a PERSON put it
+there), a hard character cap, opt-in by role, and the cache.
+
+
+THE ACCEPTANCE TEST, ON A REAL 300 KB WALDEN
+----------------------------------------------
+Not a fixture. library-sources/walden.txt, 205 pages after pagination.
+
+  monk        11,662 chars  passages YES  p.161, p.56   10 ms
+  quill        7,751        YES           p.161, p.56   10 ms
+  computer     4,580        no            -              0 ms
+  sebastian    6,998        no            -              0 ms
+
+Then a REAL MODEL handed the real block:
+
+  llama3.2:3b   6.4s  quoted "chopping in his woods" verbatim from the
+                      passage, 8 of 29 distinct words overlapping -
+                      but did NOT cite a page
+  ornith:9b    19.2s  quoted Walden verbatim inside a blockquote AND
+                      cited both pages correctly ("As he writes on page
+                      1... And on page 161...")
+
+BOTH USED THE PASSAGE. Citation is where they differ, and it is model
+size. That is the 2026-08-08 finding again - "the Tutor's reasoning
+named both notes and its answer mentioned neither" - and the answer is
+the same one: RULE 7. The application knows exactly which pages it put
+in the prompt, so passagesReceipt() SAYS them, deterministically, and
+is right every time on a 3B as well as a 9B. The receipt is
+load-bearing, not decoration.
+
+
+BREAKING EVERY GUARD ON PURPOSE - 15 SABOTAGES, 3 BORN DEAD
+-------------------------------------------------------------
+  1  the cap raised to corpus size                    caught
+  2  the cap deleted entirely                         caught
+  3  passagesBlock stops obeying its cap              caught
+  4  the page cache never caches                      caught
+  5  the page cache drops to ONE slot                 caught
+  6  the page cache becomes unbounded                 caught
+  7  pagination reused for a different-length book    caught
+  8  passagesFor reads the SHELF, not the backpack    caught
+  9  passagesFor stops honouring the cap              *** PASSED ***
+ 10  passagesFor reads every carried book             caught
+ 11  passagesFor stops stashing the receipt           *** PASSED ***
+ 12  the receipt is never rendered                    *** PASSED ***
+ 13  the Computer is given passages                   caught
+ 14  the Monk loses passages                          caught
+ 15  NOBODY gets passages                             caught
+
+ALL THREE FAILURES WERE THE SAME DISEASE, and I had already been bitten
+by it twice today:
+
+   9 - `let left=999999` while RESIDENT_PASSAGE_CAP still appeared in
+       the receipt line, so /RESIDENT_PASSAGE_CAP/ matched
+  11 - `if(false) d.passages={...}` left the text intact - THE EXACT
+       sabotage that killed the shelfLookup guard six hours earlier
+  12 - `function passagesReceipt(d)` matches any naive "is it called"
+       pattern, so deleting the only call site left the check green
+
+That is six born-dead guards in two sessions (setBookCap, room.cap,
+d.shelfLookup, and these three) and EVERY ONE died identically: A
+LEFTOVER MENTION OF THE GUARDED THING SATISFIED THE PATTERN.
+
+THE RULE, now written into the smoke test where it will be read: CHECK
+THE STATEMENT, NOT THE WORD. Match the assignment with its guard clause
+(`if(d) d.passages=`), the initialiser (`left = RESIDENT_PASSAGE_CAP`),
+the slice (`.slice(0, RESIDENT_PASSAGE_BOOKS)`) - and strip the
+FUNCTION DEFINITION before asking whether a function is called.
+Re-run after fixing: 15 of 15.
+
+
+AND THE PROMPT-BUDGET GUARD HAD GONE SLACK
+--------------------------------------------
+Moving Beeton to roles.js in Part 4 raised the question of whether the
+budget check still saw it. It never had. The check slices residents.js
+from `sebastian:{` to `errorLine` and counts string literals, and
+butlerTrainingBlock() was a helper defined OUTSIDE that slice - so ~300
+tokens of always-on prose were invisible to it in BOTH the old code and
+the new. Sebastian has been at ~1,590 against a stated 1,470 the whole
+time.
+
+Fixed by counting ROLES[agent].training, and the budget raised to 1,620
+deliberately and on the record.
+
+THE BLIND SPOT IS WIDER THAN THE FIX and is registered rather than
+chased: any always-on prose composed by a helper is still uncounted
+(sebModeBlock, parts of butlerDayRead). The real repair is to measure a
+BUILT PROMPT rather than a slice of source - a guard that measures a
+file region will keep finding new ways to be slack.
+
+
+READ THE SCREENSHOT, FOUND A CONTRADICTION
+--------------------------------------------
+The receipts stacked as:
+
+  Read 2 passages from Walden (p.161, p.56). 853 of 2600 used.
+  Searched the shelves for "solitude"... - 0 found. Nothing matched.
+
+Both true and they read as a contradiction: it just quoted Walden and
+then said nothing matched. The catalogue search reads titles, authors
+and shelves; the passage search reads inside a carried book. So the
+shelf receipt now says which it did - "This searches titles, authors
+and shelves, not the words inside a book; for that, carry it." That
+sentence is also the clearest one-line explanation of what the backpack
+is FOR that exists anywhere in the interface.
+
+
+VERIFIED THIS PART
+-------------------
+npm test green. build:beta clean and beta-verified.
+Electron: note-search.cjs, records.cjs, packaged-boot.cjs.
+docker-home.cjs against the live container, 31 passed.
+Chrome at :4173: preflight, study-chain, teacher, writing-desk,
+study-table, lab, bench, bundle, librarian-safety - 0 failures.
+Two real models against the real block, on a real book.
+Screenshot read.
+
+NEXT: Part 6, the reach gap - and it is mostly assembly now.
+d.shelfLookup is stashed, shelfLookupReceipt() renders, and the plan
+wants a backpack button per uncarried hit so a found book stops being a
+dead end. Every button a human press.

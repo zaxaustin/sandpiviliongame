@@ -1111,7 +1111,7 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
 {
   const ov = UI_SOURCE;
   const { CHARTER, WORK_CHARTER, BUTLER_CHARTER } = await import('../src/game/data/charter.js');
-  const { rosterBlock } = await import('../src/game/data/roles.js');
+  const { rosterBlock, ROLES } = await import('../src/game/data/roles.js');
   const { briefTokens } = await import('../src/game/data/catalogue-brief.js');
 
   /* Budgets are for the ALWAYS-ON role text: the literals in systemPrompt()
@@ -1160,8 +1160,22 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
      alternative was trimming the Eightfold Path he carries whole at the
      steward's request, to pay for a fix to a different problem — which would
      be the wrong thing bought with the wrong money. */
+  /* SEBASTIAN 1470 -> 1620, and the raise is an ADMISSION rather than a
+     concession. 2026-08-10: his Beeton training was never counted here by
+     either version of the code. It was composed by butlerTrainingBlock(), a
+     helper defined OUTSIDE the `sebastian:{…}` slice this guard reads, so ~300
+     tokens of always-on prose were invisible; moving the text to roles.js and
+     counting it properly is what surfaced it. He has been at ~1590 the whole
+     time, not 1290.
+
+     THE BLIND SPOT IS THE REAL FINDING and it is wider than this one number:
+     ANY always-on prose composed by a helper function is uncounted here
+     (sebModeBlock, and parts of butlerDayRead, are the other candidates).
+     Registered in docs/DOCS-DRIFT.md rather than chased today — a guard that
+     measures a file region instead of the text a model receives will keep
+     finding new ways to be slack. */
   const BUDGET = { quill: 1100, steward: 820, investigator: 1280, monk: 2175,
-                   computer: 810, tutor: 1100, sebastian: 1470 };
+                   computer: 810, tutor: 1100, sebastian: 1620 };
   const STR = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
 
   for (const [agent, budget] of Object.entries(BUDGET)) {
@@ -1195,7 +1209,16 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
     const literals = (alwaysOn.match(STR) || []).map(l => l.slice(1, -1)).join('');
     const charter = /WORK_CHARTER/.test(body) ? WORK_CHARTER
       : /BUTLER_CHARTER/.test(body) ? BUTLER_CHARTER : CHARTER;
-    const tokens = briefTokens(literals + charter + rosterBlock(agent));
+    /* A ROLE'S OWN BOOK IS ALWAYS-ON TEXT AND MUST BE COUNTED. Sebastian's
+       Beeton was a string literal inside his systemPrompt() until 2026-08-10,
+       so this guard saw it; moving it to roles.js as `training` moved ~300
+       tokens OUT OF THE MEASURED REGION without a word reaching the model
+       differently. The guard would have gone quietly slack — which is the
+       thing this whole file exists to prevent, so the measurement follows the
+       text rather than the file it happens to live in. */
+    const training = ((ROLES[agent] || {}).training || {});
+    const trainingText = (training.book || '') + (training.lines || []).join(' ');
+    const tokens = briefTokens(literals + charter + rosterBlock(agent) + trainingText);
     if (tokens > budget) {
       fail(`prompt budget: ${agent} carries ~${tokens} tokens of role before a word of the question `
         + `(budget ${budget}). Trim it, or raise the budget deliberately.`);
@@ -2774,6 +2797,9 @@ for (const d of SEED_LIBRARY) {
      decline the road. */
   const { GROUNDING_KINDS, FULL_PATHWAY } = await import('../src/game/data/roles.js');
   const FLOOR = ['shelves', 'carried', 'notes'];
+  const ovCode2 = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 
   for (const k of ROLE_KEYS) {
     const g = ROLES[k].grounding;
@@ -2862,6 +2888,126 @@ for (const d of SEED_LIBRARY) {
          + `and every one of them is paid for on every single message`);
     }
   }
+  /* ---------- 6 - RETRIEVAL IS CAPPED, CARRIED-ONLY, AND OPT-IN ----------
+
+     "Retrieve the relevant fragment, NEVER the corpus" is the rule
+     data/retrieval.js was written to obey, and until 2026-08-10 it had one
+     caller (a panel a person is looking at). Handing the same block to a
+     resident on EVERY MESSAGE is a different proposition, so the cap is the
+     load-bearing part and it is checked before anything else about it. */
+  {
+    const R = await import('../src/game/data/retrieval.js');
+    if (!(R.RESIDENT_PASSAGE_CAP > 0)) fail('retrieval: there is no resident passage cap at all');
+    if (R.RESIDENT_PASSAGE_CAP > 4000) {
+      fail(`retrieval: RESIDENT_PASSAGE_CAP is ${R.RESIDENT_PASSAGE_CAP} characters. The heaviest `
+         + `resident's whole prompt is under 10,000, so this stops being "the relevant fragment" `
+         + `and becomes the catalogue bug in a fifth costume.`);
+    }
+    /* The cap must be OBEYED, not merely declared - a constant nobody enforces
+       is the shape this whole session keeps finding. Give passagesBlock() far
+       more than it may use and check what comes back. */
+    const fat = Array.from({ length: 20 }, (_, i) =>
+      ({ page: i, score: 1, matched: 1, text: 'x'.repeat(2000), snippet: 'y'.repeat(2000) }));
+    const capped = R.passagesBlock(fat, { cap: R.RESIDENT_PASSAGE_CAP });
+    if (capped.length > R.RESIDENT_PASSAGE_CAP + 2200) {
+      fail(`retrieval: passagesBlock ignored its cap - asked for ${R.RESIDENT_PASSAGE_CAP}, got ${capped.length}`);
+    }
+    if (!capped.length) fail('retrieval: passagesBlock returned nothing when given real hits');
+
+    /* THE PAGE CACHE. Required, not a nicety: paginating a 563 KB book per
+       message is real CPU on a machine whose limit is cooling. */
+    if (typeof R.pagesOf !== 'function') fail('retrieval: pagesOf() is gone - every message re-paginates the book');
+    else {
+      R.clearPageCache();
+      const text = Array.from({ length: 40 }, (_, i) => 'para ' + i + ' ' + 'w'.repeat(300)).join('\n\n');
+      const a = R.pagesOf('bk', text, 'inline');
+      const b = R.pagesOf('bk', text, 'inline');
+      if (a !== b) fail('retrieval: pagesOf() returned a fresh array for an identical book - the cache is not caching');
+      if (R.pageCacheSize() !== 1) fail('retrieval: pagesOf() stored ' + R.pageCacheSize() + ' entries for one book');
+      /* MULTI-SLOT. A single slot thrashes between two carried books, which is
+         worse than no cache because it pays the eviction as well as the work. */
+      for (let i = 0; i < 3; i++) R.pagesOf('bk' + i, text + i, 'inline');
+      if (R.pageCacheSize() < 3) fail('retrieval: the page cache holds fewer than 3 books - the backpack holds more');
+      const again = R.pagesOf('bk', text, 'inline');
+      if (again !== a) fail('retrieval: a second carried book evicted the first - that is a one-slot cache with extra steps');
+      // ...and bounded, or it is a memory leak holding whole books
+      for (let i = 0; i < 12; i++) R.pagesOf('flood' + i, text + i, 'inline');
+      if (R.pageCacheSize() > 6) fail('retrieval: the page cache is unbounded at ' + R.pageCacheSize() + ' whole books');
+      R.clearPageCache();
+      // a book of a DIFFERENT LENGTH must not keep the old division
+      const p1 = R.pagesOf('bk', text, 'inline');
+      const p2 = R.pagesOf('bk', text + '\n\nan extra paragraph entirely', 'inline');
+      if (p1 === p2) fail('retrieval: a re-imported book of a different length reused the old pagination');
+      R.clearPageCache();
+    }
+
+    /* CARRIED BOOKS ONLY - the backpack is the boundary that makes reading a
+       whole book into a prompt legitimate at all. */
+    const pfBody = (() => {
+      const at = code.search(/async\s+function\s+passagesFor\s*\(/);
+      if (at < 0) return '';
+      let i = code.indexOf('{', at), depth = 0;
+      for (let j = i; j < code.length; j++) {
+        if (code[j] === '{') depth++;
+        else if (code[j] === '}') { depth--; if (!depth) return code.slice(i, j + 1); }
+      }
+      return '';
+    })();
+    if (!pfBody) fail('smoke: could not find passagesFor() in residents.js - the retrieval guards have drifted');
+    else {
+      if (!/groundingFor\s*\(\s*carryList\s*\(\s*\)/.test(pfBody)) {
+        fail('passagesFor() does not draw from the backpack via groundingFor(carryList()) - reading a '
+           + 'whole book into a prompt is only legitimate because a PERSON put it there');
+      }
+      /* THE ASSIGNMENT, NOT THE MENTION. `let left=999999` while the constant
+         still appeared in the receipt line passed the first version of this
+         check. That is the FOURTH born-dead guard of this session and all four
+         died identically - a leftover reference to the guarded thing satisfied
+         the pattern. Assume it every time: check the statement, not the word. */
+      if (!/left\s*=\s*RESIDENT_PASSAGE_CAP/.test(pfBody)) {
+        fail('passagesFor() does not start its budget at RESIDENT_PASSAGE_CAP - the cap is the only '
+           + 'thing between "the relevant fragment" and pasting the corpus');
+      }
+      if (!/\.slice\s*\(\s*0\s*,\s*RESIDENT_PASSAGE_BOOKS\s*\)/.test(pfBody)) {
+        fail('passagesFor() no longer slices the bag to RESIDENT_PASSAGE_BOOKS - the backpack holds 20');
+      }
+      if (!/if\s*\(\s*d\s*\)\s*d\.passages\s*=/.test(pfBody)) {
+        fail('passagesFor() does not stash what it included on d.passages - a resident that quietly '
+           + 'read three pages of your book is the invisible grounding the backpack exists to prevent');
+      }
+    }
+    /* ...and the stash must be READ. A receipt nobody renders is the callerless
+       shape again, on the one block that most needs to be visible.
+       THE DEFINITION IS STRIPPED FIRST: `function passagesReceipt(d){` matches
+       any naive "is it called" pattern, so deleting the only call site left the
+       first version of this check green. */
+    const ovNoDefs = ovCode2.replace(/function\s+passagesReceipt\s*\([^)]*\)/g, ' ');
+    if (!/function passagesReceipt/.test(ovCode2)) {
+      fail('overlays.js no longer defines passagesReceipt()');
+    }
+    if (!/passagesReceipt\s*\(\s*d\s*\)/.test(ovNoDefs)) {
+      fail('overlays.js defines passagesReceipt() and never calls it - the pages read from the '
+         + 'visitor\'s own book would go unreported, which is the invisible grounding the backpack '
+         + 'exists to prevent');
+    }
+    /* OPT-IN, and the Computer must not have it: its lens is "names, counts, the
+       command that opens it", which a page of prose directly contradicts. */
+    if ((ROLES.computer.grounding || []).includes('passages')) {
+      fail('roles.js: the Computer declares `passages`. A page of prose out of a carried book is the '
+         + 'opposite of its own lens, and it is the resident this whole declaration mechanism was '
+         + 'built to keep it away from.');
+    }
+    const withPassages = ROLE_KEYS.filter(k => (ROLES[k].grounding || []).includes('passages'));
+    if (!withPassages.length) fail('roles.js: NOBODY declares `passages` - retrieval is built and reaches no one, '
+      + 'which is exactly the state it was in before today');
+    for (const k of ['quill', 'monk', 'tutor', 'investigator']) {
+      if (!withPassages.includes(k)) {
+        fail(`roles.js: '${k}' works with book text and does not declare 'passages' - carry a book to `
+           + `them and they still cannot quote a line of it`);
+      }
+    }
+  }
+
   {
     const beeton = ((ROLES.sebastian.training || {}).lines || []).join(' ');
     for (const quote of ['very great trust', 'honesty is the best policy',

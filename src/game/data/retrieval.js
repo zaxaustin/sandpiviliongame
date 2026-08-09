@@ -41,6 +41,68 @@
 
 export const PAGE_CHARS = 1400;
 
+/* ================================================================
+   THE CAP, STATED HERE AND NOWHERE ELSE — 2026-08-10.
+
+   passagesBlock() has always taken an `opts.cap`, defaulted to 6,000
+   characters, and had exactly ONE caller (the Science Hall) which is
+   a panel a person is looking at. Handing the same block to a resident
+   on every message is a different proposition: 6,000 characters is
+   ~1,765 tokens on top of a prompt that already runs 6,000-10,000
+   characters, which would roughly DOUBLE the heaviest resident.
+
+   So the residents' cap is its own number and it is deliberately much
+   smaller. This is the one thing standing between "the relevant
+   fragment" and "paste the corpus" — the rule this whole file was
+   written to obey — and it goes in before anything that could reach it.
+
+   Measured against real books (average 563 KB, ~400 pages): three
+   snippets of ~420 characters is ~1,300 with the page labels, so 2,600
+   leaves room for a second carried book without either crowding out
+   the visitor's own question.
+   ================================================================ */
+export const RESIDENT_PASSAGE_CAP = 2600;   // characters, across ALL carried books
+export const RESIDENT_PASSAGES_PER_BOOK = 2;
+export const RESIDENT_PASSAGE_BOOKS = 2;    // deepest two in the bag, never the whole shelf
+
+/* ================================================================
+   PAGES, CACHED — because this runs on every message.
+
+   Paginating a 563 KB book is ~1,500 string operations and tokenising
+   it for BM25 is far more; doing both per message is real, repeated
+   CPU on a machine whose actual limit is COOLING. That is not a
+   micro-optimisation here, it is the difference between a resident
+   that answers and one that makes the fans spin.
+
+   MULTI-SLOT, because the backpack holds more than one book and a
+   single slot would thrash between two carried texts — which is worse
+   than no cache, since it pays the eviction as well as the work.
+
+   Keyed on slug + page count + a caller-supplied stamp, the same shape
+   study-table.js already proved: a re-imported book of a different
+   length must not keep the old division. (study-table keeps its own
+   cache because it caches UNITS and detected chapters, not just pages
+   — related, not duplicated.)
+   ================================================================ */
+const PAGE_SLOTS = 4;
+let pageCache = [];
+export function pagesOf(slug, text, stamp) {
+  const key = String(slug || '') + '|' + String(stamp == null ? '' : stamp) + '|' + String(text || '').length;
+  const hit = pageCache.find(e => e.key === key);
+  if (hit) { hit.used = Date.now(); return hit.pages; }
+  const pages = paginate(text);
+  pageCache.push({ key, pages, used: Date.now() });
+  /* Oldest-used out. A bounded cache that never evicts is a memory leak with
+     good manners — and these entries hold whole books. */
+  if (pageCache.length > PAGE_SLOTS) {
+    pageCache.sort((a, b) => b.used - a.used);
+    pageCache = pageCache.slice(0, PAGE_SLOTS);
+  }
+  return pages;
+}
+export function clearPageCache() { pageCache = []; }
+export function pageCacheSize() { return pageCache.length; }
+
 /* The one definition of a page in the whole application. */
 export function paginate(text) {
   const paras = String(text || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
