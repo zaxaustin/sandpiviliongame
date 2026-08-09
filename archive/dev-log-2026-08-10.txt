@@ -2013,3 +2013,166 @@ currentUser), and guard B must FAIL on today's code before it is
 fixed, or it is vacuous. Then 1f (a reason on a published note),
 1c/1d/1e, and only then CLAUDE.md rule 9 - the charter is written
 AFTER the code, deliberately.
+
+
+================================================================
+PART THIRTEEN - EVERY NOTE SAYS WHO WROTE IT
+================================================================
+
+Violation 2 of the five, and the only one of the eleven that was a
+LIVE BUG rather than a matter of feel.
+
+saveAiBookNote() wrote the assistant's prose into data.bookNotes marked
+by nothing but a '✨ ' at the front of the text. gatherNotes() pulled
+every book note into the pool the residents search and dropped even
+that. And deskDraftLesson() handed the lot to a model under the heading
+
+    THEIR OWN NOTES ON THIS BOOK:
+
+so the assistant's own earlier output came back to it as the visitor's
+writing - and was then used to judge what the visitor understood.
+Exactly one consumer in the codebase checked, and it checked with
+/^✨ /.
+
+
+THE STEWARD OVERRULED THE FIRST PLAN, AND WAS RIGHT
+----------------------------------------------------------------
+The plan said: filter AI notes out of grounding.
+
+  "im fine with leaving [them] in the sand pavilion, just let them be
+   labeled ai notes, and have the username of the person who put them
+   in or user 1 untill we do a username and password. this way we dont
+   degade the books there"
+
+Throwing away a real note to fix a LABELLING problem is the worse
+trade. The note stays; it says who wrote it. That is the same move the
+whole receipts layer already makes.
+
+
+GUARD B WAS WRITTEN FIRST AND FAILED SEVEN WAYS
+----------------------------------------------------------------
+Per the plan, and it is the only reason to trust it: written against
+untouched code, it went red seven times - three missing functions, the
+/^✨ / filter, deskDraftLesson's heading, gatherNotes dropping `by`,
+saveAiBookNote not stamping it. A guard that has never failed is a
+guard nobody has tested.
+
+It holds four things: the predicate exists and reads the LEGACY shape;
+no .filter() decides authorship by string; every reader of
+data.bookNotes is declared ATTRIBUTES or RENDERS_ONLY in a registry
+keyed by function name; and every function declared ATTRIBUTES must
+actually call one of the attributing functions - without that last
+clause the registry is a comment.
+
+
+THE SHAPE
+----------------------------------------------------------------
+    note.by = { who:'ai'|'you', user:'user 1', model:'llama3.2:3b' }
+
+A field, not a prefix. A prefix is a string one edit away from lying,
+it cannot name WHICH model, and it cannot name the person. In
+data/note-versions.js, which already owned TAG_AI, and which stays pure
+- currentUser() reads an INJECTED profile getter (initNoteAuthor), the
+same seam shape as initProviderSettings.
+
+READ-TIME BACKFILL, NO MIGRATION. 415 books' worth of notes exist with
+no `by` at all, so isAiNote() falls back to the ✨ prefix for those.
+AN EXPLICIT `by` BEATS THE PREFIX IN BOTH DIRECTIONS: a person may type
+✨ and it must not turn their writing into the assistant's.
+
+
+THE STUDY TABLE HAD IT TOO, TWICE, AND THE REGISTRY COULD NOT SEE IT
+----------------------------------------------------------------
+grounding() said "WHAT THEY HAVE ALREADY WRITTEN ABOUT THIS PART" and
+studyDraftLesson() said "I have worked through parts of X and taken
+these notes" - first person, over the assistant's output. Neither reads
+data.bookNotes directly; they go through notesInUnit(). So the
+registry scan, which finds direct readers, could never have found them.
+They are listed by hand, and the guard says why: a model-facing
+consumer is a model-facing consumer however it got the notes.
+
+
+ONE BUG FOUND BY READING THE WIRE
+----------------------------------------------------------------
+test/live/note-authorship.mjs stands up a fake Ollama that RECORDS THE
+REQUEST BODY. That is the only place the real bug was ever visible -
+everything on screen could be perfect while the prompt still lied.
+
+It caught one immediately. An AI note always runs to more than one line
+(it opens with its own "✨ Analysis... (AI)" heading), and written flat
+
+    - [the AI, for user 1] ✨ Analysis of this page (AI)
+    The passage turns on the distinction...
+
+the second line reads as a SECOND list item with no attribution at all
+- the original bug in miniature. labelledNote() indents continuations
+under the label, and the suite now asserts no "- " line lacks an
+[author].
+
+The fixture is a LEGACY note on purpose: no `by` field, exactly the
+shape already on disk. If the backfill did not work every assertion
+would fail.
+
+
+ALSO
+----------------------------------------------------------------
+labelledNote() was used in study-table.js and imported nowhere - the
+same class as estimateTokens(), one file over, four days later. The
+general undefined-identifier guard would have caught it on the next
+run, and did; the provider-import guard was aimed at one hard-coded
+module, so it is a TABLE now and data/note-versions.js is in it. A
+guard aimed at the file where a bug happened to be found is a guard
+aimed at the past.
+
+NOT CHANGED, on purpose: the Reader's panel still reads "Your notes".
+It heads the compose box as well as the list, and every row inside it
+now names its author. Recorded rather than churned.
+
+
+VERIFIED
+----------------------------------------------------------------
+npm test (guard B red seven ways before, green after); note-authorship
+11/11 including the prompt read off the wire; study-table, writing-desk,
+study-chain, notes-by-book, teacher; note-search, records,
+resident-reach in Electron. Screenshot read: the two notes are tellable
+apart at a glance - "page 4 · user 1" against "page 4 · the AI, for
+user 1".
+
+
+NOT THE PAVILION'S BUG, BUT WORTH RECORDING
+----------------------------------------------------------------
+Mid-session the residents stopped answering. Ollama was running, and
+`ollama list` was EMPTY while 19 GB of models sat on disk: the desktop
+app's model location had been changed to
+...\models\manifests\registry.ollama.ai\library - the library
+subfolder rather than the models root. A pull that died at 17:09 had
+been writing blobs/ and manifests/ INTO the manifests tree, which is
+how it was found; relative to its (wrong) root it was doing the right
+thing. Proved by starting a second server on a spare port with the
+correct root: 6 models, instantly.
+
+After the steward fixed it the app STILL could not talk, and the
+decisive evidence was Ollama's own request log: the app had made ZERO
+requests. detectAI() iterates
+`(connections||[]).filter(c=>c.enabled!==false)` - an empty or
+all-disabled list means the loop body never runs, so no HTTP call is
+ever made. A fresh profile connects immediately (proved with an Electron
+probe against the real main process); the saved state had no enabled
+connection.
+
+THE REAL FINDING IS OURS, THOUGH: the Pavilion says the same sentence -
+"no local AI connected" - for at least four different states:
+
+  1. nothing is running on the port
+  2. it is running but has no models
+  3. it is running with models but is misconfigured
+  4. there is no ENABLED connection to even try
+
+Four problems, four different fixes, one message. That is rule 5 and
+rule 6 both, and it is a beta-readiness item: a tester who hits any of
+these has no way to tell which. State 4 is the worst, because the app
+never touches the network at all, so nothing anywhere records a
+failure. Queued for the Connections panel.
+
+NEXT: 1f (a reason on a published note), then 1c/1d/1e, guard D, and
+only then CLAUDE.md rule 9.

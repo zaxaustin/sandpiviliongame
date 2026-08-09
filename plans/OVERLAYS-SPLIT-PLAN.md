@@ -12,7 +12,7 @@ run. This one derives its order from a table `npm test` already checks.
 
 | | |
 |---|---|
-| `overlays.js` | **13,430 lines**, **740 top-level definitions** |
+| `overlays.js` | **13,481 lines**, **740 top-level definitions** |
 | of which | **74% code** · 22% comment · ~2,000 lines carrying HTML markup |
 | already out | `ui/lesson-tree.js` **1,063** · `ui/residents.js` **1,017** · `ui/study-table.js` **747** · `ui/daily-tasks.js` **334** · `ui/dom.js` **27** |
 

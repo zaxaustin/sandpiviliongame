@@ -33,7 +33,8 @@ import { paginate } from '../data/retrieval.js';
 import { findChapters } from '../data/chapters.js';
 import { mergeMarks, unitsFor, unitAt, unitLabel } from '../data/marks.js';
 import { ROLES, ROLE_KEYS, rosterForVisitor } from '../data/roles.js';
-import { versionsOf, addVersion, restoreVersion, versionSummary, hasHistory, TAG_ORIGINAL } from '../data/note-versions.js';
+import { versionsOf, addVersion, restoreVersion, versionSummary, hasHistory, TAG_ORIGINAL,
+         isAiNote, authorOf, labelledNote, currentUser } from '../data/note-versions.js';
 import { carriedOf, canAccept } from '../data/carrying.js';
 
 /* Injected once, at import time in overlays.js. */
@@ -340,13 +341,21 @@ function grounding(b, unit, bk) {
   const full = bk.pages.slice(unit.from, unit.to + 1).join('\n\n');
   const CAP = 6000;
   const body = full.length > CAP ? full.slice(0, CAP) : full;
-  const mine = notesInUnit(b.slug, unit).map(({ n }) => '- ' + (n.text || '')).join('\n');
+  /* EACH NOTE SAYS WHOSE IT IS. data.bookNotes holds the assistant's ✨ notes
+     beside the reader's, and the heading below used to claim all of them for
+     the reader — the same bug as deskDraftLesson(), fixed 2026-08-09. They are
+     not filtered out; "you already said this about it" is genuinely useful to
+     a model, as long as it is true. */
+  const mine = notesInUnit(b.slug, unit).map(({ n }) => labelledNote(n)).join('\n');
   return `\n\nTHE VISITOR IS WORKING THROUGH A BOOK, ONE STORY AT A TIME, AND THIS IS THE ONE IN FRONT OF THEM.\n`
     + `BOOK: "${b.doc.title}"${b.doc.attribution ? ' by ' + b.doc.attribution : ''}\n`
     + `THIS PART: "${unit.label}"${unit.source === 'hand' ? ' (they named it themselves)' : ''} — ${unitLabel(unit)}\n`
     + (full.length > CAP ? `\nTHE OPENING OF ITS TEXT (an excerpt — the part is longer than this):\n` : `\nITS TEXT IN FULL:\n`)
     + body
-    + (mine ? `\n\nWHAT THEY HAVE ALREADY WRITTEN ABOUT THIS PART — build on it rather than repeating it:\n${mine}` : `\n\n(they have not written anything on this part yet)`)
+    + (mine ? `\n\nNOTES ALREADY ON THIS PART — build on them rather than repeating them. Each says who `
+              + `wrote it: "${currentUser()}" is the reader you are helping, and anything marked as the AI `
+              + `is a previous assistant note rather than their words.\n${mine}`
+            : `\n\n(they have not written anything on this part yet)`)
     + `\n\nStay with THIS part. Speak from the text above and say plainly when something is not in it; `
     + `they are studying carefully, not looking for a summary of the whole book.`;
 }
@@ -498,9 +507,9 @@ function carriedNotesRow(b, unit) {
 function notesRow(b, unit) {
   const mine = notesInUnit(b.slug, unit);
   const canTidy = !!(X.askResident && (!X.aiActive || X.aiActive()));
-  return `<h4 style="margin:14px 0 4px">Your notes on this one${mine.length ? ' · ' + mine.length : ''}</h4>
+  return `<h4 style="margin:14px 0 4px">Notes on this one${mine.length ? ' · ' + mine.length : ''}</h4>
     ${mine.length ? mine.map(({ n, i }) => `<div class="card" style="cursor:default">
-        <div class="s">${esc(n.ts || '')} · p. ${(n.page || 0) + 1}${hasHistory(n) ? ` · <span style="color:#c9a86a">${versionsOf(n).length} versions</span>` : ''}</div>
+        <div class="s">${esc(n.ts || '')} · p. ${(n.page || 0) + 1} · <b>${esc(authorOf(n))}</b>${hasHistory(n) ? ` · <span style="color:#c9a86a">${versionsOf(n).length} versions</span>` : ''}</div>
         <div style="white-space:pre-wrap">${esc((n.text || '').length > 220 ? n.text.slice(0, 220) + '…' : n.text)}</div>
         <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">
           ${canTidy ? `<button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="studyTidyNote(${i})"
@@ -702,9 +711,14 @@ export async function studyDraftLesson() {
   if (X.draftText && (!X.aiActive || X.aiActive())) {
     say('drafting from your notes…');
     try {
+      /* "these notes" is first person, so each line has to say whose it is —
+         some of them are the assistant's own earlier output (2026-08-09). */
       const material = worked.map(({ unit, notes }, i) =>
-        `${i + 1}. ${unit.label}\n` + notes.map(({ n }) => '   - ' + (n.text || '')).join('\n')).join('\n\n');
-      const asked = 'I have worked through parts of "' + b.doc.title + '" and taken these notes:\n\n'
+        `${i + 1}. ${unit.label}\n`
+        + notes.map(({ n }) => '   - [' + authorOf(n) + '] ' + (n.text || '')).join('\n')).join('\n\n');
+      const asked = 'I have worked through parts of "' + b.doc.title + '". These are the notes on them — '
+        + 'each is tagged with who wrote it, and the ones marked as the AI are earlier assistant notes '
+        + 'rather than mine:\n\n'
         + material + '\n\n'
         + 'Write ONE line for each numbered part, in the same order, saying what a learner should actually DO '
         + 'with that part — drawn from my notes above, not from general knowledge. Format each as:\n'

@@ -3816,38 +3816,52 @@ for (const d of SEED_LIBRARY) {
      the line actually runs.
 
      A module-level import list that must match the identifiers used in the file
-     is rule 4's shape, so it is DERIVED from provider.js's own exports rather
-     than hand-listed here. Break it by deleting a name from any ui/ import. */
-  const provExports = [...provSrc2.matchAll(/export\s+(?:function|const|let)\s+([A-Za-z_$][\w$]*)/g)]
-    .map(m => m[1]);
-  if (provExports.length < 8) {
-    fail('smoke: only found ' + provExports.length + ' exports in ai/provider.js - the import '
-       + 'guard has drifted and is checking almost nothing');
-  }
-  for (const f of readdirSync(aiDir).filter(x => x.endsWith('.js'))) {
-    const raw = readFileSync(new URL(f, aiDir), 'utf8');
-    const code = raw
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    /* ALL of them, not the first. A file may legitimately import from the same
-       module twice - ui/lesson-tree.js does - and reading only the first match
-       made this guard report a false positive on its very first run. A guard
-       that has to be argued with is worse than none; diagnose red before
-       believing it (three checks in this project WERE the broken thing). */
-    const imps = [...code.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"][^'"]*ai\/provider\.js['"]/g)];
-    if (!imps.length) continue;               // this file does not use the provider at all
-    const imported = new Set(imps.flatMap(m =>
-      m[1].split(',').map(s => s.trim().split(/\s+as\s+/)[0]).filter(Boolean)));
-    /* Local definitions shadow an import legitimately - a file that defines its
-       own helper of the same name is not missing anything. */
-    const body = code;
-    for (const name of provExports) {
-      if (imported.has(name)) continue;
-      if (new RegExp('(function|const|let|var)\\s+' + name + '\\b').test(body)) continue;
-      if (new RegExp('(^|[^\\w$.])' + name + '\\s*\\(').test(body)) {
-        fail(`ui/${f} calls ${name}() and does not import it from ai/provider.js. That is a `
-           + `ReferenceError on whichever code path reaches it, and nothing but running that exact `
-           + `path will tell you - estimateTokens() sat like this in previewPrompt() for days.`);
+     is rule 4's shape, so it is DERIVED from each module's own exports rather
+     than hand-listed here. Break it by deleting a name from any ui/ import.
+
+     IT WATCHES MORE THAN ONE MODULE NOW. 2026-08-09: labelledNote() was used in
+     ui/study-table.js and imported nowhere — the identical bug, one file over,
+     four days after the first one was guarded. A guard aimed at the single file
+     where a bug happened to be found is a guard aimed at the past, so the
+     module list below is a table and the next shared helper joins it. Any
+     module here whose exports get called across ui/ belongs in it. */
+  const WATCHED = [
+    { path: 'ai/provider.js',        min: 8 },
+    { path: 'data/note-versions.js', min: 6 },
+  ];
+  for (const mod of WATCHED) {
+    const modSrc = readFileSync(new URL('../src/game/' + mod.path, import.meta.url), 'utf8');
+    const exports = [...modSrc.matchAll(/export\s+(?:function|const|let)\s+([A-Za-z_$][\w$]*)/g)]
+      .map(m => m[1]);
+    if (exports.length < mod.min) {
+      fail(`smoke: only found ${exports.length} exports in ${mod.path} - the import guard has `
+         + 'drifted and is checking almost nothing');
+    }
+    const tail = mod.path.split('/').pop().replace('.', '\\.');
+    for (const f of readdirSync(aiDir).filter(x => x.endsWith('.js'))) {
+      const code = readFileSync(new URL(f, aiDir), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+      /* ALL of them, not the first. A file may legitimately import from the same
+         module twice - ui/lesson-tree.js does - and reading only the first match
+         made this guard report a false positive on its very first run. A guard
+         that has to be argued with is worse than none; diagnose red before
+         believing it (three checks in this project WERE the broken thing). */
+      const imps = [...code.matchAll(
+        new RegExp('import\\s*\\{([^}]*)\\}\\s*from\\s*[\'"][^\'"]*' + tail + '[\'"]', 'g'))];
+      if (!imps.length) continue;             // this file does not use that module at all
+      const imported = new Set(imps.flatMap(m =>
+        m[1].split(',').map(s => s.trim().split(/\s+as\s+/)[0]).filter(Boolean)));
+      /* Local definitions shadow an import legitimately - a file that defines its
+         own helper of the same name is not missing anything. */
+      for (const name of exports) {
+        if (imported.has(name)) continue;
+        if (new RegExp('(function|const|let|var)\\s+' + name + '\\b').test(code)) continue;
+        if (new RegExp('(^|[^\\w$.])' + name + '\\s*\\(').test(code)) {
+          fail(`ui/${f} calls ${name}() and does not import it from ${mod.path}. That is a `
+             + `ReferenceError on whichever code path reaches it, and nothing but running that exact `
+             + `path will tell you - estimateTokens() sat like this in previewPrompt() for days.`);
+        }
       }
     }
   }
@@ -4944,6 +4958,219 @@ for (const d of SEED_LIBRARY) {
   if (/if\s*\(\s*!?\s*s?\s*\|?\|?\s*d\.minimized\s*\)\s*\{\s*stopPacedReveal/.test(codeA)) {
     fail('overlays.js: the paced reveal still stops on d.minimized — pocketing a conversation freezes '
        + 'the reveal and dumps the remainder when you return. Skip the DOM write, not the counter.');
+  }
+}
+
+/* ---------- GUARD B · NO NOTE IS READ BACK AS THE WRONG PERSON'S ----------
+   2026-08-09, and this guard was written BEFORE the fix and had to fail on the
+   code as it stood. It did, in five places.
+
+   THE LIVE BUG. saveAiBookNote() writes the assistant's prose into
+   data.bookNotes marked only by a '✨ ' string at the front of the text.
+   gatherNotes() pulls every book note into the pool residents search and drops
+   even that. And deskDraftLesson() hands the lot to a model under the heading
+
+       THEIR OWN NOTES ON THIS BOOK:
+
+   so the assistant's own earlier output comes back to it as the visitor's
+   writing. Exactly one consumer in the whole codebase checked, and it checked
+   by regex.
+
+   THE FIX IS ATTRIBUTION, NOT EXCLUSION. The first version of the plan filtered
+   AI notes out of grounding; the steward overruled it and was right —
+
+     "im fine with leaving [them] in the sand pavilion, just let them be labeled
+      ai notes, and have the username of the person who put them in or user 1"
+
+   Throwing away a real note to fix a labelling problem is a worse trade. The
+   note stays; it says who wrote it.
+
+   A `by` FIELD, NOT A PREFIX. A string at the front of the text is a lie one
+   edit away, and it cannot record WHICH person or WHICH model. */
+{
+  const NV = await import('../src/game/data/note-versions.js');
+
+  /* --- 1 · the predicate exists, and it knows the legacy shape --- */
+  for (const fn of ['isAiNote', 'authorOf', 'currentUser']) {
+    if (typeof NV[fn] !== 'function') {
+      fail(`note-versions.js: ${fn}() is missing — authorship has no single definition, so every `
+         + 'consumer invents its own test (today: one regex, and eleven consumers that do not test at all)');
+    }
+  }
+  if (typeof NV.isAiNote === 'function') {
+    /* 415 books' worth of notes already exist with no `by` field at all, so the
+       predicate has to READ the old shape rather than assume a migration. */
+    const cases = [
+      [{ text: '✨ Impression (AI)\nA reading of the opening.' }, true,
+       'a legacy AI note, no `by` field — inferred from the ✨ prefix it was saved with'],
+      [{ text: 'Assent is the only thing wholly ours.' }, false,
+       'a legacy note of the visitor\'s own'],
+      [{ text: 'anything at all', by: { who: 'ai', user: 'user 1', model: 'llama3.2:3b' } }, true,
+       'an explicitly stamped AI note'],
+      [{ text: '✨ my own starred thought', by: { who: 'you', user: 'user 1' } }, false,
+       'AN EXPLICIT `by` BEATS THE PREFIX — a person may type ✨ and it must not '
+       + 'make their note the assistant\'s'],
+      [{}, false, 'an empty note is nobody\'s but the visitor\'s'],
+    ];
+    for (const [note, want, why] of cases) {
+      if (NV.isAiNote(note) !== want) {
+        fail(`note-versions.js: isAiNote(${JSON.stringify(note)}) should be ${want} — ${why}`);
+      }
+    }
+    if (!/user/i.test(String(NV.currentUser() || ''))) {
+      fail(`note-versions.js: currentUser() returned "${NV.currentUser()}" — until the profile lands `
+         + 'everyone is "user 1", said out loud rather than left blank');
+    }
+    const said = String(NV.authorOf({ text: 'x', by: { who: 'ai', user: 'user 1', model: 'm' } }) || '');
+    if (!/ai|assistant|model/i.test(said)) {
+      fail(`note-versions.js: authorOf() on an AI note said "${said}" — it has to be readable by a `
+         + 'person and by a model, in words, or the label is not doing anything');
+    }
+  }
+
+  /* --- 2 · authorship is never tested by string --- */
+  const NOTE_FILES = ['ui/overlays.js', 'ui/study-table.js', 'ui/residents.js', 'ui/daily-tasks.js',
+                      'ui/lesson-tree.js', 'data/note-versions.js'];
+  for (const rel of NOTE_FILES) {
+    let src;
+    try { src = readFileSync(new URL('../src/game/' + rel, import.meta.url), 'utf8'); }
+    catch (e) { continue; }
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    /* Inside a .filter( specifically: that is authorship deciding what a model
+       or a panel gets to see, which is the case that matters. isAiNote() is
+       allowed to look at the prefix — it is the one place that should. */
+    const filters = code.match(/\.filter\(([^\n]*)/g) || [];
+    for (const f of filters) {
+      if (/✨/.test(f)) {
+        fail(`src/game/${rel}: a .filter() decides authorship by looking for "✨" in the text — `
+           + `"${f.trim().slice(0, 80)}". A prefix is a string one edit away from lying, and it `
+           + 'cannot say WHICH person or WHICH model. Use isAiNote() from data/note-versions.js.');
+      }
+    }
+  }
+
+  /* --- 3 · every reader of data.bookNotes is declared, one way or the other ---
+     A registry, so a NEW consumer fails rather than silently joining the ones
+     that do not attribute. The enclosing function name is the key because line
+     numbers drift and this file has already been rewritten around them twice. */
+  const ATTRIBUTES = {
+    'ui/overlays.js': {
+      gatherNotes:            'the pool every resident searches — carries `by` through on each note',
+      deskDraftLesson:        'hands notes to a model — must say whose each one is',
+      pullNotesIntoDissection:'was the one /^✨ / regex; uses isAiNote() now',
+      renderBookNotes:        'the Reader list — a hand-written and an AI note must be tellable apart at a glance',
+      renderDeskBookBody:     'the same list on the Writing Desk',
+      sendNoteToToday:        'the spark it creates carries the note\'s attribution onto the day',
+    },
+    /* NOT DIRECT READERS OF data.bookNotes — they go through notesInUnit() —
+       and that is exactly why they had the bug for as long as they did. The
+       registry scan below could never have found them; they are listed by
+       hand because a model-facing consumer is a model-facing consumer however
+       it got the notes. Two of the three were saying "WHAT THEY HAVE ALREADY
+       WRITTEN" and "I have taken these notes" over the assistant's output. */
+    'ui/study-table.js': {
+      grounding:        'the Study Table prompt — said "WHAT THEY HAVE ALREADY WRITTEN" over AI notes',
+      notesRow:         'the unit note list a person looks at',
+      studyDraftLesson: 'first person, "these notes" — every line has to say whose',
+      notesInUnit:      'returns whole note objects, so `by` travels; listed so the pair above are reachable',
+    },
+  };
+  const RENDERS_ONLY = {
+    writeBookNote:      'a WRITE. Stamps `by` rather than reading it.',
+    saveAiBookNote:     'a WRITE. Stamps `by` rather than reading it.',
+    bookNoteFromKey:    'returns the whole note object, so `by` travels with it intrinsically.',
+    studyRestoreVersion:'version machinery on one already-identified note; never reads the author.',
+    studyTidyNote:      'version machinery on one already-identified note; never reads the author.',
+  };
+  /* WHAT "ATTRIBUTES" HAS TO MEAN, or the list is a promise nobody keeps. Every
+     function declared as attributing must actually call one of the two
+     functions that can tell you who wrote a note. Without this the registry is
+     a comment. */
+  for (const rel of Object.keys(ATTRIBUTES)) {
+    const src = readFileSync(new URL('../src/game/' + rel, import.meta.url), 'utf8');
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    for (const fn of Object.keys(ATTRIBUTES[rel])) {
+      const at = code.indexOf('function ' + fn + '(');
+      if (at < 0) {
+        fail(`smoke: guard B lists ${rel} ${fn}() as attributing, and it does not exist — the registry `
+           + 'is watching a function that has been renamed or removed');
+        continue;
+      }
+      let i = code.indexOf('{', at), depth = 0, end = i;
+      for (; end < code.length; end++) {
+        if (code[end] === '{') depth++;
+        else if (code[end] === '}') { depth--; if (!depth) break; }
+      }
+      const body = code.slice(i, end + 1);
+      if (fn === 'notesInUnit') continue;      // declared as carrying, not labelling
+      /* labelledNote() counts: it is authorOf() plus the indentation fix for a
+         multi-line note, and it is the form the three prompt sites use. */
+      if (!/\bauthorOf\s*\(|\bisAiNote\s*\(|\battributionOf\s*\(|\blabelledNote\s*\(/.test(body)) {
+        fail(`src/game/${rel}: ${fn}() is declared ATTRIBUTES ("${ATTRIBUTES[rel][fn]}") but never calls `
+           + 'authorOf(), isAiNote() or attributionOf(). It hands notes on without saying whose they are.');
+      }
+    }
+  }
+  let readersSeen = 0;
+  for (const rel of ['ui/overlays.js', 'ui/study-table.js']) {
+    const src = readFileSync(new URL('../src/game/' + rel, import.meta.url), 'utf8');
+    const lines = src.split('\n');
+    let fnName = '(top level)';
+    lines.forEach((line, i) => {
+      const decl = /^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/.exec(line);
+      if (decl) fnName = decl[1];
+      if (!/data\.bookNotes\[/.test(line)) return;
+      if (/^\s*(\/\/|\*)/.test(line)) return;              // a comment mentioning it
+      readersSeen++;
+      if ((ATTRIBUTES[rel] && ATTRIBUTES[rel][fnName]) || RENDERS_ONLY[fnName]) return;
+      fail(`src/game/${rel}:${i + 1} — ${fnName}() reads data.bookNotes and is in neither list in `
+         + 'guard B. Every reader must be declared ATTRIBUTES (it carries `by` through, or labels '
+         + 'the author) or RENDERS_ONLY (with a stated reason). Add it to smoke.mjs and say which.');
+    });
+  }
+  /* The registry must be reading something. If a refactor moves every one of
+     these behind a helper, this block would pass by finding nothing — which is
+     this project's born-invisible failure, and it has happened three times. */
+  if (readersSeen < 8) {
+    fail(`smoke: guard B found only ${readersSeen} readers of data.bookNotes — there were twelve when `
+       + 'it was written. Either they moved behind a helper (point this at the helper) or the '
+       + 'pattern has drifted and this guard is now certifying nothing.');
+  }
+
+  /* --- 4 · the specific sentence that made the bug ---
+     Not a proxy for the bug: this IS the bug. A model told "THEIR OWN NOTES"
+     over a list that includes the model's own earlier output. */
+  const ovB = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const bodyOf = (src, name) => {
+    const at = src.indexOf('function ' + name + '(');
+    if (at < 0) return null;
+    let i = src.indexOf('{', at), depth = 0, end = i;
+    for (; end < src.length; end++) {
+      if (src[end] === '{') depth++;
+      else if (src[end] === '}') { depth--; if (!depth) break; }
+    }
+    return src.slice(i, end + 1);
+  };
+  const desk = bodyOf(ovB, 'deskDraftLesson');
+  if (!desk) {
+    fail('smoke: guard B cannot find deskDraftLesson() — it is watching nothing');
+  } else if (/THEIR OWN NOTES/.test(desk) && !/authorOf|isAiNote/.test(desk)) {
+    fail('overlays.js: deskDraftLesson() heads the note list "THEIR OWN NOTES ON THIS BOOK" and '
+       + 'never checks who wrote them — data.bookNotes contains the assistant\'s notes too, so the '
+       + 'model is told a person wrote its own earlier output. Label each note with authorOf().');
+  }
+  const gather = bodyOf(ovB, 'gatherNotes');
+  if (!gather) {
+    fail('smoke: guard B cannot find gatherNotes() — it is watching nothing');
+  } else if (!/\bby\s*[:,]/.test(gather)) {
+    fail('overlays.js: gatherNotes() builds the pool every resident searches and does not carry a '
+       + '`by` field — whatever attribution a note had is dropped at exactly the point it is handed '
+       + 'to a model. AI notes STAY in the pool (the steward\'s call); they arrive labelled.');
+  }
+  const saveAi = bodyOf(ovB, 'saveAiBookNote');
+  if (saveAi && !/\bby\s*:/.test(saveAi)) {
+    fail('overlays.js: saveAiBookNote() writes a note with no `by` field — the ✨ in the text is '
+       + 'the only record that a model wrote it, and it names neither the model nor the person.');
   }
 }
 

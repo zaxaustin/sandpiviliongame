@@ -21,6 +21,8 @@ import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLab
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, DEFAULT_PACE, rosterBlock, rosterForVisitor } from '../data/roles.js';
+import { initNoteAuthor, byLine, isAiNote, authorOf, attributionOf, labelledNote, currentUser }
+  from '../data/note-versions.js';
 import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data/reference.js';
 import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
@@ -3030,10 +3032,17 @@ function gatherNotes(){
       /* `book` stays {slug} only: renderNotesLogList's bookChip shares this
          field with My Notes, whose page is 1-BASED, and a book note's is
          0-based. The page is already on the `where` line below. */
+      /* WHO WROTE IT TRAVELS WITH IT. This is the pool every resident
+         searches, and until 2026-08-09 it dropped attribution entirely at
+         exactly the point a note is handed to a model. AI notes STAY in the
+         pool — the steward's call, and the right one — they arrive labelled.
+         `by` is read-time backfilled for the 415 books' worth that predate
+         the field; nothing is rewritten. */
       out.push({source:'book', icon:'📖', book:{slug},
         slug, bookTitle, ch:n.ch, chLabel:n.chLabel, page:n.page,
         where:'Book · '+bookTitle+(n.ch!==undefined?' · ch. '+n.ch:'')+(n.page!==undefined?' · p.'+(n.page+1):''),
         title, text:body, date:n.ts||'',
+        by:attributionOf(n), author:authorOf(n), ai:isAiNote(n),
         key:bookNoteKey(slug,n)});
     });
   }
@@ -3932,7 +3941,8 @@ export function openReader(slug){
    is the unit people think in, and a book with no chapter marks records
    nothing rather than a guess. */
 function writeBookNote(slug, text, view, page){
-  const note={ts:todayKey(),text};
+  // stamped at the moment it is written — see data/note-versions.js
+  const note={ts:todayKey(),text,by:byLine('you')};
   if(view && view.slug===slug){
     note.page = (page!=null) ? page : view.page;
     const ch=chapterAt(chapterPages(view), note.page);
@@ -3963,7 +3973,11 @@ export function sendNoteToToday(slug, i){
   const note=notes[i]; if(!note) return;
   const d=Store.getDoc(slug);
   const day=plannerDay();
-  day.sparks.unshift({ts:todayKey(), text:note.text, source:d?d.title:slug, done:false});
+  /* The spark carries the note's attribution with it. A note the AI wrote,
+     brought to today's plan, must not become an anonymous line in the visitor's
+     own day — the plan is read back to them and to residents. */
+  day.sparks.unshift({ts:todayKey(), text:note.text, source:d?d.title:slug, done:false,
+                      by:attributionOf(note)});
   persist(); logActivity('Brought a note from "'+(d?d.title:slug)+'" to today\'s plan.'); blip(784,.09);
   renderBookNotes(slug);
 }
@@ -3994,8 +4008,13 @@ function renderBookNotes(slug){
       const alreadySent=today.sparks.some(s=>s.text===n.text);
       const pageTag=(n.ch!==undefined ? ` · ch. ${n.ch}` : '')
         +(n.page!==undefined ? ` · page ${n.page+1}` : '');
+      /* WHO WROTE IT, ON THE SAME LINE AS WHEN. A hand-written note and an
+         AI note have to be tellable apart at a glance or the labelling has
+         failed — the ✨ buried in the first line of the text was not enough,
+         and it was all there was until 2026-08-09. */
+      const who=` · <b>${esc(authorOf(n))}</b>`;
       return `<div class="card" style="cursor:default">
-        <div class="s">${esc(n.ts)}${pageTag}</div><div>${esc(n.text)}</div>
+        <div class="s">${esc(n.ts)}${pageTag}${who}</div><div>${esc(n.text)}</div>
         <div class="row" style="margin-top:6px">
           <button class="btn ghost" style="font-size:11px;padding:3px 10px" ${alreadySent?'disabled':''}
             onclick="sendNoteToToday('${slug}',${i})">${alreadySent?'✓ In today\'s plan':'→ Bring to today\'s plan'}</button>
@@ -4016,7 +4035,12 @@ export function currentDocSlug(){ return state.currentDoc; }
    uses the summary + sections (small), the analysis uses just the current page —
    never the whole book, which would overwhelm a local model's context. */
 function saveAiBookNote(slug, label, text, page){
-  const note={ ts:todayKey(), text:'✨ '+label+' (AI)\n'+String(text).trim() };
+  /* THE ✨ STAYS IN THE TEXT and the `by` field is added beside it. Not
+     either/or: every note already saved keeps the meaning it was saved with,
+     and the prefix is what isAiNote() falls back to for those. What changes is
+     that a note written from today names the model and the person. */
+  const note={ ts:todayKey(), text:'✨ '+label+' (AI)\n'+String(text).trim(),
+               by:byLine('ai', (AI && AI.model) || null) };
   if(typeof page==='number') note.page=page;
   /* An AI note files under the chapter it was actually about, so a chapter
      summary and your own notes on that chapter sit together (#41/#42). */
@@ -5190,6 +5214,12 @@ initLessonTree({
    init() seams — a second would be a hand-maintained list that must match
    another file, and every one of those in this project has drifted. */
 initProviderSettings(() => (data && data.settings) || {});
+/* WHO IS SITTING HERE, for every note written from now on. Same injected-reader
+   shape and same reason: data/note-versions.js is pure and imports nothing.
+   Until the profile exists (THE-TUTORIAL-AND-SIGNING-IN.md §3) this resolves to
+   "user 1" — said out loud rather than left blank — and when it lands, exactly
+   this line changes. */
+initNoteAuthor(() => (data && data.profile) || {});
 initResidents({
   agentMemory, personalBooks, allNodes, lessonDone, lessonCompletedCount,
   currentStudy, nextStepOf, eventsOn, hallShelfSummary, investigationsForPrompt,
@@ -5410,9 +5440,9 @@ function renderDeskBookBody(){
         title="Draft a lesson plan into a note first — you read it and edit it before anything reaches the tree">✨ Draft a lesson from this (AI)</button>
     </div>
     <div class="meta" id="deskNoteMsg" style="margin-top:6px"></div>
-    ${recent.length ? `<h4 style="margin:14px 0 4px">Your last notes on this book</h4>`
+    ${recent.length ? `<h4 style="margin:14px 0 4px">The last notes on this book</h4>`
       + recent.map(n=>`<div class="card" style="cursor:default">
-          <div class="s">${esc(n.ts||'')}${n.ch!==undefined?' · ch. '+n.ch:''}${n.page!==undefined?' · p. '+(n.page+1):''}</div>
+          <div class="s">${esc(n.ts||'')}${n.ch!==undefined?' · ch. '+n.ch:''}${n.page!==undefined?' · p. '+(n.page+1):''} · <b>${esc(authorOf(n))}</b></div>
           <div>${esc((n.text||'').length>200?n.text.slice(0,200)+'…':n.text)}</div>
           <div class="row" style="margin-top:6px">
             <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="openBookAtNote('${jsq(bookNoteKey(b.slug,n))}')">📖 Open the book here</button>
@@ -5465,14 +5495,29 @@ export async function deskDraftLesson(){
   if(!isAIActive()){ say('Connect a local AI (⚙ Manage AI connections) to draft a lesson from this book.'); return; }
   const notes=(data.bookNotes[b.slug]||[]).slice(0,12);
   /* Grounded in what is genuinely on the desk: the book, where you are in
-     it, the page you are actually looking at, and your own notes on it.
-     Nothing invented, and it says so where a piece is missing. */
+     it, the page you are actually looking at, and the notes on it.
+     Nothing invented, and it says so where a piece is missing.
+
+     THIS HEADING USED TO SAY "THEIR OWN NOTES ON THIS BOOK", and it was the
+     live bug behind the whole attribution change (2026-08-09). data.bookNotes
+     holds the assistant's ✨ notes as well as the visitor's, so a model was
+     being handed its own earlier output and told a person wrote it — then
+     asked to build a lesson plan on that reading of them.
+
+     The fix is NOT to drop the AI notes. They are real notes and they stay;
+     each one now says whose it is, in words, which is a thing a model can
+     actually use ("you wrote this last week, they have not commented on it"
+     is a different lesson from "they wrote this"). */
   const page=(b.view && b.page!=null && b.view.pages[b.page]) ? String(b.view.pages[b.page]).slice(0,3000) : '';
+  const mine=notes.filter(n=>!isAiNote(n)).length;
   const ground='BOOK: "'+b.doc.title+'"'+((b.doc.attribution||b.doc.author)?' by '+(b.doc.attribution||b.doc.author):'')
     +'\nWHERE THEY ARE: '+deskBookWhere(b)
     +(page?'\n\nTHE PAGE IN FRONT OF THEM:\n'+page:'\n\n(no page text available — work from the notes below alone)')
-    +(notes.length?'\n\nTHEIR OWN NOTES ON THIS BOOK:\n'+notes.map(n=>
-        '- '+(n.ch!==undefined?'(ch. '+n.ch+') ':'')+(n.text||'')).join('\n')
+    +(notes.length?'\n\nNOTES ON THIS BOOK — each one says who wrote it. '
+        +'"'+currentUser()+'" is the reader you are helping; anything marked as the AI is a '
+        +'previous assistant note, not their words.\n'
+        +notes.map(n=>labelledNote(n, n.ch!==undefined?'(ch. '+n.ch+')':'')).join('\n')
+        +(mine?'':'\n(none of these are the reader\'s own writing yet)')
       :'\n\n(they have not written any notes on this book yet)');
   say('Your local AI is drafting a lesson plan from this book…');
   try{
@@ -8276,7 +8321,13 @@ export async function stewardPreNotes(id){
 export function pullNotesIntoDissection(id){
   const rec=dissectionRec(id); if(!rec||!rec.book) return;
   const status=document.getElementById('bdStatus');
-  const notes=(data.bookNotes[rec.book]||[]).filter(n=>!/^✨ /.test(n.text||''));  // your own, not the AI's
+  /* YOUR OWN, NOT THE AI'S — and this is the ONE place in the codebase where
+     that distinction is a genuine exclusion rather than a labelling problem:
+     the "mine" lens of a dissection is by definition the reader's own pass at
+     the text, and seeding it with the assistant's reading would defeat the
+     whole exercise. It was a /^✨ / regex until 2026-08-09; a prefix is a
+     string one edit away from lying. */
+  const notes=(data.bookNotes[rec.book]||[]).filter(n=>!isAiNote(n));
   if(!notes.length){ if(status) status.textContent='No notes of your own on this book yet — write one beside the text and it lands here.'; return; }
   const already=new Set(rec.passes.filter(x=>x.lens==='mine').map(x=>x.text));
   const text=notes.map(n=>'• '+(n.page!==undefined?'p.'+(n.page+1)+' — ':'')+n.text).join('\n');

@@ -251,10 +251,23 @@ your own standing instructions, so you can watch them take effect.
 - **Let the AI read with you:** the Reader always shows **✨ Overall impression**
   (its thoughtful take on the whole book) and, in the full text, **✨ Analyze this
   page** (a close read of the passage you're on). Click either with a local AI
-  connected and it writes its take straight into your book notes below, marked ✨
-  as the AI's, never confused with your own — a real, engaged use of your local
-  model, not just chat. No AI connected yet? The button tells you so and points
-  you to **⚙ Manage AI connections** rather than simply vanishing.
+  connected and it writes its take straight into your book notes below — a real,
+  engaged use of your local model, not just chat. No AI connected yet? The button
+  tells you so and points you to **⚙ Manage AI connections** rather than simply
+  vanishing.
+- **Every note says who wrote it, and that is not decoration.** Each one carries
+  its author on the same line as its date — *user 1*, or *the AI, for user 1*
+  with the model named. It reads the same way in three places: the Reader, the
+  Writing Desk, and, most importantly, **inside the prompt a resident is given**.
+  Before this, the assistant's own notes came back to it as *"their own notes on
+  this book"*, so it could build you a lesson out of its own earlier output while
+  believing you had written it.
+  **The AI's notes are not hidden or filtered out** — they are real notes and
+  they stay wherever notes go, including into what a resident reads. They just
+  say whose they are. Notes written before this existed are labelled correctly
+  too, worked out when they are read; nothing in your save was rewritten.
+  Until profiles exist, everyone is *user 1*, said out loud rather than left
+  blank.
 - **Ask about the book while you read:** **💬 Ask about this book** (or, in the
   full text, **💬 Ask about this page**) opens a conversation with **Sebastian**
   grounded in exactly what's in front of you — the summary, or the page you're on.
