@@ -339,13 +339,22 @@ node test/live/lab.mjs  bench.mjs  bundle.mjs  librarian-safety.mjs  backend.mjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/records.cjs
+env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/resident-reach.cjs
 node test/live/docker-home.cjs              # the container half; skips if it's down
 ```
 
 The `live/` suites need `npm run preview` running. `ELECTRON_RUN_AS_NODE` must
 be unset or `require('electron')` returns a path string.
 
-**The three Electron suites are Electron, not a browser, and that is not
+**`resident-reach.cjs` runs its EMPTY-SHELF case FIRST, and the ordering is
+load-bearing.** `userData` is one temp directory for the run and `main.js`
+hydrates from the database on every boot, so once real books exist no later boot
+can produce an empty shelf whatever the save says. It asserts `allDocs() === 0`
+before testing that case — **a check that refuses to run against the wrong
+fixture is worth more than the check itself**, and that assertion is what caught
+it ("4 books still on the shelf").
+
+**The four Electron suites are Electron, not a browser, and that is not
 optional.** A browser tab has no desktop bridge and therefore no database, so a
 browser suite can only *stub* one — which proves the wiring and nothing about
 whether Postgres actually stems.

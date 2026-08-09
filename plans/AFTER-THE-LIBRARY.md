@@ -15,7 +15,7 @@ Full account: [`archive/dev-log-2026-08-10.txt`](../archive/dev-log-2026-08-10.t
 > | 6 | **DONE** — MANUAL §4 | closed 2026-08-10: the empty shelf, the four storage badges, the 100-book cap, and `electron:dev` vs `dev` |
 >
 > **What is actually next is not in this file.** See
-> [`RESIDENT-REACH-PLAN.md`](RESIDENT-REACH-PLAN.md) and
+> [`RESIDENT-REACH-PLAN.md`](done/RESIDENT-REACH-PLAN.md) *(built 2026-08-10)* and
 > [`THE-BACKEND-UNTANGLE.md`](THE-BACKEND-UNTANGLE.md), and read
 > [`AI-INTEGRATION-NOTES.md`](AI-INTEGRATION-NOTES.md) first — it records two
 > promises the code stopped keeping on 2026-08-07.

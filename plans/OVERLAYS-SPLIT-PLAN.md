@@ -1,7 +1,8 @@
 # Breaking up `overlays.js` — the plan that maintains itself
 
 **Rewritten 2026-08-10.** The previous version was written 2026-08-04 against
-12,115 lines and 719 definitions, and hand-listed the order. Both had gone
+12,115 lines and 719 definitions as of an earlier session, and hand-listed the
+order. Both had gone
 stale — and a plan whose numbers are wrong is a plan nobody trusts enough to
 run. This one derives its order from a table `npm test` already checks.
 
@@ -11,7 +12,7 @@ run. This one derives its order from a table `npm test` already checks.
 
 | | |
 |---|---|
-| `overlays.js` | **12,966 lines**, **732 top-level definitions** |
+| `overlays.js` | **13,278 lines**, **740 top-level definitions** |
 | of which | **74% code** · 22% comment · ~2,000 lines carrying HTML markup |
 | already out | `ui/lesson-tree.js` **1,063** · `ui/residents.js` **1,017** · `ui/study-table.js` **747** · `ui/daily-tasks.js` **334** · `ui/dom.js` **27** |
 

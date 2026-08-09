@@ -2773,9 +2773,22 @@ for (const d of SEED_LIBRARY) {
     return '';
   })();
   for (const part of ['libraryLookupBlock', 'carriedBlock', 'notesLookupBlock',
-                      'referenceShelfBlock', 'referenceBlock', 'lensBlock', 'trainingBlock']) {
+                      'referenceShelfBlock', 'referenceBlock', 'lensBlock', 'trainingBlock',
+                      'passagesFor', 'reachGapBlock']) {
     if (!new RegExp(part + '\\s*\\(').test(pw)) {
       fail(`pathwayBlock() no longer includes ${part}() - a resident silently lost part of the one road`);
+    }
+  }
+  /* ...AND THE RESULT MUST BE CONCATENATED, not merely computed. A sabotage that
+     deleted `+ reach` from the return left reachGapBlock() called, its value
+     assigned, and the sentence never reaching the model - green on every check
+     above. Same disease as the other born-dead guards this week: the mention
+     survived. So each part is checked for a `+` join too. */
+  for (const [v, fn] of [['reach', 'reachGapBlock'], ['pass', 'passagesFor'],
+                         ['lookup', 'libraryLookupBlock'], ['notes', 'notesLookupBlock']]) {
+    if (!new RegExp('\\+\\s*' + v + '\\b').test(pw) && !new RegExp('\\(\\s*' + v + '\\s*\\|\\|').test(pw)) {
+      fail(`pathwayBlock() computes ${fn}() into \`${v}\` and never adds it to what it returns - the `
+         + `block is built on every message and thrown away.`);
     }
   }
 
@@ -2970,6 +2983,20 @@ for (const d of SEED_LIBRARY) {
       }
       if (!/\.slice\s*\(\s*0\s*,\s*RESIDENT_PASSAGE_BOOKS\s*\)/.test(pfBody)) {
         fail('passagesFor() no longer slices the bag to RESIDENT_PASSAGE_BOOKS - the backpack holds 20');
+      }
+      /* ONE ROAD TO KNOWLEDGE, THIRD TIME. retrieval.js keeps a deliberately
+         SMALL stopword list, which is right for the Science Hall and wrong for
+         a conversation: handed "do you have anything by hildegard of bingen" it
+         kept `do`, `have` and `anything`, and retrieved two pages of Walden for
+         a question about Hildegard. Found by the live suite, 2026-08-10. */
+      if (/searchPages\s*\(\s*pages\s*,\s*q\s*[,)]/.test(pfBody)) {
+        fail('passagesFor() searches on the RAW QUESTION. retrieval.js\'s stopword list is small on '
+           + 'purpose, so conversational filler becomes a search term and the resident is handed '
+           + 'pages that merely contain "have". Use the shared lookupTerms/groundingPlan terms.');
+      }
+      if (!/groundingPlan\s*\(/.test(pfBody)) {
+        fail('passagesFor() does not derive its terms from groundingPlan() - a second term extractor '
+           + 'is free to disagree with the two that already exist');
       }
       if (!/if\s*\(\s*d\s*\)\s*d\.passages\s*=/.test(pfBody)) {
         fail('passagesFor() does not stash what it included on d.passages - a resident that quietly '
@@ -3228,6 +3255,134 @@ for (const d of SEED_LIBRARY) {
   // the visitor is TOLD, in the interface, not only in a prompt
   if (!/backpack/i.test(L.LOOKUP_NOTICE) || !/notes/i.test(L.LOOKUP_NOTICE)) {
     fail('lookup: the notice does not explain the rule to the person it protects');
+  }
+
+  /* ---------- "I CAN SEE IT AND I CANNOT READ IT" — reachGap ----------
+
+     The steward's ask: "we should be able to have the resedents be like i dont
+     have acces to this can you please put the book in your back pack ... i know
+     this but for a new user we gotta hold there hand".
+
+     Whether a resident is blocked is a SET LOOKUP, not a judgement, so it is
+     tested as arithmetic rather than trusted to a prompt. */
+  {
+    const { PLACES } = await import('../src/game/data/places.js');
+    const hit = { slug: 'walden', title: 'Walden' };
+
+    /* 1 - THE FIRST THING TO BREAK ON PURPOSE. A hit already in the bag must
+       produce NO line, or the resident tells you to go and carry the very book
+       you are holding, which is the whole failure this state exists to avoid. */
+    const held = L.reachGap({ hits: [hit], searched: true, total: 5,
+      carrying: [{ kind: 'book', ref: 'walden' }] });
+    if (held.gap || held.line) {
+      fail('reachGap: a book that is ALREADY CARRIED still produced a gap - the resident would ask '
+         + 'the visitor to put something in a bag it is already in');
+    }
+    const notHeld = L.reachGap({ hits: [hit], searched: true, total: 5, carrying: [] });
+    if (notHeld.gap !== L.GAP.SHELVED_NOT_CARRIED) fail('reachGap: a shelved, uncarried hit produced ' + notHeld.gap);
+    if (!notHeld.line) fail('reachGap: SHELVED_NOT_CARRIED produced no line for the model');
+    if (!notHeld.titles.some(t => t.slug === 'walden')) fail('reachGap: the uncarried title is not offered');
+
+    /* 2 - AN EMPTY LIBRARY IS ITS OWN STATE, and never "that title is missing".
+       SEED_LIBRARY is [], so this is what a brand-new install hits. */
+    const empty = L.reachGap({ hits: [], searched: true, total: 0, carrying: [] });
+    if (empty.gap !== L.GAP.NOTHING_HERE_YET) {
+      fail('reachGap: an EMPTY library reported ' + empty.gap + '. Telling someone with no books that '
+         + '"that title is not on these shelves" describes their whole Library as a miss.');
+    }
+    /* ...and it must NOT depend on the search having happened. shelfLookup()
+       returns null with no database, so hanging this off the lookup would mean
+       the one state a new visitor hits is the one that never fires in a
+       browser. Correction 1 of the plan, as an assertion. */
+    const emptyNoDb = L.reachGap({ hits: [], searched: false, total: 0, carrying: [] });
+    if (emptyNoDb.gap !== L.GAP.NOTHING_HERE_YET) {
+      fail('reachGap: with no database the empty-Library state did not fire. It must be computed from '
+         + 'the shelf count, never from the lookup.');
+    }
+    const quiet = L.reachGap({ hits: [], searched: false, total: 5, carrying: [] });
+    if (quiet.gap || quiet.line) fail('reachGap: invented a gap when no search had been made');
+
+    const missing = L.reachGap({ hits: [], searched: true, total: 5, carrying: [] });
+    if (missing.gap !== L.GAP.NOT_IN_THE_PAVILION) fail('reachGap: a real miss reported ' + missing.gap);
+
+    /* A CATALOGUE MISS IS NOT A GAP WHILE THE VISITOR IS BEING ANSWERED FROM
+       THEIR OWN BOOK. Read off a real transcript: carrying Walden and asking a
+       follow-up produced real passages AND "we do not have that, try the
+       Request Board" in the same breath. Both true, together nonsense. */
+    const servedMiss = L.reachGap({ hits: [], searched: true, total: 5, carrying: [], served: true });
+    if (servedMiss.gap) {
+      fail('reachGap: a resident quoting page 81 of a carried book was ALSO told to try the Request '
+         + 'Board because the catalogue matched nothing. Two true sentences that contradict each other.');
+    }
+    /* ...and conversational filler must not become a search term at all, which
+       is what made that transcript happen: "so what does it actually say"
+       searched the shelves for "actually". */
+    for (const filler of ['actually', 'really', 'something', 'anything']) {
+      if (L.lookupTerms('so what does it ' + filler + ' say').includes(filler)) {
+        fail(`lookup: "${filler}" survives as a search term - a follow-up question would search the `
+           + `catalogue for a word that names no subject, and report a miss`);
+      }
+    }
+    if (!L.lookupTerms('what does it say about impermanence').includes('impermanence')) {
+      fail('lookup: the filler stopwords ate a real subject term');
+    }
+
+    // the offer is capped and says what it left out
+    const many = L.reachGap({ searched: true, total: 20, carrying: [],
+      hits: Array.from({ length: 9 }, (_, i) => ({ slug: 's' + i, title: 'T' + i })) });
+    if (many.titles.length > L.GAP_TITLE_CAP) fail('reachGap: offered ' + many.titles.length + ' buttons - four is a row, twelve is a wall');
+    if (many.rest !== 9 - L.GAP_TITLE_CAP) fail('reachGap: the remainder is not named, so the list silently pretends to be complete');
+    if (!L.reachGap({}).gap) fail('reachGap: threw or said nothing on empty input - total 0 IS the empty Library');
+
+    /* 3 - PER STATE, not in total. Checking the sum passed a sabotage that
+       stripped the doors from the empty-Library state alone - the other two
+       still made the count. Every gap must carry its OWN way out. */
+    for (const [what, g] of [['SHELVED_NOT_CARRIED', notHeld],
+                             ['NOT_IN_THE_PAVILION', missing],
+                             ['NOTHING_HERE_YET', empty]]) {
+      if (!g.doors || !g.doors.length) {
+        fail(`reachGap: ${what} names no door at all. A resident that says "I cannot reach that" and `
+           + `cannot say where to go has moved the dead end, not removed it.`);
+      }
+    }
+    /* A DERIVATION, NOT A GREP. Every door must be a real PLACES entry AND its
+       opener a real window export, or a visitor walks to a room that is not
+       there. A comment cannot satisfy this: the ids come from the returned
+       objects, not from the source text. */
+    const winBlock = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    for (const dr of [...notHeld.doors, ...missing.doors, ...empty.doors]) {
+      if (!PLACES[dr.id]) fail(`reachGap sends someone to '${dr.id}', which is not a room in places.js`);
+      else if (PLACES[dr.id].door !== dr.open) {
+        fail(`reachGap types the opener for '${dr.id}' instead of deriving it - places.js says `
+           + `'${PLACES[dr.id].door}', reachGap says '${dr.open}'`);
+      }
+      if (!new RegExp('(^|[^\\w$.])' + dr.open + '\\b').test(winBlock)) {
+        fail(`reachGap offers ${dr.icon} ${dr.label}, whose opener ${dr.open}() is not reachable from `
+           + `overlays.js - the button would do nothing`);
+      }
+    }
+    /* 4 - AND THE OFFER MUST BE RENDERED. The definition is stripped first,
+       because `function reachGapOffer(d)` matches any naive "is it called"
+       pattern - which is how three guards died earlier this week. */
+    if (!/function reachGapOffer/.test(winBlock)) fail('overlays.js does not render the reach gap at all');
+    const noDefs = winBlock.replace(/function\s+reachGapOffer\s*\([^)]*\)/g, ' ');
+    if (!/reachGapOffer\s*\(\s*d\s*\)/.test(noDefs)) {
+      fail('overlays.js defines reachGapOffer() and never calls it - the resident would say "put it in '
+         + 'your backpack" to someone with no button to press, which MOVES the dead end rather than '
+         + 'removing it');
+    }
+    /* 5 - EVERY BUTTON IS A HUMAN PRESS. Break this and the backpack stops
+       meaning "what a person chose" and starts meaning "what a model helped
+       itself to". */
+    const rsrc0 = readFileSync(new URL('../src/game/ui/residents.js', import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    for (const grabby of ['toggleInventory', 'pickUp', 'carryFromChat']) {
+      if (new RegExp('(^|[^\\w$.])' + grabby + '\\s*\\(').test(rsrc0)) {
+        fail(`residents.js calls ${grabby}() - a resident must never put anything in the backpack `
+           + `itself. Every button is a human press.`);
+      }
+    }
   }
 
   /* ONE PATHWAY FOR EVERY PLUGIN. residents.js had its own private stopword
@@ -3695,6 +3850,54 @@ for (const d of SEED_LIBRARY) {
            + `path will tell you - estimateTokens() sat like this in previewPrompt() for days.`);
       }
     }
+  }
+}
+
+/* ---------- NO DOCUMENT MAY QUOTE A STALE overlays.js LINE COUNT ----------
+
+   Added 2026-08-10, and it is the same lesson as the seed-count guard: a number
+   living in four documents and one source file will be wrong in three of them
+   within a week. This one had already been hand-corrected twice — "~10k" became
+   12,966 in the morning and 12,966 was stale by the evening — and correcting it
+   a third time by hand would be choosing to do it a fourth.
+
+   Only figures in the 9,000-19,999 range count, so seed counts and dates cannot
+   trip it, and lines that mark themselves as history are allowed: the whole
+   point of "it said ~10,000 while it was 12,966" is that it is a RECORD.
+
+   Tolerance 150 lines. Approximately right is doing its job; 2,000 out is a lie. */
+{
+  const ovText = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  const realLines = ovText.split(/\r?\n/).length;
+  /* NO TRAILING \b — the first version ended the alternation with `\b` after an
+     em-dash, which can never match, so three genuinely historical lines were
+     reported as drift. The guard was the broken thing; diagnose red first. */
+  const HISTORY = /(used to|until 20|was still|had become|has grown since|as of 20\d\d-\d\d-\d\d|as of that morning|as of an earlier session|the previous version|this (entry|header) said|superseded|understated)/i;
+  const TOLERANCE = 150;
+  let checkedAny = 0;
+  for (const rel of ['MAINTAINING.md', 'plans/OVERLAYS-SPLIT-PLAN.md', 'docs/DOCS-DRIFT.md', 'CLAUDE.md']) {
+    let text;
+    try { text = readFileSync(new URL('../' + rel, import.meta.url), 'utf8'); } catch (e) { continue; }
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/\b(1?\d{1,2},\d{3})\b(?=[^\n]{0,40}lines)/);
+      if (!m) continue;
+      const n = Number(m[1].replace(/,/g, ''));
+      if (n < 9000 || n > 19999) continue;
+      const window = (lines[i - 1] || '') + ' ' + lines[i] + ' ' + (lines[i + 1] || '');
+      if (HISTORY.test(window)) continue;
+      checkedAny++;
+      if (Math.abs(n - realLines) > TOLERANCE) {
+        fail(`${rel}:${i + 1} says overlays.js is ${m[1]} lines; it is ${realLines.toLocaleString()}. `
+           + `This number has already been hand-corrected twice. Derive it or mark the line as history.`);
+      }
+    }
+  }
+  /* A guard that stops matching anything passes forever - the seed-count check
+     learned this the same day. */
+  if (!checkedAny) {
+    fail('smoke: the overlays.js line-count guard matched NO claim in any document. Either every '
+       + 'mention was removed, or the pattern has drifted and this check is now vacuous.');
   }
 }
 

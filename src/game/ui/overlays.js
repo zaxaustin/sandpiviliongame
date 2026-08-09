@@ -282,7 +282,7 @@ export function openChatDialog(npc){
        residents.js, read by shelfLookupReceipt() below, and it doubles as the
        once-a-turn memo that stopped four residents making eight database
        round-trips for four questions. */
-    askNotes:false, noteSearch:null, shelfLookup:null, passages:null,
+    askNotes:false, noteSearch:null, shelfLookup:null, passages:null, reach:null,
   };
   document.getElementById('chatOv').classList.add('open');
   renderChatView(); blip(740,.06,'square',.03);
@@ -652,7 +652,60 @@ function shelfLookupReceipt(d){
       ${r.hits.length ? '' : 'Nothing matched — and that is a real answer about this library, not about the subject. '
         + '<span style="opacity:.75">This searches titles, authors and shelves, not the words inside a book; '
         + 'for that, carry it.</span>'}
+      ${reachGapOffer(d)}
     </div>`;
+}
+/* ----- THE HAND-HOLD, AND IT IS THE WHOLE POINT -----
+
+     "we should be able to have the resedents be like i dont have acces to this
+      can you please put the book in your back pack ... i know this but for a
+      new user we gotta hold there hand"
+
+   A resident saying "put it in your backpack" to somebody who does not know
+   where the backpack IS has moved the dead end, not removed it. So the
+   sentence the model was given and the button the person can press come from
+   THE SAME reachGap() call, stashed on d.reach — two answers to "is this out
+   of reach" would eventually put a 🎒 button under a reply that just said the
+   book was already in the bag.
+
+   EVERY BUTTON IS A HUMAN PRESS. The resident never carries anything itself;
+   it can only say that carrying is possible. Same rule the notes receipt's 🎒
+   offers already keep, and it is the rule the whole backpack rests on. */
+function reachGapOffer(d){
+  const g=d && d.reach; if(!g || !g.gap) return '';
+  const doors=(g.doors||[]).map(x=>
+    `<button class="btn ghost" style="font-size:11px" onclick="closeUI();${jsq(x.open)}()">${esc(x.icon)} ${esc(x.label)}</button>`
+  ).join('');
+  if(g.gap==='NOTHING_HERE_YET'){
+    return `<div style="margin-top:6px">Your shelf is empty — the Pavilion ships with no books on
+      purpose, because a library is worth more when it is the one you chose.
+      <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">${doors}</div></div>`;
+  }
+  if(g.gap==='NOT_IN_THE_PAVILION'){
+    return `<div style="margin-top:6px">Two ways to change that: bring the file in yourself, or ask
+      for it to be fetched.
+      <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">${doors}</div></div>`;
+  }
+  /* SHELVED_NOT_CARRIED — one press per book, and the press is toggleInventory,
+     the same function the shelf's own 🎒 uses. Capped in lookup.js and the
+     remainder named, because four buttons is a row and twelve is a wall. */
+  const btns=(g.titles||[]).map(t=>
+    `<button class="btn ghost" style="font-size:11px" onclick="carryFromChat('${jsq(t.slug)}')"
+       title="Put it in your backpack — then they can quote from it">🎒 ${esc(t.title.slice(0,40))}</button>`
+  ).join('');
+  return `<div style="margin-top:6px">They can see ${g.titles.length===1?'this':'these'} on the shelf
+    and cannot read ${g.titles.length===1?'it':'them'}. Carry ${g.titles.length===1?'it':'one'} and
+    they get real passages, with page numbers.
+    <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">${btns}</div>
+    ${g.rest>0?`<div style="opacity:.7;margin-top:4px">…and ${g.rest} more found.</div>`:''}</div>`;
+}
+/* One press, from inside a conversation: put the book in the bag and redraw, so
+   the offer disappears and the "answered with" line grows a book — the change
+   is visible in the same breath as the click. */
+export function carryFromChat(slug){
+  if(!isCarrying(carryList(),'book',slug)) toggleInventory(slug);
+  if(state.dialog) state.dialog.reach=null;   // the gap is closed; do not re-offer it
+  renderChatView();
 }
 function noteSearchReceipt(d){
   const r=d && d.noteSearch; if(!r) return '';
@@ -13187,7 +13240,7 @@ Object.assign(window, {
   plantGift, groveHiddenChanged, draftPlantingWithAI,
   toggleReadingPause, togglePocketAudio, jumpChapter, jumpFraction, jumpToPageNum, treeTab,
   markChaptersHere, carryMigrate, carryList, dropStaleCarried, rememberPage, openNeedsChapters, carryNote,
-  toggleNoteSeal, setDownCarried, toggleContextMeter, toggleShowThinking,
+  toggleNoteSeal, setDownCarried, toggleContextMeter, toggleShowThinking, carryFromChat,
   sendCurrentChatMessageWithNotes, previewPrompt,
   openDailyTasks, takeDailyTask, toggleDailyTaskStep, dailyTaskGo,
   finishDailyTask, setDownDailyTask, retakeDailyTask, dailyTaskWhereChanged,

@@ -103,13 +103,28 @@
    ================================================================ */
 
 import { mayReachNote, reachOf } from './note-reach.js';
+/* THE DOORS ARE DERIVED, NEVER TYPED. A room's name and its opener come from
+   the one table that already owns them, so renaming a room changes what a
+   resident says. A hand-typed room name across seven prompts is hideAllOv()
+   wearing a hat, and this project has paid for that shape three times.
+   Both files are pure data with no DOM, so there is no cycle. */
+import { PLACES } from './places.js';
 
 /* Words that carry no search signal. Kept here rather than in
    residents.js so every plugin extracts terms identically — two
    resident asking the same question must search the same thing. */
+/* CONVERSATIONAL FILLER EARNS ITS PLACE HERE, added 2026-08-10 after reading a
+   real transcript. The follow-up "so what does it actually say" searched the
+   shelves for "actually", found nothing, and the panel duly offered the Request
+   Board — while the resident was quoting the very book in the visitor's bag.
+   These are words a person uses to CONTINUE a conversation, never to name a
+   subject, and every one of them survives the length filter. */
 export const LOOKUP_STOP = new Set(('a an the and or but if of in on at to for from by with is are was were be '
   + 'do does did have has had i you we they it that this these those what which who whom whose when where '
-  + 'why how can could will would should about any some my your our me us book books read about got here'
+  + 'why how can could will would should about any some my your our me us book books read about got here '
+  + 'actually really basically simply mean means meant tell tells telling said says think thinks know knows '
+  + 'just like want wants need needs thing things something anything nothing everything more most also then '
+  + 'there their theirs yours mine much many well even still going gonna okay maybe perhaps please thanks'
   ).split(' '));
 
 /* WHAT MAY BE REACHED FOR, BY KIND. `search` means a resident may go
@@ -178,6 +193,131 @@ export function groundingPlan(question, carrying, opts) {
     withheld: !asked && held.length === 0 && terms.length
       ? 'Your own notes were not searched. Ask, or put one in your backpack.'
       : '',
+  };
+}
+
+/* ================================================================
+   "I CAN SEE IT AND I CANNOT READ IT" — reachGap(), 2026-08-10.
+
+   The steward's ask, and the reason it is code rather than a sentence
+   added to seven prompts:
+
+     "we should be able to have the resedents be like i dont have acces
+      to this can you please put the book in your back pack and add it
+      to the pavilion. kinda thing i know this but for a new user we
+      gotta hold there hand"
+
+   WHETHER A RESIDENT IS BLOCKED IS A SET LOOKUP, NOT A JUDGEMENT. The
+   application knows exactly what the catalogue returned and exactly
+   what is in the backpack; asking a model to work out the difference is
+   rule 7 in reverse — slow, approximate, and wrong often enough to
+   matter. So it is computed here, exactly, and the small correct result
+   is what the model is handed.
+
+   THREE STATES, and the third is separate on purpose:
+
+     SHELVED_NOT_CARRIED   rows came back, none of them are in the bag.
+                           The bridge already exists — 🎒 Take with you —
+                           and nothing has ever told a new visitor so.
+     NOT_IN_THE_PAVILION   real search terms, zero rows. Two real doors:
+                           the Caravan Desk if they have the file, the
+                           Request Board to have it fetched.
+     NOTHING_HERE_YET      the Library is empty. Telling someone with no
+                           books that "that title is not on these
+                           shelves" is true and useless — it describes
+                           their whole Library as a miss. SEED_LIBRARY is
+                           [], so THIS IS WHAT A BRAND-NEW INSTALL HITS.
+
+   `total` IS PASSED IN SEPARATELY AND MUST BE COMPUTED WITHOUT THE
+   DATABASE — Store.allDocs().length, which needs no bridge. As first
+   drafted the whole gap hung off the lookup, which returns null in a
+   browser tab; the one state a new visitor actually hits would have
+   been the one state that never fired.
+
+   Pure, like everything else here: no DOM, no Store, no fetch. The
+   caller supplies the three facts and renders what comes back.
+   ================================================================ */
+export const GAP = {
+  SHELVED_NOT_CARRIED: 'SHELVED_NOT_CARRIED',
+  NOT_IN_THE_PAVILION: 'NOT_IN_THE_PAVILION',
+  NOTHING_HERE_YET:    'NOTHING_HERE_YET',
+};
+/* Capped, and the remainder named — the same rule every list handed to a model
+   obeys here. Four buttons is a row; twelve is a wall. */
+export const GAP_TITLE_CAP = 4;
+
+function door(id) {
+  const p = PLACES[id];
+  if (!p) return null;                       // a door that is not in the table is not a door
+  return { id, icon: p.icon, label: p.label, open: p.door };
+}
+
+export function reachGap(input) {
+  const o = input || {};
+  const hits = Array.isArray(o.hits) ? o.hits : [];
+  const held = Array.isArray(o.carrying) ? o.carrying : [];
+  const total = Number(o.total) || 0;
+  const searched = !!o.searched;
+
+  /* AN EMPTY LIBRARY OUTRANKS EVERYTHING, and is checked first and without
+     reference to the search. */
+  if (!total) {
+    return {
+      gap: GAP.NOTHING_HERE_YET, titles: [],
+      doors: [door('intake')].filter(Boolean),
+      line: '\n\nTHEIR LIBRARY IS EMPTY — not "this book is missing", but no books at all yet. '
+        + 'The Pavilion ships with none on purpose: a shelf is meant to be built by the person whose '
+        + 'it is. So do not answer as though a title were missing. Say plainly that there is nothing '
+        + 'shelved yet, that they can bring one in, and that you will be far more use once they have. '
+        + 'Say it in your own words, warmly and in one or two sentences.',
+    };
+  }
+  if (!searched) return { gap: null, titles: [], doors: [], line: '' };
+
+  const carried = new Set(held
+    .filter(e => e && (e.kind === 'book' || e.kind === 'paper'))
+    .map(e => String(e.ref)));
+
+  if (!hits.length) {
+    /* NOT A GAP IF THEY ARE ALREADY BEING ANSWERED FROM THEIR OWN BOOK.
+       Read off a real transcript, 2026-08-10: carrying Walden and asking a
+       follow-up produced real passages AND "we do not have that, try the
+       Request Board" in the same breath. Both sentences were technically true
+       — the catalogue matched nothing — and together they are nonsense. A
+       resident quoting page 81 to you is not a resident that failed to reach
+       something. Silence is the honest output here. */
+    if (o.served) return { gap: null, titles: [], doors: [], line: '' };
+    return {
+      gap: GAP.NOT_IN_THE_PAVILION, titles: [],
+      doors: [door('review'), door('requests')].filter(Boolean),
+      line: '\n\nWHAT THEY ASKED FOR IS NOT ON THESE SHELVES, and there are two real ways to change '
+        + 'that, which a new visitor will not know about. If they already have the file, it comes in '
+        + 'at the Caravan Desk in the Workshop. If they do not, the Request Board in the Study is how '
+        + 'a book gets fetched. Mention whichever fits, once, in your own words — and only if a book '
+        + 'would actually help them. Never imply the Pavilion holds something it does not.',
+    };
+  }
+
+  /* THE HIT MUST NOT ALREADY BE IN THE BAG. Telling someone to carry what they
+     are already carrying is the whole failure this state exists to avoid, and
+     it is the first thing to break on purpose. */
+  const out = hits.filter(h => h && !carried.has(String(h.slug)));
+  if (!out.length) return { gap: null, titles: [], doors: [], line: '' };
+
+  const titles = out.slice(0, GAP_TITLE_CAP)
+    .map(h => ({ slug: String(h.slug), title: String(h.title || h.slug) }));
+  const rest = out.length - titles.length;
+
+  return {
+    gap: GAP.SHELVED_NOT_CARRIED, titles, rest,
+    doors: [door('yourshelf')].filter(Boolean),
+    line: '\n\nYOU CAN SEE THESE ON THE SHELF AND YOU CANNOT READ THEM. What you were handed is the '
+      + 'catalogue — titles, authors, shelves — and not one word of any book\'s text. So you may say '
+      + 'what is shelved and where; you may NOT say what is inside. If they want what a book actually '
+      + 'says, the way through is for them to put it in their backpack, and then you will be given '
+      + 'real passages from it. Say that plainly when it is the honest answer'
+      + (titles.length === 1 ? ' — "' + titles[0].title + '" is the one.' : '.')
+      + ' It is one press and they may not know it exists. Never guess at the contents from a title.',
   };
 }
 

@@ -193,15 +193,15 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one: 12,966 lines** (74% code, 732 top-level
+- **`ui/overlays.js`** — **the big one: 13,278 lines** (740 top-level
   definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
   chat stack, and the window-export block, which it owns permanently. **It opens
   with a map of itself**, anchored to searchable text rather than line numbers
   and checked by `npm test`. Read that first. *(This entry said "~10k lines"
   until 2026-08-10, and the file's own header said "~10,000 lines, and that is
   fine" — both understated it by ~3,000. See `plans/OVERLAYS-SPLIT-PLAN.md`.)*
-- **Already out of it:** `ui/residents.js` (1,017 — `CHAT_AGENTS` and every
-  `systemPrompt()`), `ui/lesson-tree.js` (1,063), `ui/study-table.js` (747),
+- **Already out of it:** `ui/residents.js` (1,238 — `CHAT_AGENTS`, every
+  `systemPrompt()`, and `pathwayBlock()` with the whole grounding chain), `ui/lesson-tree.js` (1,063), `ui/study-table.js` (747),
   `ui/daily-tasks.js` (334 — **born outside**, the shape to copy), `ui/dom.js`
   (27 — `esc`/`jsq`).
 - **`render.js`** — owns the canvas; reads state, never mutates it.
@@ -232,9 +232,18 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
   - **`data/places.js`** — see above; the room table the pause menu is derived
     from, and now also the seam the `overlays.js` split follows
   - **`data/lookup.js`** — **one road to knowledge.** `groundingPlan()`,
-    `lookupTerms()`, `privacyLeaks()`, and the `REACH` table saying what may be
-    searched versus what must be carried. Books are looked up; notes are not
-    searched unasked
+    `lookupTerms()`, `privacyLeaks()`, `reachGap()`, and the `REACH` table
+    saying what may be searched versus what must be carried. Books are looked
+    up; notes are not searched unasked. **Every term extractor in the
+    application comes from here** — the shelf lookup, the notes search and the
+    passage retrieval all share `lookupTerms()`, and the third one did not until
+    2026-08-10, which is how a question about Hildegard retrieved two pages of
+    Thoreau
+  - **`data/retrieval.js`** — BM25 over one book's own pages, `paginate()` (the
+    single definition of a page, so retrieval saying "p.47" and the reader
+    showing p.47 cannot drift), the multi-slot `pagesOf()` cache, and
+    `RESIDENT_PASSAGE_CAP` — the number standing between "the relevant
+    fragment" and pasting the corpus
   - **`data/note-reach.js`** — the three states on a note: 🔒 sealed · 🔎
     askable · 🏛 published. **A different axis from `visibility.js`** — that one
     answers *can this leave the machine*, this one answers *may a local model
@@ -378,10 +387,40 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 **Where things stand, end of 2026-08-10 — READ THIS ONE.**
 Full account in [`archive/dev-log-2026-08-10.txt`](archive/dev-log-2026-08-10.txt)
-(Part Six is the documentation session; Parts One–Five are the Library and the
-two Grounds, earlier the same day).
+(Parts One–Five are the Library and the two Grounds; Six is the documentation
+reconciliation; **Seven to Eleven are the grounding chain**).
 
 > ## ⚠ READ BEFORE SCOPING ANYTHING
+>
+> **0 · THE GROUNDING CHAIN IS FINISHED, and it is the thing to understand
+> before touching a prompt.** Five commits on 2026-08-10, in this order and for
+> this reason:
+>
+> 1. **The Outer court supports itself** — Docker demoted, the shelf limit set
+>    by the visitor.
+> 2. **`groundingPlan()` gets a caller** — the boundary is performed, not
+>    described. One Library lookup a turn (6 → 3 round-trips). `think:true`
+>    turned back on behind a switch.
+> 3. **A role declares what it is given** — `grounding: [...]` in `roles.js`,
+>    with a floor no role may decline. Measured **−484 tokens**.
+> 4. **A carried book can be quoted** — real passages, real page numbers,
+>    behind a cap that binds at **1,939 of 2,600 characters** worst case.
+> 5. **A resident can say what it cannot reach** — and the visitor gets a 🎒
+>    button that fixes it.
+>
+> **The order was not cosmetic.** 3 had to precede 4 because once passages are
+> expensive, "everyone gets every block" stops being free. And **every one of
+> these was a thing already built and reached by almost nobody** —
+> `groundingFor()`, `chatOptsFor()`, `groundingPlan()`, `searchPages()`. That is
+> the complete list of that shape found in one week, and **in every case a
+> document asserted the feature existed.** Before adding anything to this layer,
+> check whether it is already there and merely uncalled.
+>
+> **The rule that came out of it, and it cost six born-dead guards to learn:**
+> when you check that something is wired, **check the statement, not the word** —
+> `if(d) d.passages=`, not `/d\.passages/`; and strip a function's own
+> definition before asking whether it is called. Every single one of those six
+> died the same way: a leftover mention satisfied the pattern.
 >
 > **1 · Two promises the code stopped keeping on 2026-08-07 — BOTH NOW CLOSED.**
 > When the Monk's model tier was retired, `chatOptsFor()` was emptied to
@@ -451,11 +490,14 @@ and 6 are the rest of the same chain and are meant to go in that order.
    verbatim and cited both pages; `llama3.2:3b` used the text but did **not**
    cite — which is why `passagesReceipt()` states the pages deterministically
    (rule 7), rather than hoping the model does.
-3. **The resident reach gap** — [`plans/RESIDENT-REACH-PLAN.md`](plans/RESIDENT-REACH-PLAN.md),
-   fully designed and not built. *"i dont have acces to this can you please put
-   the book in your back pack."* Mostly assembly now: `d.shelfLookup` is already
-   stashed and `shelfLookupReceipt()` already renders — it grows a 🎒 button per
-   uncarried hit onto what is there.
+3. ~~**The resident reach gap**~~ — ✅ **done 2026-08-10**, and with it the whole
+   grounding chain. `reachGap()` is pure in `data/lookup.js`, three states, and
+   **the doors are derived from `PLACES`** so renaming a room changes what a
+   resident says. A 🎒 button per uncarried hit, capped at 4; **every button is
+   a human press** and `npm test` fails if `residents.js` so much as calls
+   `toggleInventory`. New Electron suite `test/live/resident-reach.cjs`, 21
+   checks, including the round trip: press it → the book is carried → the gap is
+   gone → passages arrive.
 4. **Backend knot A, then B** — [`plans/THE-BACKEND-UNTANGLE.md`](plans/THE-BACKEND-UNTANGLE.md).
    A (one read path instead of two) makes B (a real `minioRead` on the bridge) a
    one-line change. Stopping after A is a complete session.
@@ -634,7 +676,8 @@ a test fails if it grows one. The arc the steward named — *get the book → re
 it → have the Tutor draft a plan → walk the course* — is four existing doors in
 a row and needed **no new code** (`writeLessonOnThisBook` + `draftLessonWithAI`).
 
-**The complexity question, measured:** `overlays.js` 12,317 lines vs
+**The complexity question, measured** *(figures as of 2026-08-04 — `overlays.js`
+has grown since)***:** `overlays.js` 12,317 lines vs
 `roles.js` 284 and one `pathwayBlock()` for all seven residents. The agent
 pathways are the **simplest** part of the codebase. `overlays.js` is the real
 problem, and this feature is the first cut done right.

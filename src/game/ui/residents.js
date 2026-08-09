@@ -36,7 +36,7 @@ import { referenceBlock } from '../data/reference.js';
    more: extracting the terms here and searching on them was performing a plan
    without ever asking for one, which is how lookup.js came to describe a
    boundary nobody consulted. See shelfLookup() below. */
-import { groundingPlan, privacyLeaks } from '../data/lookup.js';
+import { groundingPlan, privacyLeaks, reachGap } from '../data/lookup.js';
 import { groundingFor, fitToBudget, KINDS } from '../data/carrying.js';
 import { pagesOf, searchPages, passagesBlock,
          RESIDENT_PASSAGE_CAP, RESIDENT_PASSAGES_PER_BOOK, RESIDENT_PASSAGE_BOOKS } from '../data/retrieval.js';
@@ -548,6 +548,24 @@ async function passagesFor(question, key){
   const q=String(question||'').trim();
   if(!q) return '';
   if(typeof X.loadBookText !== 'function') return '';   // no way to read text here
+  /* SEARCH ON THE SHARED TERMS, NOT THE RAW QUESTION — and this was a real bug,
+     found 2026-08-10 by the live suite reporting a gap that had gone missing.
+
+     retrieval.js keeps its own STOP list, deliberately small: "a long stopword
+     list starts throwing away terms that matter in a particular book". That is
+     right for the Science Hall, where a person types a phrase they mean. It is
+     wrong for a conversation. Handed "do you have anything by hildegard of
+     bingen" it kept `do`, `have` and `anything` — all of which appear all over
+     Walden — so a question about Hildegard retrieved two pages of Thoreau, and
+     the resident was handed noise as though it were an answer.
+
+     lookupTerms() via groundingPlan() is the one extractor the shelf lookup and
+     the notes search already share. Using it here is the same rule a third
+     time: ONE ROAD TO KNOWLEDGE. No terms means nothing worth searching for,
+     which is a real answer and not a gap. */
+  const terms=groundingPlan(q, [], {}).terms;
+  if(!terms.length) return '';
+  const query=terms.join(' ');
   /* The same groundingFor() the card block uses, so the two can never disagree
      about WHICH books are in play — only about how much of each is shown. */
   const held=groundingFor(carryList(), ['book','paper']).slice(0, RESIDENT_PASSAGE_BOOKS);
@@ -564,7 +582,7 @@ async function passagesFor(question, key){
     try{ text=await loadBookText(e.ref); }catch(err){ continue; }
     if(!text || text.length < 400){ receipt.push({ title:doc.title, slug:e.ref, pages:[], why:'no text' }); continue; }
     const pages=pagesOf(e.ref, text, (doc.doc&&doc.doc.fullText&&doc.doc.fullText.storage) ? 'file' : 'inline');
-    const hits=searchPages(pages, q, { limit: RESIDENT_PASSAGES_PER_BOOK });
+    const hits=searchPages(pages, query, { limit: RESIDENT_PASSAGES_PER_BOOK });
     if(!hits.length){ receipt.push({ title:doc.title, slug:e.ref, pages:[], why:'no match' }); continue; }
     const block=passagesBlock(hits, { cap: left });
     if(!block) continue;
@@ -581,6 +599,46 @@ async function passagesFor(question, key){
     +"than from what you remember of the book; if these passages do not answer the question, say so "
     +"plainly, because a search of the whole book found nothing better:\n\n"
     +parts.join('\n\n');
+}
+/* ================================================================
+   SAYING "I CANNOT REACH THAT" — 2026-08-10.
+
+   The decision is made in data/lookup.js by reachGap(), which is pure
+   and knows nothing about this application. This supplies it the three
+   facts and appends the sentence it returns.
+
+   `total` COMES FROM Store.allDocs(), NOT FROM THE LOOKUP, and that is
+   the whole of correction 1 in the plan: shelfLookup() returns null
+   without a database, so hanging the empty-Library state off it would
+   have meant the one state a brand-new visitor actually hits is the one
+   state that never fires. allDocs() needs no bridge.
+
+   COSTS ZERO TOKENS WHEN NOTHING IS OUT OF REACH — reachGap returns an
+   empty line when every hit is already in the bag, which is the common
+   case once someone has picked a book up.
+   ================================================================ */
+function reachGapBlock(key){
+  const r=(state.dialog && state.dialog.shelfLookup) || null;
+  let total=0;
+  try{ total=(Store.allDocs()||[]).length; }catch(e){ total=0; }
+  /* Whether this turn already produced real passages from a carried book. If
+     it did, "not on these shelves" is a true sentence that reads as a failure,
+     and the visitor is being served. See reachGap(). */
+  const p=(state.dialog && state.dialog.passages) || null;
+  const served=!!(p && Array.isArray(p.books) && p.books.some(b=>b.pages && b.pages.length));
+  const g=reachGap({
+    hits: r ? r.hits : [],
+    searched: !!(r && r.searched),
+    carrying: carryList(),
+    served,
+    total,
+  });
+  /* Stash it beside the lookup so the receipt renders the SAME decision the
+     model was given. Two answers to "is this out of reach" is the drift this
+     project keeps paying for — and here it would put a 🎒 button under a reply
+     that just said the book was already in the bag. */
+  if(state.dialog) state.dialog.reach=g;
+  return g.line || '';
 }
 /* WHAT THIS ROLE DECLARED IT NEEDS. Absent is a FAILURE, not "everything" —
    a role added without a declaration would silently inherit the whole pathway
@@ -618,7 +676,12 @@ async function pathwayBlock(key){
      is on the table, the passages say what is in it. Reversing them hands a
      model three pages of prose before it knows whose book they are. */
   const pass   = wants(key,'passages') ? await passagesFor(lastAskOf(key), key) : '';
+  /* AFTER the lookup it describes, and before everything else. It is the only
+     block that says what a resident CANNOT do, so it belongs next to the thing
+     that fell short rather than at the end where it reads as an afterthought. */
+  const reach  = wants(key,'shelves')  ? reachGapBlock(key) : '';
   return (lookup || '')
+    + reach
     + (wants(key,'carried')    ? carriedBlock() : '')
     + pass
     + notes

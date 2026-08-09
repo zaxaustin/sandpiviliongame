@@ -1,5 +1,35 @@
 # The residents learn to say "I can't reach that"
 
+> ## ✅ BUILT 2026-08-10. Kept as the record of a plan that survived contact.
+>
+> `reachGap()` is pure in `data/lookup.js`, three states, doors derived from
+> `PLACES`. `reachGapBlock()` composes it into `pathwayBlock()`; `reachGapOffer()`
+> renders the 🎒 buttons under the reply. Live suite:
+> `test/live/resident-reach.cjs`, **21 checks, Electron**, including the round
+> trip — press the button, the book is carried, the gap closes, passages arrive.
+>
+> **Both corrections in this file were right and both were needed.** Correction 1
+> (compute `NOTHING_HERE_YET` from `Store.allDocs()`, never from the lookup) is
+> now an assertion. Correction 2 (the suite must be Electron) is why two of the
+> three states are tested at all.
+>
+> **Two things the plan did not foresee, both found by running it:**
+>
+> - **A catalogue miss is not a gap while the visitor is being answered from
+>   their own book.** Carrying *Walden* and asking a follow-up produced real
+>   passages *and* "we do not have that, try the Request Board" in the same
+>   breath. Both true; together, nonsense. `reachGap` now takes `served`.
+> - **`passagesFor()` was searching on the raw question**, and `retrieval.js`
+>   keeps a deliberately small stopword list — so *"do you have anything by
+>   hildegard of bingen"* retrieved two pages of Thoreau that merely contained
+>   *"have"*. It uses the shared `groundingPlan()` terms now. **One road to
+>   knowledge, third time.**
+>
+> The one honest limit this file stated — *"it does not make a carried book
+> searchable"* — **was closed the same day**, one commit earlier. Carry a book
+> and you now get real passages with page numbers.
+
+
 *Designed 2026-08-10, against the real code. Not built — the session it was
 scoped for became a documentation reconciliation instead. Everything below was
 verified at the time of writing; re-check the line anchors, not the line

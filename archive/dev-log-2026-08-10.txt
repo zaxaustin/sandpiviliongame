@@ -1624,3 +1624,214 @@ NEXT: Part 6, the reach gap - and it is mostly assembly now.
 d.shelfLookup is stashed, shelfLookupReceipt() renders, and the plan
 wants a backpack button per uncarried hit so a found book stops being a
 dead end. Every button a human press.
+
+
+================================================================
+PART ELEVEN - "I CAN SEE IT AND I CANNOT READ IT" (plan Part 6)
+================================================================
+
+The last part of the plan, and the end of the grounding chain.
+
+  "we should be able to have the resedents be like i dont have acces
+   to this can you please put the book in your back pack and add it to
+   the pavilion. kinda thing i know this but for a new user we gotta
+   hold there hand"
+
+
+THREE STATES, AND THE DOORS ARE DERIVED
+-----------------------------------------
+reachGap() is pure, in data/lookup.js, beside groundingPlan() - one
+road to knowledge owns the books half of this boundary as well as the
+notes half.
+
+  SHELVED_NOT_CARRIED  rows came back, none in the bag -> a backpack
+                       button per hit, capped at 4, remainder named
+  NOT_IN_THE_PAVILION  real terms, zero rows -> the Caravan Desk if
+                       they have the file, the Request Board if not
+  NOTHING_HERE_YET     the Library is empty -> bring a book in
+
+Every door's icon, label and opener come from PLACES. Renaming a room
+changes what a resident says. npm test crosses each returned door
+against places.js AND against the real window exports, so a resident
+can never send someone to a room that is not there.
+
+Correction 1 of the plan was right and is now an assertion:
+NOTHING_HERE_YET is computed from Store.allDocs().length, never from
+the lookup - shelfLookup() returns null with no database, so hanging it
+off the lookup would mean the one state a brand-new visitor hits is the
+one state that never fires.
+
+EVERY BUTTON IS A HUMAN PRESS. npm test fails if residents.js so much
+as calls toggleInventory, pickUp or carryFromChat. A resident may say
+that carrying is possible; it may never carry anything itself.
+
+
+TWO REAL BUGS FOUND BY RUNNING IT, NOT BY READING IT
+------------------------------------------------------
+1 - A CATALOGUE MISS IS NOT A GAP WHILE THE VISITOR IS BEING ANSWERED
+    FROM THEIR OWN BOOK.
+
+    Read straight off a transcript. Carrying Walden, the follow-up "so
+    what does it actually say" produced:
+
+      Read 2 passages from Walden (p.8, p.81).
+      Nothing matched. Two ways to change that: bring the file in
+      yourself, or ask for it to be fetched.
+
+    Both sentences true. Together, nonsense - the resident had just
+    quoted page 81 and the panel offered to go and fetch the book.
+    reachGap() takes `served` now and stays quiet.
+
+2 - passagesFor() WAS SEARCHING ON THE RAW QUESTION.
+
+    Found by the live suite reporting a gap that had gone MISSING, which
+    is the better kind of test failure. retrieval.js keeps a
+    deliberately small stopword list - correct for the Science Hall,
+    where a person types a phrase they mean. Handed "do you have
+    anything by hildegard of bingen" it kept `do`, `have` and
+    `anything`, all of which are everywhere in Walden, so a question
+    about Hildegard retrieved two pages of Thoreau and `served` went
+    true, suppressing the gap.
+
+    Noise handed to a model as though it were an answer. It uses the
+    shared groundingPlan() terms now: ONE ROAD TO KNOWLEDGE, third
+    time, after the shelf lookup and the notes search.
+
+    And the filler words that caused it are in LOOKUP_STOP: actually,
+    really, something, anything, basically, mean, tell, said, think,
+    know, want, need, thing, maybe, please and the rest. Words a person
+    uses to CONTINUE a conversation, never to name a subject, and every
+    one of them survived the length filter.
+
+
+THE LIVE SUITE - test/live/resident-reach.cjs, 21 CHECKS, ELECTRON
+--------------------------------------------------------------------
+Correction 2 of the plan, and it is the reason the suite exists at all:
+shelfLookup() returns null with no desktop bridge, so two of the three
+states would test NOTHING in a browser. The suite would have gone green
+having exercised one state.
+
+The whole round trip is asserted, not just the sentence:
+
+  the resident is told it cannot read what it found
+  the visitor gets a REAL BUTTON, named for the book
+  *** pressing it actually carries the book ***
+  *** the gap is closed on the next ask ***
+  ...and now it is handed the real passages instead
+  ...with page numbers the reader agrees with
+
+THE ORDERING IS LOAD-BEARING and cost a diagnosis. The empty-shelf case
+runs FIRST: userData is one temp directory for the run and main.js
+hydrates from the database on every boot, so once real books exist no
+later boot can produce an empty shelf whatever the save says. The
+assertion "the empty case really is empty (or everything below tests
+nothing)" is what caught it, reporting "4 books still on the shelf". A
+CHECK THAT REFUSES TO RUN AGAINST THE WRONG FIXTURE IS WORTH MORE THAN
+THE CHECK ITSELF.
+
+
+BREAKING EVERY GUARD ON PURPOSE - 15 SABOTAGES, 2 BORN DEAD
+-------------------------------------------------------------
+First run, 11 sabotages, 2 dead:
+
+   8 - "every state loses its doors" PASSED, because the check was
+       allDoors.length < 3 and stripping the doors from ONE state left
+       the other two making up the count. Now checked PER STATE.
+  11 - "the gap block dropped from the pathway" PASSED, because
+       reachGapBlock() was still CALLED and its value assigned - only
+       the `+ reach` was gone from the return. Now every part is checked
+       for its concatenation too.
+
+After the fixes, and with four more sabotages added, 15 of 15 caught.
+
+THAT IS EIGHT BORN-DEAD GUARDS IN TWO SESSIONS. All eight died the same
+way and the rule is now in MAINTAINING.md where it will be read: CHECK
+THE STATEMENT, NOT THE WORD. Match the assignment with its guard clause,
+match the concatenation and not just the call, and strip a function's
+own definition before asking whether it is called.
+
+AND I MADE THE WORST MISTAKE OF THE SESSION HERE. Reverting a sabotage
+with `git checkout test/smoke.mjs` restored the file from HEAD - which
+wiped every Part 6 guard I had just written, because they were not
+committed yet. All of it had to be rewritten. Restore from a backup
+copy, never from git, while work is uncommitted.
+
+
+A NUMBER THAT HAS NOW BEEN WRONG THREE TIMES
+----------------------------------------------
+overlays.js is 13,278 lines. Four documents said 12,966 - a figure that
+was correct THIS MORNING and had been hand-corrected from "~10k" the
+same day. Correcting it by hand a third time would be choosing to do it
+a fourth.
+
+So npm test now derives it: any figure in the 9,000-19,999 range sitting
+next to the word "lines", in MAINTAINING / OVERLAYS-SPLIT-PLAN /
+DOCS-DRIFT / CLAUDE, must be within 150 of the real count, unless the
+line marks itself as history. It found seven stale claims immediately.
+
+THREE OF THOSE SEVEN WERE FALSE POSITIVES AND THE GUARD WAS THE BROKEN
+THING - the history pattern ended an alternation with \b after an
+em-dash, which can never match. Fifth time this week a red result was
+the check rather than the code. Diagnose before believing.
+
+It is also broken in the OTHER direction on purpose: if the pattern ever
+stops matching any claim at all, it fails loudly rather than passing
+forever, which is the lesson the seed-count guard taught this morning.
+
+
+DOCUMENTS BROUGHT UP TO DATE (the steward asked, specifically)
+----------------------------------------------------------------
+README.md          a new "then put a book in your backpack" section -
+                   the 🎒 flow, the receipts, and the reasoning switch
+                   with its real cost. The thinking-model warning
+                   rewritten: start with an instruct model, add a
+                   reasoning one later and watch it.
+MANUAL.md          the passages receipt, and what carrying buys
+MAINTAINING.md     a new "0 ·" block at the top: the whole grounding
+                   chain, in order, with WHY the order; the code map
+                   (residents.js 1,238, retrieval.js added, lookup.js
+                   gained reachGap); all three next-session items closed
+CLAUDE.md          resident-reach.cjs in the suite list, the
+                   empty-case-first ordering, the stale-frame gotcha,
+                   and the bare-identifier lesson
+PROTOCOLS.md       (Part Eight) the model guide, twice-wrong and saying so
+docs/DOCS-DRIFT.md the fourth callerless thing; the prompt-budget blind
+                   spot; the missing import
+plans/AI-INTEGRATION-NOTES.md  the pathway diagram now shows all nine
+                   blocks and the declaration; `deep` has a caller again
+plans/RESIDENT-REACH-PLAN.md -> plans/done/, annotated with what the
+                   plan got right (both corrections) and the two things
+                   it could not have foreseen
+plans/AFTER-THE-LIBRARY.md  link repointed
+
+
+VERIFIED THIS PART
+-------------------
+npm test green. build:beta clean and beta-verified.
+Electron: note-search, records, packaged-boot, resident-reach - 0
+failures. docker-home against the live container, 31 passed.
+Chrome at :4173: preflight, study-chain, teacher, writing-desk,
+study-table, lab, bench, bundle, librarian-safety - 0 failures.
+Screenshots read: the 🎒 offer under a reply, and the same conversation
+after pressing it - the offer gone, the passages arrived, and the
+"Packed for the Road" badge firing off the press.
+
+
+================================================================
+THE CHAIN, END TO END
+================================================================
+57f6f4c  the Outer court supports itself
+456c5e3  the plan gets a caller, the shelves get a receipt
+baa4de3  a role declares what it is given
+b3093bc  a carried book can be quoted
+(this)   a resident can say what it cannot reach
+
+Every one of the five closed something that was ALREADY BUILT and
+reached by almost nobody: groundingFor(), chatOptsFor(), groundingPlan(),
+searchPages(). Four functions, written well, tested, documented - and in
+every single case a document asserted the feature existed. That is the
+shape to look for first in this codebase, before writing anything new.
+
+NEXT: backend knot A (one read path instead of two), then B (a real
+minioRead on the bridge). After that, ui/computer.js - the first commit
+of the overlays split, whose order is derived from places.js.

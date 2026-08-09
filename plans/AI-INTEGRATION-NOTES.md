@@ -77,12 +77,24 @@ code, and the model is handed the small, relevant, already-correct thing.
 identically, for every resident**, so none can opt in and none can forget:
 
 ```
-libraryLookupBlock  →  carriedBlock  →  notesLookupBlock  →  referenceShelfBlock
-     →  referenceBlock  →  lensBlock  →  stanceBlock
+libraryLookupBlock  →  reachGapBlock  →  carriedBlock  →  passagesFor
+     →  notesLookupBlock  →  referenceShelfBlock  →  referenceBlock
+     →  trainingBlock  →  lensBlock  →  stanceBlock
 ```
 
-**The only thing that differs is the `lens`** — one line in `data/roles.js`
-saying what that role *does* with what it found. That is the entire specialty.
+**Composed once, still — but a role now declares which of it applies.**
+Updated 2026-08-10: `grounding: [...]` in `data/roles.js` names the kinds a
+resident is given, and `pathwayBlock()` consults it. The inversion of
+2026-08-08 ("everyone gets everything") was right and free only while every
+block was cheap; `passages` reads a whole book, and the Computer has no use for
+a page of *Walden*. **A floor keeps the old property intact**: `shelves`,
+`carried` and `notes` are the pathway and no role may decline them, so the
+2-of-7 bug cannot return. `wants()` fails **closed** — an undeclared role gets
+nothing but its lens, and `npm test` fails first.
+
+**What differs per role is now three things, all data:** the `lens` (one line on
+what it *does* with what it found), the `grounding` list, and an optional
+`training` book of its own — Sebastian's Mrs Beeton is the worked example.
 
 Before 2026-08-08 this was **2 of 7**: each `systemPrompt()` composed its
 grounding by hand, so the Investigator — *"insists on evidence someone else
@@ -96,6 +108,10 @@ five more prompts grow a pathway. Every part is bounded *by construction*:
 - the backpack is capped in **tokens** by `fitToBudget()`, not in items
 - the notes search runs **only when the visitor pressed the button**
 - the paper shelf and reference desk are `capped()` at 8
+- **passages from a carried book** are capped in CHARACTERS across all books
+  (`RESIDENT_PASSAGE_CAP`, 2,600), at 2 passages a book and 2 books — measured
+  worst case **1,939 of 2,600**, and bounded by the backpack rather than by the
+  Library
 
 **None of them grows with the size of the Library or with how much work the
 visitor has done** — which is the exact failure the 2026-08-04 audit found in
@@ -136,9 +152,13 @@ middle" — and this file never followed.)*
 - **long** — real drafted documents: a course, a grant section, a lesson, a
   paper appraisal. Widely used: **14 call sites** pass `long:true` (13 in
   `overlays.js`, 1 in `lesson-tree.js`), measured 2026-08-10.
-- **deep** — ⚠ **has no caller.** It was the Monk's tier and nothing has
-  selected it since 2026-08-07. The entries stay in both tables because turning
-  a tier back on is one option object; a table with an unused row is not a bug.
+- **deep** — the Monk's tier until 2026-08-07, with **no caller at all** for
+  three days, and it **has one again**: `chatOptsFor()` selects it whenever the
+  visitor switches reasoning on, because a model told to think on the short
+  tier's 450 tokens can spend every one of them thinking and return nothing.
+  The judgement that kept the row is worth keeping too — *a table with an unused
+  row is not a bug, and turning a tier back on is one option object.* Three days
+  later it was exactly one option object.
 
 ---
 
@@ -394,7 +414,8 @@ async — and **the meter must keep agreeing with the prompt it claims to
 measure.** A meter with its own idea of the answer is the `store.js` scar in
 miniature, and it is the whole of the work here. Not a bolt-on.
 
-**It also pairs with the other half**, which is planned separately in
-`plans/RESIDENT-REACH-PLAN.md`: teaching a resident to say *"I can see that book
-but cannot read it — put it in your backpack."* That plan is the half that says
-*hand me the book*; this is the half that reads it. Do them in that order.
+**It paired with the other half** — teaching a resident to say *"I can see that
+book but cannot read it, put it in your backpack"* — and **both were built on
+2026-08-10**, in that order: the half that reads the book first, then the half
+that asks for it, so the button had something to deliver.
+See [`done/RESIDENT-REACH-PLAN.md`](done/RESIDENT-REACH-PLAN.md).

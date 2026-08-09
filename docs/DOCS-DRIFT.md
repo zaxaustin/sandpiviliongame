@@ -150,7 +150,7 @@ part. `SEED_LIBRARY` went to `[]` and **four files kept the old number**.
 | `CLAUDE.md` | rule 1: *"27 books ship in `seed.js`"* | rule 1 restated — **there is no seed to hide behind**, and an *empty save* is now the same mistake in a new costume |
 | `CLAUDE.md` | *"the seed shelf is an on-ramp… its small size is correct"* | the empty shelf is the finished position |
 | `MAINTAINING.md` | *"27 texts in the shipped seed"* — **while the same file said the shelf was empty 250 lines later** | derived, and the contradiction named |
-| `MAINTAINING.md` | *"Eleven scenes"* · *"Six AI-backed residents"* · `overlays.js` *"~10k lines"* | **twelve** scenes · **seven role keys, six people** · **12,966** lines |
+| `MAINTAINING.md` | *"Eleven scenes"* · *"Six AI-backed residents"* · `overlays.js` *"~10k lines"* | **twelve** scenes · **seven role keys, six people** · the real figure, which was **12,966** lines as of that morning and is derived by `npm test` now |
 | `MAINTAINING.md` | code map omitted five modules | `places.js`, `lookup.js`, `note-reach.js`, `carrying.js`, `book-storage.js`, `daily-tasks.js` added |
 | `MANUAL.md` §8 | quoted the title screen as *"everything works, but nothing is indexed"* — a **search** limitation named for what is actually an **absence** | all four real states, quoted verbatim and now guarded |
 | `MANUAL.md` §4 | one storage home, no cap, seed implied | four storage badges, the shelf limit, the empty shelf, `electron:dev` vs `dev` |
@@ -159,7 +159,7 @@ part. `SEED_LIBRARY` went to `[]` and **four files kept the old number**.
 | `plans/AI-INTEGRATION-NOTES.md` | dated 2026-07-10; *"no live token streaming"*, `bestLocalModel()` for the Monk, `CHAT_AGENTS` in `overlays.js`, timeouts 45/120/180s | fully rewritten from the code; timeouts are **90/240/360s** |
 | `LEARNING-PATH.md` | taught `stream:false` as current | tense fixed; the streaming exercise now says *build yours first, then read the real one and diff* |
 | `overlays.js` header | *"~10,000 lines, and that is fine"* | ~13,000, and no longer fine — with the reasoning that still holds |
-| `plans/OVERLAYS-SPLIT-PLAN.md` | 12,115 lines / 719 defs, hand-listed order | real numbers; **order derived from `places.js`'s `scene` field** |
+| `plans/OVERLAYS-SPLIT-PLAN.md` | it used to say 12,115 lines / 719 defs, hand-listed order | real numbers; **order derived from `places.js`'s `scene` field** |
 | `plans/AFTER-THE-LIBRARY.md` | six things "next session" | **four now done**, each with its evidence |
 | `AI-BACKEND-WALKTHROUGH.md`, `plans/BETA-LAUNCH-PLAN.md`, `plans/AGENT-EMBODIMENT-PLAN.md`, `data/charter.js` | pointed at `CHAT_AGENTS` in `overlays.js` | `ui/residents.js` |
 

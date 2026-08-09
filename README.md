@@ -118,11 +118,34 @@ and it means it: everything above this section works without any of it.
 
 1. **Install [Ollama](https://ollama.com)** (or `winget install Ollama.Ollama`).
 2. **Run the line the app gave you** — something like `ollama pull llama3.2:3b`.
-   A few gigabytes will download, so make tea. **Avoid "thinking" models**
-   (`deepseek-r1`, `qwq`, `qwen3.5`) at first: they pause a long time before
-   replying, which feels broken when it isn't.
+   A few gigabytes will download, so make tea. **Start with a plain "instruct"
+   model, not a "thinking" one** (`deepseek-r1`, `qwq`, `qwen3.5`): they pause a
+   long time before replying, which feels broken when it isn't. You can add one
+   later and actually watch it reason — see below.
 3. **Press Detect** in that same panel. It looks only at your own machine. Now
    go and talk to Quill in the Library.
+
+### Then put a book in your backpack
+
+This is the part worth knowing on day one, because nothing else in the Pavilion
+changes an answer as much.
+
+A resident can search your shelves by **title, author and shelf** — and that is
+all. Ask what a book *says* and it will tell you, honestly, that it can see the
+book and cannot read it, and offer you a **🎒 button** right there under the
+reply. Press it, ask again, and the Pavilion searches the book's actual pages
+and hands the resident the passages that match, **labelled with the page numbers
+the reader shows you** — so you can turn to them and check.
+
+Underneath every reply is a plain account of what was used: what you are
+carrying, which pages were read, what the shelf search asked for. **The app
+writes those lines from what it really sent**, never from what the model claims.
+
+*Watching it think:* **Your data → "Let the model show its reasoning"** turns on
+a 💭 panel under each reply. Off by default, and honestly slower — the same
+question to a 9B model here took 1 second off and 107 seconds on. It is the best
+way to see *why* an answer came out the way it did, and not something to leave
+on.
 
 **On a laptop:** plug it in first — nearly all of them slow down deliberately on
 battery — and expect the fans. The very first question after starting up is
