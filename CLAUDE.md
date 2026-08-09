@@ -335,6 +335,7 @@ node test/live/study-table.mjs             # the workroom, on a book with no cha
 node test/live/teacher.mjs                 # set text → reading doors → a handout
 node test/live/writing-desk.mjs            # the desk, the picker, one thread each
 node test/live/study-chain.mjs             # note→lesson→a path you walk→Today
+node test/live/speaking-pace.mjs           # one reveal RATE, the hold, the pocket
 node test/live/lab.mjs  bench.mjs  bundle.mjs  librarian-safety.mjs  backend.mjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs
@@ -345,6 +346,18 @@ node test/live/docker-home.cjs              # the container half; skips if it's 
 
 The `live/` suites need `npm run preview` running. `ELECTRON_RUN_AS_NODE` must
 be unset or `require('electron')` returns a path string.
+
+**`speaking-pace.mjs` stands up a FAKE OLLAMA on an ephemeral port** and names
+it as the one connection in the save, so it never fights the real Ollama for
+11434 and never depends on one being installed. Everything above the endpoint —
+`detectAI`, the NDJSON reader, the streaming bubble, the pocket — is the shipped
+path. It is a fake because the property under test is *"two replies of very
+different lengths reveal at the same characters per second"*, and a real model's
+reply length is not ours to choose.
+
+**A behaviour suite and a `npm test` guard are not substitutes.** Guard A holds
+the *shape* of the reveal code; this holds what a person actually sees. Both
+were needed: three separate bugs here were invisible to the other one.
 
 **`resident-reach.cjs` runs its EMPTY-SHELF case FIRST, and the ordering is
 load-bearing.** `userData` is one temp directory for the run and `main.js`

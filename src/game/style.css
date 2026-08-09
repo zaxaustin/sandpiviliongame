@@ -141,6 +141,10 @@ body { font-family:var(--font-mono); touch-action:none; }
 .chatLog { flex:1; min-height:0; overflow-y:auto; padding-right:6px; display:flex; flex-direction:column; gap:10px; }
 .chatQuickActions { flex:none; padding-top:10px; }
 .chatQuickActions .btn.ghost { font-size:12px; }
+/* the reveal controls — only on screen while a reply is being said */
+.chatRevealRow { flex:none; display:flex; gap:10px; align-items:center; padding-top:10px; }
+.chatRevealRow .btn.ghost { font-size:12px; padding:4px 10px; }
+.chatRevealRow .meta { margin:0; font-size:11px; opacity:.7; }
 .bubble { max-width:78%; padding:10px 14px; border-radius:10px; font-size:14.5px; line-height:1.55; white-space:pre-wrap; }
 .bubble .who { color:#e0a43c; font-size:11px; font-weight:bold; letter-spacing:.5px; margin-bottom:4px; }
 .bubble.npc { align-self:flex-start; background:#241b12; border:1px solid #55432e; }

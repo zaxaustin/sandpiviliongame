@@ -115,10 +115,22 @@ ok('the desk says what the one who is here is for',
    day-planning quick starts sat under her, unchanged. Not an error, not a
    crash — just quietly the wrong thing, which is what this house keeps
    shipping. It is a check now. */
-ok('the quick start follows whoever is at the desk',
-  !!desk.quickStart && desk.quickStart.label.includes(ROLES[hub].label)
-    && desk.quickStart.prompt.includes(ROLES[hub].sendMe.slice(0, 25)),
-  desk.quickStart ? desk.quickStart.label : 'no quick start rendered');
+/* IT ONLY EXISTS WITH AN AI CONNECTED. renderPlannerAssistBody() is
+   `el.innerHTML = aiOn ? <picker + quick starts + ask box> : <the off state>`,
+   so with Ollama down there is no quick start to follow anybody, and this went
+   red for a reason that has nothing to do with what it tests. Found
+   2026-08-09. The two threading checks below already skipped for exactly this;
+   hard-failing here and skipping there taught nobody anything except to stop
+   reading the result. */
+if (!desk.aiOn) {
+  skip('the quick start follows whoever is at the desk',
+       'no local AI connected — the desk renders its off state, quick starts and all');
+} else {
+  ok('the quick start follows whoever is at the desk',
+    !!desk.quickStart && desk.quickStart.label.includes(ROLES[hub].label)
+      && desk.quickStart.prompt.includes(ROLES[hub].sendMe.slice(0, 25)),
+    desk.quickStart ? desk.quickStart.label : 'no quick start rendered');
+}
 
 /* ---- calling someone else over ---- */
 const other = ROLE_KEYS.find(k => k !== hub);
@@ -152,10 +164,14 @@ ok('the desk now says what THEY are for',
   swap.meta.includes(ROLES[other].sendMe.slice(0, 30)),
   swap.meta.slice(0, 120).replace(/\s+/g, ' '));
 
-ok('and the quick start is now THEIR job',
-  !!swap.quickStart && swap.quickStart.label.includes(ROLES[other].label)
-    && swap.quickStart.prompt.includes(ROLES[other].sendMe.slice(0, 25)),
-  swap.quickStart ? swap.quickStart.label : 'no quick start rendered');
+if (!desk.aiOn) {
+  skip('and the quick start is now THEIR job', 'no local AI connected — see above');
+} else {
+  ok('and the quick start is now THEIR job',
+    !!swap.quickStart && swap.quickStart.label.includes(ROLES[other].label)
+      && swap.quickStart.prompt.includes(ROLES[other].sendMe.slice(0, 25)),
+    swap.quickStart ? swap.quickStart.label : 'no quick start rendered');
+}
 
 /* ---- one at a time: the threads must not bleed ---- */
 if (!desk.aiOn) {

@@ -152,6 +152,27 @@ database the desktop app carries. Press it and it tells you so. Everything else
 in the conversation is identical, and anything already in your backpack is being
 read regardless, because you put it there.
 
+**They speak at the pace of speech, and the pace is yours to control.** A reply
+arrives in the log a few words at a time rather than landing as a wall of text —
+about the rate a person reads comfortably, and **the Mountain Monk is slower**,
+because that is who he is. The words themselves are already here; only the
+*showing* is paced, so nothing is waiting on it. Three controls, and all three
+are one press:
+
+- **⏸ Hold** appears under the log while a reply is being said. It stops the
+  reply exactly where it is, so you can finish reading a sentence without
+  chasing it; the row then reads
+
+  > ● held — they are mid-sentence, nothing is lost
+
+  and the button becomes **▶ Carry on**, which picks up at the same character.
+- **Click the log** to skip straight to the end.
+- **📱 Pocket it** to walk off. They keep talking while you are away, so you
+  come back to where they have got to rather than to the beginning.
+
+Nothing here can lose you a word: the whole reply exists the moment it arrives,
+and every one of these only changes how much of it is on screen.
+
 ### A little more on three of them
 
 - **Quill** (the Library) — ask what to read given where you actually are in

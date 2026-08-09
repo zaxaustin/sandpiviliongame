@@ -183,6 +183,29 @@ export const GROUNDING_KINDS = ['shelves','carried','notes','papershelf','refere
    role gets by writing `grounding: [...FULL_PATHWAY]` — spelled out rather
    than implied, so opting out of something is visible in the diff. */
 export const FULL_PATHWAY = ['shelves','carried','notes','papershelf','reference'];
+/* ================================================================
+   HOW FAST A RESIDENT SPEAKS — characters per second, and it is a RATE.
+
+   Until 2026-08-09 the chat log revealed a reply with
+   `step = max(1, floor(text.length/90))`, which is a per-reply BUDGET
+   rather than a rate: every reply took the same 1.8 seconds, so a
+   100-character answer arrived at ~50 cps and a 2,000-character one at
+   ~1,100 cps. THE MORE THE RESIDENT SAID, THE LESS TIME YOU GOT PER
+   WORD — exactly inverted. Worse, the Monk (below) had a real rate on
+   the streaming path only, so the same character spoke at 34 cps if you
+   watched and ~500 cps if you pocketed the conversation. A character
+   with two speaking rates decided by whether you were looking is not a
+   character.
+
+   So: one rate, always, and it belongs to the CHANNEL — spoken prose in
+   the chat log. It is not a tax on everything a resident does. A shelf
+   number comes back through shelfLookupReceipt() and is instant, which
+   is the pace rule working rather than an exception to it.
+
+   90 cps is about 290 words a minute — comfortably ahead of reading, so
+   the text is never what you are waiting for, but not a wall either.
+   One click on the log ends any reveal. */
+export const DEFAULT_PACE = 90;
 export const ROLES = {
   sebastian: {
     label: 'Sebastian',
@@ -368,9 +391,17 @@ export const ROLES = {
        stays. What did not stay is the model and thinking tier he used to get
        (retired 2026-08-07: "lets not treat the monk differently for now hav
        him focus on guidens"). Guidance is carried by who he is and what he is
-       grounded in, not by how long he is allowed to think. Everyone else stays
-       instant — a librarian who made you wait for a shelf number would be an
-       affectation. */
+       grounded in, not by how long he is allowed to think.
+
+       THIS PARAGRAPH USED TO END "everyone else stays instant — a librarian
+       who made you wait for a shelf number would be an affectation", and it
+       was wrong in a way that hid a bug for five days. Everyone else was
+       never instant; they were revealed by a per-reply budget that pretended
+       to be one (see DEFAULT_PACE above). And the librarian sentence was
+       answering the wrong question: a shelf number is not spoken prose, it
+       comes back as a receipt and IS instant. What the Monk has is not pace
+       where others have none — it is a SLOWER pace than the house rate,
+       which is the actual character note. */
     pace: 34,
     /* THE NARROWEST OF THE SEVEN, and it is his character rather than a saving.
        No `papershelf` and no `reference`: an inventory of the visitor's paper

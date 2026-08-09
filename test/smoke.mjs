@@ -4857,6 +4857,96 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- GUARD A · A CHARACTER SPEAKS AT ONE RATE ----------
+   2026-08-09. The chat log revealed a reply with
+   `step = Math.max(1, Math.floor(text.length/90))` — a per-reply BUDGET
+   dressed as a rate. Every reply took the same ~1.8 s, so a 100-character
+   answer arrived at ~50 cps and a 2,000-character one at ~1,100 cps: THE MORE
+   THE RESIDENT SAID, THE LESS TIME YOU GOT PER WORD. Exactly inverted.
+
+   It also gave one character two voices. The Monk had a real `pace: 34` on
+   the STREAMING path only; pocket the conversation and the same 900-character
+   reply came back through the budget path at ~500 cps. 26 seconds if you
+   watched, 1.8 if you looked away. A speaking rate that depends on whether
+   anyone is looking is not a speaking rate.
+
+   Two halves, and both are needed. The behavioural half is the real check —
+   every resident resolves to a positive rate — and the textual half stops the
+   budget coming back in a new costume, because a budget still resolves to a
+   positive number and would pass the first half untouched.
+
+   NOT GUARDED, ON PURPOSE: whether 34 cps FEELS like speech, and whether a
+   paced reveal reads as character or as an affectation. Taste is the right
+   instrument for both; rule 2 (look at it) settles them. */
+{
+  const { ROLES: R_A, ROLE_KEYS: RK_A, DEFAULT_PACE } =
+    await import('../src/game/data/roles.js');
+
+  /* --- behavioural: every role resolves, and it resolves to a RATE --- */
+  if (!(Number(DEFAULT_PACE) > 0)) {
+    fail(`roles.js: DEFAULT_PACE is ${DEFAULT_PACE} — with no house rate every resident without `
+       + 'its own `pace` falls back to nothing, which is how six of seven ended up on the budget');
+  }
+  for (const k of RK_A) {
+    const own = Number(R_A[k].pace);
+    const rate = own > 0 ? own : DEFAULT_PACE;
+    if (!(rate > 0)) fail(`roles.js: '${k}' resolves to no speaking rate (${rate})`);
+    /* A rate nobody could read at, in either direction, is a bug rather than
+       a character note. 8 cps is ~26 words a minute; 400 is past reading. */
+    if (rate < 8 || rate > 400) {
+      fail(`roles.js: '${k}' speaks at ${rate} cps, which is outside anything a person reads at `
+         + '(8–400). If that is deliberate, widen this range and say why here.');
+    }
+  }
+
+  /* --- textual: no reveal function may divide the text by a constant --- */
+  const ovA = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  /* Comments stripped FIRST. Eight guards in two sessions were born dead
+     because a leftover mention in a comment satisfied the pattern — including
+     the paragraph directly above, which names `text.length/90` on purpose. */
+  const codeA = ovA.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  /* The reveal functions by name, so this cannot be satisfied by an unrelated
+     `.length/2` elsewhere in 13,000 lines — and cannot quietly stop looking
+     if one is renamed, because a missing body fails below. */
+  const REVEALERS = ['typewriteChatText', 'startPacedReveal', 'finishPacedReveal'];
+  let bodiesSeen = 0;
+  for (const fn of REVEALERS) {
+    const at = codeA.indexOf('function ' + fn + '(');
+    if (at < 0) { fail(`smoke: guard A cannot find ${fn}() in overlays.js — the reveal path has been `
+                     + 'renamed and this guard is now watching nothing'); continue; }
+    bodiesSeen++;
+    /* Brace-matched body, not a line window: the budget line sat five lines
+       into typewriteChatText and a window would be a guess about formatting. */
+    let i = codeA.indexOf('{', at), depth = 0, end = i;
+    for (; end < codeA.length; end++) {
+      if (codeA[end] === '{') depth++;
+      else if (codeA[end] === '}') { depth--; if (!depth) break; }
+    }
+    const body = codeA.slice(i, end + 1);
+    if (/\.length\s*\/\s*\d/.test(body)) {
+      fail(`overlays.js: ${fn}() divides the text length by a constant — that is a per-reply BUDGET, `
+         + 'not a speaking rate. A long reply would be revealed faster per word than a short one. '
+         + 'Take a cps rate (paceOf) instead; see DEFAULT_PACE in data/roles.js.');
+    }
+  }
+  if (bodiesSeen !== REVEALERS.length) {
+    fail(`smoke: guard A read ${bodiesSeen} of ${REVEALERS.length} reveal bodies — it is reporting on `
+       + 'less than the reveal path');
+  }
+
+  /* --- and the rate actually reaches the typewriter --- */
+  if (!/typewriteChatText\([^)]*paceOf\(/.test(codeA)) {
+    fail('overlays.js: typewriteChatText() is called without paceOf() — it takes a rate now, and a '
+       + 'caller that omits it puts the whole non-streaming reveal back on the default for everyone, '
+       + 'silently losing the Monk');
+  }
+  /* --- pocketed is not paused --- */
+  if (/if\s*\(\s*!?\s*s?\s*\|?\|?\s*d\.minimized\s*\)\s*\{\s*stopPacedReveal/.test(codeA)) {
+    fail('overlays.js: the paced reveal still stops on d.minimized — pocketing a conversation freezes '
+       + 'the reveal and dumps the remainder when you return. Skip the DOM write, not the counter.');
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list

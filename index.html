@@ -36,6 +36,13 @@
       </div>
     </div>
     <div class="chatLog" id="chatLog" onclick="skipChatTyping()" title="Click to skip the reply revealing"></div>
+    <!-- Only on screen while a reply is actually being said. Skipping to the
+         end was the only control the reveal had, which made the pace something
+         done TO the visitor rather than theirs — see toggleRevealPause(). -->
+    <div class="chatRevealRow" id="chatRevealRow" style="display:none">
+      <button class="btn ghost" id="chatPauseBtn" onclick="toggleRevealPause()">⏸ Hold</button>
+      <span class="meta" id="chatRevealHint">click the log to skip to the end</span>
+    </div>
     <div class="chatQuickActions" id="chatQuickActions" style="display:none"></div>
     <div class="chatInputRow">
       <input type="text" id="chatInput" placeholder="Ask anything… (Enter to send)">

@@ -193,7 +193,7 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one: 13,278 lines** (740 top-level
+- **`ui/overlays.js`** — **the big one: 13,430 lines** (740 top-level
   definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
   chat stack, and the window-export block, which it owns permanently. **It opens
   with a map of itself**, anchored to searchable text rather than line numbers
@@ -391,6 +391,30 @@ Full account in [`archive/dev-log-2026-08-10.txt`](archive/dev-log-2026-08-10.tx
 reconciliation; **Seven to Eleven are the grounding chain**).
 
 > ## ⚠ READ BEFORE SCOPING ANYTHING
+>
+> **00 · THE PACE WORK HAS STARTED, and the charter is written LAST.** The
+> steward named the project's own thesis — *"the pace is too fast… i want it to
+> feel like its the users doing it and they have a sence of ownership"* — and an
+> audit against it found **eleven contradictions in the code: 5 real, 5
+> defensible, 2 arguable.** The plan takes the five, then writes `CLAUDE.md`
+> rule 9 from what was actually built. **Writing the charter first would make it
+> a wish**, which is the exact failure the grounding chain just spent a week
+> undoing.
+>
+> - **DONE — one speaking rate.** `typewriteChatText()` used
+>   `step = floor(text.length/90)`: a per-reply *budget*, so a long reply was
+>   revealed faster per word than a short one, and the Monk spoke at two
+>   different speeds depending on whether you had pocketed the chat. Three of
+>   the eleven were this one bug. `DEFAULT_PACE` (90 cps) in `roles.js`,
+>   `paceOf()` resolves for every role, both reveals compute their head from the
+>   clock. **The visitor can now HOLD a reply** (⏸, asked for mid-session) —
+>   pocketing does not pause it either.
+> - **NEXT — 1b, note attribution**, and **guard B must FAIL on today's code
+>   before it is fixed**, or it is vacuous. Then 1f (a reason on a published
+>   note), 1c/1d/1e, then rule 9.
+> - **The `overlays.js` split is OFF the critical path** for the beta, on
+>   Grok's advice — see [`plans/OVERLAYS-SPLIT-PLAN.md`](plans/OVERLAYS-SPLIT-PLAN.md).
+>   The tutorial comes first.
 >
 > **0 · THE GROUNDING CHAIN IS FINISHED, and it is the thing to understand
 > before touching a prompt.** Five commits on 2026-08-10, in this order and for

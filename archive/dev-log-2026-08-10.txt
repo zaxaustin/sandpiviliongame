@@ -1835,3 +1835,181 @@ shape to look for first in this codebase, before writing anything new.
 NEXT: backend knot A (one read path instead of two), then B (a real
 minioRead on the bridge). After that, ui/computer.js - the first commit
 of the overlays split, whose order is derived from places.js.
+
+
+================================================================
+PART TWELVE - ONE SPEAKING RATE, AND THE VISITOR CAN HOLD IT
+(same working day as everything above; git dates all of this
+2026-08-09, the log filenames have been running a day ahead)
+================================================================
+
+The steward named what the whole project had been circling:
+
+  "what is missing in ai intergration with human use... its that the
+   pace is too fast... the sand pavilion, espically using the local
+   modles, might not be as fast as a ai chat window but it slows the
+   pace down where alot can happen but i want it to feel like its the
+   users doing it and they have a sence of ownership."
+
+An audit against that thesis found ELEVEN places the code contradicted
+it - 5 real violations, 5 defensible, 2 arguable. This is the first
+and biggest of the five, and three of the eleven turned out to be one
+bug wearing three costumes.
+
+
+THE BUG: A BUDGET WEARING A RATE'S CLOTHES
+----------------------------------------------------------------
+typewriteChatText() revealed a reply with
+
+    step = Math.max(1, Math.floor(text.length / 90))
+
+which is not a rate. It is a BUDGET: every reply took the same ~1.8
+seconds, so a 100-character answer arrived at ~50 cps and a
+2,000-character one at ~1,100 cps. THE MORE THE RESIDENT SAID, THE
+LESS TIME YOU GOT PER WORD. Exactly inverted, and it governed every
+non-streaming reveal in the game.
+
+It also gave one character two voices. The Monk's real `pace: 34`
+applied on the STREAMING path only; pocket the conversation and the
+same 900-character reply came back through the budget at ~500 cps.
+26 seconds if you watched, 1.8 if you looked away. A speaking rate
+that depends on whether anyone is looking is not a speaking rate.
+
+Fixed: DEFAULT_PACE (90 cps, ~290 wpm) exported from roles.js,
+paceOf() falls back to it so EVERY resident resolves to a positive
+rate, and typewriteChatText() takes cps. One reveal path.
+
+
+THE REVEAL IS A CLOCK, NOT AN ACCUMULATOR
+----------------------------------------------------------------
+First version added `round(cps*TICK/1000)` characters per tick. At 34
+cps and a 50 ms tick that rounds 1.7 UP TO 2, and the Monk came out at
+40 cps - an 18% lie in the one number that is supposed to be his
+character. Caught by measuring it, not by reading it.
+
+Both reveals now compute the head from Date.now() against a start
+stamp. Measured after: 90.0 and 34.0, exactly the declared numbers.
+It also means a tick the browser was too busy to run costs nothing.
+
+
+THREE BUGS FOUND BY RUNNING IT, NONE BY READING IT
+----------------------------------------------------------------
+1. THE PACE TIMER OUTLIVED ITS CONVERSATION. paceTimer is
+   module-level and was only ever stopped by d.streaming going null at
+   the end of a turn. Walk out mid-reply and it kept ticking - then
+   `if(paceTimer) return` in startPacedReveal BLOCKED the next
+   conversation's reveal while the orphan wrote the old reply's slice
+   into the new bubble. The counter went BACKWARDS, 190 chars to 30.
+   Now: closeDialog() and openChatDialog() stop it, and the tick
+   checks state.dialog===d, because two ways to leave a conversation
+   is two ways to leak.
+
+2. TICK was still the setInterval delay after its `const` was
+   removed. "TICK is not defined", three times, on the one path that
+   runs it - CLAUDE.md's own gotcha, caught only because
+   page.on('pageerror') was attached.
+
+3. `new URL(...).pathname` on a project path containing a space hands
+   back "sand%20pavilion%20game", and mkdirSync cheerfully created a
+   directory of that name on the Desktop. Screenshots now go to
+   test/live/_pace-*.png like every other suite, which .gitignore
+   already covers.
+
+
+"WE SHOULD BE ABLE TO PAUSE THAT SPEAKING CHAIN"
+----------------------------------------------------------------
+Mid-session, and it was the right correction:
+
+  "we should be able to pause that speaking chain its for users not
+   for testing"
+
+The reveal had exactly one control - click the log, skip to the end -
+which is the only control that CANNOT express "wait, I am still
+reading that". A pace with a skip and no hold is a pace done TO the
+visitor, which is the precise opposite of the point.
+
+So: a hold. One flag on the conversation, both reveal paths resume
+from the character it was left on, and the row is only on screen while
+something is actually being said (a permanent paused button that does
+nothing nine tenths of the time is rule 5 with an icon on it).
+
+It has to survive two things that each quietly undo it, and both were
+found by sabotage:
+  - the next arriving token, because updateStreamingBubble() calls
+    startPacedReveal() on every one of them;
+  - the handover from the streaming bubble to the settled one, which
+    re-renders from the transcript and would snap to full length.
+
+POCKETED IS NOT PAUSED, either. The counter advances while the chat is
+in your pocket; only the DOM write is skipped. Come back after a
+minute and you are where they have got to, not at the beginning.
+
+
+GUARD A, AND WHY IT IS NOT ENOUGH ON ITS OWN
+----------------------------------------------------------------
+npm test guard A: every ROLE_KEYS entry resolves to a positive rate in
+a readable range, no reveal function body contains `.length / <digit>`
+(comments stripped first, brace-matched bodies, and it fails if it
+read fewer bodies than it meant to), the rate reaches the typewriter,
+and the tick does not stop on d.minimized. Six sabotages, all six
+caught by the intended check.
+
+But guard A holds the SHAPE of the code. It could not have caught the
+quantisation, the orphaned timer, or TICK. So there is now a behaviour
+suite as well:
+
+test/live/speaking-pace.mjs - 15 checks against a FAKE OLLAMA on an
+ephemeral port (named in the save as the one connection, so it never
+fights the real Ollama for 11434 and never needs one installed).
+Everything above the endpoint is the shipped path. It measures
+characters actually on screen over time:
+
+  - a 1,000-char reply and a 115-char one reveal at the same cps
+    (ratio 1.00 - this single assertion IS the original bug)
+  - the Monk at his own 34, everyone else at 90
+  - the 20 s cap is a safety, measured separately, because measuring
+    the Monk on a 1,000-char reply measures the CAP (~50 cps) and not
+    his pace - two behaviours measured as one is how a wrong number
+    looks right
+  - the pocket, the hold, the handover, and one click still ends it
+
+TWO OF ITS OWN CHECKS WERE BORN DEAD and only sabotage found them:
+  - the pocket check used the default 200 ms stream, so the reply had
+    already LANDED before pocketing and the resume ran through a
+    different (already correct) mechanism. Restoring the freeze passed
+    clean. It needs a 9 s stream.
+  - the hold check resumed BEFORE the handover ever happened, so
+    removing `|| d.revealPaused` from the settle call passed clean.
+
+Both now fail on their sabotage. Ten sabotages this part, three born
+dead - the running count is eleven born-dead guards, and every one of
+them was found the same way.
+
+
+ALSO FIXED, AND NOT MINE
+----------------------------------------------------------------
+writing-desk.mjs hard-failed two checks whenever Ollama was down: the
+quick start only exists inside `el.innerHTML = aiOn ? ... : ...`, and
+the two checks directly below it already SKIPPED for exactly that
+reason. Failing here and skipping there taught nobody anything except
+to stop reading the result. They skip now, and say why.
+
+
+VERIFIED
+----------------------------------------------------------------
+npm test; speaking-pace (15/15) plus preflight, study-table, teacher,
+writing-desk, study-chain, carry-grounding, pocket, terminal; and
+packaged-boot, note-search, records, resident-reach in Electron.
+Screenshots read: a reveal caught mid-word, and the hold with
+"held - they are mid-sentence, nothing is lost" under a frozen cursor.
+
+DOCS: MANUAL.md gains the three controls (the reveal is user-facing,
+so it moves); CLAUDE.md's suite list gains speaking-pace and why it
+fakes the endpoint; the overlays.js line count corrected in the two
+places the derived guard caught.
+
+NEXT: Part 1b - note attribution (note.by, isAiNote, authorOf,
+currentUser), and guard B must FAIL on today's code before it is
+fixed, or it is vacuous. Then 1f (a reason on a published note),
+1c/1d/1e, and only then CLAUDE.md rule 9 - the charter is written
+AFTER the code, deliberately.

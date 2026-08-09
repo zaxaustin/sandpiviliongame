@@ -20,7 +20,7 @@ import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLab
          studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson } from './study-table.js';
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
-import { ROLES, rosterBlock, rosterForVisitor } from '../data/roles.js';
+import { ROLES, DEFAULT_PACE, rosterBlock, rosterForVisitor } from '../data/roles.js';
 import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data/reference.js';
 import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
@@ -238,6 +238,15 @@ export function advanceDialog(){
 export function closeDialog(){
   stopSpeaking();
   stopChatTyping();
+  /* A REVEAL BELONGS TO ONE CONVERSATION. paceTimer is module-level and used
+     to be stopped only by d.streaming going null at the end of the turn —
+     which meant walking out mid-reply left it ticking, and `if(paceTimer)
+     return` in startPacedReveal then blocked the NEXT conversation's reveal
+     while the orphan wrote the old reply's slice into the new bubble.
+     Measured 2026-08-09 in test/live/speaking-pace.mjs: the counter went
+     BACKWARDS, 190 chars to 30. The tick has its own state.dialog check as
+     well, because two ways to leave a conversation is two ways to leak. */
+  stopPacedReveal();
   const wasChat = state.dialog && state.dialog.chat;
   state.dialog=null;
   if(wasChat){
@@ -270,6 +279,7 @@ function updateDialogSpeakBtn(){
 const AGENT_AVATAR = { quill:'📜', steward:'🫖', monk:'🧘', computer:'💻', sebastian:'🎩', investigator:'🔬', tutor:'🎓' };
 export function openChatDialog(npc){
   document.getElementById('chatPhone').classList.remove('show','unread','thinking'); // clear any pocketed prior chat
+  stopChatTyping(); stopPacedReveal();   // never inherit the last conversation's reveal
   state.dialog={
     name:npc.name, agent:npc.aiAgent||'quill', color:npc.color, glow:npc.glow,
     chat:true, thinking:false,
@@ -292,19 +302,91 @@ export function openChatDialog(npc){
 // snapping in all at once, the "feels like it's actually being said"
 // texture the user asked for. Same interval-based approach as the Archive
 // Desk's typewriteBody(), just targeting one bubble instead of a whole page.
+//
+// IT TAKES A RATE, NOT A BUDGET. See DEFAULT_PACE in data/roles.js for the
+// bug this replaced: `step = floor(text.length/90)` meant a long reply was
+// revealed faster per word than a short one, and the same resident spoke at
+// two different speeds depending on whether you had pocketed the chat.
+/* A reveal is a texture, never a wait worth hanging a conversation on. This
+   is a deadline on the WAIT, not a division of the text — the rate stays the
+   rate right up until the bail, and then the rest simply arrives. The paced
+   streaming path below uses the same ceiling. */
+const REVEAL_CAP_MS = 20000;
 let chatTyping=null;
-function stopChatTyping(){ if(chatTyping){ clearInterval(chatTyping); chatTyping=null; } }
-function typewriteChatText(el,text,scrollEl){
+let chatTypeHead=0;   // how far the live typewriter has got — read by minimizeChat()
+function stopChatTyping(){ if(chatTyping){ clearInterval(chatTyping); chatTyping=null; } renderRevealControls(); }
+
+/* ---------- HOLDING A REPLY WHERE IT IS ----------
+   Asked for 2026-08-09: "we should be able to pause that speaking chain its
+   for users not for testing." Until now the reveal had exactly one control —
+   click the log and skip to the end — which is the ONLY control that cannot
+   express "wait, I am still reading that". A pace with a skip button and no
+   hold is a pace done TO the visitor, which is the opposite of the point.
+
+   The hold is one flag on the conversation, and both reveal paths (the
+   streaming counter and the settled typewriter) resume from the character it
+   was left on. Sending a new message clears it, because a held reveal with
+   nothing on screen to say so would be a button that does nothing (rule 5). */
+export function toggleRevealPause(){
+  const d=state.dialog; if(!d) return;
+  if(d.revealPaused){
+    d.revealPaused=false;
+    if(d.streaming) startPacedReveal(d);
+    else resumeTypewriter(d);
+  } else {
+    d._pausedAt = d.streaming ? (d.streaming.shown||0) : chatTypeHead;
+    d.revealPaused=true;
+    stopPacedReveal(); stopChatTyping();
+  }
+  renderRevealControls();
+  blip(d.revealPaused?420:620,.04,'sine',.03);
+}
+function resumeTypewriter(d){
+  const log=document.getElementById('chatLog'); if(!log) return;
+  const i=d.transcript.length-1, t=d.transcript[i];
+  if(!t || t.from!=='npc') return;
+  const el=log.querySelector(`.bubbleText[data-idx="${i}"]`);
+  if(el) typewriteChatText(el, t.text, log, paceOf(d.agent), d._pausedAt||0);
+}
+/* THE ROW IS ONLY THERE WHEN THERE IS SOMETHING TO HOLD. A permanently
+   visible ⏸ that does nothing nine tenths of the time is a button that does
+   nothing, which is this house's own failure mode. Called from every place a
+   reveal starts or stops rather than polled. */
+function renderRevealControls(){
+  const row=document.getElementById('chatRevealRow'); if(!row) return;
+  const d=state.dialog;
+  const live=!!(d && d.chat && (paceTimer || chatTyping || d.revealPaused));
+  row.style.display = live ? '' : 'none';
+  if(!live) return;
+  const btn=document.getElementById('chatPauseBtn');
+  const hint=document.getElementById('chatRevealHint');
+  if(btn) btn.textContent = d.revealPaused ? '▶ Carry on' : '⏸ Hold';
+  if(hint) hint.textContent = d.revealPaused
+    ? 'held — they are mid-sentence, nothing is lost'
+    : 'click the log to skip to the end';
+}
+/* THE HEAD IS COMPUTED FROM THE CLOCK, NOT ACCUMULATED PER TICK. Adding
+   `round(cps*TICK/1000)` characters every tick quantises the rate to whole
+   characters: at 34 cps and a 50 ms tick that rounds 1.7 up to 2, and the
+   Monk comes out at 40 — an 18% lie in the one number that is supposed to be
+   his character. Measured in test/live/speaking-pace.mjs. Reading the clock
+   also means a tick the browser was too busy to run costs nothing. */
+function typewriteChatText(el,text,scrollEl,cps,fromChar){
   stopChatTyping();
-  let i=0;
-  const step=Math.max(1,Math.floor(text.length/90)); // finishes in a beat regardless of reply length
-  el.textContent='';
+  const rate=Math.max(1, Number(cps)||DEFAULT_PACE);
+  const base=Math.max(0, Math.floor(Number(fromChar)||0)), t0=Date.now();
+  chatTypeHead=base;
+  if(base>=text.length){ el.textContent=text; return; }
+  const bailAt=t0+REVEAL_CAP_MS;
+  el.textContent=text.slice(0,base);
   chatTyping=setInterval(()=>{
-    i+=step;
-    if(i>=text.length){ el.textContent=text; stopChatTyping(); return; }
+    const i=base+Math.floor((Date.now()-t0)/1000*rate);
+    chatTypeHead=i;
+    if(i>=text.length || Date.now()>bailAt){ el.textContent=text; stopChatTyping(); return; }
     el.textContent=text.slice(0,i)+'▌';
     scrollEl.scrollTop=scrollEl.scrollHeight;
   },20);
+  renderRevealControls();
 }
 export function skipChatTyping(){
   /* One promise, both reveals: click the log and you are at the end. A paced
@@ -312,14 +394,17 @@ export function skipChatTyping(){
      texture — the words are already here, this only decides how fast you
      see them. */
   const d=state.dialog;
-  if(d && d.streaming && paceOf(d.agent) && (d.streaming.shown||0) < d.streaming.content.length){
+  // skipping ends the reveal, so it also ends a hold — otherwise the row
+  // would still read "held" over a bubble that is plainly finished
+  if(d) d.revealPaused=false;
+  if(d && d.streaming && (d.streaming.shown||0) < d.streaming.content.length){
     stopPacedReveal();
     d.streaming.shown=d.streaming.content.length;
     const el=document.getElementById('streamText');
     if(el) el.textContent=d.streaming.content;
     return;
   }
-  if(!chatTyping) return;
+  if(!chatTyping){ renderRevealControls(); return; }
   stopChatTyping();
   renderChatView();
 }
@@ -328,7 +413,12 @@ export function skipChatTyping(){
 // chat log on every token — cheap and smooth. If the bubble isn't built yet
 // (first token arrived before its render), fall back to a full render once.
 function updateStreamingBubble(d){
-  if(!d || !d.streaming || d.minimized) return;
+  if(!d || !d.streaming) return;
+  /* POCKETED IS NOT PAUSED. This used to return here on d.minimized, so the
+     reveal counter froze the moment you put the chat away and the reply was
+     dumped whole when you came back. The words keep being said while you walk
+     the grounds; the only thing that stops is writing to a hidden DOM. */
+  if(d.minimized){ startPacedReveal(d); return; }
   const txt=document.getElementById('streamText');
   if(!txt){ renderChatView(); return; }
   if(d.streaming.thinking){
@@ -341,31 +431,58 @@ function updateStreamingBubble(d){
      the REVEAL is held to a speaking rate. So nothing waits on the display,
      the reply is complete in memory the moment it is complete, and a visitor
      who does not want to watch can click the log to skip to the end. */
-  if(paceOf(d.agent)){ startPacedReveal(d); return; }
-  txt.textContent=d.streaming.content;
-  const log=document.getElementById('chatLog');
-  if(log) log.scrollTop=log.scrollHeight;
+  startPacedReveal(d);
 }
-/* ----- speaking at the pace of speech (data/roles.js `pace`) ----- */
-function paceOf(agentKey){ const r=ROLES[agentKey]; return (r && Number(r.pace)) || 0; }
+/* ----- speaking at the pace of speech (data/roles.js `pace`) -----
+   EVERY resident resolves to a positive rate. This used to return 0 for
+   everyone but the Monk, and 0 meant "not paced" — which is why the other
+   six fell through to the per-reply budget. There is one reveal path now,
+   and a role's own `pace` only says whether it is slower or faster than the
+   house rate. */
+function paceOf(agentKey){
+  const own=Number((ROLES[agentKey]||{}).pace);
+  return own>0 ? own : DEFAULT_PACE;
+}
+/* HOW FAR IN THEY WOULD BE BY NOW. A reply that landed while the chat was
+   pocketed has been "being said" the whole time you were away — coming back
+   after a minute must not re-perform it from the first character. A rate in
+   real time, not a performance that restarts when you look. */
+function revealHead(d){
+  if(!d) return 0;
+  if(d.revealPaused) return d._pausedAt||0;   // a hold survives the handover
+  const at=d._landedAt;
+  if(!at) return 0;
+  return Math.floor((d._landedShown||0) + (Date.now()-at)/1000*paceOf(d.agent));
+}
 let paceTimer=null;
-function stopPacedReveal(){ if(paceTimer){ clearInterval(paceTimer); paceTimer=null; } }
+function stopPacedReveal(){ if(paceTimer){ clearInterval(paceTimer); paceTimer=null; } renderRevealControls(); }
 function startPacedReveal(d){
   if(paceTimer) return;                       // already draining this reply
-  const cps=paceOf(d.agent); if(!cps) return;
-  const TICK=50, per=Math.max(1, Math.round(cps*TICK/1000));
+  /* HELD MEANS HELD. Tokens keep arriving while the visitor is reading, and
+     updateStreamingBubble() calls this on every one of them — without this
+     line the next token would quietly restart the reveal they just stopped. */
+  if(d.revealPaused){ renderRevealControls(); return; }
+  // same clock, same reason as typewriteChatText above
+  const cps=paceOf(d.agent), base=(d.streaming&&d.streaming.shown)||0, t0=Date.now();
   paceTimer=setInterval(()=>{
     const s=d.streaming;
-    if(!s || d.minimized){ stopPacedReveal(); return; }
-    s.shown=Math.min((s.shown||0)+per, s.content.length);
-    /* re-queried every tick: any full render detaches the old node, and
-       writing into a detached element is the silent-nothing failure. */
-    const el=document.getElementById('streamText');
-    if(el) el.textContent=s.content.slice(0, s.shown);
-    const log=document.getElementById('chatLog');
-    if(log) log.scrollTop=log.scrollHeight;
+    // this reveal's own conversation, or none: see closeDialog()
+    if(!s || state.dialog!==d){ stopPacedReveal(); return; }
+    s.shown=Math.min(base+Math.floor((Date.now()-t0)/1000*cps), s.content.length);
+    /* THE COUNTER ADVANCES WHETHER OR NOT ANYONE IS LOOKING — only the DOM
+       write is skipped while pocketed. That is the whole of "one rate": the
+       reveal is a clock, not a performance waiting for an audience. */
+    if(!d.minimized){
+      /* re-queried every tick: any full render detaches the old node, and
+         writing into a detached element is the silent-nothing failure. */
+      const el=document.getElementById('streamText');
+      if(el) el.textContent=s.content.slice(0, s.shown);
+      const log=document.getElementById('chatLog');
+      if(log) log.scrollTop=log.scrollHeight;
+    }
     if(s.done && s.shown>=s.content.length) stopPacedReveal();
-  }, TICK);
+  }, 50);
+  renderRevealControls();
 }
 /* Let the last words finish before the bubble is replaced by the final
    render — otherwise the reply snaps to full length at the moment it lands,
@@ -373,11 +490,15 @@ function startPacedReveal(d){
    never worth hanging a conversation on. */
 function finishPacedReveal(d){
   const s=d && d.streaming;
-  if(!s || !paceOf(d.agent) || d.minimized){ stopPacedReveal(); return Promise.resolve(); }
+  if(!s) { stopPacedReveal(); return Promise.resolve(); }
   s.done=true;
+  /* Pocketed: mark it finished but do not stall the turn on a reveal nobody
+     is watching. The counter is left where it is and restoreChat() carries on
+     from there — see revealHead(). */
+  if(d.minimized) return Promise.resolve();
   if((s.shown||0)>=s.content.length){ stopPacedReveal(); return Promise.resolve(); }
   startPacedReveal(d);
-  const capMs=Math.min(20000, (s.content.length-(s.shown||0))/Math.max(1,paceOf(d.agent))*1000+500);
+  const capMs=Math.min(REVEAL_CAP_MS, (s.content.length-(s.shown||0))/paceOf(d.agent)*1000+500);
   return new Promise(res=>{
     const done=()=>{ clearInterval(poll); clearTimeout(bail); res(); };
     const poll=setInterval(()=>{ if(!paceTimer || !d.streaming) done(); }, 60);
@@ -393,7 +514,13 @@ function finishPacedReveal(d){
    state.dialog stays alive the whole time — only the overlay is hidden. */
 export function minimizeChat(){
   const d=state.dialog; if(!d||!d.chat) return;
-  stopSpeaking(); stopChatTyping();
+  stopSpeaking();
+  /* POCKETED MID-SENTENCE. Remember where they had got to and when, so
+     restoreChat() carries the reveal on from there instead of dumping the
+     remainder into the log. The streaming path keeps its own counter
+     (s.shown) and needs nothing here. */
+  if(chatTyping){ d._landedWhilePocketed=true; d._landedAt=Date.now(); d._landedShown=chatTypeHead; }
+  stopChatTyping();
   d.minimized=true;
   document.getElementById('chatOv').classList.remove('open');
   renderChatPhone();
@@ -405,9 +532,10 @@ export function restoreChat(){
   d.minimized=false; d.unread=false;
   document.getElementById('chatPhone').classList.remove('show','unread','thinking');
   document.getElementById('chatOv').classList.add('open');
-  // if a reply arrived while pocketed, reveal it with the same typewriter
+  // if a reply arrived while pocketed, reveal it with the same typewriter —
+  // picking up at revealHead(), not starting the reply over
   renderChatView(d._landedWhilePocketed?{typeLast:true}:undefined);
-  d._landedWhilePocketed=false;
+  d._landedWhilePocketed=false; d._landedAt=0; d._landedShown=0;
   setTimeout(()=>document.getElementById('chatInput').focus(),30);
   blip(700,.05,'square',.03);
 }
@@ -462,9 +590,14 @@ function renderChatView(opts){
     // and a thinking model's reasoning shows open above it (#streamThinking),
     // both patched in place by updateStreamingBubble() as tokens arrive.
     const th=d.streaming.thinking;
+    /* SLICED TO THE REVEAL, not the buffer. A full render mid-stream — which
+       is what restoreChat() does when you come back to a reply still arriving
+       — used to paint the whole of `content` and undo the pace in one frame.
+       The counter is the truth about what has been said. */
+    const said=d.streaming.content.slice(0, d.streaming.shown||0);
     bubbles.push(`<div class="bubble npc"><div class="who">${esc(d.name)}</div>`
       +`<details class="thought" open id="streamThought"${th?'':' style="display:none"'}><summary>💭 thinking…</summary><span id="streamThinking">${esc(th||'')}</span></details>`
-      +`<span class="bubbleText" id="streamText">${esc(d.streaming.content)}</span><span class="streamCursor">▌</span></div>`);
+      +`<span class="bubbleText" id="streamText">${esc(said)}</span><span class="streamCursor">▌</span></div>`);
   } else if(d.thinking){
     bubbles.push(`<div class="bubble npc thinking"><div class="who">${esc(d.name)}</div>…</div>`);
   }
@@ -473,8 +606,15 @@ function renderChatView(opts){
   if(opts&&opts.typeLast){
     const lastIdx=d.transcript.length-1;
     const target=log.querySelector(`.bubbleText[data-idx="${lastIdx}"]`);
-    if(target) typewriteChatText(target,d.transcript[lastIdx].text,log);
+    const text=d.transcript[lastIdx].text;
+    /* A HOLD SURVIVES THE HANDOVER. When a streamed reply finishes, the
+       streaming bubble is replaced by the settled one — and re-running the
+       typewriter there would restart a reveal the visitor had deliberately
+       stopped. Paint where they left it and wait for ▶. */
+    if(target && d.revealPaused) target.textContent=text.slice(0, revealHead(d));
+    else if(target) typewriteChatText(target,text,log,paceOf(d.agent),revealHead(d));
   } else stopChatTyping();
+  renderRevealControls();
   const notesArea=document.getElementById('chatNotesArea');
   if(document.activeElement!==notesArea){
     notesArea.value=data.chatNotes[d.agent]||'';
@@ -1043,13 +1183,18 @@ export function butlerPingGo(){ dismissButlerPing(); calSelectDay(todayKey()); }
 async function sendChatMessage(q, sendOpts){
   const d=state.dialog; if(!d||!d.chat) return;
   const agent=CHAT_AGENTS[d.agent]||CHAT_AGENTS.quill;
+  /* A HOLD IS ON ONE REPLY, NOT ON THE CONVERSATION. Asking again is plainly
+     "I am done with that one" — and a hold carried into the next reply would
+     be a reveal frozen at zero with the ⏸ row explaining a reply nobody can
+     see yet, which is a button that does nothing wearing an explanation. */
+  d.revealPaused=false; d._pausedAt=0;
   d.transcript.push({from:'user',text:q});
   d.history.push({role:'user',content:q});
   // Live streaming when the connected provider supports it (local Ollama) and
   // we're not pocketed — the reply, and the Monk's reasoning, reveal as they
   // generate instead of after the fact. Otherwise the classic "…" wait.
   const useStream = isAIActive() && !!AI.supportsStream && !d.minimized;
-  if(useStream){ d.streaming={content:'',thinking:''}; d.thinking=false; }
+  if(useStream){ d.streaming={content:'',thinking:'',shown:0}; d.thinking=false; }
   else { d.thinking=true; }
   renderChatView();
   let streamed=false;
@@ -1111,18 +1256,26 @@ async function sendChatMessage(q, sendOpts){
   }
   // let a paced resident finish saying it before the bubble is replaced
   await finishPacedReveal(d);
-  d.thinking=false; d.streaming=null;
+  // how far into the reply the reveal had got — carried across the handover
+  // from the streaming bubble to the final one, so a pocketed reply resumes
+  // rather than restarts (see revealHead()).
+  const shownSoFar=(d.streaming && d.streaming.shown)||0;
+  if(d.revealPaused) d._pausedAt=shownSoFar;   // hold it exactly where they stopped it
+  d.thinking=false; d.streaming=null; stopPacedReveal();
   if(d.minimized){
     // the visitor pocketed the phone and walked off — don't type into a
     // hidden overlay; buzz the floating card and reveal it on return
     d.unread=true; d._landedWhilePocketed=true;
+    d._landedAt=Date.now(); d._landedShown=shownSoFar;
     renderChatPhone();
     blip(880,.08,'sine',.04); setTimeout(()=>blip(1120,.08,'sine',.04),110);
   } else {
     // if it streamed in live, the text is already fully shown — just settle
     // it into a final bubble (with the collapsed thought); otherwise reveal
-    // the buffered reply with the usual typewriter.
-    renderChatView({typeLast: !streamed});
+    // the buffered reply with the usual typewriter. A held reveal takes the
+    // typeLast branch either way, so the settled bubble is painted to the
+    // character it was held on rather than snapping to full.
+    renderChatView({typeLast: !streamed || !!d.revealPaused});
   }
 }
 document.getElementById('dialog').addEventListener('pointerdown',e=>{
@@ -13190,7 +13343,7 @@ Object.assign(window, {
   forgetMemoryItem, forgetAllMemory,
   openLocalAIPanel, renderLocalAIPanel,
   openStorage, copyStorageCommand, setBookCap,
-  closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, minimizeChat, restoreChat,
+  closeDialog, sendCurrentChatMessage, toggleChatSpeak, skipChatTyping, toggleRevealPause, minimizeChat, restoreChat,
   openBadges, openRecordsHall, recordOpen, openIndex, setIndexCategory, setIndexSearch, clearIndexSearch, openIndexItem,
   openCatalog, catalogOpen,
   openCalendar, calShiftMonth, calSelectDay, calBackToMonth, addCalendarEvent, removeCalendarEvent,
