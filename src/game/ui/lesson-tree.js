@@ -1047,6 +1047,12 @@ export function saveMyLesson(existingId){
   const i=list.findIndex(x=>x.id===existingId);
   if(i>=0) list[i]=node; else list.unshift(node);
   persist(); logActivity((i>=0?'Rewrote':'Wrote')+' a lesson: "'+title+'".'); blip(660,.08); setTimeout(()=>blip(825,.09),90);
+  /* WRITING SOMETHING OF YOUR OWN EARNED NOTHING UNTIL 2026-08-09. This file
+     imported awardBadge from the day it was written and never called it, while
+     "you stopped being a reader of someone else's thing" is the hinge of the
+     whole place. Only awarded on a NEW lesson — rewriting one is editing, not
+     a first. */
+  if(i < 0) awardBadge('first-lesson');
   state.treeView={mode:'lesson', id:node.id}; renderLearningTree();
 }
 export function deleteMyLesson(id){

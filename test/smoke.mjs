@@ -5440,6 +5440,125 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- A BADGE MEANS WHAT ITS DESCRIPTION SAYS ----------
+   2026-08-09. Written while building the tutorial on top of badges, which is
+   when it became load-bearing that a badge is TRUE — a stage that says "now
+   write a note beside a book" is worthless if the badge proving it can be
+   earned three rooms away.
+
+   THERE WAS NO BADGE GUARD AT ALL BEFORE THIS. That is why four inaccuracies
+   accumulated unnoticed:
+
+     first-note   awarded from FOUR sites, one of them planting a bequest in
+                  the Inheritance Hall, under the description "add a note to a
+                  book in the Reader"
+     first-plan   only ever fired from savePlanner(announce), never the
+                  autosave — so typing an intention and walking away earned
+                  nothing while the description promised otherwise
+     first-page   "from any Library shelf", fired from openReader(), which is
+                  reachable from about twenty places
+     (and)        nothing whatsoever awarded writing your own lesson, though
+                  ui/lesson-tree.js had imported awardBadge since the day it
+                  was written
+
+   THE COUNT TABLE IS THE POINT. "Every badge has a call site" would have
+   passed on all four of those. What catches a badge quietly acquiring a fifth
+   meaning is knowing how many places award it and failing when that changes. */
+{
+  const { BADGES } = await import('../src/game/data/badges.js');
+  const files = ['entities.js', 'main.js', 'ui/overlays.js', 'ui/daily-tasks.js',
+                 'ui/lesson-tree.js', 'ui/study-table.js', 'ui/residents.js'];
+  const bodies = {};
+  for (const f of files) {
+    try {
+      bodies[f] = readFileSync(new URL('../src/game/' + f, import.meta.url), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    } catch (e) { /* not every path exists forever */ }
+  }
+  const all = Object.values(bodies).join('\n');
+  /* The definition and the dispatcher are not award sites. */
+  const awards = [...all.matchAll(/awardBadge\(\s*'([^']+)'/g)].map(m => m[1]);
+  const ids = new Set(BADGES.map(b => b.id));
+
+  if (BADGES.length < 17) {
+    fail(`data/badges.js has ${BADGES.length} badges — there were 19 when this guard was written. `
+       + 'Badges are never revoked, so a shrinking list means one was deleted out from under a save.');
+  }
+  for (const b of BADGES) {
+    if (!awards.includes(b.id)) {
+      fail(`badges.js declares '${b.id}' and nothing awards it — a locked row in the Badges panel `
+         + 'describing something no code can ever grant');
+    }
+    if (!b.desc || b.desc.length < 12) fail(`badges.js: '${b.id}' has no usable description`);
+  }
+  for (const a of awards) {
+    if (!ids.has(a)) {
+      fail(`awardBadge('${a}') names a badge that does not exist in BADGES — awardBadge() silently `
+         + 'no-ops on an unknown id, so this is a button that appears to do something and does not');
+    }
+  }
+
+  /* --- HOW MANY PLACES AWARD EACH ONE. Hand-written on purpose: changing a
+     number here is the moment to ask whether the badge still means one thing. */
+  const EXPECTED = {
+    'first-steps':1, 'first-menu':1, 'first-word':1, 'first-page':1, 'first-cast':1,
+    'first-plan':1, 'first-course':1, 'first-entry':1, 'first-waypoint':1, 'first-carry':1,
+    'first-note':3,          // Notes Log, the Writing Desk, and beside a book
+    'first-book-note':1,     // writeBookNote() ONLY — the tutorial leans on this
+    'first-lesson':1,        // saveMyLesson() ONLY
+    'first-task':1, 'five-tasks':1, 'twentyfive-tasks':1,
+    'streak-3':1, 'streak-7':1, 'streak-30':1,
+  };
+  for (const id of Object.keys(EXPECTED)) {
+    const n = awards.filter(a => a === id).length;
+    if (n !== EXPECTED[id]) {
+      fail(`'${id}' is awarded from ${n} place(s); this guard expects ${EXPECTED[id]}. If that is a `
+         + 'deliberate change, update the table here AND check the description is still true of every '
+         + 'one of them — first-note said "add a note to a book in the Reader" while being awarded for '
+         + 'planting a bequest in the Inheritance Hall.');
+    }
+  }
+  for (const id of ids) {
+    if (!(id in EXPECTED)) {
+      fail(`badges.js declares '${id}' and the call-site table in smoke.mjs does not mention it — a new `
+         + 'badge has to say how many places award it, or it can quietly acquire a second meaning');
+    }
+  }
+
+  /* --- the two the tutorial depends on live in exactly one function each --- */
+  const pinned = [
+    ['first-book-note', 'ui/overlays.js', 'writeBookNote'],
+    ['first-lesson',    'ui/lesson-tree.js', 'saveMyLesson'],
+  ];
+  for (const [id, file, fn] of pinned) {
+    const src = bodies[file] || '';
+    const at = src.search(new RegExp('(?:export\\s+)?(?:async\\s+)?function\\s+' + fn + '\\s*\\('));
+    if (at < 0) { fail(`smoke: cannot find ${fn}() in ${file} — the badge pin is watching nothing`); continue; }
+    let i = src.indexOf('{', at), depth = 0, end = i;
+    for (; end < src.length; end++) {
+      if (src[end] === '{') depth++;
+      else if (src[end] === '}') { depth--; if (!depth) break; }
+    }
+    if (!src.slice(i, end + 1).includes(`awardBadge('${id}')`)) {
+      fail(`'${id}' is not awarded inside ${fn}(). It is the single fact a tutorial stage reads, so it `
+         + 'has to be granted by the one act it names and by nothing else.');
+    }
+  }
+
+  /* --- and the planting site stays gone --- */
+  const ov = bodies['ui/overlays.js'] || '';
+  const plant = ov.search(/function\s+createPlanting\s*\(/);
+  if (plant >= 0) {
+    let i = ov.indexOf('{', plant), d = 0, e = i;
+    for (; e < ov.length; e++) { if (ov[e] === '{') d++; else if (ov[e] === '}') { d--; if (!d) break; } }
+    if (/awardBadge\(/.test(ov.slice(i, e + 1))) {
+      fail('createPlanting() awards a badge again. It awarded first-note until 2026-08-09 — "add a note '
+         + 'to a book in the Reader" for planting a bequest — which let a tutorial stage be satisfied by '
+         + 'an unrelated act in another room. A planting badge of its own would be fine; this is not.');
+    }
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list

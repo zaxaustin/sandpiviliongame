@@ -3992,6 +3992,11 @@ function writeBookNote(slug, text, view, page){
   const d=Store.getDoc(slug);
   logActivity('Added a note to "'+(d?d.title:slug)+'".');
   awardBadge('first-note');
+  /* THE ONE PRECISE BADGE, and its only call site anywhere. writeBookNote() is
+     already the single path both the Reader and the Writing Desk's book-note
+     button take, so "a note beside a book" means exactly this and nothing else.
+     npm test pins it to this function body. */
+  awardBadge('first-book-note');
   return note;
 }
 export function addBookNote(slug){
@@ -10260,7 +10265,13 @@ export function createPlanting(){
   }
   g.plantings.push(pl); persist();
   logActivity('Planted "'+title+'" in the Inheritance Hall.');
-  awardBadge('first-note'); blip(523,.09); setTimeout(()=>blip(659,.11),95);
+  /* NO awardBadge('first-note') HERE. It was awarded from this line until
+     2026-08-09, for a badge whose own description reads "add a note to a book
+     in the Reader" — planting a bequest is a different act in a different room,
+     and it meant the tutorial's note stage could be ticked in advance by
+     someone who had never opened a book. If the Hall wants a first-planting
+     toast of its own that is a separate decision, not this one. */
+  blip(523,.09); setTimeout(()=>blip(659,.11),95);
   state.groveView={mode:'one',id:pl.id}; renderGrove();
 }
 export function plantSeedFromPouch(seedId){
