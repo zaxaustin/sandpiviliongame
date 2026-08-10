@@ -143,12 +143,25 @@ function asideRow(a){
    tutorial existed, can re-read any stage after features drift without
    having to undo his own save to get at it. That was the second reason
    this thing exists at all. */
-function doneRow(st){
+function doneRow(st, s){
   const ev = st.beats.filter(b => b.done).map(b => b.text.toLowerCase()).join(' · ');
+  const grad = (s && s.tutorial && s.tutorial.graduated) || null;
+  /* STAGE 5 KEEPS ITS SENTENCE AFTER IT IS DONE. Found 2026-08-10 by the
+     stages 2-5 suite on its first run: once you graduate, currentStage() is 6,
+     no stage is `current`, and stage 5 fell through to this collapsed row —
+     so "Missions are not built" vanished at precisely the moment a person
+     might believe they had unlocked something. The disclaimer is worth least
+     while it is hypothetical and most once the thing has happened. */
+  const record = (st.n === STAGE_COUNT && grad)
+    ? `<div class="card" style="cursor:default;margin-top:8px;border-color:#7fa36b">
+        <div class="t">✓ Recorded — ${esc(grad.on)}</div>
+        <div class="s" style="margin-top:4px">${esc(MISSIONS_NOT_BUILT)}</div>
+      </div>` : '';
   return `<details class="card" style="cursor:default;opacity:.78">
     <summary style="cursor:pointer;color:#7fa36b">✓ ${st.n} · ${esc(st.title)}${ev ? ' — ' + esc(ev) : ''}</summary>
     <div class="s" style="margin-top:6px">${esc(st.why)}</div>
     ${(st.asides||[]).map(asideRow).join('')}
+    ${record}
   </details>`;
 }
 
@@ -160,7 +173,7 @@ export function renderTutorial(){
   const done = stages.filter(x => x.done).length;
 
   const body = stages.map(st => {
-    if(st.done) return doneRow(st);
+    if(st.done) return doneRow(st, s);
     /* ONE NEXT THING AT A TIME. A stage that is not reached yet is
        named by number and nothing else — its title, its beats and its
        reasoning are not described until it is the one in front of you. */

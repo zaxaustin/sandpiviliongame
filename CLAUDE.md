@@ -395,6 +395,7 @@ node test/live/writing-desk.mjs            # the desk, the picker, one thread ea
 node test/live/study-chain.mjs             # note→lesson→a path you walk→Today
 node test/live/speaking-pace.mjs           # one reveal RATE, the hold, the pocket
 node test/live/ai-diagnosis.mjs            # four AI failures, four DIFFERENT sentences
+node test/live/tutorial-stages.mjs         # stages 2-5, and the Stage 5 checklist
 node test/live/note-authorship.mjs         # the prompt read off the wire — whose words
 node test/live/publish-reason.mjs          # the outlet, and the packet round trip
 node test/live/lab.mjs  bench.mjs  bundle.mjs  librarian-safety.mjs  backend.mjs
