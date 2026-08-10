@@ -443,10 +443,32 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 >   set up Ollama before pressing Enter never saw the welcome panel, ever) and
 >   `the-day.js`'s day-one fallback, wrong for the second time since the seed
 >   emptied.
-> - **NEXT — a person who is not the steward walks Stage 1 cold.** The suite
->   proves the state transitions; it cannot prove it felt like theirs. Same
->   category as the never-done clean-machine install, and it is now the gate.
->   Then `docs/BETA-READINESS.md`, then a build.
+> - **DONE — `docs/BETA-READINESS.md`.** Every number measured. Read it before
+>   deciding to cut anything; it leads with *"the code is ready, the evidence
+>   that a stranger can use it is not."* `verify:release` is **red on purpose**
+>   (the installer is 36 source files behind) and `plans/SHIPPING-THE-BETA.md`
+>   now says so, because being deliberate in one person's head is not being
+>   deliberate.
+>
+> **⛳ NEXT IS NOT CODE. It is the steward's, and it is the gate:**
+>
+> 1. **A person who is not the steward walks Stage 1 cold on a fresh install.**
+>    The suites prove the state transitions; they cannot prove it felt like
+>    theirs or took ten minutes. Same category as the never-done clean-machine
+>    install, and together those two decide whether this is a beta or a demo.
+> 2. **The taste pass** on the three things no test settles: whether 34 cps
+>    *feels* like speech, whether the ⏸ hold sits where a hand reaches, and
+>    whether a hand-written and an AI note are tellable apart while actually
+>    reading rather than in a screenshot.
+> 3. **The welcome packet** — the steward's own. Stage 1 beat one is the seam:
+>    one function body, and nothing else changes when it lands.
+>
+> **Only then:** `build:beta` → `electron:build:beta` (**never plain
+> `electron:build`**) → `packaged-boot.cjs` → `verify:release` green → tag.
+>
+> **Do not start a new feature before those.** Everything buildable toward this
+> beta is built; adding more only widens the gap between what is tested and
+> what is known to work for a person.
 > - **(superseded) the tutorial was "decided and costed but not started"**.
 > - **The `overlays.js` split is OFF the critical path** for the beta, on
 >   Grok's advice — see [`plans/OVERLAYS-SPLIT-PLAN.md`](plans/OVERLAYS-SPLIT-PLAN.md).
