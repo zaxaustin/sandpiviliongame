@@ -2326,3 +2326,161 @@ preflight, every-room, backpack. Screenshots read.
 
 NEXT: the tutorial. Five stages on data/badges.js, and the steward has
 notes to add before it starts.
+
+
+================================================================
+PART FIFTEEN - "NO LOCAL AI DETECTED" WAS THE ANSWER TO SIX
+DIFFERENT PROBLEMS
+================================================================
+
+Not planned. Found by losing an evening to it, mid-session, on the
+steward's own machine - which is the only reason it is fixed.
+
+
+WHAT HAPPENED
+----------------------------------------------------------------
+The residents went silent. Ollama was running (two processes, port
+answering, HTTP 200). `ollama list` was EMPTY while 19 GB of models
+sat on disk.
+
+Cause one: the desktop app's model folder had been changed to
+  ...\.ollama\models\manifests\registry.ollama.ai\library
+- the library SUBFOLDER instead of the models root. Ollama therefore
+looked for models inside a directory that only ever held manifests,
+found none, and reported "total blobs: 0". A pull that died at 17:09
+had been writing blobs/ and manifests/ INTO the manifests tree, which
+is how it was spotted - relative to its (wrong) root it was doing
+exactly the right thing.
+
+Proved rather than guessed: started a second ollama serve on an
+ephemeral port with OLLAMA_MODELS set correctly. Six models, instantly.
+
+The steward fixed the path. IT STILL DID NOT WORK.
+
+Cause two, and this is the one worth the guard: his save had no
+ENABLED connection. detectAI() iterates
+
+    (connections||[]).filter(c => c.enabled !== false)
+
+so the loop body never ran, NOT ONE REQUEST WAS MADE, and no log
+anywhere - ours, Ollama's, the browser's - recorded a failure. The
+decisive evidence was Ollama's own request log showing FOUR requests
+since the restart, all four of them mine. His app had never asked.
+
+From the outside, "no enabled connection" and "dead server" are
+indistinguishable. Both produce silence and one identical sentence.
+
+
+THE REAL FINDING IS OURS
+----------------------------------------------------------------
+Telling those two apart took a request log, a second Ollama on a spare
+port, and an Electron probe against the real main process (the first
+probe was wrong too - it built its own window without loading
+main.cjs, so every desktop-fetch came back "No handler registered",
+which was the probe's bug and not the app's).
+
+A tester will do none of that. They will write "the AI doesn't work"
+and stop. And the app KNEW which state it was in the whole time -
+isAvailable() computes all of it and threw it away.
+
+Six states, six different fixes, one sentence for all of them:
+
+  NONE_ENABLED  nothing switched on - zero network calls
+  NO_ANSWER     nothing listening, or the wrong port
+  NO_MODELS     answered, empty list - install, OR a bad model folder
+  CLOUD_ONLY    only hosted models, none ever auto-picked
+  NO_KEY        a cloud connection with no key
+  BAD_KEY       401/403
+  (+ NO_ADDRESS, UNKNOWN)
+
+RULE 6 IS WHY NO_MODELS NAMES TWO CAUSES. From inside the app an empty
+/api/tags is identical whether nothing is installed or the folder is
+misconfigured. Saying both, and saying we cannot tell, beats guessing
+- and the second cause is the one that cost the evening.
+
+
+THE SHAPE OF THE FIX
+----------------------------------------------------------------
+isAvailable() stamps p.trouble on the way to returning false - the
+same side-channel shape lastThinking and lastElapsedMs already use.
+detectAI() collects them in order and exposes lastDetect();
+aiTroubleLine() renders one sentence from the AI_TROUBLE table.
+
+TWO SURFACES, NOT ELEVEN. The Connections panel (where a person goes
+to fix it) and the title-screen status line. The nine "No local AI
+connected - manage AI connections" messages scattered through the
+rooms are answering a DIFFERENT question - "can this feature run?" -
+and the answer is correctly the same for all six states. They were
+left alone. A guard fails if they grow past twelve, because nine
+near-identical sentences is its own problem and will want one helper,
+not a tenth copy.
+
+
+THE GUARD, AND TWO BORN DEAD ON FIRST SABOTAGE
+----------------------------------------------------------------
+Derived from AI_TROUBLE: every state has a say() and a fix, every
+sentence is >= 25 chars, NO TWO STATES PRODUCE THE SAME STRING (that
+last one IS the bug), NO_MODELS names both causes, detectAI records
+NONE_ENABLED, and both surfaces render it.
+
+Five sabotages. Three caught first time; two were born dead:
+
+  - "the panel never shows it" PASSED, because the check asked whether
+    aiTroubleLine() was CALLED. It was - the result just went nowhere,
+    with static text rendered instead. Checking the word, not the
+    statement, for the twelfth time. Now: find the variable the call
+    is assigned to and require THAT to reach the output.
+  - "detectAI discards the reason" PASSED, because the check tested
+    for the presence of `lastDetectInfo =` and the empty-list branch
+    still had one. Now: three outcomes, three writes, counted.
+
+And then the corrected check FAILED ON CORRECT CODE - it required
+`${...why...}` while refreshAIStatus() builds its line with
+`+ esc(why)`. Fifth time in this project a red result was the guard
+rather than the code. Diagnose before believing.
+
+
+test/live/ai-diagnosis.mjs
+----------------------------------------------------------------
+14 checks. A fake Ollama whose /api/tags answer is chosen per case,
+plus a port deliberately bound and released so nothing is listening on
+it. Each case is its OWN PAGE, because detectAI() runs at boot and the
+question is what a person sees on arrival, not after a recheck.
+
+It asserts the four sentences are actually different ON SCREEN - the
+npm test guard holds the table, this holds what is rendered - and that
+a working connection is announced rather than diagnosed.
+
+Screenshot read: the panel in the steward's exact state now leads with
+"o No AI is answering - switch one on / Nothing is switched on to try,
+so nothing was contacted at all. Enable a connection below." with the
+connection showing `off` and an Enable button directly beneath it.
+That would have ended the whole evening in ten seconds.
+
+
+VERIFIED
+----------------------------------------------------------------
+npm test (5 sabotages); ai-diagnosis 14/14; preflight, speaking-pace,
+note-authorship, publish-reason, every-room, terminal; packaged-boot
+in Electron. MANUAL's troubleshooting table now leads with "open the
+panel and read the top card" and lists the four states by their real
+sentences.
+
+
+UNRELATED, AND WORTH CHASING NEXT
+----------------------------------------------------------------
+From the same Ollama log, two things about the Arc A770 that would
+explain a model pinning the card:
+
+  library=Vulkan ... OLLAMA_VULKAN:true
+  OLLAMA_CONTEXT_LENGTH:16384
+  "vram-based default context" total_vram="15.9 GiB" default_num_ctx=4096
+
+Ollama is on the VULKAN backend rather than Intel's native SYCL/oneAPI
+path, and OLLAMA_CONTEXT_LENGTH is set to 16384 - four times what
+Ollama itself computed for this card. Context length drives the KV
+cache directly, so every model runs with 4x the memory pressure it
+would otherwise. Not investigated; recorded so it is not lost.
+
+NEXT: the tutorial (Part B of the plan - five stages, decided and
+costed, not started), after the steward's own beta testing.

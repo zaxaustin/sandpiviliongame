@@ -915,9 +915,16 @@ without it. Nothing you have moves anywhere without you.
 
 ## 9. When something's off — the short list
 
+**Before this table: open ⚙ Manage AI connections and read the top card.** It
+says which of these you are actually in, in a sentence, rather than making you
+guess. That is the whole reason it is there — see below.
+
 | Symptom | Almost always |
 | --- | --- |
-| "No local AI detected" | Ollama isn't running — check the system tray / `ollama serve`. In a *browser*, also the `OLLAMA_ORIGINS` step (the desktop app doesn't need it) |
+| **"Nothing is switched on to try"** | You have connections listed but none **enabled**. Press **Enable** on one. Nothing was contacted at all, so nothing anywhere logged a failure — this one is invisible from the outside, which is why the panel now says it out loud |
+| **"Nothing answered at …"** | Ollama isn't running — check the system tray / `ollama serve` — or it is on a different port than the one shown. In a *browser*, also the `OLLAMA_ORIGINS` step (the desktop app doesn't need it) |
+| **"answered, but reports no models"** | Either no model is installed (`ollama pull llama3.2`) **or** Ollama's model folder is pointing somewhere wrong. From inside the Pavilion those look identical, so check both — the second one is easy to do by accident and leaves your models on disk but invisible |
+| **"only hosted models installed"** | The models you have all run on someone else's servers. None is ever picked for you, because that would send your conversation off this device without you choosing it. Pick one deliberately in the model list, or `ollama pull llama3.2` for a local one |
 | A reply takes minutes or comes back blank | A "thinking" model — watch it stream, or pull a plain one (`llama3.2`) for everyday residents |
 | A resident answers slowly in general | Model too big for the machine — drop one tier (Protocol 2's table) |
 | "Read the full text" says it can't load | A personal book shelved in the desktop app is being opened somewhere its file isn't — read it in the desktop app |

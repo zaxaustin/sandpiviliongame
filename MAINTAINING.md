@@ -423,11 +423,22 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 >   `data/daily-tasks.js` now records it as a stated exception.
 > - **DONE — rule 9 is written**, and written LAST on purpose. Guards A, B and D
 >   in `npm test`, each broken on purpose.
-> - **NEXT — the tutorial (Part 3)**, five stages built on `data/badges.js`.
->   Also queued, found live 2026-08-09: **the Connections panel says the same
->   sentence for four different AI failures** — nothing on the port, no models,
->   misconfigured, or no *enabled* connection. That last one makes zero network
->   calls, so nothing anywhere records a failure. Rules 5 and 6 both.
+> - **DONE — the app says WHICH AI failure it is.** Found by losing an evening to
+>   it: *"no local AI detected"* was the answer to **six** different problems.
+>   `AI_TROUBLE` in `ai/provider.js` is the table; `isAvailable()` stamps
+>   `p.trouble` on its way out, `detectAI()` collects it, and **two** surfaces
+>   render it — the Connections panel and the title line. The nine
+>   *"this feature needs an AI"* messages in the rooms answer a different
+>   question and are deliberately untouched. `NO_MODELS` names **two** causes
+>   because the app genuinely cannot tell them apart (rule 6).
+> - **NEXT — the tutorial**, five stages, **decided and costed but not started**.
+>   The full plan (stage list, badge prep, `data.tutorial`, eleven guards, the
+>   Stage 1 Electron acceptance gate) is in the session plan file. Stage 1 is the
+>   steward's: **bring a book in → leave a note on it → put it in your backpack**,
+>   which is also what dissolves the empty-shelf hole — *"put a book in your
+>   backpack"* was written when 27 seed books existed and `SEED_LIBRARY` is `[]`.
+>   **Before it: the steward's own beta testing**, which outranks it — 34 cps, the
+>   ⏸ hold and the note labelling are all things only a person can judge.
 > - **The `overlays.js` split is OFF the critical path** for the beta, on
 >   Grok's advice — see [`plans/OVERLAYS-SPLIT-PLAN.md`](plans/OVERLAYS-SPLIT-PLAN.md).
 >   The tutorial comes first.

@@ -5285,6 +5285,161 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- "NO LOCAL AI DETECTED" WAS THE ANSWER TO SIX PROBLEMS ----------
+   2026-08-09, and this one was paid for in a live debugging session rather than
+   found by reading.
+
+   The steward's residents went silent. Ollama was running. `ollama list` was
+   empty while 19 GB of models sat on disk — the desktop app's model folder had
+   been pointed at the `manifests/registry.ollama.ai/library` subfolder instead
+   of the models root. He fixed that, and it STILL did not work, because his
+   save had no ENABLED connection: detectAI() made zero network calls, so no log
+   anywhere — ours, Ollama's, the browser's — recorded a single failure. It
+   looked exactly like a dead server.
+
+   Telling those two apart took a request log, a second Ollama on a spare port,
+   and an Electron probe against the real main process. A tester will do none of
+   that. They will write "the AI doesn't work" and stop.
+
+   Rules 5 and 6 both: a silent undifferentiated failure, and a place where the
+   honest answer names two causes because the app genuinely cannot tell them
+   apart. */
+{
+  const P = await import('../src/game/ai/provider.js');
+  const { AI_TROUBLE, AI_TROUBLE_KEYS } = P;
+
+  if (!AI_TROUBLE || !AI_TROUBLE_KEYS || AI_TROUBLE_KEYS.length < 6) {
+    fail(`ai/provider.js: AI_TROUBLE has ${AI_TROUBLE_KEYS ? AI_TROUBLE_KEYS.length : 0} states — there `
+       + 'were eight when this guard was written, one per distinguishable failure. Fewer means states '
+       + 'were collapsed back into one message, which is the bug.');
+  }
+
+  /* --- every state says something, and says something DIFFERENT --- */
+  const ctx = { name: 'Ollama (local)', url: 'http://localhost:11434', detail: 'gpt-oss:20b-cloud' };
+  const said = new Map();
+  for (const k of (AI_TROUBLE_KEYS || [])) {
+    const t = AI_TROUBLE[k];
+    if (typeof t.say !== 'function') { fail(`AI_TROUBLE.${k} has no say()`); continue; }
+    if (typeof t.fix !== 'string' || t.fix.length < 4) {
+      fail(`AI_TROUBLE.${k}.fix is missing — the panel headline is "No AI is answering — <fix>", so a `
+         + 'state with no fix produces a headline that tells nobody anything');
+    }
+    const s = String(t.say(ctx) || '');
+    if (s.length < 25) fail(`AI_TROUBLE.${k}.say() returned "${s}" — too short to tell anyone what to do`);
+    if (/^no (local )?ai (is )?(detected|connected)\.?$/i.test(s.trim())) {
+      fail(`AI_TROUBLE.${k}.say() is the old undifferentiated sentence, which is the thing this guard exists to stop`);
+    }
+    /* THE WHOLE POINT. Six states resolving to one string is exactly the bug,
+       and it would otherwise pass every other check in this block. */
+    if (said.has(s)) {
+      fail(`AI_TROUBLE.${k} and AI_TROUBLE.${said.get(s)} produce the SAME sentence — "${s.slice(0, 70)}…". `
+         + 'Four different problems with four different fixes must not read identically; that is the '
+         + 'failure this whole block was written for.');
+    }
+    said.set(s, k);
+  }
+
+  /* --- the two states with a named cause actually name it --- */
+  const noModels = String(AI_TROUBLE.NO_MODELS ? AI_TROUBLE.NO_MODELS.say(ctx) : '');
+  if (!/ollama pull/i.test(noModels)) {
+    fail('AI_TROUBLE.NO_MODELS does not give the command that fixes it. "ollama pull llama3.2" is the '
+       + 'whole difference between a tester filing a bug and a tester fixing it in ten seconds.');
+  }
+  /* RULE 6, held as a check. From inside the app an empty /api/tags looks the
+     same whether nothing is installed or the model folder is misconfigured.
+     Saying only the first would be a guess presented as a diagnosis. */
+  if (!/folder|director/i.test(noModels)) {
+    fail('AI_TROUBLE.NO_MODELS names only one cause. An empty model list is EITHER nothing installed OR '
+       + 'a misconfigured model folder, and the app cannot tell which — the steward lost an evening to '
+       + 'the second one. Say both, and say that we cannot tell them apart.');
+  }
+  const noneEnabled = String(AI_TROUBLE.NONE_ENABLED ? AI_TROUBLE.NONE_ENABLED.say(ctx) : '');
+  if (!/nothing|not .*contacted|no connection/i.test(noneEnabled)) {
+    fail('AI_TROUBLE.NONE_ENABLED must say that nothing was contacted at all. It is the worst of the '
+       + 'states precisely because it produces no evidence anywhere.');
+  }
+
+  /* --- detectAI records it, and the empty case short-circuits --- */
+  const src = readFileSync(new URL('../src/game/ai/provider.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const at = src.indexOf('export async function detectAI');
+  if (at < 0) { fail('smoke: cannot find detectAI() — this guard is watching nothing'); }
+  else {
+    let i = src.indexOf('{', at), depth = 0, end = i;
+    for (; end < src.length; end++) {
+      if (src[end] === '{') depth++;
+      else if (src[end] === '}') { depth--; if (!depth) break; }
+    }
+    const body = src.slice(i, end + 1);
+    if (!/NONE_ENABLED/.test(body)) {
+      fail('ai/provider.js: detectAI() does not set NONE_ENABLED. An empty enabled-list makes zero '
+         + 'network calls, so if it is not recorded here it is recorded nowhere at all — which is '
+         + 'exactly how it went undiagnosed.');
+    }
+    /* THREE WRITES, NOT ONE. There are three outcomes — nothing enabled, one
+       answered, none answered — and each must record itself. Testing for the
+       mere presence of `lastDetectInfo =` passed while the FAILURE branch was
+       deleted, because the empty-list branch above still had one. Born dead on
+       its first sabotage; check the statement, not the word. */
+    const writes = (body.match(/lastDetectInfo\s*=/g) || []).length;
+    if (writes < 3) {
+      fail(`ai/provider.js: detectAI() writes lastDetectInfo ${writes} time(s), not 3. Each of its three `
+         + 'outcomes — nothing enabled, one answered, none answered — has to record itself, or the '
+         + 'panel shows a diagnosis left over from the previous run.');
+    }
+  }
+
+  /* --- and it REACHES the two surfaces that are about the connection --- */
+  const ovAI = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  for (const fn of ['refreshAIStatus', 'connDiagnosisCard']) {
+    const a = ovAI.search(new RegExp('(?:export\\s+)?(?:async\\s+)?function\\s+' + fn + '\\s*\\('));
+    if (a < 0) { fail(`smoke: cannot find ${fn}() in overlays.js`); continue; }
+    let j = ovAI.indexOf('{', a), d2 = 0, e2 = j;
+    for (; e2 < ovAI.length; e2++) {
+      if (ovAI[e2] === '{') d2++;
+      else if (ovAI[e2] === '}') { d2--; if (!d2) break; }
+    }
+    /* CALLING IT IS NOT SHOWING IT. The first version of this checked only that
+       aiTroubleLine() appeared in the body — and passed cleanly when the
+       rendered text was replaced with "Something went wrong." while the call
+       sat above it, result unused. That is the inert-pure-function bug wearing
+       the guard for it. So: find what the call is assigned to, and require THAT
+       to reach the output. */
+    const fnBody = ovAI.slice(j, e2 + 1);
+    const assigned = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*aiTroubleLine\s*\(/.exec(fnBody);
+    if (!assigned) {
+      fail(`overlays.js: ${fn}() does not call aiTroubleLine(). The diagnosis exists and the one place `
+         + 'a person looks does not show it — the inert-pure-function bug, again.');
+    } else {
+      /* USED IN SOMETHING THAT REACHES THE SCREEN — and not only inside a
+         template literal. The first version of THIS check required `${…why…}`
+         and failed refreshAIStatus(), which builds its line with `+ esc(why)`.
+         Correct code, wrong check: the fifth time in this project a red result
+         was the guard rather than the code. So: the variable must appear again,
+         on a line that is building output. */
+      const v = assigned[1];
+      const used = fnBody.split('\n').some(l =>
+        new RegExp('(^|[^\\w$])' + v + '($|[^\\w$])').test(l)
+        && !/(?:const|let|var)\s+/.test(l)
+        && /(innerHTML|textContent|return|\$\{|\+)/.test(l));
+      if (!used) {
+        fail(`overlays.js: ${fn}() computes the diagnosis into "${v}" and never renders it. The call is `
+           + 'there, the sentence is not — which is worse than not calling it, because it looks wired.');
+      }
+    }
+  }
+  /* The nine "this feature needs an AI" messages in the rooms are answering a
+     different question and are deliberately NOT part of this. If that ever
+     stops being true, this count is where it will show up. */
+  const roomMsgs = (ovAI.match(/No local AI (?:is )?connect/g) || []).length;
+  if (roomMsgs > 12) {
+    fail(`overlays.js has ${roomMsgs} "No local AI connected" messages, up from nine. They are allowed `
+       + 'to be identical because they answer "can this feature run?" — but if they are multiplying, '
+       + 'they want one helper rather than a tenth copy.');
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list

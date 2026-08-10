@@ -54,7 +54,8 @@ import { blip, setHud, warpTo } from '../main.js';
    Found by taking a screenshot of the panel; there is a derived guard for the
    whole of this import in npm test now, because a bare identifier that only
    throws on one code path is exactly what a build will not tell you about. */
-import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, isLocalConn, chatOptsFor, initProviderSettings, estimateTokens } from '../ai/provider.js';
+import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, isCloudModel, isLocalConn, chatOptsFor, initProviderSettings, estimateTokens,
+         AI_TROUBLE, lastDetect, aiTroubleLine } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
@@ -1608,15 +1609,22 @@ export async function refreshAIStatus(){
     el.textContent = '● Connected to '+AI.name+' — ask Quill anything in the Library';
     return;
   }
+  /* SAY WHICH FAILURE IT IS. This line read "○ No local AI detected" for every
+     one of six different problems until 2026-08-09 — nothing switched on,
+     nothing listening, running with no models, a misconfigured model folder,
+     hosted-only, a refused key. One sentence, six fixes, and a tester has no
+     way to tell which is theirs. aiTroubleLine() names it; see AI_TROUBLE in
+     ai/provider.js for how that was found. */
+  const why = aiTroubleLine();
   // The desktop app is meant to reach people without this repo (and its
   // README) sitting on disk — pointing at "see README" there is a dead
   // end. Point at the actual download instead, per DESKTOP-APP-PLAN.md's
   // "a plain, honest message and a link, not a silent fallback."
-  if(typeof window !== 'undefined' && window.desktopBridge?.isDesktop){
-    el.innerHTML = '○ No local AI detected — install <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> and pull a model to let residents talk back';
-  } else {
-    el.textContent = '○ No local AI detected — Quill uses scripted dialog (see README for setup)';
-  }
+  const install = (typeof window !== 'undefined' && window.desktopBridge?.isDesktop)
+    ? ' Install <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> to let the residents talk back.'
+    : ' See the README for setup.';
+  el.innerHTML = '○ No AI connected — ' + esc(why)
+    + (lastDetect().state === 'NONE_ENABLED' || lastDetect().state === 'NO_ANSWER' ? install : '');
 }
 export function openConnections(){
   state.ui='connections'; hideAllOv();
@@ -1914,11 +1922,42 @@ export function fillConnectionPreset(id){
   document.getElementById('ncnUrl').value=p.baseUrl;
   document.getElementById('ncnKey').focus();
 }
+/* THE FIRST THING IN THE PANEL YOU CAME HERE TO USE. Either it is working and
+   says which model on which connection, or it says exactly what is wrong and
+   what to do about it — never "no local AI detected" for six different
+   problems. The states and their sentences live in ai/provider.js's AI_TROUBLE;
+   this only renders one. */
+function connDiagnosisCard(){
+  const d = lastDetect();
+  if(isAIActive()){
+    return `<div class="card" style="cursor:default;margin:10px 0;border-color:#7fa36b">
+      <div class="t">${AI.local ? '🏠' : '☁'} Connected — ${esc(AI.name)}</div>
+      <div class="s" style="margin-top:4px">${AI.local
+        ? 'Everything said to a resident is computed on this machine and stays here.'
+        : 'This is a cloud connection — conversations, and whatever they are grounded in, leave this device.'}</div>
+    </div>`;
+  }
+  const why = aiTroubleLine();
+  const t = AI_TROUBLE[d.state] || AI_TROUBLE.UNKNOWN;
+  /* Every connection that was tried and what each said, when there is more than
+     one — otherwise "nothing answered" reads as being about all of them. */
+  const rest = (d.tried || []).slice(1);
+  return `<div class="card" style="cursor:default;margin:10px 0;border-color:var(--danger)">
+    <div class="t">○ No AI is answering — ${esc(t.fix)}</div>
+    <div class="s" style="margin-top:4px">${esc(why)}</div>
+    ${rest.length ? `<div class="s" style="margin-top:6px;opacity:.8">Also tried: ${rest.map(x=>
+        esc((x.name||'a connection') + ' — ' + ((AI_TROUBLE[x.state]||AI_TROUBLE.UNKNOWN).fix))).join(' · ')}</div>` : ''}
+    <div class="row" style="margin-top:8px">
+      <button class="btn ghost" style="font-size:11px;padding:3px 10px" onclick="recheckConnections()">↻ Check again</button>
+    </div>
+  </div>`;
+}
 function renderConnections(){
   const conns=data.aiConnections;
   document.getElementById('connPanel').innerHTML = `
     <button class="xbtn" onclick="openMenu()">← Back to menu</button>
     <h2>AI Connections</h2>
+    ${connDiagnosisCard()}
     <div class="meta">Stored on this device only. The first enabled connection below that answers
       is the one used by every resident and desk. A 🏠 local connection (Ollama, LM Studio, any
       server on your own machine) never sends anything anywhere else; a ☁ cloud connection sends

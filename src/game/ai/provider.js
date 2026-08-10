@@ -405,7 +405,7 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
     async isAvailable(){
       try{
         const res = await localFetch(url+'/api/tags', { signalMs:1200 });
-        if(!res.ok) return false;
+        if(!res.ok){ p.trouble = { state:'NO_ANSWER', url, name, detail:'HTTP '+res.status }; return false; }
         const body = await res.json();
         // Hosted models show up in /api/tags exactly like local ones and
         // proxy to Ollama's servers — never auto-pick one for a resident.
@@ -424,7 +424,19 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
            with no local model unable to use the Pavilion at all. Chosen, it
            works; unchosen, it does not exist. */
         const chosenCloud = preferredModel && p.cloudModels.includes(preferredModel);
-        if(!local.length && !chosenCloud) return false;
+        /* WHY IT FAILED, NOT JUST THAT IT DID. Everything needed to tell a
+           person what to actually do is already computed here and was being
+           thrown away — for a year the answer to all of it was one sentence,
+           "No local AI detected". Chasing exactly this on 2026-08-09 took a
+           request log, a second Ollama on a spare port and an Electron probe.
+           Same side-channel shape as lastThinking/lastElapsedMs above. */
+        if(!local.length && !chosenCloud){
+          p.trouble = entries.length
+            ? { state:'CLOUD_ONLY', url, name, detail:p.cloudModels.slice(0,3).join(', ') }
+            : { state:'NO_MODELS',  url, name, detail:'' };
+          return false;
+        }
+        p.trouble = null;
         // an explicit model wins if it's actually installed; otherwise
         // fall back to auto-pick so a stale/misspelled choice never just
         // breaks the connection silently.
@@ -441,7 +453,11 @@ export function makeOllamaProvider(baseUrl, name, preferredModel){
           ? (name || 'Ollama').replace(/\s*\(local\)\s*/i, '') + ' ☁ hosted'
           : (name || 'Ollama')) + ' · ' + p.model;
         return true;
-      } catch(e){ return false; } // not running, wrong port, or OLLAMA_ORIGINS doesn't allow this page
+      } catch(e){
+        // not running, wrong port, or OLLAMA_ORIGINS doesn't allow this page
+        p.trouble = { state:'NO_ANSWER', url, name, detail:String(e && e.message || e) };
+        return false;
+      }
     },
     // LOCAL-AI-MONITORING-PLAN.md step 1 — Ollama's own /api/ps, same
     // localFetch() pattern as /api/tags above, zero new dependency. Only
@@ -515,19 +531,20 @@ export function makeOpenAICompatProvider(baseUrl, apiKey, name, model){
   const p = {
     name: name || 'Custom connection', model: model||'default', availableModels: [],
     async isAvailable(){
-      if(!url) return false;
+      if(!url){ p.trouble = { state:'NO_ADDRESS', url:'', name:p.name, detail:'' }; return false; }
       try{
         const t = withTimeout(1500);
         const res = await fetch(url+'/models', { headers, signal:t.signal });
         t.done();
-        if(!res.ok) return false;
+        if(!res.ok){ p.trouble = { state:'NO_ANSWER', url, name:p.name, detail:'HTTP '+res.status }; return false; }
         try{
           const body = await res.json();
           const ids = (body.data||[]).map(m=>m.id).filter(Boolean);
           if(ids.length) p.availableModels = ids;
         }catch(e){ /* some servers don't return a body shape worth parsing — still reachable */ }
+        p.trouble = null;
         return true;
-      } catch(e){ return false; }
+      } catch(e){ p.trouble = { state:'NO_ANSWER', url, name:p.name, detail:String(e && e.message || e) }; return false; }
     },
     async chat(messages, opts){
       const size = (opts && opts.deep) ? 'deep' : (opts && opts.long) ? 'long' : 'short';
@@ -566,19 +583,24 @@ export function makeAnthropicProvider(baseUrl, apiKey, name, model){
   const p = {
     name: name || 'Claude', model: model||ANTHROPIC_DEFAULT_MODEL, availableModels: [],
     async isAvailable(){
-      if(!apiKey) return false;
+      if(!apiKey){ p.trouble = { state:'NO_KEY', url, name:p.name, detail:'' }; return false; }
       try{
         const t = withTimeout(1500);
         const res = await fetch(url+'/models', { headers, signal:t.signal });
         t.done();
-        if(!res.ok) return false;
+        if(!res.ok){
+          p.trouble = { state: res.status===401||res.status===403 ? 'BAD_KEY' : 'NO_ANSWER',
+                        url, name:p.name, detail:'HTTP '+res.status };
+          return false;
+        }
         try{
           const body = await res.json();
           const ids = (body.data||[]).map(m=>m.id).filter(Boolean);
           if(ids.length) p.availableModels = ids;
         }catch(e){ /* reachable either way */ }
+        p.trouble = null;
         return true;
-      } catch(e){ return false; }
+      } catch(e){ p.trouble = { state:'NO_ANSWER', url, name:p.name, detail:String(e && e.message || e) }; return false; }
     },
     async chat(messages, opts){
       const size = (opts && opts.deep) ? 'deep' : (opts && opts.long) ? 'long' : 'short';
@@ -640,17 +662,122 @@ export function isLocalConn(conn){
 export let AI = NoProvider;
 export function isAIActive(){ return AI !== NoProvider; }
 
+/* ================================================================
+   WHY THERE IS NO AI — because "no local AI detected" was the answer
+   to six different problems, and it is the answer to none of them.
+
+   Found the hard way on 2026-08-09. The steward's residents went
+   silent. Ollama was running. `ollama list` was empty while 19 GB of
+   models sat on disk, because the desktop app's model folder had been
+   pointed at ...\models\manifests\registry.ollama.ai\library — the
+   library subfolder instead of the models root. He fixed that, and it
+   STILL did not work: his save had no ENABLED connection, so
+   detectAI() below made zero network calls and nothing anywhere
+   recorded a failure. Telling those two apart took a request log, a
+   second Ollama on a spare port, and an Electron probe against the
+   real main process.
+
+   A tester will not do any of that. They will write "the AI doesn't
+   work" and stop. Every one of these states has a different fix, and
+   the app already knew which one it was in — isAvailable() computes
+   all of it and used to throw it away.
+
+   RULE 6 IS WHY NO_MODELS NAMES TWO CAUSES. From inside the app an
+   empty /api/tags looks identical whether no model is installed or
+   the model folder is misconfigured. Saying both, and saying we
+   cannot tell them apart, beats guessing.
+
+   `say` takes {name, url, detail} and returns ONE sentence. npm test
+   derives its cases from this table, so a state cannot be added
+   without a sentence and two states cannot share one.
+   ================================================================ */
+export const AI_TROUBLE = {
+  NONE_ENABLED: {
+    fix: 'switch one on',
+    say: () => 'Nothing is switched on to try, so nothing was contacted at all. Enable a connection below.',
+  },
+  NO_ADDRESS: {
+    fix: 'give it an address',
+    say: c => `“${c.name}” has no address, so there is nowhere to ask.`,
+  },
+  NO_ANSWER: {
+    fix: 'start it, or check the port',
+    say: c => `Nothing answered at ${c.url}. Either it is not running, or it is on a different port.`,
+  },
+  NO_MODELS: {
+    fix: 'pull a model, or fix the model folder',
+    say: c => `${c.name} answered, but reports no models at all. Either none are installed — `
+            + `“ollama pull llama3.2” gets a small one — or its model folder is pointing somewhere `
+            + `wrong. From in here those two look identical, so it is worth checking both.`,
+  },
+  CLOUD_ONLY: {
+    fix: 'choose one on purpose, or pull a local model',
+    say: c => `${c.name} has only hosted models installed${c.detail ? ' (' + c.detail + ')' : ''}. `
+            + `Those leave this device, so none is ever picked for you. Choose one deliberately below, `
+            + `or pull a local model to keep everything here.`,
+  },
+  NO_KEY: {
+    fix: 'add the key',
+    say: c => `“${c.name}” has no API key, so it was not contacted.`,
+  },
+  BAD_KEY: {
+    fix: 'check the key',
+    say: c => `${c.name} refused the API key.`,
+  },
+  UNKNOWN: {
+    fix: 'unknown, and saying so',
+    say: c => `“${c.name}” did not connect and did not say why. That is a gap in the Pavilion, not in your setup.`,
+  },
+};
+export const AI_TROUBLE_KEYS = Object.keys(AI_TROUBLE);
+
+/* What the last detectAI() run actually saw. Read by the two surfaces that are
+   ABOUT the connection — the Connections panel and the title-screen line. The
+   nine "this feature needs an AI" messages in the rooms answer a different
+   question ("can this run?") and are deliberately left alone. */
+let lastDetectInfo = { ok:false, state:'NONE_ENABLED', tried:[] };
+export function lastDetect(){ return lastDetectInfo; }
+/* One sentence, derived from the table. Empty when connected — a diagnosis of
+   a working thing is noise. */
+export function aiTroubleLine(){
+  const d = lastDetectInfo;
+  if(d.ok) return '';
+  const t = AI_TROUBLE[d.state] || AI_TROUBLE.UNKNOWN;
+  return t.say(d.tried[0] || { name:'the connection', url:'', detail:'' });
+}
+
 /* Tries each enabled connection in order; the first reachable one wins.
    Called on load, and again any time the Connections panel changes something. */
 export async function detectAI(connections){
-  for(const conn of (connections||[]).filter(c=>c.enabled!==false)){
+  const enabled = (connections||[]).filter(c=>c.enabled!==false);
+  const tried = [];
+  /* THE STATE NOBODY COULD SEE. An empty list means the loop below never runs,
+     so not one request is made and no log anywhere — ours, Ollama's, the
+     browser's — records anything at all. It looked exactly like a dead server. */
+  if(!enabled.length){
+    lastDetectInfo = { ok:false, state:'NONE_ENABLED', tried:[] };
+    AI = NoProvider;
+    return AI;
+  }
+  for(const conn of enabled){
     const provider = providerFor(conn);
     /* Stamped on the provider so any surface can say 🏠 or ☁ without having to
        find the connection again. THIS connection is what every resident uses —
        see isLocalConn above for why that has to be visible while you talk. */
     provider.local = isLocalConn(conn);
-    if(await provider.isAvailable()){ AI = provider; return AI; }
+    provider.trouble = null;
+    if(await provider.isAvailable()){
+      lastDetectInfo = { ok:true, state:'', tried };
+      AI = provider;
+      return AI;
+    }
+    /* Each failure is kept in the order it was tried. A provider that returned
+       false without saying why gets UNKNOWN rather than a guess — an honest
+       gap, and one npm test can see. */
+    tried.push(provider.trouble
+      || { state:'UNKNOWN', url:conn.baseUrl||conn.url||'', name:conn.name||'a connection', detail:'' });
   }
+  lastDetectInfo = { ok:false, state:tried[0].state, tried };
   AI = NoProvider;
   return AI;
 }
