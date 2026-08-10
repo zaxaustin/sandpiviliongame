@@ -915,6 +915,13 @@ without it. Nothing you have moves anywhere without you.
 
 ## 9. When something's off — the short list
 
+**New here?** The title screen's **🧭 New here? Start here** has a **Walk me
+through it** button — five short stages, and the first ends with a book you
+chose, a note you wrote, and it in your bag. It is re-openable from the pause
+menu (**🧭 A walk through the Pavilion**), nothing is locked behind it, and a
+stage you have already done shows as finished with the evidence rather than
+asking you to do it again.
+
 **Before this table: open ⚙ Manage AI connections and read the top card.** It
 says which of these you are actually in, in a sentence, rather than making you
 guess. That is the whole reason it is there — see below.

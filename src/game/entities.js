@@ -16,7 +16,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, noteReach:{}, dailyTasks:[], taskStats:{done:0,streak:0,best:0,lastDone:''}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, bookRequests:[], inventory:[] /* VESTIGIAL - the old book-only backpack. Read ONCE by carryMigrate() and emptied; data.carrying is the backpack now. Do not write to it. */, reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[],builds:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, bookMarks:{}, study:null, carrying:[], readingPos:{}, catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, noteReach:{}, dailyTasks:[], taskStats:{done:0,streak:0,best:0,lastDone:''}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, tutorial:{started:'',ready:{},graduated:null}, bookRequests:[], inventory:[] /* VESTIGIAL - the old book-only backpack. Read ONCE by carryMigrate() and emptied; data.carrying is the backpack now. Do not write to it. */, reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[],builds:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, bookMarks:{}, study:null, carrying:[], readingPos:{}, catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -56,6 +56,15 @@ if(!data.catalogEdits) data.catalogEdits={}; // the steward's corrections to cer
 if(!data.myShelves) data.myShelves=[]; // your own named shelves — the fixed 11 traditions can't fit a real personal library
 if(!data.commons) data.commons={received:[],published:[],taken:{}}; // older saves predate the Commons Table (data/visibility.js)
 if(!data.commons.taken) data.commons.taken={};
+/* THE WALK — and THREE FIELDS, deliberately. `started` is the one press that
+   says you chose to be walked through; `ready` holds the two judgements about
+   your own course that no code can make; `graduated` is the local record.
+   WHICH STAGE YOU ARE ON IS NOT HERE and never will be — it is derived from
+   badges, tasks, lessons and the shelf on every render. Two progress systems
+   that must agree is rule 4's exact shape, and npm test fails on a fourth
+   field. See data/tutorial.js. */
+if(!data.tutorial) data.tutorial={ started:'', ready:{}, graduated:null };
+if(!data.tutorial.ready) data.tutorial.ready={};
 // The personal shelf rides along with the certified library everywhere docs
 // are read (shelves, the Index, Quill's grounding) — registered as a getter,
 // not a copy, so shelving/removing a book needs no re-registration.

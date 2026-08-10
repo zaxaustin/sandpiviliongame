@@ -72,10 +72,17 @@ document.getElementById('startBtn').addEventListener('click',()=>{
   document.getElementById('title').style.display='none';
   if(state.ui) closeUI(); // guard: don't enter the grounds with the Connections panel left open
   blip(659,.08); setTimeout(()=>blip(880,.1),90);
-  // First arrival, genuinely fresh save only (no saved position yet) — the
-  // orientation shows exactly once, then lives behind the title screen's
-  // "New here?" button forever after. Never re-shown on its own.
-  if(!data.seenWelcome && !data.pos){ data.seenWelcome=true; persist(); openWelcome(); }
+  /* First arrival — the orientation shows exactly once, then lives behind the
+     title screen's "New here?" button forever after. Never re-shown on its own.
+
+     `&& !data.pos` WAS A LIVE BUG AND IS GONE (2026-08-09). persist() writes
+     data.pos on every single save (entities.js), and setting up an AI
+     connection on the title screen persists — so anyone who configured Ollama
+     BEFORE pressing Enter never saw the welcome panel at all, permanently, and
+     therefore never saw the door to the walk either. `seenWelcome` is set and
+     persisted inside this branch, so it was already once-only on its own; the
+     second condition added nothing but the failure. */
+  if(!data.seenWelcome){ data.seenWelcome=true; persist(); openWelcome(); }
   /* Lift an older save's book-only backpack into data.carrying. Behind the
      title screen, once, and a no-op on every save that has already been
      lifted — a bag that quietly empties itself on upgrade is exactly the

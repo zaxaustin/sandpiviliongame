@@ -107,5 +107,9 @@ export const DATA_MAP = [
   { key:'taskStats',    name:'Days you finished what you set out to do', state:'private', leaves:'Never. A streak is a private encouragement, not a score anyone else sees.' },
   { key:'activityLog',  name:'Activity log',            state:'private', leaves:'Never.' },
   { key:'badges',       name:'Badges',                  state:'private', leaves:'Never.' },
+  /* Three fields: whether you chose to be walked through, what you judged your
+     own course ready for, and the graduation record. Which stage you are on is
+     NOT stored — it is derived from what you have actually done. */
+  { key:'tutorial',     name:'The walk, and your graduation', state:'private', leaves:'Never. Whether you took the walk, and what you judged your own course ready for, is nobody else’s business.' },
   { key:'aiConnections',name:'Your AI connections',     state:'private', leaves:'Never. Keys and addresses stay on this device.' },
 ];

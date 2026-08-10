@@ -1789,10 +1789,29 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
   if (daysBetween('2026-07-25', TODAY) !== 3) fail('the-day: daysBetween is wrong');
   if (daysBetween(TODAY, TODAY) !== 0) fail('the-day: same day should be 0');
 
-  // NEVER EMPTY — the rule that matters most, in the emptiest possible world
+  /* NEVER EMPTY — the rule that matters most, in the emptiest possible world.
+
+     WHAT THE EMPTY WORLD OFFERS CHANGED 2026-08-09, and the assertion changed
+     with it rather than being loosened. It used to require "Bring a book in",
+     which was right while that was the only thing there was to offer — but
+     that sentence is the one beta feedback #29 called "true in general, wrong
+     on arrival". With the walk built, day one on an empty shelf offers the
+     walk; once you have started it (or once there is anything to read) the
+     bare instruction comes back, because by then it is the next real step
+     rather than a greeting. Both halves are checked. */
   const bare = theDayItems({ today: TODAY });
   if (!bare.length) fail('the-day: an empty Pavilion produced nothing to do — "all caught up" is a reason not to return');
-  if (!/Bring a book in/.test(bare[0].title)) fail('the-day: the empty-world fallback should invite a first book');
+  if (bare[0].key !== 'idle-tutorial' || bare[0].fn !== 'openTutorial') {
+    fail(`the-day: an empty world on day one offered "${bare[0].title}" (${bare[0].key}) rather than the `
+       + 'walk. A person ninety seconds into a brand-new Pavilion should be offered something with an '
+       + 'end, not a chore.');
+  }
+  const started = theDayItems({ today: TODAY, tutorial: { started: '2026-07-27' } });
+  if (!started.length) fail('the-day: still never empty once the walk has been started');
+  if (!/Bring a book in/.test(started[0].title)) {
+    fail('the-day: once the walk is under way the empty shelf should say the plain thing again — '
+       + 'offering the walk to someone already walking it is the nag this project refuses');
+  }
   const onlyBooks = theDayItems({ today: TODAY, books: [bk('b1', 'Something')], read: { b1: true } });
   if (!onlyBooks.length) fail('the-day: a read-everything Pavilion still needs one good offer');
 
@@ -5556,6 +5575,182 @@ for (const d of SEED_LIBRARY) {
          + 'to a book in the Reader" for planting a bequest — which let a tutorial stage be satisfied by '
          + 'an unrelated act in another room. A planting badge of its own would be fine; this is not.');
     }
+  }
+}
+
+/* ---------- THE WALK KEEPS NO SECOND SET OF BOOKS ----------
+   2026-08-09. Five stages, and the whole design rests on one property: which
+   stage you are on is DERIVED from what you have actually done — badges,
+   tasks, lessons, the shelf — and is never written down.
+
+   Two progress systems that must agree is rule 4's exact shape, and this
+   project has lost to it repeatedly: hideAllOv(), the window exports and the
+   resident roster all drifted from the lists they were supposed to match. A
+   tutorial with its own `stage: 3` counter would be the same bug with a
+   friendlier face — and it would go wrong in the worst possible way, telling
+   a person they had done something they had not, or refusing to admit that
+   they had. */
+{
+  const T = await import('../src/game/data/tutorial.js');
+  const tutSrc = readFileSync(new URL('../src/game/data/tutorial.js', import.meta.url), 'utf8');
+  const uiSrc  = readFileSync(new URL('../src/game/ui/tutorial.js', import.meta.url), 'utf8');
+  const strip = s => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const tutCode = strip(tutSrc), uiCode = strip(uiSrc);
+
+  /* --- 1 · the pure half is pure --- */
+  if (/from\s+['"][^'"]*entities\.js['"]/.test(tutCode)) {
+    fail('data/tutorial.js imports entities.js — it exists to be testable without a DOM or a save, '
+       + 'the same contract data/daily-tasks.js and data/carrying.js keep');
+  }
+  /* NO SPACE AFTER THE DOT. The first version tested `.includes('window.')`
+     and failed on the visitor-facing sentence "dragged onto the window.
+     Nothing is uploaded" — it was matching English, not code. The copy in this
+     file is prose by design, so the pattern has to be property access. */
+  for (const bad of [/\bdocument\.[A-Za-z_$]/, /\bwindow\.[A-Za-z_$]/, /\bwindow\[/]) {
+    if (bad.test(tutCode)) fail(`data/tutorial.js touches ${bad} — the pure half may not`);
+  }
+
+  /* --- 2 · ★ IT STORES NOTHING DERIVABLE. The rule-4 guard. --- */
+  const ALLOWED = ['started', 'ready', 'graduated'];
+  const writes = [...uiCode.matchAll(/data\.tutorial(?:\(\))?\.([A-Za-z_$][\w$]*)\s*=/g)].map(m => m[1])
+    .concat([...uiCode.matchAll(/\bt\.([A-Za-z_$][\w$]*)\s*=/g)].map(m => m[1]));
+  for (const w of writes) {
+    if (!ALLOWED.includes(w)) {
+      fail(`ui/tutorial.js writes data.tutorial.${w}. Only ${ALLOWED.join('/')} may be stored — `
+         + 'anything else is a second copy of a fact the save already holds, and the two will '
+         + 'disagree. Which stage you are on is DERIVED, always.');
+    }
+  }
+  /* And it writes into nobody else's store. Badges fire at their own call
+     sites; a tutorial that awarded them would be marking its own homework. */
+  for (const store of ['badges', 'dailyTasks', 'myLessons', 'curriculum', 'commons', 'personalLibrary']) {
+    if (new RegExp('data\\.' + store + '\\s*(\\[[^\\]]*\\])?\\s*=[^=]').test(uiCode)) {
+      fail(`ui/tutorial.js assigns data.${store} — it may only READ what other rooms record. `
+         + 'A tutorial that grants its own proof proves nothing.');
+    }
+  }
+  if (/awardBadge\s*\(|showBadgeToast\s*\(/.test(uiCode + tutCode)) {
+    fail('the tutorial awards a badge. Badges are records of things done in the rooms that do them; '
+       + 'granting one from here would let the walk certify itself.');
+  }
+
+  /* --- 3 · every door it names is real, and on window --- */
+  const exported = new Set();
+  {
+    const ov = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+    /* lastIndexOf, NOT indexOf. overlays.js opens with a map of ITSELF that
+       names "Object.assign(window, {" in prose, so the first match is 6,800
+       characters into the header comment and the "block" that followed was
+       22,000 characters of unrelated function bodies. It yielded well over
+       fifty plausible identifiers, so the sentinel below passed on pure
+       garbage while every real door failed. Hence the named-anchor check too:
+       a count is not evidence that you read the right thing. */
+    const at = ov.lastIndexOf('Object.assign(window, {');
+    const block = ov.slice(at, ov.indexOf('});', at));
+    for (const m of block.matchAll(/([A-Za-z_$][\w$]*)\s*[,\n]/g)) exported.add(m[1]);
+  }
+  if (exported.size < 50) {
+    fail(`smoke: read only ${exported.size} window exports — the tutorial door check is reporting on nothing`);
+  }
+  for (const anchor of ['closeUI', 'openReader', 'openMenu']) {
+    if (!exported.has(anchor)) {
+      fail(`smoke: the window-export block this check read does not contain ${anchor}, so it is not the `
+         + 'export block. Every door below would fail for the wrong reason.');
+    }
+  }
+  const { PLACES } = await import('../src/game/data/places.js');
+  const doors = T.tutorialDoors();
+  const places = T.tutorialPlaces();
+  if (!doors.length || !places.length) {
+    fail('smoke: the tutorial names no doors or no places — this check has drifted off its subject');
+  }
+  for (const d of doors) {
+    if (!exported.has(d)) {
+      fail(`data/tutorial.js points a beat or aside at ${d}(), which is not in the window export block. `
+         + 'Inline onclick handlers only resolve against window, so that is a button that does nothing.');
+    }
+  }
+  for (const p of places) {
+    if (!PLACES[p]) fail(`data/tutorial.js names place '${p}', which is not in data/places.js`);
+    else if (!exported.has(PLACES[p].door)) {
+      fail(`place '${p}' opens with ${PLACES[p].door}(), which is not on window`);
+    }
+  }
+
+  /* --- 4 · the ordering is monotonic, and honest about a save that
+         did all of this before the walk existed --- */
+  const S = {
+    empty: {},
+    stage1done: { catalogueCount:1, badges:{ 'first-book-note':'x', 'first-carry':'x' } },
+  };
+  S.stage2done = { ...S.stage1done, badges:{ ...S.stage1done.badges, 'first-word':'x' } };
+  S.stage3done = { ...S.stage2done, dailyTasks:[{ id:1 }] };
+  S.stage4done = { ...S.stage3done, myLessons:[{ id:'mine-a' }] };
+  S.all        = { ...S.stage4done, tutorial:{ started:'', ready:{}, graduated:{ on:'x', lesson:'mine-a' } } };
+  const want = { empty:1, stage1done:2, stage2done:3, stage3done:4, stage4done:5, all:6 };
+  for (const k of Object.keys(want)) {
+    const got = T.currentStage(S[k]);
+    if (got !== want[k]) fail(`data/tutorial.js: currentStage(${k}) is ${got}, expected ${want[k]}`);
+  }
+  /* THE STEWARD'S OWN SAVE. He did every one of these organically, months
+     before the walk existed, and never pressed "walk me through it". The
+     honest answer is that stages 1-4 are done — not that he is on stage 1. */
+  if (T.currentStage({ ...S.stage4done, tutorial:{ started:'', ready:{}, graduated:null } }) !== 5) {
+    fail('data/tutorial.js: a save that did everything organically without ever starting the walk must '
+       + 'still show those stages as done. Progress is what you did, not what you were walked through.');
+  }
+  /* And a stage is never described before it is reached — the letter of
+     "one next thing at a time". */
+  const st1 = T.stageState(S.empty);
+  if (st1.filter(x => x.current).length !== 1) fail('data/tutorial.js: exactly one stage is current');
+  if (!st1[0].current) fail('data/tutorial.js: a fresh save starts on stage 1');
+
+  /* --- 5 · ★ Stage 5 does not promise Missions --- */
+  const five = JSON.stringify(T.STAGES[4]) + T.MISSIONS_NOT_BUILT;
+  if (!/not built/i.test(T.MISSIONS_NOT_BUILT)) {
+    fail('MISSIONS_NOT_BUILT does not say Missions are not built, which is its entire job');
+  }
+  if (/unlocks?\b|F-rank (is|now)|you can now (take|start|join)|opens? (the )?missions?/i.test(five)) {
+    fail('Stage 5 promises that graduating opens something. MISSION-SYSTEM-PLAN.md and '
+       + 'THE-THREE-COURTS.md are unbuilt drafts — the latter subtitled "Nothing here is built" — so '
+       + 'that is a door onto nothing, which is the failure this project names most often.');
+  }
+
+  /* --- 6 · graduation refuses with sentences --- */
+  const no = T.canGraduate(S.stage4done, 'mine-a');
+  if (no.ok) fail('canGraduate() passed a course that was never walked or published');
+  if (!Array.isArray(no.missing) || !no.missing.length || typeof no.missing[0] !== 'string') {
+    fail('canGraduate() returns no reasons. A button that declines without saying why is the same as '
+       + 'a broken one — it has to name which of the five rows is missing.');
+  }
+  if (T.canGraduate(S.stage4done, null).ok) fail('canGraduate() passed with no lesson chosen');
+  /* Two of the five rows are the visitor's judgement and must be MARKED as
+     such — a checklist that pretends to have measured a judgement is worse
+     than one that asks. */
+  const rows = T.readyChecks(S.stage4done, 'mine-a');
+  if (rows.length !== 5) fail(`readyChecks returned ${rows.length} rows, expected 5`);
+  if (rows.filter(r => r.kind === 'judgement').length !== 2) {
+    fail('readyChecks must mark exactly two rows as the visitor\'s own judgement — whether the steps '
+       + 'stand alone, and what it produces. Code cannot read a lesson and know either.');
+  }
+
+  /* --- 7 · it never opens itself --- */
+  const mainSrc = strip(readFileSync(new URL('../src/game/main.js', import.meta.url), 'utf8'));
+  if (/openTutorial|tutorialStart/.test(mainSrc)) {
+    fail('main.js names openTutorial/tutorialStart. The walk is reached by three presses and never '
+       + 'appears unbidden — an onboarding flow that opens itself on boot is the thing everybody '
+       + 'closes without reading.');
+  }
+  /* --- 8 · and the welcome panel is its front door, with the dead book gone --- */
+  const ovAll = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+  if (!/onclick="tutorialStart\(\)"/.test(ovAll)) {
+    fail('the welcome panel has no "walk me through it" press — the tutorial is built and the one '
+       + 'place a newcomer arrives does not open it');
+  }
+  if (/How to Complete Your Own Pavilion/.test(ovAll)) {
+    fail('overlays.js still points a newcomer at "How to Complete Your Own Pavilion", a book deleted '
+       + 'with the seed on 2026-08-10. The only onboarding surface in the app pointing at nothing is '
+       + 'exactly the first-arrival failure this work exists to end.');
   }
 }
 

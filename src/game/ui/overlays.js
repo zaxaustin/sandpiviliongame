@@ -23,6 +23,9 @@ import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, DEFAULT_PACE, rosterBlock, rosterForVisitor } from '../data/roles.js';
 import { initNoteAuthor, byLine, isAiNote, authorOf, attributionOf, labelledNote, currentUser }
   from '../data/note-versions.js';
+import { initTutorial, openTutorial, tutorialStart, tutorialGo, tutorialPickLesson,
+         tutorialTickReady, tutorialSetOutcome, tutorialPublish, tutorialRecordGraduation }
+  from './tutorial.js';
 import { catalogueBrief, briefCaveat } from '../data/catalogue-brief.js';
 import { REFERENCE, lookup as refLookup, refLine, referenceBlock } from '../data/reference.js';
 import { paginate, searchPages, passagesBlock, hasResults } from '../data/retrieval.js';
@@ -2223,6 +2226,10 @@ function renderMenu(){
       })()}`),
       item('openRoster()', '👥 Who to ask'),
       item('openBadges()', '🏅 Badges'),
+      /* The walk, reachable after the title screen has gone. One of exactly
+         three doors to it, and the only one that is not on arrival — a person
+         who skipped it on day one has to be able to find it on day four. */
+      item('openTutorial()', '🧭 A walk through the Pavilion'),
     ])}
     ${/* Was "Library", which never described these three and became actively
           misleading on 2026-08-10 when the rooms went in below: a section
@@ -3700,6 +3707,13 @@ export function openWelcome(){
     <div class="meta">A small world you walk around in — a Library with real, readable books, a Study
       for planning your day, a Workshop where a butler helps you run it. It looks like a game because
       a game is a good shape for a place. Everything saves to this device; nothing phones home.</div>
+    <div class="card" style="cursor:default;margin:12px 0;border-color:#e0a43c">
+      <div class="t">🧭 Walk me through it</div>
+      <div class="s" style="margin-top:4px">Five short stages. At the end of the first you have a book
+        you chose, a note you wrote, and it is in your bag — nothing to read about, something you did.
+        Skippable, re-openable, and nothing is ever locked behind it.</div>
+      <div class="row" style="margin-top:8px"><button class="btn" onclick="tutorialStart()">Start the walk</button></div>
+    </div>
     <h3>Getting around</h3>
     <p><b>Arrows / WASD</b> walk · <b>E</b> talks, reads, fishes · <b>Esc</b> closes anything
       (worst case, you close a panel and try again — nothing here breaks by clicking around) ·
@@ -3715,9 +3729,10 @@ export function openWelcome(){
     <p>Quill, the Monk, and Sebastian become real conversations once a local AI runs on
       <i>your</i> computer — that's the one piece of real setup here, and it's free. The short
       version: install <b>Ollama</b> (ollama.com), pull a model, and check
-      <b>⚙ Manage AI connections</b>. The full walk-through — written for someone who's never
-      done anything like it — is the book <i>“How to Complete Your Own Pavilion”</i> on the
-      Library's Practice shelf.</p>
+      <b>⚙ Manage AI connections</b> — which now reads this machine for you and says plainly whether
+      it is worth doing here at all, including when the honest answer is no. If something is already
+      running and the residents still will not speak, that panel names which of the six things is
+      wrong rather than shrugging.</p>
     <p class="meta">Skippable, all of it. The Pavilion works with no setup at all — walk, read,
       plan, fish. The AI and the books you add are how it becomes yours.</p>
     <div class="row" style="margin-top:12px">
@@ -5258,6 +5273,14 @@ initLessonTree({
    init() seams — a second would be a hand-maintained list that must match
    another file, and every one of those in this project has drifted. */
 initProviderSettings(() => (data && data.settings) || {});
+/* The walk. lessonDone and curriculumNode are handed over rather than imported
+   by ui/tutorial.js, because ui/ importing ui/ sideways is the one shape the
+   module seam exists to prevent — this file already holds both. */
+initTutorial({
+  hideAllOv, showOv, closeUI, publishFrom,
+  lessonDone, curriculumNode,
+  allDocsCount: () => { try { return Store.allDocs().length; } catch(e){ return 0; } },
+});
 /* WHO IS SITTING HERE, for every note written from now on. Same injected-reader
    shape and same reason: data/note-versions.js is pure and imports nothing.
    Until the profile exists (THE-TUTORIAL-AND-SIGNING-IN.md §3) this resolves to
@@ -6985,6 +7008,9 @@ export function currentDayItems(){
     dissections: (data.hall&&data.hall.dissections)||[],
     catalogue: Store.allDocs(),
     notes: notesForRules(),
+    /* Only so day one can offer the walk instead of a bare chore — see the
+       `idle-tutorial` branch. Read, never written. */
+    tutorial: data.tutorial || {},
   });
 }
 /* Every note in the Pavilion, in the shape the pure rules in data/the-day.js
@@ -13630,6 +13656,10 @@ Object.assign(window, {
   openLift, takeLift, acceptBundle, initGlobalDrop, dismissDropToast, setBookKind, undoLastFiling, toggleRefileFiled, newReviewManualForm2, openLab,
   openCommonsTable, commonsTab, openPacket, takePacket, publishFrom, confirmPublish, cancelPublish, unpublishPacket,
   openReplacedCopy,
+  /* ui/tutorial.js — the window block stays in ONE file, which is this one,
+     so the two-directional export check keeps working. */
+  openTutorial, tutorialStart, tutorialGo, tutorialPickLesson,
+  tutorialTickReady, tutorialSetOutcome, tutorialPublish, tutorialRecordGraduation,
   writePacketFile, triggerImportPacket, setCommonsName,
 });
 

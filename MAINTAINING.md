@@ -193,7 +193,7 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one: 13,591 lines** (740 top-level
+- **`ui/overlays.js`** — **the big one: 13,671 lines** (740 top-level
   definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
   chat stack, and the window-export block, which it owns permanently. **It opens
   with a map of itself**, anchored to searchable text rather than line numbers
@@ -431,14 +431,23 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 >   *"this feature needs an AI"* messages in the rooms answer a different
 >   question and are deliberately untouched. `NO_MODELS` names **two** causes
 >   because the app genuinely cannot tell them apart (rule 6).
-> - **NEXT — the tutorial**, five stages, **decided and costed but not started**.
->   The full plan (stage list, badge prep, `data.tutorial`, eleven guards, the
->   Stage 1 Electron acceptance gate) is in the session plan file. Stage 1 is the
->   steward's: **bring a book in → leave a note on it → put it in your backpack**,
->   which is also what dissolves the empty-shelf hole — *"put a book in your
->   backpack"* was written when 27 seed books existed and `SEED_LIBRARY` is `[]`.
->   **Before it: the steward's own beta testing**, which outranks it — 34 cps, the
->   ⏸ hold and the note labelling are all things only a person can judge.
+> - **DONE — THE TUTORIAL.** Five stages, `data/tutorial.js` (pure) +
+>   `ui/tutorial.js` (its own module, the daily-tasks seam). **Three fields in
+>   the save and four presses in the whole thing** — which stage you are on is
+>   DERIVED from badges, tasks, lessons and the shelf, never stored, and a guard
+>   fails on a fourth field. Stage 1 is the steward's: **bring a book in → leave
+>   a note on it → put it in your backpack**, which is what dissolved the
+>   empty-shelf hole. Acceptance gate: `test/live/tutorial-stage1.cjs`, 27 checks
+>   in Electron on a save that does not exist yet.
+>   Two first-arrival bugs went with it: `main.js`'s `&& !data.pos` (anyone who
+>   set up Ollama before pressing Enter never saw the welcome panel, ever) and
+>   `the-day.js`'s day-one fallback, wrong for the second time since the seed
+>   emptied.
+> - **NEXT — a person who is not the steward walks Stage 1 cold.** The suite
+>   proves the state transitions; it cannot prove it felt like theirs. Same
+>   category as the never-done clean-machine install, and it is now the gate.
+>   Then `docs/BETA-READINESS.md`, then a build.
+> - **(superseded) the tutorial was "decided and costed but not started"**.
 > - **The `overlays.js` split is OFF the critical path** for the beta, on
 >   Grok's advice — see [`plans/OVERLAYS-SPLIT-PLAN.md`](plans/OVERLAYS-SPLIT-PLAN.md).
 >   The tutorial comes first.

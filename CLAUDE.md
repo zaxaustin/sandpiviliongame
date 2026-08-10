@@ -402,6 +402,7 @@ env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/records.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/resident-reach.cjs
+env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/tutorial-stage1.cjs
 node test/live/docker-home.cjs              # the container half; skips if it's down
 ```
 

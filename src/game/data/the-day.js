@@ -282,22 +282,38 @@ export function theDayItems(ctx = {}) {
   }
 
   /* NEVER EMPTY — and on DAY ONE this is the only thing that fires, so it is
-     the whole first impression. The first version looked only at the personal
-     shelf, which is empty for a new visitor, and so told someone who had just
-     been given 27 books that the Library needed growing. Wrong, and a weak
-     opening: what a newcomer should be offered is a real book they can read
-     immediately, because read-aloud works with nothing installed and that is
-     the fastest way to feel what this place is for. Caught 2026-07-28 by
-     running a genuinely fresh save instead of a loaded one. */
+     the whole first impression.
+
+     THE HISTORY, because it has now been wrong twice for opposite reasons.
+     v1 looked only at the personal shelf, which is empty for a new visitor,
+     and so told someone who had just been handed 27 books that the Library
+     needed growing (caught 2026-07-28, beta feedback #29). v2 offered one of
+     those 27 instead — correct at the time, and DEAD as of 2026-08-10 when
+     SEED_LIBRARY became [] permanently. With no seed and no Docker catalogue
+     a brand-new visitor fell straight through to `idle-empty`: "Bring a book
+     in — the Library grows because you grow it", which is the exact sentence
+     #29 diagnosed as "true in general, wrong on arrival, and a weak first
+     impression at the moment the app has to land."
+
+     v3: on an empty shelf the first thing offered is THE WALK, not a chore.
+     "Bring a book in" is still what happens — it is the walk's own first beat
+     — but it arrives as the start of something with an end, rather than as a
+     bare instruction to a person who has been here ninety seconds. Once the
+     walk has been started, or once there is anything to read, this gets out
+     of the way. */
   if (!out.length) {
     const readable = (ctx.catalogue || []).filter(d => d && d.doc && d.doc.fullText
       && d.doc.fullText.text && d.doc.fullText.text.length > 4000 && !read[d.slug]);
     const own = books.find(b => !read[b.slug]) || books[0];
+    const walked = !!(ctx.tutorial && ctx.tutorial.started);
     if (own) push({ key: 'idle-book', icon: '📖', title: own.title,
       note: 'nothing is waiting — read a page of this instead', fn: 'openReader', arg: own.slug });
     else if (readable.length) push({ key: 'idle-seed', icon: '📖', title: readable[0].title,
       note: 'complete and ready to read — press 🔊 and it will read aloud to you',
       fn: 'openReader', arg: readable[0].slug });
+    else if (!walked) push({ key: 'idle-tutorial', icon: '🧭', title: 'New here? Start here',
+      note: 'five short stages — the first ends with a book you chose and a note you wrote',
+      fn: 'openTutorial' });
     else push({ key: 'idle-empty', icon: '📥', title: 'Bring a book in',
       note: 'the Library grows because you grow it — drag a file onto the window',
       fn: 'openBookIntake' });

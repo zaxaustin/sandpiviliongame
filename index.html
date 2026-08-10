@@ -274,6 +274,12 @@
 <!-- The Request Board (book wishlist feeding the Caravan) -->
 <div class="overlay" id="requestsOv"><div class="panel" id="requestsPanel"></div></div>
 
+<!-- The five-stage walk. Rendered by ui/tutorial.js, its own module for the
+     same reason ui/daily-tasks.js is: overlays.js is 13,600 lines and a new
+     room does not belong in it. Reached by three presses and never opened on
+     its own — see that file's header. -->
+<div class="overlay" id="tutorialOv"><div class="panel" id="tutorialPanel"></div></div>
+
 <!-- Your Inventory (books you're carrying) -->
 <div class="overlay" id="inventoryOv"><div class="panel" id="inventoryPanel"></div></div>
 

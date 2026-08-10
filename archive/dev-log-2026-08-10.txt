@@ -2484,3 +2484,169 @@ would otherwise. Not investigated; recorded so it is not lost.
 
 NEXT: the tutorial (Part B of the plan - five stages, decided and
 costed, not started), after the steward's own beta testing.
+
+
+================================================================
+PART SIXTEEN - THE TUTORIAL. FIVE STAGES, AND A FRONT DOOR.
+================================================================
+
+The last big piece before a beta a stranger can enter. Designed
+2026-08-07 in THE-TUTORIAL-AND-SIGNING-IN.md, re-argued with Grok in
+TUTORIAL-AND-FIRST-ARRIVAL-PLAN.md, built today with Stage 1 rewritten
+by the steward.
+
+
+THE HOLE NOBODY HAD SEEN, AND THE SENTENCE THAT CLOSED IT
+----------------------------------------------------------------
+Stage 1 was "put a book in your backpack". Written 2026-08-07, when 27
+seed books shipped. SEED_LIBRARY went to [] on 2026-08-10 - so on a
+genuinely fresh save THERE IS NOTHING TO PUT IN THE BACKPACK. Beat one
+and beat four ("see how to bring your own books in") had collapsed into
+the same beat, and nobody had noticed because nobody had walked it cold.
+
+  "stage one should be add your own books to the library and leave a
+   note. then we can put in it your backpack"
+
+That dissolves it: the first beat becomes the thing a newcomer has to
+learn anyway. It improved Stage 2 as a side effect - moving the note
+from stage 3 into stage 1 means a resident now has a carried book it
+can QUOTE with page numbers AND a note it can SEARCH, both paid for by
+the grounding chain last week.
+
+
+WHAT THE AUDIT FOUND BEFORE ANY CODE WAS WRITTEN
+----------------------------------------------------------------
+- BETA-CRITICAL-PATH-2026-08-09.md, cited by the Grok plan as its
+  parent, DOES NOT EXIST anywhere in the repo or its history.
+- "Grandmaster" appears zero times in the codebase. New invention, not
+  a dependency. Not a design collision - it is proposed as a character,
+  not a rank a visitor climbs - but worth knowing.
+- The Grok plan's Principle 2 ("built only on existing systems") is
+  violated by its own stages 4 and 5: INDEPENDENT-COURSE-GRADUATION.md,
+  MISSION-SYSTEM-PLAN.md and THE-THREE-COURTS.md are all unbuilt
+  drafts, the last subtitled "Nothing here is built."
+- Its Stage 1 artifact was "confidence that the place is safe to
+  explore", contradicting its own Principle 3 (every stage leaves a
+  real artifact). The steward's Stage 1 leaves three.
+
+Decided: Stage 5 builds the readiness checklist and records a
+graduation LOCALLY, and says plainly that Missions are not built. A
+graduation claiming to open F-rank would be a door onto nothing.
+
+
+THE BADGES HAD TO BE TRUE FIRST (own commit, 8c735ed)
+----------------------------------------------------------------
+Every stage is proved by a badge, so a badge that lies breaks a stage.
+There was NO BADGE GUARD AT ALL, which is why four inaccuracies had
+piled up - first-note awarded from four sites including planting a
+bequest in the Inheritance Hall, first-plan only from the tick button,
+first-page from openReader() rather than a shelf, and nothing anywhere
+awarding "you wrote a lesson".
+
+
+THE DESIGN, AND THE PROPERTY IT RESTS ON
+----------------------------------------------------------------
+    data.tutorial = { started, ready, graduated }
+
+THREE FIELDS. FOUR PRESSES IN THE WHOLE TUTORIAL. Which stage you are
+on is DERIVED on every render from badges, tasks, lessons and the shelf
+- never stored. Two progress systems that must agree is rule 4's exact
+shape, and a tutorial with its own counter would fail in the worst way:
+telling someone they had done a thing they had not.
+
+It also means the steward, who did all of this organically months ago,
+opens it and correctly finds stages 1-4 finished. A done stage collapses
+with the evidence that finished it and still opens - which is the second
+reason this exists at all, re-reading the place after features drift.
+
+FIVE THINGS IT MAY NEVER DO, each written into the file header because
+each is a temptation: never opens itself, never re-opens after a beat,
+never writes anything derivable, no HUD chip, no skip button (there is
+nothing to skip FROM - it never appears unbidden).
+
+
+TWO FIRST-ARRIVAL BUGS FIXED ON THE WAY
+----------------------------------------------------------------
+1. main.js was `if(!data.seenWelcome && !data.pos)`. persist() writes
+   data.pos, and setting up Ollama on the title screen persists - SO
+   ANYONE WHO CONFIGURED THEIR AI BEFORE PRESSING ENTER NEVER SAW THE
+   WELCOME PANEL, EVER. seenWelcome is set inside the branch, so the
+   second condition added nothing but the failure.
+2. the-day.js's day-one fallback has now been wrong twice, for opposite
+   reasons. v1 told someone holding 27 books that the Library needed
+   growing (#29, 2026-07-28). v2 offered one of those 27 - right then,
+   dead since the seed emptied. A brand-new visitor was falling through
+   to "Bring a book in - the Library grows because you grow it", which
+   is verbatim the sentence #29 called "wrong on arrival". v3 offers the
+   WALK, and only until it has been started.
+
+And the welcome panel told newcomers to read "How to Complete Your Own
+Pavilion" on the Practice shelf - deleted with the seed on 2026-08-10.
+The one onboarding surface in the app pointed at nothing. A guard now
+fails if any deleted seed title reappears in a UI file.
+
+
+GUARDS - AND FOUR OF MINE WERE THE BROKEN THING
+----------------------------------------------------------------
+Eight new checks, seven sabotages, all seven caught: a second progress
+counter, the walk awarding its own badge, a beat pointing at an unwired
+door, Stage 5 promising F-rank, the ordering going non-monotonic, the
+walk opening itself on boot, the dead seed book returning.
+
+Writing them cost four false positives on CORRECT code, and those are
+the interesting part:
+
+  - the purity check tested .includes("window.") and failed on the
+    VISITOR-FACING SENTENCE "dragged onto the window. Nothing is
+    uploaded". It was matching English, not code.
+  - the export-block reader used indexOf on "Object.assign(window, {"
+    and found it in overlays.js's own header comment, 6,800 chars in.
+    The "block" that followed was 22,000 characters of unrelated
+    function bodies - which yielded well over fifty plausible
+    identifiers, SO THE size<50 SENTINEL PASSED ON PURE GARBAGE while
+    every real door failed. lastIndexOf now, plus named anchors,
+    because a count is not evidence you read the right thing.
+  - the Stage 1 gate's own self-test string did not match its own error
+    filter, so "the capture is alive" proved nothing.
+  - and the existing the-day #29 guard asserted the OLD empty-world
+    behaviour and went red correctly, the same way drop.mjs did.
+
+Six times now in this project a red result was the check rather than
+the code. Diagnose before believing.
+
+
+test/live/tutorial-stage1.cjs - THE ACCEPTANCE GATE
+----------------------------------------------------------------
+27 checks, Electron, on a save that does not exist yet - not even
+seenWelcome. Asserts allDocs()===0 BEFORE anything else, because
+main.js hydrates on every boot and a check that refuses to run against
+the wrong fixture is worth more than the check itself.
+
+Shelves a real book through the REAL manual-intake form (rmTitle /
+rmAuthor / rmBody -> shelveManualFormNow), never by injecting
+personalLibrary, and falls back loudly if those ids ever move so a
+changed form cannot masquerade as a Stage 1 failure.
+
+Ends on the gate: the visitor holds a book they chose, a note they
+wrote, and it is in their bag - and Object.keys(data.tutorial) is
+exactly started,ready,graduated. The rule-4 property, live.
+
+Screenshot read: stage 1 collapsed green with its evidence, stage 2
+open, stages 3-5 showing only "not yet", and "I'll look around on my
+own" where a skip button would have been.
+
+
+VERIFIED
+----------------------------------------------------------------
+npm test (7 sabotages); tutorial-stage1 27/27 in Electron; preflight,
+every-room, drop, daily-tasks, note-authorship, publish-reason;
+packaged-boot and resident-reach in Electron.
+
+STILL NOT DONE, and it is now the only thing that matters: A PERSON WHO
+IS NOT THE STEWARD HAS TO SIT DOWN AT A FRESH INSTALL AND GET THROUGH
+STAGE 1 WITHOUT BEING TOLD ANYTHING. The suite proves state
+transitions. It cannot prove it felt like theirs, or that it took ten
+minutes. Same category as the never-done clean-machine install.
+
+NEXT: the steward's own beta testing (34 cps, the hold, note
+labelling), then docs/BETA-READINESS.md, then a build.
