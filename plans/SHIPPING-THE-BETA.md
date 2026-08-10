@@ -9,6 +9,27 @@ follow a link.
 
 ---
 
+
+---
+
+## ⚠ `verify:release` IS RED ON PURPOSE (2026-08-10)
+
+It fails for exactly one reason — the installer (`0.1.0-beta.5`, built
+2026-08-07) is **36 source files behind**. That is a decision, not an
+oversight: rebuilding mid-work only makes it stale again on the next commit,
+and rule 8 says the artifact is tested before an installer *moves*, not
+continuously.
+
+**Recorded here so a red check reads as a choice to whoever runs it next.**
+Being deliberate in one person's head is not being deliberate.
+
+The honest state of everything else is `docs/BETA-READINESS.md`. The two things
+that have never happened, and that decide whether this is a beta or a demo:
+**a person who is not the steward walking Stage 1 cold**, and **a clean-machine
+install by someone else.**
+
+---
+
 ## The file
 
 ```
