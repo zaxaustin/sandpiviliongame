@@ -75,32 +75,19 @@ const open = async () => { await p.evaluate(() => { window.closeUI(); window.ope
 const savedTut = () => p.evaluate(() =>
   JSON.parse(localStorage.getItem('sandPavilionSave.v2') || '{}').tutorial || {});
 
-console.log('\nStage 2 — the residents\n');
+console.log('\nStages 1–2 — derived from real state, not a stored flag\n');
 await open();
 let h = await panel();
-ok('stage 1 is already done, from real state and not a stored flag', /✓ 1 · The first loop/.test(h));
-ok('stage 2 is the one in front of you', /THE RESIDENTS/i.test(h));
-ok('...and stage 3 is not described yet', !/The day, and the desk/i.test(h));
-ok('it says the residents are OPTIONAL — the visitor on a small laptop must not be stuck',
+ok('stage 1 is done because a book, a note and a carry exist', /✓ 1 · The first loop/.test(h));
+ok('stage 2 is done because first-word exists', /✓ 2 · The residents/.test(h));
+ok('its collapsed row still opens, and still says the residents are OPTIONAL',
    /do not need them/i.test(h));
 ok('and it names what the grounding chain bought: page numbers you can check',
    /page numbers you can turn to/i.test(h));
 
-/* first-word fires on the dialog path; seeded here for the same reason the
-   header gives. The Electron gate covers the real award. */
-await p.evaluate(() => {
-  const s = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
-  s.badges['first-word'] = '2026-08-09';
-  localStorage.setItem('sandPavilionSave.v2', JSON.stringify(s));
-});
-await p.reload({ waitUntil: 'networkidle2' });
-await p.click('#startBtn'); await wait(1300);
-
 console.log('\nStage 3 — the day\n');
-await open();
-h = await panel();
-ok('meeting someone moves you to stage 3', /THE DAY, AND THE DESK/i.test(h));
-ok('stage 2 collapsed with its evidence', /✓ 2 · The residents/.test(h));
+ok('stage 3 is the one in front of you', /THE DAY, AND THE DESK/i.test(h));
+ok('...and stage 4 is not described yet', !/Making, not only following/i.test(h));
 
 /* A real task, through the real function. */
 await p.evaluate(() => { window.closeUI(); window.openDailyTasks(); });

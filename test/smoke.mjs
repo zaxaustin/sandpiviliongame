@@ -5754,6 +5754,133 @@ for (const d of SEED_LIBRARY) {
   }
 }
 
+/* ---------- A LESSON STEP CAN HOLD A PARAGRAPH, AND SURVIVE THE JOURNEY ----------
+   2026-08-10. Tutorial Stage 5 asks the visitor for a course whose "steps
+   stand alone — someone who never met you could follow them." Until today a
+   step could not hold more than ONE LINE, so the stage asked for something the
+   format could not express. Three places enforced it independently:
+
+     saveMyLesson()   split the textarea on newlines
+     publishFrom()    flattened each step to `title | body`
+     takePacket()     split it back on the first `|`
+
+   The RENDERER was never the problem — ui/lesson-tree.js has printed s.body
+   since it was written. A capability that existed and could not be reached,
+   which is this project's signature bug.
+
+   ONE FORMAT, AND ONE EMITTER. data/lesson-doc.js has written the
+   teacher-facing Markdown since 2026-08-03, for the steward's friend who
+   teaches English — the same person the round trip is for. A second Markdown
+   writer would be rule 4's exact shape, so data/course-format.js parses what
+   that one emits and asks it for the portable form rather than building its
+   own. These checks hold that, because "there is only one of X" is precisely
+   the kind of thing that stops being true quietly. */
+{
+  const CF = await import('../src/game/data/course-format.js');
+  const LD = await import('../src/game/data/lesson-doc.js');
+
+  /* --- 1 · the round trip is exact, or editing loses work --- */
+  const cases = [
+    { name: 'a multi-paragraph step',
+      md: '---\ntitle: Reading slowly\nsummary: One chapter beats five.\nlevel: 101\n---\n\n'
+        + '## Pick one chapter\n\nFirst paragraph.\n\nSecond paragraph.\n\n**Practice:** read it once.\n' },
+    { name: 'a course drafted with a model',
+      md: '---\ntitle: A drafted course\ndrafted-with: some-model\nauthor: Zac\n---\n\n## One\n\nBody.\n' },
+    { name: 'a course naming a set text',
+      md: '---\ntitle: On Walden\nreading: personal-walden\n---\n\n## Read chapter 2\n\nAnnotate it.\n' },
+    { name: 'a field from a NEWER Pavilion',
+      md: '---\ntitle: From the future\nunknown-key: kept anyway\n---\n\n## One\n\nBody.\n' },
+  ];
+  for (const c of cases) {
+    const a = CF.parseCourse(c.md, { user: 'user 1' });
+    if (!a.ok) { fail(`course-format: ${c.name} would not parse — ${a.problems[0]}`); continue; }
+    const b = CF.parseCourse(CF.emitCourse(a.lesson), { user: 'user 1' });
+    if (!b.ok) { fail(`course-format: ${c.name} did not survive being written out — ${b.problems[0]}`); continue; }
+    if (JSON.stringify(a.lesson) !== JSON.stringify(b.lesson)) {
+      fail(`course-format: ${c.name} changed on a round trip. Save-as-Markdown then re-import must be `
+         + `lossless or editing a course silently deletes part of it.\n      in:  ${JSON.stringify(a.lesson).slice(0, 160)}`
+         + `\n      out: ${JSON.stringify(b.lesson).slice(0, 160)}`);
+    }
+  }
+  /* THE ONE THAT IS THE WHOLE POINT. */
+  const para = CF.parseCourse(cases[0].md, { user: 'user 1' });
+  if (!para.ok || !/\n\n/.test(para.lesson.steps[0].body)) {
+    fail('course-format: a step body lost its paragraph breaks. That is the entire reason this format '
+       + 'exists — Stage 5 asks for steps that stand alone and one line cannot.');
+  }
+
+  /* --- 2 · it refuses with sentences, never a bare false --- */
+  for (const [bad, why] of [['', 'nothing at all'], ['## just a step', 'no title'],
+                            ['---\ntitle: T\n---\n\nno headings here', 'no steps']]) {
+    const r = CF.parseCourse(bad);
+    if (r.ok) { fail(`course-format: accepted ${why}`); continue; }
+    if (!r.problems.length || typeof r.problems[0] !== 'string' || r.problems[0].length < 15) {
+      fail(`course-format: rejected ${why} without a usable sentence — a person pasting a file that will `
+         + 'not import needs to know which line to fix');
+    }
+  }
+
+  /* --- 3 · ★ ONE EMITTER. course-format must delegate, not duplicate. --- */
+  const cfSrc = readFileSync(new URL('../src/game/data/course-format.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  if (!/from\s+'\.\/lesson-doc\.js'/.test(cfSrc)) {
+    fail('data/course-format.js does not import lesson-doc.js — it has grown its own Markdown writer. '
+       + 'lessonToMarkdown() has produced the teacher-facing document since 2026-08-03; two writers for '
+       + 'one object drift, and the one that drifts is the one nobody looks at.');
+  }
+  if (/'---\\n'|"---\\n"|`---\\n/.test(cfSrc)) {
+    fail('data/course-format.js builds a frontmatter block itself. That belongs to lessonToMarkdown\'s '
+       + '`frontmatter` option — see the comment there.');
+  }
+  /* And the emitter really does produce something the parser reads. */
+  const emitted = LD.lessonToMarkdown(
+    { title: 'T', summary: 'S', level: 101, steps: [{ title: 'One', body: 'a\n\nb' }], by: { who: 'you', user: 'u' } },
+    { frontmatter: true });
+  if (!CF.parseCourse(emitted).ok) {
+    fail('lessonToMarkdown({frontmatter:true}) emits something parseCourse cannot read. The two halves '
+       + 'of the round trip have come apart.');
+  }
+  /* A numbered heading must not accumulate on repeated trips. */
+  const twice = CF.parseCourse(CF.emitCourse(CF.parseCourse(emitted).lesson));
+  if (twice.ok && /^\d+\.\s/.test(twice.lesson.steps[0].title)) {
+    fail('course-format: a step title picked up its positional number ("1. One") on a round trip, so it '
+       + 'grows every time the file is exported and re-imported');
+  }
+
+  /* --- 4 · the pure half stays pure --- */
+  for (const bad of [/\bdocument\.[A-Za-z_$]/, /\bwindow\.[A-Za-z_$]/, /from\s+'[^']*entities\.js'/]) {
+    if (bad.test(cfSrc)) fail(`data/course-format.js touches ${bad} — it is the testable half`);
+  }
+
+  /* --- 5 · ★ mdLite escapes BEFORE it adds markup --- */
+  const { mdLite } = await import('../src/game/ui/dom.js');
+  const nasty = mdLite('<img src=x onerror=alert(1)> **bold**');
+  if (/<img/.test(nasty)) {
+    fail('ui/dom.js: mdLite() let raw HTML through. A lesson step is author text and can arrive from a '
+       + 'packet somebody else wrote — it MUST be escaped before any markup is introduced.');
+  }
+  if (!/<b>bold<\/b>/.test(nasty)) fail('ui/dom.js: mdLite() did not render **bold**');
+  if (/<b>/.test(mdLite('a * b * c'))) fail('ui/dom.js: mdLite() turned single asterisks into markup');
+
+  /* --- 6 · the packet carries the document --- */
+  const ovC = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  if (!/kind:'lesson'[\s\S]{0,400}body:emitCourse\(/.test(ovC)) {
+    fail('overlays.js: a lesson packet no longer carries body:emitCourse(node). Steps would go back to '
+       + 'being flattened to `title | body`, which truncates every paragraph on the way to another person.');
+  }
+  if (!/parseCourse\(p\.body/.test(ovC)) {
+    fail('overlays.js: takePacket() does not read the packet body as a course, so a received lesson would '
+       + 'be rebuilt from the flattened fallback even when the full document is right there');
+  }
+  /* The old field stays, deliberately: a Pavilion older than today reads it and
+     nothing else, and a lesson that arrives thin beats one that arrives empty. */
+  if (!/steps:\(node\.steps\|\|\[\]\)\.map/.test(ovC)) {
+    fail('overlays.js: the lesson packet stopped writing the flattened `steps` array. It is there for '
+       + 'Pavilions older than 2026-08-10, which read that and nothing else.');
+  }
+}
+
 /* ---------- nothing may be checked after the verdict ----------
    THIS SUITE PRINTS ITS RESULT AND THEN EXITS. A block appended to the END of
    this file therefore runs after the verdict, and its failures go into a list

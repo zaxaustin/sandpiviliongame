@@ -23,6 +23,7 @@ import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, DEFAULT_PACE, rosterBlock, rosterForVisitor } from '../data/roles.js';
 import { initNoteAuthor, byLine, isAiNote, authorOf, attributionOf, labelledNote, currentUser }
   from '../data/note-versions.js';
+import { parseCourse, emitCourse, COURSE_EXT } from '../data/course-format.js';
 import { initTutorial, openTutorial, tutorialStart, tutorialGo, tutorialPickLesson,
          tutorialTickReady, tutorialSetOutcome, tutorialPublish, tutorialRecordGraduation }
   from './tutorial.js';
@@ -9767,15 +9768,25 @@ export function takePacket(id){
        recipient does not own would be unopenable, and this project does not
        withhold. A packet with no steps still falls through to a note, because
        there is nothing there to walk. */
-    const steps=(p.steps||[]).map(l=>{ const [t,...r]=String(l).split('|'); return { title:(t||'').trim(), body:r.join('|').trim() }; })
-      .filter(s=>s.title);
+    /* PREFER THE DOCUMENT. A packet written from 2026-08-10 carries the whole
+       course as Markdown in `body`, so paragraphs survive; one written before
+       that has only the flattened `steps`, and a thin lesson beats none. */
+    const doc = p.body ? parseCourse(p.body, { user: currentUser() }) : null;
+    const steps = (doc && doc.ok && doc.lesson.steps.length)
+      ? doc.lesson.steps
+      : (p.steps||[]).map(l=>{ const [t,...r]=String(l).split('|'); return { title:(t||'').trim(), body:r.join('|').trim() }; })
+          .filter(s=>s.title);
     const prereqs=(p.needs||[]).map(t=>{
       const hit=allNodes().find(n=>String(n.title||'').toLowerCase()===String(t).toLowerCase());
       return hit?hit.id:null;
     }).filter(Boolean);
     myLessons().unshift({ id:'mine-'+Date.now().toString(36), track:p.track||'From the Commons',
       level:Number(p.level)||101, title:p.title, summary:(p.summary||p.why||'')+credit,
-      prereqs, steps, mine:true, written:todayKey(), fromPacket:p.id });
+      prereqs, steps, mine:true, written:todayKey(), fromPacket:p.id,
+      /* WHO MADE IT SURVIVES THE HANDOVER. Same field a note carries. Once a
+         packet is a file the sparkle in its text is just a character, so if a
+         model drafted this the receiving Pavilion has no other way to know. */
+      by: (doc && doc.ok && doc.lesson.by) || { who:'you', user:(p.by||'someone else') } });
   } else {
     data.notes.unshift({ id:newNoteId(), title:p.title, body:(p.body||p.summary||'')+credit, created:todayKey(), updated:todayKey() });
   }
@@ -9853,8 +9864,20 @@ function doPublish(kind, id, reason){
     // prerequisites travel as TITLES, not ids: ids are local to one Pavilion,
     // titles are what another person can actually match against.
     const node=curriculumNode(id); if(!node) return;
+    source=node;
+    /* THE PACKET CARRIES THE PORTABLE DOCUMENT. `steps` stayed a list of
+       `title | body` strings until 2026-08-10, which silently truncated any
+       step with a paragraph in it — and Tutorial Stage 5 asks for exactly
+       those. `body` is the same Markdown a person can paste into a chat
+       window, so one format covers writing, publishing and importing.
+
+       The flattened `steps` array is STILL WRITTEN, and deliberately: a
+       Pavilion older than today reads that and nothing else, and a packet
+       that renders as nothing on a colleague's machine is worse than one
+       that renders thinly. New readers prefer `body` (see takePacket). */
     p={ id:newPacketId(), kind:'lesson', title:node.title, why:node.summary||'',
-        summary:node.summary||'', steps:(node.steps||[]).map(s=>s.title+(s.body?' | '+s.body:'')),
+        summary:node.summary||'', body:emitCourse(node),
+        steps:(node.steps||[]).map(s=>s.title+(s.body?' | '+s.body:'')),
         needs:(node.prereqs||[]).map(pid=>{ const q=curriculumNode(pid); return q?q.title:null; }).filter(Boolean),
         track:node.track||'', level:Number(node.level)||101 };
   } else {

@@ -18,6 +18,24 @@ export function esc(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/* ESCAPE FIRST, THEN ONE MARK. A lesson step can hold real prose since
+   2026-08-10, and the portable course format asks authors to label the parts
+   of a step — "**Practice:** read it once" — because that is what a model
+   emits when you ask it for Markdown. Rendered through esc() alone those
+   asterisks show up raw, which was visible the first time anyone LOOKED at a
+   multi-paragraph step rather than asserting its text was present.
+
+   DELIBERATELY ONE MARK, not a Markdown renderer. Bold is the only thing the
+   format asks for; headings, links and lists inside a step body are somebody
+   else's problem and every one of them is a way to smuggle HTML. esc() runs
+   FIRST and this only ever introduces <b>, so there is no path from author
+   text to markup — the substitution operates on already-escaped output where
+   `<` cannot exist. Anything unmatched stays as literal asterisks, which is
+   the honest failure. */
+export function mdLite(s) {
+  return esc(s == null ? '' : s).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+}
+
 /* The one <select> skin used across the panels. It lived in overlays.js until
    the Learning Tree moved out and took a `<select>` with it — a bare constant,
    so it crashed at runtime rather than at build time, and neither `npm test`

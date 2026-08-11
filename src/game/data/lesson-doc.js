@@ -75,6 +75,27 @@ const esc = s => String(s == null ? '' : s)
 export function lessonToMarkdown(node, opts = {}) {
   const book = opts.book || null;
   const L = [];
+  /* THE PORTABLE HALF, added 2026-08-10 and deliberately an OPTION on this
+     function rather than a second emitter. This already wrote the document a
+     teacher hands out; `frontmatter: true` adds the machine-readable header
+     that lets data/course-format.js read it back, so "Save as Markdown" now
+     produces a file that can be edited in a chat window and dropped straight
+     back in. Two Markdown writers for one object would be rule 4's exact
+     shape — and this one already existed, written for the steward's friend
+     who teaches English, who is the person the whole round trip is for. */
+  if (opts.frontmatter) {
+    const by = node.by || {};
+    const fm = ['title: ' + (node.title || 'A lesson')];
+    if (node.summary) fm.push('summary: ' + String(node.summary).replace(/\s*\n+\s*/g, ' ').trim());
+    if (node.track) fm.push('track: ' + node.track);
+    if (node.level) fm.push('level: ' + node.level);
+    if (node.book && node.book.slug) fm.push('reading: ' + node.book.slug);
+    if (by.user) fm.push('author: ' + by.user);
+    if (by.who === 'ai' && by.model) fm.push('drafted-with: ' + by.model);
+    if (node.license) fm.push('license: ' + node.license);
+    for (const k of Object.keys(node.extra || {})) fm.push(k + ': ' + node.extra[k]);
+    L.push('---'); L.push(fm.join('\n')); L.push('---'); L.push('');
+  }
   L.push('# ' + (node.title || 'A lesson'));
   L.push('');
   if (node.summary) { L.push(node.summary); L.push(''); }

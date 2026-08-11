@@ -21,7 +21,9 @@
 import { state, data, persist, todayKey, logActivity, awardBadge } from '../entities.js';
 import { blip } from '../main.js';
 import { Store } from '../data/store.js';
-import { esc, jsq, NOTE_SELECT_STYLE } from './dom.js';
+import { esc, jsq, mdLite, NOTE_SELECT_STYLE } from './dom.js';
+import { parseSteps, stepsToText } from '../data/course-format.js';
+import { byLine, currentUser } from '../data/note-versions.js';
 import { WORK_CHARTER } from '../data/charter.js';
 import { AI, isEmptyReply, chatOptsFor } from '../ai/provider.js';
 import { planToLesson } from '../data/plan-to-lesson.js';
@@ -255,7 +257,17 @@ export function openLesson(id){
      ladder is actually for." A node still being written is a different case —
      there is genuinely nothing to show yet. */
   if(node.status==='planned'){ state.treeView={mode:'list'}; renderLearningTree(); return; }
+  /* SHOW THE OVERLAY, like both its siblings do (openLessonFromNote and the
+     note-lesson door below). Until 2026-08-10 this only set treeView and
+     re-rendered, which is fine when you clicked a lesson from inside the open
+     tree and silently paints a hidden panel from anywhere else. Nothing called
+     it from outside yet — so this was latent rather than live — but it is on
+     window, so the first surface that reached for it would have got nothing.
+     Found by a live suite asserting the panel was OPEN rather than merely
+     rendered, which is a distinction document.body.textContent cannot make. */
+  state.ui='tree'; hideAllOv();
   state.treeView={mode:'lesson',id}; renderLearningTree();
+  showOv('treeOv');
 }
 export function backToTree(){ state.treeView={mode:'list'}; renderLearningTree(); }
 /* The Academy Tutor (PAVILION-ACADEMY-PLAN.md Phase 1) — a conversation with the
@@ -514,7 +526,7 @@ function renderLearningTree(){
       <label>The steps — one per line</label>
       <div class="meta">Optionally put a longer explanation after a <b>|</b> on the same line:
         <code>Tin the tip | Melt a little solder onto the iron before you start; it makes everything after it work.</code></div>
-      <textarea id="mlSteps" rows="7" placeholder="Buy a cheap iron and a reel of 60/40&#10;Tin the tip | Melt a little solder onto the iron first&#10;Join two wires, then tug them hard">${esc(editing?(editing.steps||[]).map(s=>s.title+(s.body?' | '+s.body:'')).join('\n'):'')}</textarea>
+      <textarea id="mlSteps" rows="7" placeholder="Buy a cheap iron and a reel of 60/40&#10;Tin the tip | Melt a little solder onto the iron first&#10;Join two wires, then tug them hard">${esc(editing?stepsToText(editing.steps||[]):'')}</textarea>
       <h3 style="margin-top:16px">Locked until… <span class="badge lic">optional</span></h3>
       <div class="meta">Tick any lesson that should be finished first. Leave them all unticked and yours is
         open from the start.</div>
@@ -599,7 +611,7 @@ function renderLearningTree(){
         const beyond=!!(r && r.kind==='chapter' && setChapters!=null && r.from>setChapters);
         return `<div class="card" style="cursor:pointer" onclick="toggleLessonStep('${node.id}',${i})">
           <div class="t">${on?'☑':'☐'} ${esc(s.title)}</div>
-          <div class="s" style="margin-top:5px">${esc(s.body)}</div>
+          <div class="s" style="margin-top:5px;white-space:pre-wrap">${mdLite(s.body)}</div>
           ${beyond?`<div class="s" style="margin-top:6px;color:#e0a43c">⚠ ${esc(readingLabel(r))} — this text has ${setChapters} chapter${setChapters===1?'':'s'}, so there is nothing to link to.</div>`:''}
           ${((r&&!beyond)||s.action)?`<div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
             ${(r&&!beyond)?`<button class="btn ghost" style="font-size:11.5px" onclick="event.stopPropagation(); openLessonReading('${jsq(setText.slug)}','${r.kind}',${r.from})"
@@ -1029,15 +1041,31 @@ export function saveMyLesson(existingId){
   const title=g('mlTitle').trim();
   const msg=document.getElementById('mlMsg');
   if(!title){ if(msg) msg.textContent='Give it a title first.'; return; }
-  const steps=g('mlSteps').split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
-    .map(l=>{ const [t,...rest]=l.split('|'); return { title:(t||'').trim(), body:rest.join('|').trim() }; });
-  if(!steps.length){ if(msg) msg.textContent='A lesson needs at least one step — one per line.'; return; }
+  /* ONE TEXTAREA, TWO SHAPES. `Title | body` per line is still right for a
+     three-step lesson you are jotting down; the moment the text contains a
+     `## ` heading it is the portable course format instead, which is what you
+     get when you paste in something a model wrote. The text says which it is,
+     so there is no mode switch — and both go through one parser, because two
+     conventions for one thing is rule 4's shape. See data/course-format.js.
+
+     Until today a step body could not contain a newline, so Tutorial Stage 5
+     asked for steps that "stand alone" in a format that could not express
+     one. */
+  const parsed=parseSteps(g('mlSteps'), { user: currentUser() });
+  if(!parsed.ok){ if(msg) msg.textContent=parsed.problems[0]; return; }
+  const steps=parsed.lesson.steps;
   const prereqs=[...document.querySelectorAll('.mlPre:checked')].map(c=>c.value);
   const list=myLessons();
   const node={ id: existingId || ('mine-'+Date.now().toString(36)),
     track: g('mlTrack').trim() || 'Your own lessons',
     level: Number(g('mlLevel'))||101,
-    title, summary:g('mlSummary').trim(), prereqs, steps, mine:true, written:todayKey() };
+    title, summary:g('mlSummary').trim(), prereqs, steps, mine:true, written:todayKey(),
+    /* WHO MADE IT, in the same shape a note carries (data/note-versions.js).
+       A course drafted in a chat window and an AI note written in the Reader
+       are the same question, and one vocabulary for it is rule 4. Pasted
+       Markdown that declares `drafted-with:` keeps that; anything typed here
+       is the visitor's own. */
+    by: (parsed.lesson.by || byLine('you')) };
   /* THE SET TEXT — THE-TEACHERS-TREE-PLAN.md gap 1. Until this, the lesson
      node was the ONE artifact in the Pavilion that could not cite a book,
      while a note has carried chapter and page since this morning. An absent
