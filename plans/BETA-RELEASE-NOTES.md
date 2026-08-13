@@ -7,8 +7,21 @@ This is a **beta**. Expect rough edges, and please tell me about them.
 
 ### Installing
 
-Download `Sand Pavilion Setup 0.1.0-beta.6.exe` below and run it. It installs
-for you only — no administrator password — and appears in the Start menu.
+**Windows:** download `Sand Pavilion Setup 0.1.0-beta.6.exe` below and run it.
+It installs for you only — no administrator password — and appears in the Start
+menu.
+
+**macOS:** `Sand Pavilion 0.1.0-beta.6 arm64.dmg` (Apple Silicon — M1 and
+later) or `… x64.dmg` (Intel Macs). It is **not notarised**, so macOS will
+likely say *"Sand Pavilion is damaged and can't be opened"* — that is what it
+says about every unsigned app, and it is not true. **Right-click the app →
+Open → Open.** Only needed the first time. If it still refuses:
+`xattr -dr com.apple.quarantine "/Applications/Sand Pavilion.app"`.
+
+**Or neither:** [sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app)
+is the same Pavilion in a browser tab, nothing to install. A tab holds roughly
+10–20 books rather than 500, and reaching a local AI from a browser needs
+`OLLAMA_ORIGINS` set; everything else is the same.
 
 **Windows will warn you it doesn't recognise the app.** Click **More info**,
 then **Run anyway**. That's because I haven't bought a code-signing certificate
@@ -17,7 +30,7 @@ because anything is wrong. If you'd like to check the download:
 
 ```powershell
 Get-FileHash "Sand Pavilion Setup 0.1.0-beta.6.exe" -Algorithm SHA256
-# 966CB0D7F772B2854905F0C0529E5C97B51288C2A3C9EE061C5B7EA626C99B9B
+# D8C6BF5780F5CD2D5D1E5E41D73502BC4520F525BD1ABD007757AF64E3592325
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -78,6 +91,20 @@ their own thing, with the one action that fixes that one.
 title — and it survives being written, published and received by someone else,
 which it did not before.
 
+**There is now a way in for a computer that cannot run a model at all.** If
+*Check this computer* tells you not to run one locally — an older laptop, a
+MacBook Air, 8GB shared with everything else — it now offers the other door in
+the same breath: **Ollama can run the model on its own machines instead.**
+`ollama signin`, `ollama pull gpt-oss:20b-cloud`, press **Detect**, choose it.
+Both lines are on screen with a Copy button. No API key is ever pasted into the
+Pavilion; it arrives through the same local Ollama, and a hosted model is
+**offered but never picked for you.** It answers in about a second.
+
+The trade is stated wherever it is offered: **what you type to a resident is
+sent to Ollama's servers and answered there.** Your library, your notes, your
+day and your whole save never leave this computer — but the conversation does,
+and the chat header says `☁ leaves this device` on every message.
+
 **Model guidance now matches measured hardware.** The panel used to suggest
 "an 8–14B model, plus optionally one thinking model" for a strong card. Tested
 on a 16GB GPU, a 12B model fills 13.8GB and spills the rest to shared memory,
@@ -99,7 +126,9 @@ install [Ollama](https://ollama.com), pull a model, then press **Detect** under
 connections* and press **Check this computer** — the Pavilion reads the machine
 you're actually on and tells you whether it's worth doing, which model to get,
 and the one line to type, ready to copy. On a small or old machine it will tell
-you honestly not to bother, and it means it.
+you honestly not to run one locally, and then show you the hosted way in
+instead (see above) — so "my computer can't do this" is no longer the end of
+the road.
 
 Two things worth knowing before you pull anything:
 

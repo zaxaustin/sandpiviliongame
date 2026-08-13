@@ -793,9 +793,15 @@ and yours; that's the point, and it's the one piece with real steps:
    manages everything.
 
 **In the panel, press “Check for Ollama” first.** It looks on your own machine
-and tells you plainly what it found — whether Ollama is running, which models
-you have, and which one the Mountain Monk will claim (he always takes the
-largest). If something is missing it gives you the line to copy.
+and tells you plainly what it found — whether Ollama is running and which
+models you have. If something is missing it gives you the line to copy. And
+press **Check this computer** beside it: it reads the machine you are actually
+on and names the model that fits, rather than asking you to know your own RAM.
+
+*(This paragraph used to add "and which one the Mountain Monk will claim — he
+always takes the largest". He stopped doing that on 2026-08-07: every resident
+runs on the one model you pick, so you no longer need a big one on his
+account.)*
 
 ### If your computer can't run a model itself
 
@@ -813,10 +819,22 @@ pick it from the **☁ run on Ollama's servers** group. It's fast — noticeably
 faster than a local model on a strong machine.
 
 **What changes when you do, said plainly.** What you say to a resident leaves
-your computer and is answered on Ollama's servers. So it's never chosen for
-you: the Pavilion always auto-picks a 🏠 local model, the Mountain Monk will
-*only* ever use a local one, and the title screen stops saying "local" the
-moment a hosted model is active. Swap back to 🏠 at any time.
+your computer and is answered on Ollama's servers. Your library, your notes,
+your day and your whole save never do. So a hosted model is **offered but never
+chosen for you**: the Pavilion only ever auto-picks a 🏠 local one, and the
+title screen and every chat header stop saying "local" the moment you pick a
+hosted one. Swap back to 🏠 at any time.
+
+**Including the Mountain Monk, and that is deliberate.** This paragraph used to
+promise he would *only* ever use a local model. That was written as a guard and
+never existed as one — there is no per-resident routing anywhere in the app.
+Rather than build it, the steward decided the other way on 2026-08-10: *"the
+monk can be cloud if there computer cant run local ai, alot of people have
+laptops — just let the user know."* **Guidance you can reach beats a principle
+that locks you out of the room.** What carries it instead is labelling, on
+every conversation rather than buried in a settings page. If you would rather
+his conversations never left this computer, keep a 🏠 local model selected —
+that is your call to make, not ours.
 
 **One thing worth knowing before you go looking for a cloud key: a
 subscription is not an API key.** Paying for Claude or ChatGPT in their own

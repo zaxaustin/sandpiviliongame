@@ -454,7 +454,7 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 >   cannot be attempted is a shelf, not a gate. `verify:release` is **green**
 >   for the first time since 2026-08-07.
 >   - `release/Sand Pavilion Setup 0.1.0-beta.6.exe`, 101 MB, SHA-256
->     `966CB0D7F772B2854905F0C0529E5C97B51288C2A3C9EE061C5B7EA626C99B9B`.
+>     `D8C6BF5780F5CD2D5D1E5E41D73502BC4520F525BD1ABD007757AF64E3592325`.
 >   - **A new suite, `test/live/packaged-exe.mjs`, drives the REAL `.exe`** out
 >     of `win-unpacked` with a throwaway `--user-data-dir`. `packaged-boot.cjs`
 >     only ever loaded the repo's `dist/` with the repo's electron — the asar
@@ -471,6 +471,31 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 >     12B to shared memory and crawls. It now says **9B, one at a time**, and
 >     cites the measurement. `checkMyMachine()` was already correct.
 >
+> - **DONE — the hosted door, for a computer that cannot run a model.** Asked
+>   for the same day: *"my friend is not gonna be able to run any models on his
+>   computer but I still wanna get him access."* **The engine has honoured this
+>   since 2026-08-03 and no surface ever said the word** — "Check this computer"
+>   told a 4GB laptop *"skip the AI on this machine"*, which is true about local
+>   models and false about the Pavilion. `CLOUD_MODEL` / `cloudPathway()` in
+>   `data/machine-advice.js`; `recommendModel()` now returns `cloud:` on **every**
+>   tier so no branch can drop it, and only `prominence` changes. Rendered in the
+>   machine card, the tiered guide and `AI_TROUBLE.NO_MODELS`.
+>   **Five guards, each broken on purpose — and one was born dead**: the caveat
+>   check read `/leave/` against a caveat whose *second* half is "…your save never
+>   leave", so deleting the whole warning passed. Both halves asserted separately
+>   now. The one worth keeping deliberately asks `provider.js`'s own
+>   `isCloudModel()` whether the tag the **advice** recommends is one the
+>   **picker** treats as hosted — two files, one fact, across the seam.
+> - **DONE — the Mac build is a tag away.** `.github/workflows/build-installers.yml`
+>   has built `arm64` **and** `x64` `.dmg`s since 2026-07-28 and **nobody had ever
+>   pushed a tag to fire it.** No code needed. What it needs is honesty:
+>   **nothing on this Windows machine can build or test a `.dmg`**, so the CI log
+>   is the only evidence until a Mac opens one — and an `arm64` build will not
+>   open on an Intel Mac.
+> - **DONE — [`plans/AFTER-THE-BETA.md`](plans/AFTER-THE-BETA.md).** The testing
+>   to do now, what is known missing, and the rule this release taught. **Read it
+>   instead of improvising the week after a release.**
+>
 > **⛳ NEXT IS NOT CODE, and now it genuinely cannot be:**
 >
 > 1. **The taste pass** on the three things no test settles: whether 34 cps
@@ -481,9 +506,17 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 >    The suites prove the state transitions; they cannot prove it felt like
 >    theirs or took ten minutes. Same category as the never-done clean-machine
 >    install, and together those two decide whether this is a beta or a demo.
-> 3. **The welcome packet** — the steward's own, and deliberately *after* the
+> 3. **The Mac path and the hosted-model path**, both of which exist and
+>    **neither of which a person has ever used.** Push the tag, check the run is
+>    green, ask which Mac; then `ollama signin` on a laptop that genuinely
+>    cannot run local.
+> 4. **The welcome packet** — the steward's own, and deliberately *after* the
 >    walk rather than before it. Stage 1 beat one is the seam: one function
->    body, and nothing else changes when it lands.
+>    body, and nothing else changes when it lands. Whether it is urgent is
+>    decided by watching step 2, not by arguing about it.
+>
+> **All of it, in order and with what to watch for, is in
+> [`plans/AFTER-THE-BETA.md`](plans/AFTER-THE-BETA.md).**
 >
 > **Publishing is a human action.** The command, the SmartScreen warning to send
 > with it, and what to say are all in

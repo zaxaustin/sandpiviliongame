@@ -226,7 +226,7 @@ Rebuilding is the honest answer; touching the file to defeat a
 freshness check is the dishonest one.
 
   release/Sand Pavilion Setup 0.1.0-beta.6.exe   101 MB
-  SHA256 966CB0D7F772B2854905F0C0529E5C97B51288C2A3C9EE061C5B7EA626C99B9B
+  SHA256 D8C6BF5780F5CD2D5D1E5E41D73502BC4520F525BD1ABD007757AF64E3592325
 
 Both artifact suites re-run green against the rebuild.
 
@@ -306,3 +306,166 @@ entire point of today.
 
 Publishing is a human action. The command, the SmartScreen warning to
 send with it, and what to say are in plans/SHIPPING-THE-BETA.md.
+
+
+================================================================
+PART TWO — THE DOOR FOR A COMPUTER THAT CANNOT RUN A MODEL
+================================================================
+
+The steward, after the build was cut:
+
+    "How is the ollama connection for the cloud because I know my
+     friend is not gonna be able to run any models on his computer but
+     I still wanna get him access to this... make sure there's a
+     pathway in the game for that to happen especially for the Mac
+     build."
+
+THE ANSWER WAS ALREADY BUILT AND NOBODY COULD FIND IT, which is the
+worst version of this and the one rule 5 is about.
+
+Everything in the engine has worked since 2026-08-03. Ollama serves
+hosted models through the SAME local endpoint, so no API key is ever
+pasted into this app. isCloudModel() marks them on two independent
+signals (the name, and the size — a hosted entry is a ~306-byte
+manifest where a real model is gigabytes). They are excluded from every
+automatic choice, and honoured when the visitor picks one deliberately.
+p.usingCloud is set, the connection renames itself "☁ hosted", the chat
+header says "leaves this device". A CLOUD_ONLY trouble state exists and
+says the right thing. Measured that day: gpt-oss:20b-cloud answered in
+0.64s where a local 9B takes many seconds.
+
+And the ONE surface where a person would look — "Check this computer",
+written for exactly this friend in July — said:
+
+    "Skip the AI on this machine — and lose nothing that matters.
+     4 GB isn't enough... So: don't."
+
+True about LOCAL models. False about the Pavilion, by omission. The
+machine most in need of the door was the only one being told to give
+up, and the only people who could find the door were the ones who
+already knew it was there.
+
+WHAT WAS ADDED. data/machine-advice.js gains CLOUD_MODEL, CLOUD_CAVEAT
+and cloudPathway(tier), and recommendModel() now returns `cloud:` on
+EVERY tier — never null, so there is no branch that can drop it. Only
+`prominence` changes: 'primary' for none/tight/unknown, 'aside' for a
+machine that can run its own. Two rules are written into the module
+header rather than left to whoever edits the copy next:
+
+  · never offer it without saying plainly that it leaves the device.
+    A pathway out of the promise is fine; a QUIET pathway out of it is
+    not.
+  · never lead with it on a machine that can run local. Local is the
+    disposition; this is the door for the people the disposition
+    excludes.
+
+Rendered in three places: the machine card (a bordered ☁ block with
+both commands and a Copy button each), the tiered guide in Connections
+(a "None of the above?" row, so it is visible before pressing
+anything), and AI_TROUBLE.NO_MODELS gains one clause.
+
+FIVE GUARDS, ALL BROKEN ON PURPOSE, AND ONE WAS BORN DEAD.
+
+  1. cloud: deleted from the return          -> 9 failures, named
+  2. the caveat's warning half deleted       -> PASSED. see below
+  3. signin and pull swapped                 -> 1 failure, named
+  4. tag changed to gpt-oss:20b (not hosted) -> 1 failure, named
+  5. prominence forced to primary everywhere -> 5 failures, named
+
+Guard 2 was born dead in the textbook way. It read
+
+    /leave|does not stay/i.test(caveat)
+
+and the caveat's SECOND half is the reassurance "...your whole save
+never leave". So deleting the entire outbound warning still passed: the
+word survived inside the sentence that says the opposite. It checked
+the word, not the statement — the same shape as every born-dead guard
+in CLAUDE.md rule 3. Both halves are asserted separately now, and
+re-broken both ways to prove it.
+
+Guard 4 is the one worth keeping deliberately: it asks provider.js's
+own isCloudModel() whether the tag the ADVICE recommends is one the
+PICKER will treat as hosted. Two files, one fact, checked across the
+seam. Without it, renaming the recommended tag would quietly recommend
+a model that could then be auto-picked — which is the 2026-08-03 bug
+(the Monk's private conversations going to a server) re-introduced from
+the advice side rather than the engine side.
+
+Live: ai-diagnosis.mjs gains a fifth section that presses "Check this
+computer" and reads the panel — 19/19. One real bug in the test itself:
+innerText of a CLOSED <details> is the summary alone, so the tiered
+guide check failed on correct code until it set `d.open = true`.
+
+AND I LOOKED AT IT (rule 2). A scratch page with navigator.deviceMemory
+forced to 4 renders the primary card, screenshotted to
+test/live/_hosted-primary.png. It reads correctly: the "don't run one
+locally" verdict, then the ☁ block, then the two commands, then the
+caveat in amber, then "press Detect and choose it — hosted models are
+never picked for you."
+
+The verdict line was also corrected. "Skip the AI on this machine" is
+now "Don't run a model on this machine", and the paragraph ends "If you
+want the residents anyway, there is a hosted way below" — because a
+verdict that contradicts the card beneath it is worse than either.
+
+PROTOCOLS.md Protocol 2 gains the row and a section; the tiered table's
+"Strong" row also still said 8-14B and now says the measured thing.
+
+
+THE MAC BUILD
+--------------
+
+    "let's make sure that there is a Mac install as well I wanna make
+     sure my friend can try this on his laptop"
+
+.github/workflows/build-installers.yml has built both platforms since
+2026-07-28 and NOBODY HAD EVER PUSHED A TAG TO FIRE IT. package.json
+already asks for arm64 AND x64 dmgs, unsigned (identity: null).
+
+So the Mac build needs no code — it needs the tag. What it does need is
+honesty about what cannot be verified from here: nothing on this
+Windows machine can build or test a .dmg, so the CI log is the only
+evidence until a Mac opens one. Recorded in SHIPPING-THE-BETA.md, along
+with the two things that will actually bite: an arm64 build will not
+open on an Intel Mac (ask which he has), and Gatekeeper says "Sand
+Pavilion is damaged and can't be opened" about every unsigned app,
+which frightens people far more than SmartScreen.
+
+The release notes now carry all three install paths — .exe, both .dmgs,
+and the website for anyone who wants none of it.
+
+
+REBUILT, BECAUSE THE SOURCE MOVED
+----------------------------------
+
+The hosted pathway is source, so the installer cut two hours earlier
+was stale the moment it landed. Rebuilt, re-hashed, both artifact
+suites green again:
+
+  SHA256 D8C6BF5780F5CD2D5D1E5E41D73502BC4520F525BD1ABD007757AF64E3592325
+
+Full sweep after the change: npm test green, all 33 browser suites
+green, all 9 Electron suites green (docker-home 31/31 against the live
+container), packaged-exe green, verify:release green.
+
+
+AND THE WEEK AFTER THIS ONE IS WRITTEN DOWN
+--------------------------------------------
+
+    "make sure that we are prepared to handle the work that we need to
+     do after this beta as well as the testing we need to do now"
+
+plans/AFTER-THE-BETA.md. Three parts, deliberately: the testing to do
+NOW (five items, none needing code, in the order that matters), what is
+known to be missing (near list, structural list, the machine), and the
+one rule this release taught.
+
+The near list's second item is the steward's own observation from the
+same message — there is no way to update the game from inside the game.
+Worth recording what it actually costs, because it is much less than it
+sounds: electron-builder ALREADY emits latest.yml beside every
+installer, and that IS the update feed. What is missing is a public
+place to serve it from and electron-updater wired into main.cjs. It is
+a repo-visibility decision plus an afternoon, not a research problem.
+Until then an update means sending a new link, and the people we send
+this one to should be told that.

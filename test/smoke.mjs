@@ -1670,6 +1670,66 @@ const UI_SOURCE = readdirSync(new URL('../src/game/ui/', import.meta.url))
       fail(`machine-advice: a ${gb} GB machine was offered a ${r.model.gb} GB model — too big to be safe`);
     }
   }
+
+  /* ---------- THE HOSTED DOOR IS NEVER A DEAD END (2026-08-13) ----------
+     Asked for directly — "my friend is not gonna be able to run any models on
+     his computer but I still wanna get him access". The engine has honoured
+     chosen hosted models since 2026-08-03 and NO SURFACE EVER MENTIONED IT,
+     so the machine most in need of the door was the one told to give up.
+
+     Four properties, and the last two are the ones with teeth. Broken on
+     purpose, in order: deleting `cloud:` from the return, dropping the caveat,
+     reordering the two commands, and renaming the tag to `gpt-oss:20b`. Each
+     failed on its own line. */
+  const { CLOUD_MODEL, CLOUD_CAVEAT } = await import('../src/game/data/machine-advice.js');
+  const { isCloudModel } = await import('../src/game/ai/provider.js');
+
+  for (const gb of [0, 2, 4, 6, 8, 12, 16, 24, 64]) {
+    const r = recommendModel(gb ? { totalMemGB: gb, cores: 4 } : {});
+    if (!r.cloud || !r.cloud.tag) {
+      fail(`machine-advice: a ${gb || 'unreadable'} GB machine was offered no hosted pathway at all — that is the dead end this closed`);
+      continue;
+    }
+    /* The caveat travels with the offer, on every tier, always — and it has
+       to make the OUTBOUND statement, not merely contain the word "leave".
+
+       ⚠ THIS CHECK WAS BORN DEAD AND WAS CAUGHT BY BREAKING IT. The first
+       version tested /leave|does not stay/ against the whole caveat, and the
+       caveat's second half is the reassurance "…your whole save never leave".
+       So deleting the entire warning still passed: the word survived in the
+       sentence that says the opposite. Same shape as every born-dead guard in
+       CLAUDE.md rule 3 — it checked the word, not the statement. Both halves
+       are asserted separately now. */
+    const cav = r.cloud.caveat || '';
+    if (!/(sent to [^.]*servers|does not stay on this computer)/i.test(cav)) {
+      fail(`machine-advice: the hosted offer for ${gb} GB never says what you type goes to someone else's machine — got "${cav.slice(0, 80)}"`);
+    }
+    if (!/never leave/i.test(cav)) {
+      fail(`machine-advice: the hosted offer for ${gb} GB does not promise the library and notes stay put`);
+    }
+    // and it never outshouts local on a machine that can run local
+    const shouldLead = r.tier === 'none' || r.tier === 'tight' || r.tier === 'unknown';
+    if ((r.cloud.prominence === 'primary') !== shouldLead) {
+      fail(`machine-advice: tier ${r.tier} gave the hosted door prominence "${r.cloud.prominence}" — a machine that can run local must not be led to the cloud, and one that cannot must be`);
+    }
+  }
+  // sign in BEFORE the pull: the other order fails with an auth error that
+  // reads exactly like a broken install.
+  const steps = CLOUD_MODEL.steps.join(' | ');
+  if (!/signin/.test(CLOUD_MODEL.steps[0] || '') || !/pull/.test(CLOUD_MODEL.steps[1] || '')) {
+    fail(`machine-advice: the hosted steps are out of order or incomplete — got "${steps}"`);
+  }
+  /* DERIVED, not typed (rule 4). The tag we hand someone must be one the
+     picker will actually recognise as hosted — otherwise we recommend a model
+     that isCloudModel() lets be auto-picked, which is the 2026-08-03 bug
+     (the Monk's private conversations going to a server) re-introduced from
+     the advice side. Two files, one fact, checked across the seam. */
+  if (!isCloudModel(CLOUD_MODEL.tag)) {
+    fail(`machine-advice: recommends "${CLOUD_MODEL.tag}" as hosted, but ai/provider.js's isCloudModel() does not agree — it would be treated as a local model and could be auto-picked`);
+  }
+  if (!CLOUD_CAVEAT.includes('never leave')) {
+    fail('machine-advice: the hosted caveat no longer promises the library and notes stay put');
+  }
 }
 
 /* ---------- shelf rules ----------

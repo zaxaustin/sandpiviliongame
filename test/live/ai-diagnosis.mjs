@@ -159,6 +159,57 @@ console.log('\nFour failures, and what a person is actually told\n');
   ok('none of them is blank or a stub', !anyEmpty.length, anyEmpty.join(', ') || 'all real');
 }
 
+/* ---------- 5 · THE HOSTED DOOR IS ON SCREEN, for a machine that cannot
+   run a model at all. Added 2026-08-13.
+
+   *"my friend is not gonna be able to run any models on his computer but I
+   still wanna get him access… make sure there's a pathway in the game for
+   that to happen"* — and the pathway had existed in the ENGINE since
+   2026-08-03 (hosted models listed, never auto-picked, honoured when chosen)
+   while no surface in the app had ever said the word. `npm test` holds the
+   shape of the advice; this reads what the panel actually renders, because
+   the whole failure being fixed is that the copy was never there.
+
+   The machine reading is real — whatever this runner has — so the assertions
+   are on the pathway, which is present on every tier, not on a tier. ---------- */
+{
+  const r = await look('hosted-door', conn('http://127.0.0.1:' + PORT, false));
+  const card = await r.p.evaluate(async () => {
+    await window.checkMyMachine();
+    await new Promise(res => setTimeout(res, 400));
+    const out = document.getElementById('machineOut');
+    return out ? out.innerText : '';
+  });
+  console.log('    ' + card.replace(/\s+/g, ' ').slice(0, 150));
+  ok('pressing "Check this computer" offers the hosted way in at all',
+     /hosted model/i.test(card), card.replace(/\s+/g, ' ').slice(0, 120));
+  ok('...and says plainly that what you type leaves this computer',
+     /(sent to [^.]*servers|does not stay on this computer)/i.test(card),
+     card.replace(/\s+/g, ' ').slice(0, 160));
+  ok('...while promising the library and notes do not',
+     /never leave/i.test(card));
+
+  /* The tiered guide is the other surface, and it is the one a curious person
+     opens BEFORE pressing anything. It was the only place the word "hosted"
+     could have gone unnoticed, so it is checked separately rather than
+     assumed to follow. */
+  const guide = await r.p.evaluate(() => {
+    const d = [...document.querySelectorAll('#connPanel details')]
+      .find(x => /tiered guide/i.test(x.textContent));
+    if (!d) return '';
+    d.open = true;                 // innerText of a closed <details> is the summary alone
+    return d.innerText;
+  });
+  ok('the tiered guide names the hosted option too', /ollama signin/i.test(guide),
+     guide.replace(/\s+/g, ' ').slice(0, 120) || 'no tiered guide found');
+  ok('...with the two commands in the order that works',
+     guide.indexOf('ollama signin') < guide.indexOf('ollama pull gpt-oss'),
+     'signin at ' + guide.indexOf('ollama signin') + ', pull at ' + guide.indexOf('ollama pull gpt-oss'));
+
+  await r.p.screenshot({ path: 'test/live/_ai-hosted-door.png', fullPage: true });
+  await r.p.close();
+}
+
 /* ---------- and a working connection says so, with no diagnosis ---------- */
 {
   const r = await look('connected', conn('http://127.0.0.1:' + PORT), 'models');

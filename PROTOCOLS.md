@@ -282,7 +282,34 @@ Pick by the machine you actually have:
 | Modest — no real GPU, 8GB RAM, a few years old | `ollama pull llama3.2:1b` | Snappy, simple replies; the whole Pavilion works |
 | Everyday — most laptops/desktops, 8–16GB RAM | `ollama pull llama3.2` (3B) | The dependable default; quick, plain-spoken residents |
 | Capable — a real GPU (8GB+ VRAM) or 16GB+ RAM | an 8B instruct model, e.g. `ollama pull llama3.1:8b` | Noticeably deeper conversations, still reliable |
-| Strong — a gaming/creator machine, 12GB+ VRAM | a 8–14B instruct for daily use; add a reasoning model if you want to inspect its thinking | Deeper conversations throughout. A reasoning model is now genuinely useful here — but it is a *debugging* tool, not a faster one; see the measured times above |
+| Strong — a gaming/creator machine, 12GB+ VRAM | **a 9B instruct is the honest ceiling for most cards this size, and one model at a time** | Deeper conversations throughout. Measured on a 16GB card, which is *above* this floor: a 12B filled 13.8GB and spilled the rest to shared memory, where every token waits on the PCIe bus. It does not fail — it **crawls**, which is harder to diagnose. The context window and the KV cache take their share too, and the game needs room alongside |
+| **None of the above** — an old laptop, a MacBook Air, 8GB shared with everything | **`ollama signin`, then `ollama pull gpt-oss:20b-cloud`** | The residents, on a machine that cannot host a model. See below |
+
+### The hosted way in, for a machine that cannot run a model at all
+
+Added to the app 2026-08-13, after the second time the same question was asked
+about the same friends. **The engine has honoured this since 2026-08-03 and no
+surface ever mentioned it**, which meant the machine most in need of the door
+was the one being told to give up.
+
+Ollama serves hosted models **through the same local endpoint**, so no API key
+is ever pasted into the Pavilion. Install Ollama as normal, `ollama signin` with
+a free account, pull a `-cloud` model, press **Detect**, and choose it from the
+model list. Measured 2026-08-03: `gpt-oss:20b-cloud` answered in **0.64s** where
+a local 9B takes many seconds.
+
+- **Sign in before you pull.** The other order fails with an auth error that
+  reads exactly like a broken install.
+- **A hosted model is offered, never taken.** `isCloudModel()` keeps it out of
+  every automatic choice; it works only because you picked it on purpose.
+- **Be clear about what this costs you.** What you type to a resident is sent to
+  Ollama's servers and answered there. Your library, your notes, your day and
+  your whole save never leave this computer — but the conversation does, and the
+  chat header says `☁ leaves this device` on every message so you are never
+  guessing.
+- Ollama's free tier has limits, and some models need a paid plan
+  (`deepseek-v4-pro:cloud` returns *"requires a subscription"*). The app reports
+  the refusal rather than going quiet.
 
 Two Pavilion-specific facts that make the choice easier:
 

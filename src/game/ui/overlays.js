@@ -7,7 +7,7 @@ import { triage, extractEvidencePrompt, parseEvidence } from '../data/copyright.
 import { LEVELS as SOURCE_LEVELS, LEVEL_ORDER, assess as assessSource, mayEnterCommons } from '../data/sourcing.js';
 import { parseDraftedSteps, cleanAnswer, tooSimilarStep } from '../data/draft-parse.js';
 import { planToLesson } from '../data/plan-to-lesson.js';
-import { recommendModel, pullCommand } from '../data/machine-advice.js';
+import { recommendModel, pullCommand, CLOUD_MODEL } from '../data/machine-advice.js';
 import { preSortShelves, unsortedWorkOrder } from '../data/shelf-rules.js';
 import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS, notesToday, notesTodayLine } from '../data/the-day.js';
 import { gatherRecords, recordSummary, RECORD_LOOK } from '../data/records.js';
@@ -1684,8 +1684,35 @@ export async function checkMyMachine(){
           : `<b>An estimate.</b> A browser won't report real memory (it caps the number at 8), so this is a safe guess rather than a reading. The installed desktop app measures it properly.`}
       </div>
       ${rec.notes.length?`<ul style="margin:8px 0 0 18px;padding:0">${rec.notes.map(n=>`<li class="s" style="margin:4px 0">${esc(n)}</li>`).join('')}</ul>`:''}
+      ${cloudCard(rec.cloud)}
       <div class="s" style="margin-top:10px;opacity:.85">Don't want to install anything? You never have to. The
         Library, the reader, read-aloud, your notes, the day planner and every lesson work with no AI at all.</div>
+    </div>`;
+}
+/* ----- THE HOSTED DOOR, for a computer that cannot host a model.
+   The engine has offered this since 2026-08-03 (ai/provider.js: hosted models
+   are listed, never auto-picked, honoured when chosen) and no surface in the
+   app had ever mentioned it. See CLOUD_MODEL in data/machine-advice.js for
+   why, and for the two rules this markup follows: the caveat is never
+   optional, and it never outshouts local on a machine that can run local. */
+function cloudCard(c){
+  if(!c) return '';
+  const primary = c.prominence === 'primary';
+  const steps = c.steps.map(s=>`
+    <div class="row" style="margin-top:4px;gap:6px;align-items:center;flex-wrap:wrap">
+      <code style="font-size:13px;color:var(--gold)">${esc(s)}</code>
+      <button class="btn ghost" style="font-size:11px;padding:2px 8px"
+        onclick="copyPullCommand('${esc(s)}')">Copy</button>
+    </div>`).join('');
+  return `
+    <div style="margin-top:12px;padding:10px;border:1px solid ${primary?'#6a7f8a':'#3a3a44'};border-radius:4px">
+      <div class="${primary?'t':'s'}" style="${primary?'color:#8fb4c4':'opacity:.9'}">
+        ☁ ${primary?'The other way in — a hosted model':'Or: a hosted model, if you ever want one'}</div>
+      <div class="s" style="margin-top:5px">${esc(c.why)}</div>
+      ${primary ? `<div class="s" style="margin-top:8px"><b>Two lines, in this order:</b></div>${steps}` : ''}
+      <div class="s" style="margin-top:8px;color:#c4a86a">${esc(c.caveat)}</div>
+      ${primary ? `<div class="meta" style="margin-top:6px">Then press <b>Detect</b> above and choose
+        <code>${esc(c.tag)}</code> from the model list — hosted models are never picked for you.</div>` : ''}
     </div>`;
 }
 export function copyPullCommand(cmd){
@@ -1995,6 +2022,13 @@ function renderConnections(){
         PCIe bus. It does not fail — it crawls, which is harder to diagnose. VRAM headroom is not the
         whole story; the context window and the KV cache take their share too, and the game needs
         room alongside.</span><br><br>
+        <b>None of the above?</b> (an old laptop, a MacBook Air, 8GB shared with everything else) —
+        <b>Ollama can run the model on its own machines instead.</b> <code>ollama signin</code>, then
+        <code>ollama pull ${esc(CLOUD_MODEL.tag)}</code>, then <b>Detect</b> and choose it from the model
+        list. No API key is ever pasted in here — it arrives through the same local Ollama, and the
+        Pavilion offers hosted models but never picks one for you.
+        <span style="color:#c4a86a">What you type to a resident then leaves this computer; your library,
+        your notes and your save never do.</span><br><br>
         Two Pavilion facts worth knowing: <b>every resident runs on this connection's model</b> —
         there is no per-resident routing, so one good default serves the whole place. The Monk
         used to claim the largest model you had installed; that was retired on 2026-08-07, so

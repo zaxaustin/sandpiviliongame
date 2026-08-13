@@ -29,7 +29,7 @@ this build.
 
 ```
 release/Sand Pavilion Setup 0.1.0-beta.6.exe        101 MB
-SHA256  966CB0D7F772B2854905F0C0529E5C97B51288C2A3C9EE061C5B7EA626C99B9B
+SHA256  D8C6BF5780F5CD2D5D1E5E41D73502BC4520F525BD1ABD007757AF64E3592325
 ```
 
 One file. It's a one-click NSIS installer: no options, installs per-user
@@ -184,6 +184,12 @@ Keep it short. Everything else is in the app.
 > - The AI residents only wake up if you install **Ollama** (ollama.com) and
 >   pull a model. Optional — the Library, the notes, the day planner and the
 >   lessons all work without it.
+> - **If your computer can't run a model** (older laptop, MacBook Air, 8GB),
+>   Ollama can run one on its own machines: `ollama signin`, then
+>   `ollama pull gpt-oss:20b-cloud`, then **Detect** in the app and choose it.
+>   Press **Check this computer** in the AI panel and it walks you through it.
+>   What you type to a resident then leaves your machine — your library and
+>   notes still don't, and the app labels every conversation either way.
 > - **The Library starts empty, on purpose** — it's yours to fill, and the
 >   walk's first stage does it with you. Drag any `.txt` or `.epub` onto the
 >   window. If you want somewhere to start, Standard Ebooks and Project
@@ -218,7 +224,32 @@ as files they can open; there's no native save dialog; and reaching a local AI
 needs `OLLAMA_ORIGINS` set, which the desktop app does not. None of that stops
 them reading, taking notes, or planning a day.
 
-### 2. A real Mac build, via GitHub's own Macs
+### 2. A real Mac build, via GitHub's own Macs — DO THIS ONE
+
+**2026-08-13: asked for directly** — *"let's make sure that there is a Mac
+install as well, I wanna make sure my friend can try this on his laptop."* The
+workflow already exists and already builds both architectures; nobody had ever
+pushed a tag to fire it.
+
+**What actually happens when you push the tag:**
+
+1. `git push origin main --tags` starts *Build installers* on both a Windows
+   runner and a real Mac.
+2. The Mac job produces **two** files, because `package.json`'s `mac.target`
+   asks for both arches:
+   `Sand Pavilion 0.1.0-beta.6 arm64.dmg` (M1 and later) and
+   `Sand Pavilion 0.1.0-beta.6 x64.dmg` (Intel). **Ask which Mac your friend
+   has**, or send both — an arm64 build will not open on an Intel Mac.
+3. Download them from the **Actions tab → the run → Artifacts**, then attach
+   them to the Release beside the `.exe`.
+
+**Two things to check before believing it:**
+
+- **The run has to be green.** Nothing on this Windows machine can build or
+  test a `.dmg`, so the CI log is the only evidence there is. If the Mac job
+  fails, the `.dmg` does not exist and the release notes should not mention one.
+- **Private-repo minutes.** macOS runners bill at 10× on private repos. One
+  build is minutes, not hours, but it is not free the way the Windows one is.
 
 `.github/workflows/build-installers.yml` builds **both** installers — Windows
 `.exe` and macOS `.dmg` — on GitHub's runners, which include a real Mac, free

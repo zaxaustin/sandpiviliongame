@@ -708,7 +708,9 @@ export const AI_TROUBLE = {
     fix: 'pull a model, or fix the model folder',
     say: c => `${c.name} answered, but reports no models at all. Either none are installed — `
             + `“ollama pull llama3.2” gets a small one — or its model folder is pointing somewhere `
-            + `wrong. From in here those two look identical, so it is worth checking both.`,
+            + `wrong. From in here those two look identical, so it is worth checking both. `
+            + `If this computer cannot comfortably run one, “ollama signin” then a hosted model `
+            + `works instead — it answers on Ollama’s machines rather than this one.`,
   },
   CLOUD_ONLY: {
     fix: 'choose one on purpose, or pull a local model',
