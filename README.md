@@ -368,7 +368,13 @@ send it.
 Architecture, invariants, the code map, the backend plan, release steps and
 what's next are in **[`MAINTAINING.md`](MAINTAINING.md)**. Every open plan is
 in [`plans/`](plans/); the build history is in [`archive/`](archive/). How to
-hand the app to someone is [`SHIPPING-THE-BETA.md`](plans/SHIPPING-THE-BETA.md).
+hand the app to someone is [`SHIPPING-THE-BETA.md`](plans/SHIPPING-THE-BETA.md),
+and what to do the week after is [`AFTER-THE-BETA.md`](plans/AFTER-THE-BETA.md).
+
+**Installing it — and, crucially, resetting to a genuinely first-run state so
+you can see what a stranger sees — is [`docs/FRESH-INSTALL.md`](docs/FRESH-INSTALL.md).**
+Uninstalling deliberately leaves your library alone, so "reinstall and look" is
+*not* the same test.
 
 MIT licensed. Everything shelved carries its own license and source.
 
