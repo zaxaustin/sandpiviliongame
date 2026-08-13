@@ -445,26 +445,49 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 >   emptied.
 > - **DONE — `docs/BETA-READINESS.md`.** Every number measured. Read it before
 >   deciding to cut anything; it leads with *"the code is ready, the evidence
->   that a stranger can use it is not."* `verify:release` is **red on purpose**
->   (the installer is 36 source files behind) and `plans/SHIPPING-THE-BETA.md`
->   now says so, because being deliberate in one person's head is not being
->   deliberate.
+>   that a stranger can use it is not."*
+> - **DONE — `0.1.0-beta.6` IS CUT (2026-08-13), and cutting it was the
+>   correction.** This block used to end *"NEXT IS NOT CODE"* and list a human
+>   walking Stage 1 as gate one — with **no artifact for them to walk it in.**
+>   The steward's words: *"you haven't finished the build so I can't test
+>   anything make sure everything is done before we do that."* A gate that
+>   cannot be attempted is a shelf, not a gate. `verify:release` is **green**
+>   for the first time since 2026-08-07.
+>   - `release/Sand Pavilion Setup 0.1.0-beta.6.exe`, 101 MB, SHA-256
+>     `966CB0D7F772B2854905F0C0529E5C97B51288C2A3C9EE061C5B7EA626C99B9B`.
+>   - **A new suite, `test/live/packaged-exe.mjs`, drives the REAL `.exe`** out
+>     of `win-unpacked` with a throwaway `--user-data-dir`. `packaged-boot.cjs`
+>     only ever loaded the repo's `dist/` with the repo's electron — the asar
+>     pack, the `files` glob and `asarUnpack` were never exercised by anything.
+>     It asserts the app loads out of `app.asar`, opens its database with the
+>     schema applied *inside the pack*, and names itself the version in
+>     `package.json`. Broken on purpose by bumping the version: it named the
+>     stale build in the failure line.
+>   - Two suites were red first and **both were stale tests, not app bugs** —
+>     `teacher.mjs` (publishing goes through the reason screen now) and
+>     `storage-room.mjs` (it demanded copy that was deliberately corrected).
+>   - The Connections model guide promised *"8–14B, plus optionally one thinking
+>     model"* at 12GB+. The steward's 16GB card — **above** that floor — spills a
+>     12B to shared memory and crawls. It now says **9B, one at a time**, and
+>     cites the measurement. `checkMyMachine()` was already correct.
 >
-> **⛳ NEXT IS NOT CODE. It is the steward's, and it is the gate:**
+> **⛳ NEXT IS NOT CODE, and now it genuinely cannot be:**
 >
-> 1. **A person who is not the steward walks Stage 1 cold on a fresh install.**
->    The suites prove the state transitions; they cannot prove it felt like
->    theirs or took ten minutes. Same category as the never-done clean-machine
->    install, and together those two decide whether this is a beta or a demo.
-> 2. **The taste pass** on the three things no test settles: whether 34 cps
+> 1. **The taste pass** on the three things no test settles: whether 34 cps
 >    *feels* like speech, whether the ⏸ hold sits where a hand reaches, and
 >    whether a hand-written and an AI note are tellable apart while actually
 >    reading rather than in a screenshot.
-> 3. **The welcome packet** — the steward's own. Stage 1 beat one is the seam:
->    one function body, and nothing else changes when it lands.
+> 2. **A person who is not the steward walks Stage 1 cold on a fresh install.**
+>    The suites prove the state transitions; they cannot prove it felt like
+>    theirs or took ten minutes. Same category as the never-done clean-machine
+>    install, and together those two decide whether this is a beta or a demo.
+> 3. **The welcome packet** — the steward's own, and deliberately *after* the
+>    walk rather than before it. Stage 1 beat one is the seam: one function
+>    body, and nothing else changes when it lands.
 >
-> **Only then:** `build:beta` → `electron:build:beta` (**never plain
-> `electron:build`**) → `packaged-boot.cjs` → `verify:release` green → tag.
+> **Publishing is a human action.** The command, the SmartScreen warning to send
+> with it, and what to say are all in
+> [`plans/SHIPPING-THE-BETA.md`](plans/SHIPPING-THE-BETA.md).
 >
 > **Do not start a new feature before those.** Everything buildable toward this
 > beta is built; adding more only widens the gap between what is tested and

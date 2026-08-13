@@ -91,11 +91,24 @@ to fix it by hand.
 de-duplicating are things code does exactly and a model does approximately,
 slowly, and hot. The model is for what code cannot do.
 
-**8 · TEST THE ARTIFACT YOU SHIP.** `npm run build:beta`, then
-`env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs`
-before any installer moves. **Never plain `electron:build`** — it bakes
+**8 · TEST THE ARTIFACT YOU SHIP.** `npm run build:beta`, then **both** artifact
+suites before any installer moves. **Never plain `electron:build`** — it bakes
 `.env.local` keys into the installer. `npm run verify:release` checks the docs
 *and* that the .exe isn't older than the source.
+
+`packaged-boot.cjs` reproduces the packaged **load path** with the repo's own
+electron against the repo's own `dist/`. **`packaged-exe.mjs` (2026-08-13) runs
+the actual binary** out of `win-unpacked` over CDP, with a throwaway
+`--user-data-dir` so it cannot touch the steward's save. Between `dist/` and the
+`.exe` sit the asar pack, the `files` glob, `asarUnpack` for PGlite's WASM and
+the signing step — **none of which `packaged-boot` exercises**, which is why
+"test the artifact" was only three-quarters true until it existed.
+
+⚠ **`ELECTRON_RUN_AS_NODE` must be UNSET for both, and it is set in some shells
+by default.** With it set, the packaged `.exe` runs as node, rejects
+`--user-data-dir` with `bad option`, and **exits 9 — which is indistinguishable
+from an app that crashes on boot.** `packaged-exe.mjs` refuses to run rather
+than report that as a failure.
 
 **9 · THE VISITOR IS THE AUTHOR. Speed is free; authorship is not.**
 
@@ -401,6 +414,7 @@ node test/live/note-authorship.mjs         # the prompt read off the wire — wh
 node test/live/publish-reason.mjs          # the outlet, and the packet round trip
 node test/live/lab.mjs  bench.mjs  bundle.mjs  librarian-safety.mjs  backend.mjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
+env -u ELECTRON_RUN_AS_NODE node test/live/packaged-exe.mjs   # the REAL .exe, after a build
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/records.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/resident-reach.cjs

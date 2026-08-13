@@ -1,0 +1,308 @@
+================================================================
+DEV LOG — 2026-08-13
+FINISHING THE BUILD: 0.1.0-beta.6, and the gate that could not be
+attempted
+================================================================
+
+THE CORRECTION THAT STARTED THE DAY
+-----------------------------------
+
+The steward, in one sentence:
+
+    "Make me a plan without this beta testing nonsense to figure out
+     what we can do you haven't finished the build so I can't test
+     anything make sure everything is done before we do that"
+
+This was right, and it is worth being precise about how the mistake
+was shaped, because it is not the obvious one.
+
+Nothing was un-built. Everything from the previous week — the pace
+charter, note authorship, the AI diagnosis table, the whole five-stage
+tutorial, the portable course format — was written, guarded and green.
+MAINTAINING.md said so accurately. docs/BETA-READINESS.md said so
+accurately.
+
+What both of them ALSO said, at the top of the release gate, was:
+
+    1. A human who is not the steward walks Stage 1 cold.
+       Not negotiable, and not substitutable by a green suite.
+
+...while the newest installer was 0.1.0-beta.5, built 2026-08-07, 36
+source files behind. Every single thing a tester would have been asked
+to walk was absent from the only artifact they could have walked it in.
+
+So the gate was not a gate. It was a shelf. And it had been written
+down as a gate in two documents, by me, with the build listed as step
+four underneath the human steps that depended on it.
+
+THE RULE THIS COST: never let a gate depend on something only a person
+can do while the thing they would do it to does not exist. Build the
+artifact first; the human step is then the only step. The gate in
+BETA-READINESS.md is now reordered so the machine's half is step one,
+struck through, done.
+
+The steward added one hard constraint to the plan:
+
+    "only <=9B models, only one at a time, barely enough room to run
+     the game — treat that as a hard limit for this beta"
+
+and two explicit exclusions: no welcome packet, no course steps 2-4.
+Both held.
+
+
+STEP 1 — VERIFY WHAT IS CLAIMED, WITH EVIDENCE
+-----------------------------------------------
+
+The plan's first step was deliberately not "build". It was "prove the
+things you say are done, are done". Four findings, and two of them
+matter more than the build itself.
+
+1a · ai-diagnosis.mjs against the freshly built dist/ — 14/14. All four
+     failure states produce four different sentences on screen. The one
+     the steward actually hit reads:
+
+       ○ No AI is answering — switch one on
+         Nothing is switched on to try, so nothing was contacted at
+         all. Enable a connection below.
+
+1b · The full sweep. npm test green. 33 browser suites green. 9
+     Electron suites green — docker-home ran 31 real checks rather than
+     skipping, so the container home was genuinely covered.
+
+     TWO WERE RED FIRST, AND BOTH WERE STALE TESTS, NOT APP BUGS.
+
+     test/live/teacher.mjs crashed on `packet.kind` of undefined.
+     publishFrom() stopped publishing on one press when the "why is
+     this worth passing on?" screen landed on 2026-08-09;
+     confirmPublish() is what writes the packet now. The suite still
+     held the old contract.
+
+     That is my miss, and the lesson is not "I forgot a test". It is
+     that every regression list I ran after that change OMITTED this
+     suite — so the sweep could not notice it. A sweep that does not
+     name the suite cannot fail on the suite. This is rule 4 wearing a
+     different coat: a hand-listed set of suites drifts from the
+     directory that holds them.
+
+     test/live/storage-room.mjs demanded the word "hundreds" for the
+     desktop tier. data/book-storage.js says in its own header why that
+     word went: one hundred is not hundreds. It now derives
+     DEFAULT_LOCAL_BOOK_CAP, so correcting the cap corrects the suite.
+
+     It also demanded "no practical limit" for Docker on a page being
+     rendered to a BROWSER TAB, which cannot reach Docker at all. The
+     room is right to withhold a ceiling it cannot offer — the check
+     three lines above already asserts the Docker command is withheld
+     from a tab. Promising the ceiling while withholding the means
+     would have been the same dishonesty in reverse. Verified by probe
+     before touching it: the panel renders "500 books by default".
+
+1c · Six measured numbers had drifted:
+
+       overlays.js       13,671 and 13,591  ->  13,694
+       game source       27,427             ->  27,725
+       browser suites    32                 ->  33
+       assertion sites   809                ->  826
+       open plans        60                 ->  61
+
+     The overlays line-count guard has a 150-line tolerance, which is
+     exactly the band these were sitting in. A guard with a tolerance
+     is a guard that goes quiet inside it.
+
+1d · AND THE HARDWARE FALSIFIED A LINE OF SHIPPED ADVICE.
+
+     The Connections panel's tiered guide read:
+
+       Strong (12GB+ VRAM) — an 8-14B instruct, plus optionally one
+       "thinking" model.
+
+     The steward measured a 12B on a 16GB Arc A770: 13.8 of 16.0 GB
+     dedicated, 0.4 GB spilled to shared memory, every token thereafter
+     waiting on the PCIe bus. A card ABOVE that floor cannot hold the
+     middle of that range, let alone two models at once.
+
+     It does not fail. It crawls — which is the harder thing to
+     diagnose, and exactly the kind of failure a tester blames
+     themselves for.
+
+     Now: 9B is the honest ceiling, one model at a time, with the
+     measurement cited in the panel itself. checkMyMachine() was
+     checked in the same pass and is clean — it caps at llama3.1:8b.
+
+     This is the pattern worth keeping: the hardware constraint was
+     handed over as a limit on what to TEST, and it turned out to be a
+     bug report about what we SAY.
+
+
+STEP 2 — THE BUILD, AND A GAP IN "TEST THE ARTIFACT YOU SHIP"
+--------------------------------------------------------------
+
+package.json -> 0.1.0-beta.6. The in-app Build: string is derived by
+vite.config.js from package.json, so there was nothing to hand-type.
+
+  npm run build:beta
+  npm run electron:build:beta -- --config.directories.output=$TEMP/sp-build
+
+The EPERM gotcha is real and the documented workaround worked first
+time. Copied the .exe back into release/.
+
+packaged-boot.cjs: SHIPPABLE, 7/7.
+
+AND THEN THE THING WORTH RECORDING. Rule 8 says TEST THE ARTIFACT YOU
+SHIP. packaged-boot.cjs does not do that. It reproduces the packaged
+LOAD PATH — same preload, same contextIsolation, same
+loadFile(dist/index.html) — using the repo's own electron against the
+repo's own dist/ directory. That is the check that caught a title
+screen with nothing behind it, and it is still the right fast check.
+
+But dist/ is not the artifact. Between dist/ and the .exe sit:
+
+  - the asar pack
+  - the `files` glob in package.json (does tools/migrations/*.sql
+    actually make it in?)
+  - asarUnpack for PGlite's WASM
+  - the icon, and the signing step
+
+None of that was exercised by anything, ever. "Test the artifact you
+ship" was three-quarters true and had been for months.
+
+So: test/live/packaged-exe.mjs. It launches the real binary out of
+win-unpacked with a throwaway --user-data-dir (it cannot touch the
+steward's save) and drives it over CDP. It asserts the app loads out of
+app.asar over file://, that the bundle ran, that the desktop bridge is
+present, that the database opens AND ITS SCHEMA APPLIED INSIDE THE
+PACK, that the Build: line a tester reads back to us is the version in
+package.json, and that "Enter the Grounds" enters.
+
+  PASS  it loaded out of app.asar over file://
+  PASS  the game's own code is running
+  PASS  the desktop bridge is wired up
+  PASS  the packaged app reaches a database
+  PASS  and its schema applied cleanly inside the pack
+        {"up":true,"kind":"docker","schemaError":null,...}
+  PASS  the app names itself 0.1.0-beta.6
+  PASS  and it knows it is the installed app, not a tab
+  PASS  "Enter the Grounds" actually enters
+  PASS  no page errors
+
+BROKEN ON PURPOSE (rule 3): bumped package.json to 0.1.0-beta.7 and
+re-ran against the beta.6 binary. It failed on exactly the right line
+and printed the real one:
+
+  FAIL  the app names itself 0.1.0-beta.7  <- Build:  0.1.0-beta.6
+
+That is the drift it exists to catch, reproduced.
+
+A GOTCHA THAT COST A DETOUR AND IS NOW IN CLAUDE.md RULE 8:
+ELECTRON_RUN_AS_NODE was set to 1 in this shell. With it set, the
+packaged .exe runs as node, rejects --user-data-dir with
+
+  Sand Pavilion.exe: bad option: --user-data-dir=...
+
+and exits 9. From the outside that is INDISTINGUISHABLE from a packaged
+app that crashes on boot — I spent several minutes believing I had cut
+a broken installer. The suite now refuses to run when the variable is
+set, rather than reporting a fake failure. CLAUDE.md already warned
+about this variable for require('electron'); it turns out to break the
+.exe far more spectacularly.
+
+Two false starts before that, both mine and both cheap: the check first
+looked for window.desktop and window.showOv, when the real names are
+window.desktopBridge and window.openWelcome (packaged-boot.cjs already
+knew this); and the version is not on the title screen at all — it
+lives in the bug-report card, which is the one place a tester reads it
+back to us, so that is where the check reads it.
+
+Also: a stray invalid C:\Users\...\Temp\package.json makes node refuse
+to resolve ESM imports for any script run out of the temp directory
+(ERR_INVALID_PACKAGE_CONFIG). Not ours, but worth knowing — scratch
+.mjs files must live inside the project.
+
+Then the installer was rebuilt once more, because verifying the version
+guard by editing package.json had made package.json newer than the
+.exe, and verify:release counts that (correctly) as "the installer is
+older than the source". Restoring a file does not restore its mtime.
+Rebuilding is the honest answer; touching the file to defeat a
+freshness check is the dishonest one.
+
+  release/Sand Pavilion Setup 0.1.0-beta.6.exe   101 MB
+  SHA256 966CB0D7F772B2854905F0C0529E5C97B51288C2A3C9EE061C5B7EA626C99B9B
+
+Both artifact suites re-run green against the rebuild.
+
+
+STEP 3 — verify:release IS GREEN
+---------------------------------
+
+First time since 2026-08-07. It had ten problems, and every one of them
+was the check doing its job: two stale SHA-256s, two docs never
+mentioning the new version, five stale filenames, and the freshness
+comparison.
+
+Deleted from plans/SHIPPING-THE-BETA.md: the "verify:release IS RED ON
+PURPOSE" block written on 2026-08-10. Every sentence in it was true
+when written and stopped being true the moment beta.6 existed. A doc
+describing a state the code has left is this project's oldest failure,
+so it was removed rather than amended.
+
+TWO MORE THINGS IN THAT DOC HAD GONE FALSE, both from the seed deletion:
+
+  - "Everything it needs is inside — Electron, the game, the seed
+    library." There is no seed library. Replaced with the embedded
+    Postgres, which is what is actually in there.
+
+  - The "first ten minutes" flow, locked 2026-07-28, said: "they wander
+    into the Library and open a book... they hit a summary-only
+    classic". SEED_LIBRARY is [] — there is no book to wander into and
+    open. A tester following that would have found an empty room, which
+    is precisely the door-onto-nothing this project keeps promising not
+    to build. Rewritten around the walk, with the old version quoted so
+    the failure is visible rather than tidied away.
+
+
+STEP 4 — THE RELEASE NOTES
+---------------------------
+
+plans/BETA-RELEASE-NOTES.md rewritten for beta.6. Structure kept, three
+things changed in kind:
+
+  - A "Start here" section above "What it is". The walk is the answer
+    to the empty shelf and it should be the first thing read.
+  - "New in beta.6" written in what a person NOTICES, not in what
+    changed: the residents speak at one rate and you can stop them;
+    every note says who wrote it; publishing asks why; the AI panel
+    says which failure it is; a lesson step holds real material; the
+    model guidance matches measured hardware.
+  - "Known and deliberate" leads with the empty shelf as the FINISHED
+    POSITION with the reason, and states plainly that Missions do not
+    exist and the café boards are dormant.
+
+Added to the AI section, because it is now a stated decision rather
+than a broken promise: every resident runs on the one connection, and
+if that connection is a cloud provider the chat header says so on every
+conversation — "stays on this computer" or "leaves this device".
+
+
+WHAT IS TRUE AT THE END OF THE DAY
+-----------------------------------
+
+  npm test                                    green
+  33 browser suites                           green
+  9 Electron suites                           green
+  test/live/packaged-exe.mjs (the real .exe)  green, and broken on
+                                              purpose
+  npm run verify:release                      GREEN
+
+  release/Sand Pavilion Setup 0.1.0-beta.6.exe exists, boots, opens its
+  own database, and names itself 0.1.0-beta.6.
+
+Not done, deliberately: the welcome packet, course steps 2-4, the
+overlays.js split, the Arc A770 tuning.
+
+Not done, and now the only things left: the steward's taste pass, a
+person who is not the steward walking Stage 1 cold, and a clean-machine
+install. All three are blocked on nothing but a person, which is the
+entire point of today.
+
+Publishing is a human action. The command, the SmartScreen warning to
+send with it, and what to say are in plans/SHIPPING-THE-BETA.md.

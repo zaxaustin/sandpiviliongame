@@ -9,38 +9,35 @@ follow a link.
 
 ---
 
+## Where it stands (2026-08-13)
 
----
+`verify:release` is **green**. The block that used to sit here said it was red
+on purpose — the installer was `0.1.0-beta.5`, built 2026-08-07, thirty-six
+source files behind — and that was true when it was written and stopped being
+true the moment `beta.6` was cut. **A doc describing a state the code has left
+is this project's oldest failure**, so it is gone rather than amended.
 
-## ⚠ `verify:release` IS RED ON PURPOSE (2026-08-10)
-
-It fails for exactly one reason — the installer (`0.1.0-beta.5`, built
-2026-08-07) is **36 source files behind**. That is a decision, not an
-oversight: rebuilding mid-work only makes it stale again on the next commit,
-and rule 8 says the artifact is tested before an installer *moves*, not
-continuously.
-
-**Recorded here so a red check reads as a choice to whoever runs it next.**
-Being deliberate in one person's head is not being deliberate.
-
-The honest state of everything else is `docs/BETA-READINESS.md`. The two things
-that have never happened, and that decide whether this is a beta or a demo:
-**a person who is not the steward walking Stage 1 cold**, and **a clean-machine
-install by someone else.**
+The honest state of everything else is `docs/BETA-READINESS.md`. The one thing
+that has never happened, and that decides whether this is a beta or a demo:
+**someone who is not the steward installing it and walking Stage 1 cold.** That
+is now blocked on nothing but a person — which is the whole point of cutting
+this build.
 
 ---
 
 ## The file
 
 ```
-release/Sand Pavilion Setup 0.1.0-beta.5.exe        101 MB
-SHA256  E955FBE6A75B1219F83ED45287375C91E7602EF575D27BD71138E86D0AA72A28
+release/Sand Pavilion Setup 0.1.0-beta.6.exe        101 MB
+SHA256  966CB0D7F772B2854905F0C0529E5C97B51288C2A3C9EE061C5B7EA626C99B9B
 ```
 
 One file. It's a one-click NSIS installer: no options, installs per-user
 (no admin password), and puts *Sand Pavilion* in the Start menu. Everything
-it needs is inside — Electron, the game, the seed library. **No Node, no
-npm, no Docker, no Ollama required to open it.**
+it needs is inside — Electron, the game, and an embedded Postgres so search
+and notes work with no container. **No Node, no npm, no Docker, no Ollama
+required to open it.** The shelf, on the other hand, is **empty on purpose**;
+see the note further down about what to say when you send it.
 
 Rebuild it with `npm run electron:build:beta`. Never plain `electron:build`
 — that one bakes this machine's own Supabase keys into the installer, and
@@ -61,16 +58,35 @@ cp "$TEMP/sp-build/"*.exe release/
 Or let CI do it — `.github/workflows/build-installers.yml` runs on clean
 runners with nothing watching, and builds both platforms.
 
-**Before handing over any new build**, run the guard that exists because the
-packaged app once silently didn't work at all:
+**Before handing over any new build**, run *both* artifact guards. They are not
+the same check, and 2026-08-13 is when that stopped being a theory:
 
 ```
 npm run build:beta
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
+env -u ELECTRON_RUN_AS_NODE node test/live/packaged-exe.mjs
 ```
 
-Exit code 0 means it boots, starts and opens panels. Non-zero means do not
-send it to anybody.
+`packaged-boot.cjs` reproduces the packaged **load path** — same preload, same
+`loadFile(dist/index.html)` — using the repo's own electron against the repo's
+own `dist/`. It is the check that caught a title screen with nothing behind it.
+
+`packaged-exe.mjs` launches **the actual binary** out of `win-unpacked`, with a
+throwaway `--user-data-dir` so it cannot touch your save, and drives it over
+CDP. Between `dist/` and the `.exe` sit the asar pack, the `files` glob, the
+`asarUnpack` for PGlite's WASM and the signing step — **none of which
+`packaged-boot` exercises**. It asserts the app loads out of `app.asar`, that
+the database opens and its schema applied *inside the pack*, and that the
+`Build:` line a tester reads back to you is the version in `package.json`.
+
+Exit code 0 on both means it boots, starts and opens panels. Non-zero on either
+means do not send it to anybody.
+
+⚠ **`ELECTRON_RUN_AS_NODE` must be unset for both.** With it set, the packaged
+`.exe` runs as node, rejects `--user-data-dir` with `bad option`, and exits 9 —
+which looks exactly like an app that crashes on boot. That cost a detour on the
+day `packaged-exe.mjs` was written, so the suite now refuses to run rather than
+report a fake failure.
 
 ---
 
@@ -97,7 +113,7 @@ Include the SHA-256 above if they're the kind of person who'd check it.
 They can verify with:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.5.exe" -Algorithm SHA256
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.6.exe" -Algorithm SHA256
 ```
 
 ---
@@ -127,9 +143,9 @@ Once that's decided:
 
 ```bash
 gh auth login                      # you are not logged in yet
-gh release create v0.1.0-beta.5 \
-  "release/Sand Pavilion Setup 0.1.0-beta.5.exe" \
-  --title "Sand Pavilion 0.1.0-beta.5" \
+gh release create v0.1.0-beta.6 \
+  "release/Sand Pavilion Setup 0.1.0-beta.6.exe" \
+  --title "Sand Pavilion 0.1.0-beta.6" \
   --notes-file plans/BETA-RELEASE-NOTES.md \
   --prerelease
 ```
@@ -168,8 +184,13 @@ Keep it short. Everything else is in the app.
 > - The AI residents only wake up if you install **Ollama** (ollama.com) and
 >   pull a model. Optional — the Library, the notes, the day planner and the
 >   lessons all work without it.
-> - The Library starts small **on purpose**. You fill it: drag any `.txt` or
->   `.epub` onto the window.
+> - **The Library starts empty, on purpose** — it's yours to fill, and the
+>   walk's first stage does it with you. Drag any `.txt` or `.epub` onto the
+>   window. If you want somewhere to start, Standard Ebooks and Project
+>   Gutenberg are both free and both plain text.
+> - There's a **🧭 New here? Start here** button on the title screen. Five
+>   stages, about ten minutes, and the first one ends with a book you chose and
+>   a note you wrote in your own bag.
 > - **On a Mac?** Use the website — sandpiviliongame.vercel.app — it's the same
 >   thing in a browser, nothing to install. (A real Mac app is coming.)
 
@@ -204,7 +225,7 @@ them reading, taking notes, or planning a day.
 for public repos. Nobody has to own one.
 
 ```bash
-git tag v0.1.0-beta.5 && git push --tags
+git tag v0.1.0-beta.6 && git push --tags
 ```
 
 Then the Actions tab, wait a few minutes, download both artifacts, and attach
@@ -238,44 +259,54 @@ browser build stops being a fallback and becomes the front door.
 
 ## The first ten minutes — the path a new user actually takes
 
-Locked in 2026-07-28. This is the flow the beta is built around; if a tester
-ends up somewhere else, that is a finding worth writing down.
+**Rewritten 2026-08-13, and the old version is worth saying out loud because it
+had gone false.** It was locked 2026-07-28 and read: *"they wander into the
+Library and open a book… they hit a summary-only classic."* `SEED_LIBRARY` is
+`[]` now — **there is no book to wander into and open.** A tester following the
+old step 4 would have found an empty room, which is precisely the door-onto-
+nothing this project keeps promising not to build. The walk is what replaced it.
 
 1. **Download, run, click through the SmartScreen warning.** Installs in
    seconds, no admin password, no options to choose.
-2. **The title screen → Enter the Grounds.** They are standing in the Pavilion.
-   Arrow keys to walk, **E** for whatever is in front of them, **Esc** for the
-   menu. That is the entire control scheme and the welcome screen says so.
-3. **The welcome panel** tells them two things that matter more than any
-   feature: *nothing here breaks by clicking around*, and *nothing here phones
-   home.* Both are literally true and both change how someone explores.
-4. **They wander into the Library** — south — and open a book. It reads like a
-   book. They press 🔊 and it reads aloud to them, with no setup at all. **This
-   is the moment the app has to land**, because it is the first thing that
-   works with zero effort and needs nothing installed.
-5. **They hit a summary-only classic** and it tells them plainly: this is a
-   summary, here is where the real text lives, drag it onto this window. Ideally
-   they go and do it — that is the core loop of the whole project in one motion.
-6. **Somewhere in here they meet a resident and get the "connect a local AI"
-   nudge.** They press ⚙ Manage AI connections → **Check this computer**, and
-   the app tells them whether their laptop should even try. Either they install
-   Ollama, or they are told honestly not to bother — **and both are fine
-   endings**, because everything above this line worked without it.
-7. **The Study, if they get that far** — the Writing Desk plans a day, a book
-   note becomes a task. That is the "reading turns into doing" claim, and it is
-   the thing most likely to bring them back tomorrow.
+2. **The title screen.** Two doors: *Enter the Grounds*, and **🧭 New here?
+   Start here**. A first-time visitor should take the second.
+3. **Stage 1 — a book, a note, a bag.** It walks them to the real intake, they
+   bring in a `.txt` or `.epub` **they chose**, they read a bit, they write one
+   note in their own words, and they put it in their backpack. **This is the
+   moment the app has to land**, and it lands on something of theirs rather
+   than something we shipped. If they have no file to hand,
+   `docs/BOOKS-TO-SOURCE.md` is the list, and the stage says where free books
+   live.
+4. **Stages 2–4 — the rooms.** The Study and the Writing Desk (a day gets
+   planned, a book note becomes a task), the Library proper, the residents.
+   Reading turning into doing is the claim, and this is where it is made.
+5. **Somewhere in here, the "connect a local AI" nudge.** ⚙ Manage AI
+   connections → **Check this computer**, and the app tells them whether their
+   laptop should even try. Either they install Ollama, or they are told
+   honestly not to bother — **and both are fine endings**, because everything
+   above this line worked without it.
+6. **Stage 5 — graduation**, which says plainly that **Missions are not built**
+   rather than implying a door. A tester who reads that and believes it is the
+   check on this whole document working.
 
-**Everything past step 4 is optional.** A tester who reads one book aloud and
-closes it has had the app work exactly as intended. That is the bar the beta is
-actually being held to.
+**Everything past stage 1 is optional.** A tester who brings in one book, reads
+a page of it aloud (🔊 needs no setup at all) and closes the app has had it work
+exactly as intended. That is the bar the beta is actually held to.
 
 ### Is it ready?
 
-Yes, with one caveat that is about to resolve itself. Verified: the packaged
-app boots, starts and works (6/6); old saves survive (39/39); every panel opens
-with no AI, no Docker and no cloud; not one external network request; no keys
-in the bundle. **The only thing never done is a human clicking the installer** —
-and that is the very next thing that happens.
+**Yes, and it is now the only remaining question that a person answers.**
+Verified on this build: the packaged app boots, starts and works; the real
+`.exe` opens its own database with its schema applied inside the pack and names
+itself `0.1.0-beta.6`; old saves survive; every panel opens with no AI, no
+Docker and no cloud; not one external network request; no keys in the bundle;
+`npm test` plus 33 browser and 9 Electron suites green, and the new tenth one
+that drives the artifact itself.
+
+**What no suite can answer**: whether Stage 1 *feels* like an invitation,
+whether ten minutes is the right length, and whether the app survives a machine
+that never built it. Those need the installer in somebody else's hands, which
+is what this file is for.
 
 ---
 

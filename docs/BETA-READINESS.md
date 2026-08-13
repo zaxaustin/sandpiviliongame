@@ -15,12 +15,17 @@ The standing instruction it serves:
 
 ## The one-line answer
 
-**The code is ready. The evidence that a stranger can use it is not.**
+**The code is ready, the installer exists, and the evidence that a stranger can
+use it is still the only thing missing.**
 
-Everything on the critical path is built, guarded and green. What has never
-happened is a person who is not the steward sitting down at a fresh install and
-getting anywhere. Until that happens, "ready" is a claim about test suites, and
-this project's whole method says that is not the same thing.
+*Updated 2026-08-13.* Everything on the critical path is built, guarded and
+green, and `0.1.0-beta.6` is on disk with `verify:release` passing. What has
+never happened is a person who is not the steward sitting down at a fresh
+install and getting anywhere. Until that happens, "ready" is a claim about test
+suites, and this project's whole method says that is not the same thing.
+
+The difference from the previous version of this page is that **that sentence is
+now actionable.** It used to be a gate with nothing behind it — see §2.
 
 ---
 
@@ -30,7 +35,7 @@ this project's whole method says that is not the same thing.
 |---|---|
 | rooms / residents | **25 places**, **7 residents**, all reachable from one keystroke |
 | source | **27,725 lines** of game JS |
-| test suites | **33 browser**, **9 Electron**, plus `npm test` with **826** assertion sites |
+| test suites | **33 browser**, **9 Electron**, **1 against the shipped `.exe`**, plus `npm test` with **826** assertion sites |
 | the grounding chain | done — a resident can quote a carried book *with page numbers*, say what it cannot reach, and hand you a button that fixes it |
 | the pace charter | `CLAUDE.md` rule 9, with guards A, B and D, each broken on purpose |
 | note authorship | every note carries who wrote it, human or model, and the model is never told a person wrote its own output |
@@ -56,22 +61,32 @@ Same category, and equally never done: **a stranger clicking the installer on a
 clean machine.** Named in `plans/done/BETA-PREFLIGHT.md` as the last unverified
 thing, and it is still true.
 
-### 2 · The installer is 36 source files behind, knowingly
+### 2 · ~~The installer is 36 source files behind~~ — CUT 2026-08-13
 
-`npm run verify:release` **fails, and it should.** It fails for exactly one
-reason and it is the right one:
+**This section is kept, struck through, because it was the real gap and it is
+worth remembering what it looked like from the inside.** It read: the installer
+is `0.1.0-beta.5`, built 2026-08-07, 36 source files behind, `verify:release`
+fails and *should*, that is a decision not an oversight.
 
-> the installer was built 2026-08-07 20:36 but 36 source file(s) have changed
-> since — rebuild.
+Every sentence of that was true. It was also the whole problem, named by the
+steward in one line:
 
-**This is a decision, not an oversight.** Rebuilding mid-work only makes it
-stale again on the next commit, and the rule that matters (`CLAUDE.md` rule 8)
-is that the artifact is tested before an installer *moves*, not continuously.
-It is recorded here so a red check reads as a choice to anyone who runs it.
+> *"you haven't finished the build so I can't test anything"*
 
-**Before any release:** `npm run build:beta` → `electron:build:beta` (never
-plain `electron:build`, which bakes `.env.local` keys into the installer) →
-`packaged-boot.cjs` → then this line stops being true.
+Gate 1 of this page has been *"a human who is not the steward walks Stage 1
+cold"* since the day it was written — while there was **no artifact to walk it
+in.** A release gate that cannot be attempted is not a gate, it is a shelf.
+
+**`0.1.0-beta.6` is cut, and `verify:release` is green for the first time since
+2026-08-07.** Both artifact guards pass: `packaged-boot.cjs` (the packaged load
+path) and the new `packaged-exe.mjs` (the real `.exe` out of `win-unpacked`,
+which is the only one that exercises the asar pack, the `files` glob and
+`asarUnpack`). The `.exe` opens its own database with the schema applied
+*inside the pack* and names itself `0.1.0-beta.6`.
+
+**The rule this cost:** never let a gate depend on something only a person can
+do while the thing they would do it *to* does not exist. Build the artifact
+first; the human step is then the only step.
 
 ### 3 · The shelf is empty and the welcome packet is not written
 
@@ -121,19 +136,25 @@ failure:
 
 ## The release gate, in order
 
-1. **A human who is not the steward walks Stage 1 cold.** Not negotiable, and
-   not substitutable by a green suite.
-2. The steward's own pass on the three things only taste settles: whether 34 cps
-   *feels* like speech, whether the ⏸ hold sits where a hand reaches, and
-   whether a hand-written and an AI note are tellable apart while actually
-   reading.
-3. The welcome packet, or a conscious decision to ship without it.
-4. `build:beta` → `electron:build:beta` → `packaged-boot.cjs` → `verify:release`
-   green.
-5. A clean-machine install by someone else.
+**Reordered 2026-08-13 so the machine's half comes first.** It used to put the
+human steps at the top and the build at step 4, which is how a gate ends up
+waiting on a person to test a thing that was never made.
 
-**Steps 1 and 5 are the ones that have never happened, and they are the two that
-decide whether this is a beta or a demo.**
+1. ~~`build:beta` → `electron:build:beta` → `packaged-boot.cjs` +
+   `packaged-exe.mjs` → `verify:release` green.~~ **Done, 2026-08-13.**
+2. **The steward's own pass on the three things only taste settles**: whether
+   34 cps *feels* like speech, whether the ⏸ hold sits where a hand reaches,
+   and whether a hand-written and an AI note are tellable apart while actually
+   reading.
+3. **A human who is not the steward walks Stage 1 cold.** Not negotiable, and
+   not substitutable by a green suite.
+4. **A clean-machine install by someone else.**
+5. The welcome packet, or a conscious decision to ship without it. *(Deliberately
+   last: Stage 1 works on an empty shelf, and the packet replaces one function
+   body when it lands.)*
+
+**Steps 3 and 4 have never happened, and they are the two that decide whether
+this is a beta or a demo. Nothing now stands between them and a person.**
 
 ---
 
@@ -149,6 +170,7 @@ node test/live/note-authorship.mjs          # the prompt read off the wire
 node test/live/publish-reason.mjs           # the outlet, and the packet round trip
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/tutorial-stage1.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
+env -u ELECTRON_RUN_AS_NODE node test/live/packaged-exe.mjs   # the real .exe, after a build
 ```
 
 `ELECTRON_RUN_AS_NODE` must be unset or `require('electron')` returns a path
