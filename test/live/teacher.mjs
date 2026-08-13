@@ -208,10 +208,21 @@ console.log('\nAnd a colleague gets a LESSON, not prose\n');
 const handed = await p.evaluate(async () => {
   const save = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
   const id = save.myLessons[0].id;
+  /* PUBLISHING ASKS WHY NOW. Since 2026-08-09 publishFrom() opens one screen
+     first — "why is this worth passing on?" — and confirmPublish() is what
+     actually writes the packet. This suite still pressed once and then read
+     commons.published[0], which was undefined, and crashed on packet.kind.
+     The step is deliberate (plans/COURSE-AUTHORING-AND-IMPORT.md and the
+     outlet commit); the test simply had the old contract. */
   publishFrom('lesson', id);
   await new Promise(r => setTimeout(r, 400));
+  const box = document.getElementById('pubReason');
+  if (box) box.value = 'The chapter split is the part worth keeping.';
+  confirmPublish();
+  await new Promise(r => setTimeout(r, 500));
   const after = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
   const packet = (after.commons.published || [])[0];
+  if (!packet) throw new Error('nothing was published even after confirming the reason');
   /* Now be the colleague: the packet arrives, and is taken. */
   const raw = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
   raw.myLessons = [];                          // he has none of his own

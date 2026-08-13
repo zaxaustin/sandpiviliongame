@@ -16,6 +16,8 @@
      node test/live/storage-room.mjs
    ================================================================ */
 import puppeteer from 'puppeteer-core';
+/* Derived, so correcting the cap corrects this suite too. */
+import { DEFAULT_LOCAL_BOOK_CAP } from '../../src/game/data/book-storage.js';
 import { writeFileSync } from 'fs';
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -62,11 +64,26 @@ check('...and names the way out', /electron:dev|desktop app/i.test(t),
 check('the Docker command is NOT offered in a browser', !/docker compose up/.test(t),
   'a tab was shown a step it cannot take');
 
-// ---- 3 · the honest ceiling, all three tiers ----------------------------
-for (const [what, re] of [['a browser tab', /10.20 books/], ['the desktop app', /hundreds/],
-                          ['Docker', /no practical limit/i]]) {
-  check(`it states the real ceiling for ${what}`, re.test(t), t.slice(0, 200));
-}
+// ---- 3 · the honest ceiling, and it is a NUMBER ------------------------
+/* REWRITTEN 2026-08-10 because it encoded copy that was deliberately corrected.
+   It used to require the word "hundreds" for the desktop tier — and
+   data/book-storage.js says in its own header why that went: "the desktop app
+   held 'hundreds', which one hundred is not." The room now renders the real
+   constant, so this reads the constant too rather than a word (rule 4: a
+   number that must match another file is derived, never typed).
+
+   And it used to require "no practical limit" for Docker on a page being shown
+   to a BROWSER TAB, which cannot reach Docker at all. The room correctly says
+   nothing about a ceiling it cannot offer — the check three lines above already
+   asserts the Docker command is withheld from a tab, and promising the ceiling
+   while withholding the means would have been the same dishonesty. */
+check('it states the real ceiling for a browser tab', /10.20 books/.test(t), t.slice(0, 200));
+check(`it names the desktop cap as the real number (${DEFAULT_LOCAL_BOOK_CAP}), not a vague word`,
+  new RegExp('\\b' + DEFAULT_LOCAL_BOOK_CAP + '\\b').test(t) && !/hundreds/.test(t),
+  t.slice(0, 200));
+check('and it promises a tab no Docker ceiling it cannot reach',
+  !/no practical limit/i.test(t),
+  'a tab was promised a limit only Docker lifts');
 
 // ---- 4 · it never implies anything is broken ----------------------------
 /* The Pavilion is COMPLETE without Docker — that is a release gate with a

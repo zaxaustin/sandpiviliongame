@@ -1988,7 +1988,13 @@ function renderConnections(){
         <b>Modest</b> (no real GPU, 8GB RAM) — <code>ollama pull llama3.2:1b</code>. Snappy, simple, everything works.<br>
         <b>Everyday</b> (most laptops, 8–16GB RAM) — <code>ollama pull llama3.2</code>. The dependable default.<br>
         <b>Capable</b> (real GPU or 16GB+ RAM) — an 8B instruct model, e.g. <code>ollama pull llama3.1:8b</code>. Deeper, still reliable.<br>
-        <b>Strong</b> (12GB+ VRAM) — an 8–14B instruct, plus optionally <i>one</i> "thinking" model.<br><br>
+        <b>Strong</b> (12GB+ VRAM) — a 9B instruct is the honest ceiling for most cards this size,
+        and <b>one model at a time</b>.<br>
+        <span style="opacity:.85">Measured on a 16GB card, which is <i>above</i> that floor: a 12B filled
+        13.8 of 16GB and spilled the remainder to shared memory, where every token then waits on the
+        PCIe bus. It does not fail — it crawls, which is harder to diagnose. VRAM headroom is not the
+        whole story; the context window and the KV cache take their share too, and the game needs
+        room alongside.</span><br><br>
         Two Pavilion facts worth knowing: <b>every resident runs on this connection's model</b> —
         there is no per-resident routing, so one good default serves the whole place. The Monk
         used to claim the largest model you had installed; that was retired on 2026-08-07, so

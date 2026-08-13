@@ -29,8 +29,8 @@ this project's whole method says that is not the same thing.
 | | |
 |---|---|
 | rooms / residents | **25 places**, **7 residents**, all reachable from one keystroke |
-| source | **27,427 lines** of game JS |
-| test suites | **32 browser**, **9 Electron**, plus `npm test` with **809** assertion sites |
+| source | **27,725 lines** of game JS |
+| test suites | **33 browser**, **9 Electron**, plus `npm test` with **826** assertion sites |
 | the grounding chain | done — a resident can quote a carried book *with page numbers*, say what it cannot reach, and hand you a button that fixes it |
 | the pace charter | `CLAUDE.md` rule 9, with guards A, B and D, each broken on purpose |
 | note authorship | every note carries who wrote it, human or model, and the model is never told a person wrote its own output |
@@ -93,13 +93,13 @@ plausibly hit again.
 
 ### 5 · The debt, stated so nobody discovers it
 
-`src/game/ui/overlays.js` is **13,671 lines — half of all game source.** Its own
+`src/game/ui/overlays.js` is **13,694 lines — half of all game source.** Its own
 split plan says *"the split is losing the race"*, and it is **deliberately off
 the critical path** for this beta: the higher-leverage target is the ~2,000
 lines of inline HTML and the fragility of the paths a visitor actually walks.
 Recorded so the next session does not pick it up by default.
 
-**60 open plan documents** against 20 closed. Most say some version of *"written
+**61 open plan documents** against 20 closed. Most say some version of *"written
 down, not started"*, and that is fine — but it means the ratio of intention to
 implementation in `plans/` is roughly 3:1, and anyone reading that folder should
 know it before believing any single file in it.
