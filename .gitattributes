@@ -1,0 +1,75 @@
+# ================================================================
+# LINE ENDINGS — and this file exists because of a real CI failure.
+#
+# 2026-08-13, minutes after v0.1.0-beta.6 was tagged. `npm test` was
+# green on this machine and RED on the Windows CI runner, reporting
+# seven residents at once:
+#
+#   roles.js: 'quill' claims a chat door but is not a resident in
+#             CHAT_AGENTS                    (and steward, investigator,
+#             monk, computer, tutor, sebastian)
+#
+# CHAT_AGENTS was complete and correct. The guard in test/smoke.mjs
+# finds residents by scraping the source:
+#
+#   /^  ([a-z]+):\{\n    label:/gm
+#
+# On a CRLF working tree that is `:{\r\n    label:` and the `\n` does
+# not match, so it found ZERO residents and every chat role failed.
+# Measured both ways rather than reasoned: LF finds all seven, CRLF
+# finds none.
+#
+# Git stores LF and converts on checkout. This machine's working tree
+# happened to be LF (files written by tooling), the Windows runner's
+# was CRLF because Git for Windows defaults core.autocrlf=true — so
+# the same commit was green here and red there, which is the worst
+# kind of failure to chase.
+#
+# `eol=lf` makes every checkout on every platform match what is
+# actually stored, so "works on my machine" stops being possible for
+# this class of bug. test/smoke.mjs ALSO normalises at read, on
+# purpose: a guard that depends on a checkout setting is not a guard,
+# and the two fixes are for different failures — this one makes the
+# tree consistent, that one makes the check independent of the tree.
+# ================================================================
+
+* text=auto eol=lf
+
+# Binary: never touched, never normalised, never diffed as text.
+*.png  binary
+*.ico  binary
+*.icns binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.exe  binary
+*.dmg  binary
+*.zip  binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+
+# Windows refuses to run a .bat with LF endings in some shells, and it
+# is launched by double-click rather than by a test — so it is the one
+# deliberate exception.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# ⚠ THE TEST FIXTURES ARE BYTE-FOR-BYTE, AND THIS LINE IS LOAD-BEARING.
+#
+# `git ls-files` found exactly two text files stored with CRLF in the
+# index, and they are not an accident:
+#
+#   test/fixtures/chapters/keyword-lectures.txt      946 CRLF lines
+#   test/fixtures/chapters/toc-national-parks.txt  1,576 CRLF lines
+#
+# They are real downloaded books, kept as they actually arrive, because
+# the chapter finder was rebuilt on 2026-08-03 after the six tidy seed
+# texts said it worked and 296 real ones said otherwise (CLAUDE.md
+# rule 1). Real books come with CRLF. A blanket `eol=lf` would have
+# quietly rewritten both fixtures into something tidier than anything a
+# visitor will ever drag in — the exact tidiness that made the seed lie.
+#
+# `-text` means: never convert, in either direction, on any platform.
+test/fixtures/** -text

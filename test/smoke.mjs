@@ -10,7 +10,37 @@
    hardcoded list here is exactly the kind of thing this script exists
    to catch drifting silently.
    ================================================================ */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync as rawReadFileSync, readdirSync } from 'node:fs';
+
+/* ⚠ EVERY SOURCE READ IN THIS FILE IS NORMALISED TO LF. Do not "simplify"
+   this back to a plain import.
+
+   2026-08-13, minutes after v0.1.0-beta.6 was tagged: this suite was green on
+   the dev machine and RED on the Windows CI runner, failing seven residents at
+   once with "claims a chat door but is not a resident in CHAT_AGENTS".
+   CHAT_AGENTS was complete. Roughly seventy checks in here find code by
+   scraping source text, and a dozen of those patterns contain a literal \n —
+   including the one that finds the residents:
+
+       /^  ([a-z]+):\{\n    label:/gm
+
+   On a CRLF working tree that text is `:{\r\n    label:`, the \n does not
+   match, and the check finds NOTHING. A check that finds nothing does not
+   report "I found nothing" — it reports that everything it was looking for is
+   missing, which is seven confident, precise, completely wrong failures.
+   Measured both ways rather than reasoned: LF finds all seven, CRLF finds
+   none.
+
+   .gitattributes now pins every checkout to LF, which fixes the tree. This
+   fixes the CHECK: a guard whose result depends on a git config setting is not
+   a guard. Both are wanted — they fail differently and neither implies the
+   other. There is a test at the bottom of this file that CRLF-ifies the real
+   source and asserts the extraction still works, so this cannot rot back. */
+const readFileSync = (p, enc) => {
+  const out = rawReadFileSync(p, enc);
+  return typeof out === 'string' ? out.replace(/\r\n/g, '\n') : out;
+};
+
 import { scenes, SOLID } from '../src/game/scenes.js';
 import { SEED_LIBRARY, TRADITIONS } from '../src/game/data/seed.js';
 
@@ -549,7 +579,9 @@ for (const [key, s] of Object.entries(scenes)) {
    is: wherever a user-facing doc names it, the same passage must say plainly
    that it is maintainer-only and not needed to fill your own Pavilion. */
 {
-  const fs = await import('node:fs');
+  /* Same normalising reader as the top of this file — see the note there.
+     A block that reaches for node:fs directly is a block that opts out of it. */
+  const fs = { existsSync: (await import('node:fs')).existsSync, readFileSync };
   const USER_FACING = ['PROTOCOLS.md', 'MANUAL.md', 'README.md', 'plans/BETA-RELEASE-NOTES.md'];
   /* UPDATED 2026-08-02, the second time that day, because the ground moved
      under it. The first version demanded that every SERVICE_ROLE mention carry
@@ -596,7 +628,9 @@ for (const [key, s] of Object.entries(scenes)) {
    them toward the second reading, naming a service they have never heard of.
    They then either try to fix it or file it as a bug. Both are our fault. */
 {
-  const fs = await import('node:fs');
+  /* Same normalising reader as the top of this file — see the note there.
+     A block that reaches for node:fs directly is a block that opts out of it. */
+  const fs = { existsSync: (await import('node:fs')).existsSync, readFileSync };
   const src = fs.readFileSync('src/game/ui/overlays.js', 'utf8');
   // The exact old strings, so they cannot come back by a careless revert.
   for (const bad of [
@@ -5938,6 +5972,76 @@ for (const d of SEED_LIBRARY) {
   if (!/steps:\(node\.steps\|\|\[\]\)\.map/.test(ovC)) {
     fail('overlays.js: the lesson packet stopped writing the flattened `steps` array. It is there for '
        + 'Pavilions older than 2026-08-10, which read that and nothing else.');
+  }
+}
+
+/* ---------- NO CHECK IN THIS FILE MAY DEPEND ON HOW GIT CHECKED IT OUT ----
+   Written 2026-08-13 from a CI failure that was green here and red there.
+
+   The residents-scrape is the canary because it is the one that actually
+   broke, but the property is general: roughly seventy checks in this suite
+   find code by matching source text, and a dozen of those patterns contain a
+   literal \n. On a CRLF working tree every one of them silently matches
+   nothing — and a source scrape that matches nothing does not report "I found
+   nothing", it reports that everything it was looking for is missing. Seven
+   confident, precise, completely wrong failures.
+
+   ⚠ THE OBVIOUS VERSION OF THIS CHECK IS VACUOUS, and I wrote it first.
+   Taking the source, CRLF-ifying it in memory and normalising it back proves
+   nothing: on this machine the tree is already LF, so it compares normalised
+   against normalised and passes even with the fix deleted. Caught by deleting
+   the fix and watching it stay green — which is the only reason to trust the
+   version below.
+
+   What has to be tested is THE READER, against bytes that are genuinely CRLF
+   on disk. So: write a real CRLF file, read it back through the suite's own
+   readFileSync, and require the scrape to find what is in it. Delete the
+   normalisation and this fails, because the file on disk really does have
+   \r\n in it. */
+{
+  const { writeFileSync, mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+
+  /* The same pattern the roster guard uses, kept here deliberately rather than
+     shared: if that one is reworded and this is not, this fails, which is the
+     right way round. */
+  const find = s => [...s.matchAll(/^  ([a-z]+):\{\n    label:/gm)].map(m => m[1]);
+
+  // it has to work on the real thing first, or the shape moved and every
+  // chat-door check in this suite has quietly gone vacuous
+  const uiDirU = new URL('../src/game/ui/', import.meta.url);
+  const real = readdirSync(uiDirU).filter(f => f.endsWith('.js'))
+    .map(f => readFileSync(new URL(f, uiDirU), 'utf8')).join('\n');
+  if (!find(real).length) {
+    fail('smoke: the residents scrape found NOTHING in the real source — CHAT_AGENTS moved or '
+       + 'changed shape, and every chat-door check in this file is now checking an empty list');
+  }
+
+  const dir = mkdtempSync(join(tmpdir(), 'sp-eol-'));
+  try {
+    const body = '  quill:{\n    label:"Quill",\n  },\n';
+    writeFileSync(join(dir, 'crlf.js'), body.replace(/\n/g, '\r\n'), 'utf8');
+    writeFileSync(join(dir, 'lf.js'), body, 'utf8');
+
+    if (!find(readFileSync(join(dir, 'lf.js'), 'utf8')).length) {
+      fail('smoke: the residents pattern no longer matches even LF source — it was reworded '
+         + 'and this check was not; make them agree');
+    }
+    if (!find(readFileSync(join(dir, 'crlf.js'), 'utf8')).length) {
+      fail('smoke: a source file with CRLF line endings reads back unnormalised, so every source '
+         + 'scrape in this suite silently matches nothing on a Windows checkout. That is exactly '
+         + 'what made v0.1.0-beta.6 green here and red on CI, reporting seven residents missing '
+         + 'from a CHAT_AGENTS that was complete. Restore the normalising readFileSync at the top '
+         + 'of this file.');
+    }
+    // and CRLF must genuinely still break the RAW read, or this proves nothing
+    if (find(rawReadFileSync(join(dir, 'crlf.js'), 'utf8')).length) {
+      fail('smoke: CRLF no longer breaks an un-normalised read, so this check can no longer '
+         + 'detect the failure it exists for — rewrite it against whatever the new fragility is');
+    }
+  } finally {
+    try { rmSync(dir, { recursive: true, force: true }); } catch (e) { /* windows holds it briefly */ }
   }
 }
 
