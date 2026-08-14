@@ -331,8 +331,8 @@ Verified on this build: the packaged app boots, starts and works; the real
 `.exe` opens its own database with its schema applied inside the pack and names
 itself `0.1.0-beta.6`; old saves survive; every panel opens with no AI, no
 Docker and no cloud; not one external network request; no keys in the bundle;
-`npm test` plus 33 browser and 9 Electron suites green, and the new tenth one
-that drives the artifact itself.
+`npm test` plus 33 browser and 9 Electron suites green, and the one that drives
+the artifact itself.
 
 **What no suite can answer**: whether Stage 1 *feels* like an invitation,
 whether ten minutes is the right length, and whether the app survives a machine

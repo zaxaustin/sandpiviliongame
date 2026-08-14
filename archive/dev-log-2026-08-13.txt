@@ -469,3 +469,162 @@ place to serve it from and electron-updater wired into main.cjs. It is
 a repo-visibility decision plus an afternoon, not a research problem.
 Until then an update means sending a new link, and the people we send
 this one to should be told that.
+
+
+================================================================
+PART THREE — GREEN HERE, RED ON CI, AND THE DIAGNOSIS WAS WRONG
+================================================================
+
+Minutes after the tag went up, CI failed and never reached the build.
+Seven residents at once:
+
+    roles.js: 'sebastian' claims a chat door but is not a resident in
+              CHAT_AGENTS
+    ...and quill, tutor, steward, investigator, monk, computer.
+
+The analysis that came back with it was confident and specific: the two
+lists have drifted, CHAT_AGENTS is incomplete, add the missing names.
+Every word of that reasoning is sound and the conclusion is wrong, and
+following it would have put seven duplicate keys into a correct table
+while leaving the fault in place. Worth remembering the shape: a
+plausible reading of a real error message, from someone who could not
+run the thing.
+
+CHAT_AGENTS HAS ALL SEVEN AND ALWAYS DID. The guard scrapes source:
+
+    /^  ([a-z]+):\{\n    label:/gm
+
+On a CRLF working tree that text is `:{\r\n    label:`. The \n does not
+match. It found NOTHING.
+
+AND THAT IS THE LESSON, not the line endings. A source scrape that
+matches nothing does not report "I found nothing" — it reports that
+every single thing it was looking for is missing. Seven confident,
+precise, completely wrong failures, each naming a real resident. The
+failure mode of a scrape is a false accusation, not a blank.
+
+REPRODUCED RATHER THAN REASONED. Cloning this repo the way Git for
+Windows does by default, which is what the runner did to the tag:
+
+    git -c core.autocrlf=true clone . ciclone
+    node test/smoke.mjs
+    -> file has CRLF: true
+    -> 7 smoke-test failure(s)   the same seven, in the same order
+
+Git stores LF and converts on checkout. This machine's tree happened to
+be LF because the tooling wrote the files; the runner's was CRLF. Same
+commit, two answers.
+
+TWO FIXES, FOR TWO DIFFERENT FAILURES.
+
+  .gitattributes  pins every checkout to LF, so the tree is the same on
+                  every machine.
+  smoke.mjs       normalises at read — ONE wrapper around readFileSync
+                  covering all ~70 source reads in the file.
+
+Neither implies the other. The first makes the tree consistent; the
+second makes the check independent of the tree, because a guard whose
+result depends on a git config setting is not a guard. And one wrapper
+rather than seventy edits, because a hand-maintained list of call sites
+is rule 4 wearing yet another coat.
+
+⚠ THE BLANKET RULE WOULD HAVE CORRUPTED TWO FIXTURES, and finding that
+was luck plus one measurement. `git ls-files` piped through a real
+byte check (the first shell one-liner I tried was quoting-broken and
+lied) found exactly two tracked text files stored with CRLF:
+
+    test/fixtures/chapters/keyword-lectures.txt      946 CRLF lines
+    test/fixtures/chapters/toc-national-parks.txt  1,576 CRLF lines
+
+They are real downloaded books kept exactly as they arrive. The chapter
+finder was rebuilt on 2026-08-03 after six tidy seed texts said it
+worked and 296 real ones said otherwise. REAL BOOKS COME WITH CRLF. A
+blanket eol=lf would have quietly rewritten both into something tidier
+than anything a visitor will ever drag in — which is precisely the
+tidiness that made the seed lie in the first place. `test/fixtures/**
+-text` exempts them, and a clone now proves it: source LF, those two
+fixtures CRLF, the other ten LF, all matching what is stored.
+
+AND THE FIRST VERSION OF THE NEW GUARD WAS VACUOUS. I wrote the obvious
+one: take the source, CRLF-ify it in memory, normalise it back, compare.
+It passes with the fix deleted — on this machine the tree is already LF,
+so it compares normalised against normalised. Caught by deleting the fix
+and watching it stay green, which is the only reason to trust the
+replacement.
+
+The version that survives writes a REAL CRLF file to disk, reads it back
+through the suite's own readFileSync, and requires the scrape to find
+what is in it. It also asserts the raw un-normalised read still fails on
+that same file, so it cannot quietly stop testing anything. Deleting the
+normalisation now produces exactly one failure, and it names the cause.
+
+THE TAG WAS LEFT WHERE IT IS, DELIBERATELY. v0.1.0-beta.6 points at
+54f9eca, and `git diff --name-only v0.1.0-beta.6..HEAD -- src electron
+index.html package.json` is EMPTY — everything since is docs and tests.
+So the tag still marks the source the .exe was built from, which is the
+only thing a tag has to be true about. Moving it would have been the
+"same tag, two binaries" disease that verify-release-docs.mjs exists
+because of. CI can be re-run from the Actions tab instead:
+build-installers.yml has `workflow_dispatch`, and main now has the fix.
+
+
+
+THE ALIGNMENT PASS, AND ONE NUMBER I GOT WRONG TWICE
+-----------------------------------------------------
+
+Re-measured everything the docs quote, because six of them had drifted
+this morning and adding a suite plus a feature moved them again:
+
+    overlays.js       13,694  ->  13,734
+    game source       27,725  ->  27,836
+    fail() sites         826  ->  837
+    open plans            61  ->  62
+    browser suites        33  ->  33   (see below)
+
+The suite count is the interesting one. `ls test/live/*.mjs` says 34,
+and I wrote 34 into two documents before the sweep printed its list and
+the first line read `_books`. That is `test/live/_books.mjs` — the
+shared FIXTURE every other suite imports, not a suite. Corrected back
+to 33, and the count now excludes anything starting with an underscore.
+
+Small, and worth writing down anyway: I was counting files in a
+directory and calling it a number of tests. The sweep printing every
+name is what caught it, which is an argument for sweeps that print
+every name.
+
+FULL SWEEP AT THE STOPPING POINT, all green:
+
+    npm test                          837 assertion sites
+    33 browser suites                 all OK
+    9 Electron suites                 all OK (docker-home 31/31, live container)
+    test/live/packaged-exe.mjs        the real .exe, OK
+    npm run verify:release            docs match the artifact
+
+
+WHERE THIS LEAVES THINGS
+-------------------------
+
+Shipped and provable: 0.1.0-beta.6 on disk and tagged, both artifact
+guards green, verify:release green, the hosted door in, the Mac build
+one Actions click away.
+
+Not done and named: the steward's taste pass, a stranger walking Stage
+1, a clean-machine install, the welcome packet. All in
+plans/AFTER-THE-BETA.md, in order, and all of them wait on a person
+rather than on code — which is the first time that has been true.
+
+NEXT SESSION IS THE COURSES, and it arrives with the steward's own
+documents and a plan he has already made. Nothing should be designed
+for it in advance. What exists to build on:
+
+  · data/course-format.js   parseCourse / emitCourse, ONE emitter
+                            (lessonToMarkdown with {frontmatter:true}),
+                            round-tripped by test/live/course-format.mjs
+  · step 1 of plans/COURSE-AUTHORING-AND-IMPORT.md landed 2026-08-12 —
+    a lesson step holds a paragraph and survives being handed on
+  · steps 2-4 are written up and deliberately unstarted: the 7-step
+    protocol, the .course.md drop path, and merging the Course Board's
+    step shape with the Tree's
+
+That plan is the thing to read first, and then to argue with, because
+it was written before the steward's documents existed.

@@ -186,6 +186,21 @@ both, and rule 2 settles them.
   provably open (`opacity 1`, full size, right content). `win.show()`, wait,
   and **discard the first `capturePage()`**. A screenshot showing nothing is not
   evidence of nothing — verify the harness before believing the picture.
+- **A SOURCE SCRAPE THAT MATCHES NOTHING REPORTS THAT EVERYTHING IS MISSING.**
+  Green here, red on CI, 2026-08-13, minutes after tagging beta.6: seven
+  residents at once, *"'quill' claims a chat door but is not a resident in
+  CHAT_AGENTS"*. CHAT_AGENTS was complete. The guard finds them with
+  `/^  ([a-z]+):\{\n    label:/gm`, and on a **CRLF** checkout that text is
+  `:{\r\n`, so it found **zero** — and zero found reads as everything gone.
+  Reproduced by `git -c core.autocrlf=true clone`, which is what the Windows
+  runner does. **`.gitattributes` now pins checkouts to LF, and `smoke.mjs`
+  normalises at read** (one wrapper, ~70 call sites — editing them by hand is
+  rule 4's shape). Both, because a guard that depends on a git config is not a
+  guard. ⚠ The blanket rule would have **rewritten two chapter fixtures** that
+  are real books carrying real CRLF; `test/fixtures/** -text` exempts them.
+  And the first version of the new guard was **vacuous** — CRLF-ifying in
+  memory and normalising back compares normalised to normalised, and passes
+  with the fix deleted. It writes a real CRLF file now.
 - **A bare identifier is only a ReferenceError on the path that runs it.**
   `overlays.js` called `estimateTokens()` and never imported it, for days: the
   build was happy, and every test called the enclosing function on a path that

@@ -34,8 +34,8 @@ now actionable.** It used to be a gate with nothing behind it — see §2.
 | | |
 |---|---|
 | rooms / residents | **25 places**, **7 residents**, all reachable from one keystroke |
-| source | **27,725 lines** of game JS |
-| test suites | **33 browser**, **9 Electron**, **1 against the shipped `.exe`**, plus `npm test` with **826** assertion sites |
+| source | **27,836 lines** of game JS |
+| test suites | **33 browser**, **9 Electron**, **1 against the shipped `.exe`**, plus `npm test` with **837** assertion sites |
 | the grounding chain | done — a resident can quote a carried book *with page numbers*, say what it cannot reach, and hand you a button that fixes it |
 | the pace charter | `CLAUDE.md` rule 9, with guards A, B and D, each broken on purpose |
 | note authorship | every note carries who wrote it, human or model, and the model is never told a person wrote its own output |
@@ -88,6 +88,17 @@ which is the only one that exercises the asar pack, the `files` glob and
 do while the thing they would do it *to* does not exist. Build the artifact
 first; the human step is then the only step.
 
+**And the tag push then failed CI, for a reason the error message actively
+misdescribed.** `npm test` went red on the Windows runner with seven residents
+*"missing from `CHAT_AGENTS`"* — a table that was complete. The guard scrapes
+source text, a CRLF checkout made its pattern match nothing, and **a source
+scrape that matches nothing reports that everything it was looking for is
+gone.** Fixed the same day (`.gitattributes` + a normalising reader in
+`smoke.mjs`, both proven against a `core.autocrlf=true` clone), and the tag was
+**deliberately not moved** — nothing under `src/`, `electron/`, `index.html` or
+`package.json` has changed since it, so it still marks the source the `.exe` was
+built from. Re-run the build from the Actions tab, never by moving a tag.
+
 ### 3 · The shelf is empty and the welcome packet is not written
 
 `SEED_LIBRARY` is `[]` and **that is the finished position**, not a gap — a
@@ -108,13 +119,13 @@ plausibly hit again.
 
 ### 5 · The debt, stated so nobody discovers it
 
-`src/game/ui/overlays.js` is **13,694 lines — half of all game source.** Its own
+`src/game/ui/overlays.js` is **13,734 lines — half of all game source.** Its own
 split plan says *"the split is losing the race"*, and it is **deliberately off
 the critical path** for this beta: the higher-leverage target is the ~2,000
 lines of inline HTML and the fragility of the paths a visitor actually walks.
 Recorded so the next session does not pick it up by default.
 
-**61 open plan documents** against 20 closed. Most say some version of *"written
+**62 open plan documents** against 20 closed. Most say some version of *"written
 down, not started"*, and that is fine — but it means the ratio of intention to
 implementation in `plans/` is roughly 3:1, and anyone reading that folder should
 know it before believing any single file in it.

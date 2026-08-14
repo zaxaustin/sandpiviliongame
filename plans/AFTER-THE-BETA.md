@@ -63,6 +63,18 @@ thing since `BETA-PREFLIGHT.md` and still true.
 
 ### 4 · The Mac path, end to end
 
+> **⚠ The first tag push failed CI, and not for the reason the error said.**
+> `npm test` scrapes source text to find the residents, a CRLF checkout made
+> the pattern match nothing, and "nothing found" was reported as *seven
+> residents missing from `CHAT_AGENTS`* — a table that was complete. Fixed
+> 2026-08-13 (`.gitattributes` + a normalising reader in `smoke.mjs`), proved
+> against a `core.autocrlf=true` clone.
+>
+> **The tag was deliberately left where it is** — nothing shipped has changed
+> since it — so **re-run the build from the Actions tab** (*Build installers →
+> Run workflow*, on `main`), not by moving the tag. Moving a published tag is
+> the "same tag, two binaries" fault `verify-release-docs.mjs` exists because of.
+
 Pushing the tag builds `arm64` and `x64` `.dmg`s on GitHub's Macs. **Nothing on
 this Windows machine can test either of them**, so the CI log is all the
 evidence there is until a Mac opens one.

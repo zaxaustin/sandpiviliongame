@@ -193,7 +193,7 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one: 13,694 lines** (740 top-level
+- **`ui/overlays.js`** — **the big one: 13,734 lines** (740 top-level
   definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
   chat stack, and the window-export block, which it owns permanently. **It opens
   with a map of itself**, anchored to searchable text rather than line numbers
@@ -495,6 +495,31 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 > - **DONE — [`plans/AFTER-THE-BETA.md`](plans/AFTER-THE-BETA.md).** The testing
 >   to do now, what is known missing, and the rule this release taught. **Read it
 >   instead of improvising the week after a release.**
+> - **DONE — [`docs/FRESH-INSTALL.md`](docs/FRESH-INSTALL.md).** Installing from
+>   nothing, and §6 is the part that matters: **the data folder is
+>   `%APPDATA%\sand-pavilion`** (lowercase, hyphen — `productName` lives in the
+>   `build` block, which electron-builder does not copy into the packaged app,
+>   so Electron falls back to `name`). **Measured by asking the running `.exe`,
+>   not reasoned.** The installed app therefore shares that folder with
+>   `electron:dev` — it opens onto the steward's real 59-book library — and
+>   uninstalling deliberately leaves it, so **"reinstall and look" is not the
+>   clean-install test.** Rename-aside is, and with Docker up the container
+>   database is outside that folder, so books hydrate back and the "empty shelf"
+>   is not empty.
+> - **DONE — CI WAS RED AND CHAT_AGENTS WAS NEVER THE PROBLEM** (2026-08-13,
+>   minutes after the tag). Seven residents at once, *"claims a chat door but is
+>   not a resident in CHAT_AGENTS"*. **The table was complete.** The guard
+>   scrapes source with `/^  ([a-z]+):\{\n    label:/gm`, and a **CRLF** checkout
+>   makes that `:{\r\n` — so it found **zero**, and zero found reads as
+>   everything missing. Reproduced with `git -c core.autocrlf=true clone`.
+>   `.gitattributes` pins checkouts to LF **and** `smoke.mjs` normalises at read
+>   (one wrapper, ~70 sites); neither implies the other.
+>   ⚠ The blanket rule would have **rewritten two chapter fixtures** that are
+>   real books carrying real CRLF — `test/fixtures/** -text`.
+>   **The tag was left where it is on purpose:** nothing under `src/`,
+>   `electron/`, `index.html` or `package.json` has changed since it, so it still
+>   marks the source the `.exe` was built from. Re-run CI from the Actions tab
+>   (`workflow_dispatch`), never by moving a published tag.
 >
 > **⛳ NEXT IS NOT CODE, and now it genuinely cannot be:**
 >
@@ -521,6 +546,18 @@ reconciliation; **Seven to Eleven are the grounding chain**).
 > **Publishing is a human action.** The command, the SmartScreen warning to send
 > with it, and what to say are all in
 > [`plans/SHIPPING-THE-BETA.md`](plans/SHIPPING-THE-BETA.md).
+>
+> **🎓 AND THE NEXT SESSION IS THE COURSES — it arrives with the steward's own
+> plan and documents, so DO NOT DESIGN IT IN ADVANCE.** What exists to build on:
+> `data/course-format.js` (`parseCourse` / `emitCourse`, and
+> `lessonToMarkdown(node,{frontmatter:true})` is the **one** emitter, round-tripped
+> by `test/live/course-format.mjs`); step 1 of
+> [`plans/COURSE-AUTHORING-AND-IMPORT.md`](plans/COURSE-AUTHORING-AND-IMPORT.md)
+> landed 2026-08-12, so a lesson step already holds a paragraph and survives
+> being handed on; **steps 2–4 are written up and deliberately unstarted** — the
+> 7-step protocol, the `.course.md` drop path, and merging the Course Board's
+> step shape with the Tree's. **Read that plan first and then argue with it**,
+> because it was written before the steward's documents existed.
 >
 > **Do not start a new feature before those.** Everything buildable toward this
 > beta is built; adding more only widens the gap between what is tested and
