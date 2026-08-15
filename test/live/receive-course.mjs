@@ -204,7 +204,10 @@ ok('★ **Objective:** rendered BOLD rather than as asterisks',
 /* On a course you have never opened, About-this-course arrives OPEN — the
    opening intention is required piece 1 and must not be hidden the one time
    the person has not read it. */
-ok('★ on first sight, the course explains itself', /What you end with/.test(shown.text));
+/* It moved into the syllabus when that was built, and reads "You end with:"
+   there. The information did not go away; it went somewhere better. */
+ok('★ on first sight, the course explains itself',
+   /The syllabus/.test(shown.text) && /You end with:/.test(shown.text));
 ok('including what you need before starting', /Before you start/.test(shown.text));
 await p.screenshot({ path: 'test/live/_receive-open.png' });
 
