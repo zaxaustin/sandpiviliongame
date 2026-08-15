@@ -6495,14 +6495,36 @@ function renderCourses(){
     const archived=data.courses.filter(c=>c.archived);
     const pool=showArch?archived:active;
     const counts={}; active.forEach(c=>{ const k=c.category||'personal'; counts[k]=(counts[k]||0)+1; });
+    /* ---- HOW MUCH STANDS BETWEEN ARRIVING AND SEEING YOUR FIRST COURSE ----
+
+       Measured 2026-08-15 on a realistic board (one real course, three
+       checklists): FOURTEEN controls above the first card, seven of them
+       category chips on two wrapped rows, two of those reading `0`. A filter
+       you cannot want to press — there is nothing behind it — drawn above the
+       thing you came to read.
+
+       So the row appears on the same rule the search box already uses at
+       `>4`, rather than a second rule invented for it, and within the row only
+       categories that actually hold something. Four courses need no filter.
+
+       ⚠ AND THE FILTER GOES WITH THE ROW. Leaving `state.courseCat` applied
+       while its control is off screen is a board silently hiding courses with
+       nothing on screen to explain it — rule 5 exactly. `catRow` decides both,
+       so the two cannot drift apart. */
+    const catRow = !showArch && active.length>4;
     let shown=pool;
     if(q) shown=pool.filter(c=>c.title.toLowerCase().includes(q)||(c.why||'').toLowerCase().includes(q));
-    else if(!showArch && cat!=='all') shown=pool.filter(c=>(c.category||'personal')===cat);
+    else if(catRow && cat!=='all') shown=pool.filter(c=>(c.category||'personal')===cat);
     const card=c=>{
       const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
       return `<div class="card" onclick="openCourse(${c.id})">
         <div class="t">${esc(c.title)} <span class="badge">${esc(courseCatLabel(c.category||'personal'))}</span> <span class="badge lic">${done}/${c.steps.length} ${courseStanding(c).full?'modules':'steps'}</span> ${standingBadge(c)}</div>
-        <div class="s">${esc(c.why||'')}${c.due?' · due '+esc(c.due):''}</div>
+        ${/* TWO LINES, then an ellipsis. A real course's `why` is its purpose
+              line and runs a full paragraph — four lines of prose on a LIST
+              card, which turns "which one am I walking" into reading. The
+              whole of it is one press away and repeated at the top of the
+              course, so nothing here is the only copy. */''}
+        <div class="s" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(c.why||'')}${c.due?' · due '+esc(c.due):''}</div>
         <div class="prog"><div style="width:${pct}%"></div></div>
       </div>`;
     };
@@ -6512,7 +6534,7 @@ function renderCourses(){
        not actually empty, just filtered. */
     const emptyMsg = q ? 'No course matches that search.'
       : showArch ? 'No archived courses yet — finished or set-aside paths will collect here.'
-      : cat!=='all' ? 'No courses in this category yet.'
+      : (catRow && cat!=='all') ? 'No courses in this category yet.'
       : '';
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
@@ -6522,8 +6544,8 @@ function renderCourses(){
         value="${esc(state.courseSearch||'')}" oninput="setCourseSearch(this.value)" style="margin-top:12px">` : ''}
       ${q ? `<div class="meta" style="margin:8px 0 0">Matching "${esc(state.courseSearch)}".
         <button class="btn ghost" style="font-size:11px;padding:3px 10px;margin-left:6px" onclick="clearCourseSearch()">✕ clear</button></div>` : ''}
-      ${showArch || !active.length ? '' : `<div class="row" style="margin:12px 0${q?';opacity:.4':''}">
-        ${COURSE_CATEGORIES.map(c=>{
+      ${!catRow ? '' : `<div class="row" style="margin:12px 0${q?';opacity:.4':''}">
+        ${COURSE_CATEGORIES.filter(c=>c.id==='all'||counts[c.id]).map(c=>{
           const n = c.id==='all' ? active.length : (counts[c.id]||0);
           return `<button class="btn ${c.id===cat&&!q?'':'ghost'}" style="font-size:11.5px;padding:6px 12px"
             onclick="setCourseCategory('${c.id}')">${esc(c.label)} <span class="badge">${n}</span></button>`;
@@ -6824,10 +6846,33 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
     const introOpen = state.courseIntroOpen===true
       || (state.courseIntroOpen!==false && !c.introSeen);
     const openMod = openModuleOf(c);
+    /* ---- THE SAME PARAGRAPH, TWICE, AND NOBODY SAW IT UNTIL A SCREENSHOT ----
+
+       LOOKING at an open course on 2026-08-15: the purpose ran as four lines
+       of `.meta` under the title, and then the syllabus box directly beneath
+       opened with the identical four lines. Two hundred words of duplicate
+       prose before "0 of 9 modules", and Module 1 starting at y=526.
+
+       Neither surface was wrong on its own — the syllabus is where "what is
+       this course" belongs, and the meta line predates it by a day. This is
+       what rule 2 is for: no amount of reading the code says "that paragraph
+       is on screen twice", and the picture says it instantly.
+
+       DERIVED, not deleted. `syllabusHere` decides once whether the syllabus
+       is going to say it, and the meta line takes it only when the syllabus
+       will not. A checklist keeps its `why` exactly where it has always been.
+
+       AND THE SYLLABUS IS FOR A FULL COURSE ONLY. On a three-line checklist
+       it rendered "The syllabus · 2 modules · no length stated" — a heading
+       promising a syllabus over a course that has none, which is worse than
+       the absence. `st.full` is the same test the badge already uses. */
+    const syl = courseSyllabus(c, syllabusOwned);
+    const syllabusHere = st.full && !!syl.modules;
+    const metaWhy = (!syllabusHere && c.why) ? esc(c.why)+' · ' : '';
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>${esc(c.title)}${c.archived?' <span class="badge">archived</span>':''} ${standingBadge(c)}</h2>
-      <div class="meta">${esc(c.why||'')} · begun ${esc(c.begun)}${c.due?' · due '+esc(c.due):''} · ${esc(courseCatLabel(c.category||'personal'))}${c.level?' · level '+esc(c.level):''}${c.track?' · '+esc(c.track):''}</div>
+      <div class="meta">${metaWhy}begun ${esc(c.begun)}${c.due?' · due '+esc(c.due):''} · ${esc(courseCatLabel(c.category||'personal'))}${c.level?' · level '+esc(c.level):''}${c.track?' · '+esc(c.track):''}</div>
       ${/* ONE FOLD FOR EVERYTHING ABOUT THE COURSE, rather than four stacked
             paragraphs above the work. Outcome, prerequisites, baseline and the
             intention are all "what this course is"; the modules are "what you
@@ -6851,16 +6896,7 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
 
            It also answers the knowledge-imports question in the same breath:
            "reads 5 texts — you have 4". It REPORTS, and never gates. */
-        /* ⚠ "HAVE IT" MEANS IT IS ON THE SHELF, not that you pressed a button.
-           The first version asked only whether `bookSlug` was linked, so the
-           syllabus said "you have 0 of 2" directly above a module row offering
-           to link a book it had just found on the shelf. Two surfaces
-           contradicting each other about the same fact, which is worse than
-           either answer alone — so both ask the same question now. */
-        const onShelf = st => !!(st.bookSlug && Store.getDoc(st.bookSlug))
-          || !!shelfMatches(lookupTerms(st.reading || '', 5))[0];
-        const syl = courseSyllabus(c, onShelf);
-        if(!syl.modules) return '';
+        if(!syllabusHere) return '';
         const bits=[];
         bits.push(`<b>${syl.modules}</b> module${syl.modules===1?'':'s'}`);
         if(syl.howLong) bits.push(esc(syl.howLong));
@@ -6981,17 +7017,31 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
         <div class="meta" style="margin-top:6px;opacity:.75">Nothing here blocks anything. A checklist you keep for yourself is a fine thing to keep.</div>
       </details>`:''}
       ${pct===100?'<p style="color:#ffd98a;margin-top:12px">The path is walked. Everything turns to sand — pin another when you’re ready.</p>':''}
-      <label style="margin-top:14px">Due date (optional)</label>
-      <div class="row"><input type="date" id="cDueEdit" value="${esc(c.due||'')}" style="max-width:200px">
-        <button class="btn ghost" onclick="setCourseDue(${c.id})">Set</button></div>
-      <label style="margin-top:10px">Category</label>
-      <div class="row"><select id="cCatEdit" style="max-width:200px;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:8px 10px">${COURSE_CATEGORIES.filter(k=>k.id!=='all').map(k=>
-        `<option value="${k.id}" ${(c.category||'personal')===k.id?'selected':''}>${k.label}</option>`).join('')}</select>
-        <button class="btn ghost" onclick="setCourseCat(${c.id})">Set</button></div>
+      ${/* HOUSEKEEPING FOLDS AWAY, THE WORK DOES NOT. A date picker and a
+            category dropdown sat permanently under a course you are walking —
+            two live form fields where the next module should be. They are
+            still here, still one press away, and no longer the last thing you
+            see after nine modules of real work.
+
+            Archive and Delete come inside with them: both are things you do TO
+            a course, not things you do IN one, and Delete in particular has no
+            business sitting open beside "mark this module done". */''}
+      <details style="margin-top:16px">
+        <summary class="meta" style="cursor:pointer">⚙ Course settings — due date, category, archive</summary>
+        <label style="margin-top:12px">Due date (optional)</label>
+        <div class="row"><input type="date" id="cDueEdit" value="${esc(c.due||'')}" style="max-width:200px">
+          <button class="btn ghost" onclick="setCourseDue(${c.id})">Set</button></div>
+        <label style="margin-top:10px">Category</label>
+        <div class="row"><select id="cCatEdit" style="max-width:200px;background:#1b140d;border:2px solid #55432e;border-radius:7px;color:#f5e9d4;font-family:inherit;font-size:13.5px;padding:8px 10px">${COURSE_CATEGORIES.filter(k=>k.id!=='all').map(k=>
+          `<option value="${k.id}" ${(c.category||'personal')===k.id?'selected':''}>${k.label}</option>`).join('')}</select>
+          <button class="btn ghost" onclick="setCourseCat(${c.id})">Set</button></div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn ghost" onclick="archiveCourse(${c.id})">${c.archived?'♻ Restore':'🗄 Archive'}</button>
+          <button class="btn ghost" onclick="removeCourse(${c.id})">Delete</button>
+        </div>
+      </details>
       <div class="row" style="margin-top:14px">
         <button class="btn ghost" onclick="backToList()">← All courses</button>
-        <button class="btn ghost" onclick="archiveCourse(${c.id})">${c.archived?'♻ Restore':'🗄 Archive'}</button>
-        <button class="btn ghost" onclick="removeCourse(${c.id})">Delete</button>
       </div>`;
   }
 }
@@ -7211,6 +7261,19 @@ function shelfMatches(terms){
     if(out.length>=12) break;
   }
   return out;
+}
+/* ⚠ "HAVE IT" MEANS IT IS ON THE SHELF, not that you pressed a button. The
+   first version of the syllabus asked only whether `bookSlug` was linked, so it
+   said "you have 0 of 2" directly above a module row offering to link a book it
+   had just found on the shelf — two surfaces contradicting each other about one
+   fact, which is worse than either answer alone.
+
+   ONE PREDICATE, so they cannot disagree again. It lives out here beside
+   shelfMatches() rather than inside the renderer because the renderer now needs
+   the answer BEFORE it draws the line under the title — see `syllabusHere`. */
+function syllabusOwned(step){
+  return !!(step.bookSlug && Store.getDoc(step.bookSlug))
+      || !!shelfMatches(lookupTerms(step.reading || '', 5))[0];
 }
 export function findReadingForIdea(){
   const f=receiveFormState();

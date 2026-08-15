@@ -6728,11 +6728,33 @@ for (const d of SEED_LIBRARY) {
      asked only whether a book was LINKED, so it said "you have 0 of 2"
      directly above a row offering to link a book it had just found on the
      shelf. Two surfaces contradicting each other about one fact. */
-  if (!/const onShelf\s*=\s*st\s*=>[\s\S]{0,200}shelfMatches\(/.test(ovP)) {
+  /* The predicate moved OUT of the renderer 2026-08-15 — the line under the
+     title now has to know whether the syllabus is going to speak before it
+     draws itself, so the answer is needed earlier than the syllabus block.
+     Named, so there is still exactly one of it. */
+  /* ⚠ NOT A DISTANCE WINDOW. The first version of this line allowed 300 chars
+     between the function's opening brace and `shelfMatches(` — and the very
+     next function in the file is findReadingForIdea(), which calls
+     shelfMatches() on its second line. Deleting the real call left the guard
+     GREEN, matching a completely different function. Caught by breaking it on
+     purpose, which is the only reason to trust any of these.
+     `[^{}]*` cannot leave the body, and naming `step.reading` means only the
+     real expression satisfies it. */
+  if (!/function syllabusOwned\(step\)\{[^{}]*shelfMatches\(lookupTerms\(step\.reading/.test(ovP)) {
     fail('the syllabus does not use shelfMatches() to decide whether you own a text, so it can report "not '
        + 'on your shelf yet" directly above a module row offering to link that very book');
   }
-  if (!/courseSyllabus\(c, onShelf\)/.test(ovP)) fail('the Course Board no longer renders a syllabus');
+  if (!/courseSyllabus\(c, syllabusOwned\)/.test(ovP)) fail('the Course Board no longer renders a syllabus');
+  /* ★ THE SAME PARAGRAPH MUST NOT BE ON SCREEN TWICE. Found by LOOKING on
+     2026-08-15: the purpose ran as four lines of meta under the title and the
+     syllabus box directly below opened with the identical four lines. The fix
+     is a derivation — the meta line takes `why` only when the syllabus will
+     not — so the guard holds the derivation, not the absence. */
+  if (!/const syllabusHere\s*=\s*st\.full\s*&&\s*!!syl\.modules/.test(ovP)
+      || !/const metaWhy\s*=\s*\(!syllabusHere\s*&&\s*c\.why\)/.test(ovP)) {
+    fail('the line under a course title no longer DERIVES whether to print `why` from whether the syllabus '
+       + 'is printing it — that is how the same paragraph ended up on screen twice');
+  }
 
   /* ================================================================
      7b · ★ THE LIGHTNESS PASS — one obvious next action.
