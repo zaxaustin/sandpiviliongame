@@ -445,7 +445,36 @@ Full account in [`archive/dev-log-2026-08-14.txt`](archive/dev-log-2026-08-14.tx
 >   which match no course title, so that graph would be a list rotated 90°.
 >   Modules draw only for the opened course.
 >
+> ### ⚠ THE COURSE IS NOW THE RICHEST OBJECT HERE AND THE LEAST CONNECTED
+>
+> Measured 2026-08-15, after the steward asked *"how does the lesson planning
+> integrate with the missions and the daily tasks we have?"* — the honest answer
+> is that it does not, and moving courses onto the Board widened the gap rather
+> than closing it. Written down because a seam nobody names becomes a seam
+> nobody fixes:
+>
+> | surface | knows about a Board course? |
+> |---|---|
+> | **Today** (`the-day.js`) | **Only if it has a due date** (`upcomingItems()`). There is no "next module" the way `ctx.study` gives a next *lesson* step. |
+> | **Today's Tasks** | **Nothing at all.** `STEP_WHERE.learn` opens the Learning Tree; no step can point at a course module. |
+> | **Sebastian** (`butlerDayRead()`) | Only dated courses, inside one "coming up" line. He cannot say which module you are on. |
+> | **Graduation** (Tutorial Stage 5) | **BROKEN for the new shape.** `readyChecks()` reads `myLessons`; a *finished* Board course fails all five checks. Verified by calling `canGraduate()` directly. |
+> | **"Pick this up"** (`data.study`) | Learning Tree lessons only. |
+> | **Missions** | Unbuilt (`MISSIONS_NOT_BUILT`). |
+>
+> **The fix is one idea, not six:** a course module should be able to become
+> today's work. Extend `data.study` to name a course, let a daily-task step
+> point at a module, and give `butlerDayRead()` that one line. Graduation then
+> reads whichever store the course is in.
+>
+> **And missions probably should not be built.** A course you walk, a task you
+> take, and a graduation you earn already *are* the progression; a rank layer on
+> top would be a second progress system that has to agree with the first, which
+> is rule 4's exact shape.
+>
 > **NEXT, in order:**
+> 0. **Connect the course** — the table above. This is the foundation the rest
+>    stands on, and it is small.
 > 1. **"Today's one thing"** on the Today surface — deferred on purpose:
 >    `data/the-day.js` has four standing rules about not becoming a nag.
 > 2. **The Intention gate, the daily commitment + reset, the blank-page gate.**
