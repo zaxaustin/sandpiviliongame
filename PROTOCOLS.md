@@ -589,6 +589,7 @@ outcome: "What I will be able to do at the end."
 category: "Skill"   # Practice, Study, Skill, Work, Health or Personal
 track: "A subject area"
 level: 101          # 101 beginner, 201 working, 301 advanced
+duration: "how long this honestly takes at the pace I said I could keep"
 license: "CC-BY-SA 4.0"
 prerequisites:
   - "What anyone needs before starting, even if that is nothing"

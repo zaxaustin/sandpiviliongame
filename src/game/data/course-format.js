@@ -63,7 +63,7 @@ export const COURSE_EXT = '.course.md';
 const KNOWN = ['title', 'summary', 'track', 'level', 'reading', 'author',
                'drafted-with', 'license', 'source',
                'purpose', 'audience', 'outcome', 'prerequisites', 'category',
-               'baseline'];
+               'baseline', 'duration'];
 
 /* Frontmatter keys whose value is a block list rather than a scalar.
 
@@ -312,6 +312,9 @@ export function parseCourse(text, opts) {
   if (meta.audience) lesson.audience = clean(meta.audience);
   if (meta.outcome) lesson.outcome = clean(meta.outcome);
   if (meta.category) lesson.category = clean(meta.category);
+  /* How long this takes — the ONE part of a syllabus that cannot be derived
+     from the modules, so it is the one part the frontmatter has to carry. */
+  if (meta.duration) lesson.duration = clean(meta.duration);
   for (const k of LIST_KEYS) {
     if (Array.isArray(meta[k]) && meta[k].length) lesson[k] = meta[k].slice();
     else if (meta[k]) lesson[k] = [clean(meta[k])];
@@ -402,6 +405,7 @@ export function courseFromLesson(lesson, opts) {
   if ((L.baseline || []).length) c.baseline = L.baseline.slice();
   if (L.track) c.track = L.track;
   if (L.level) c.level = L.level;
+  if (L.duration) c.duration = L.duration;
   if (L.by) c.by = L.by;
   if (L.license) c.license = L.license;
   if (L.source) c.source = L.source;
@@ -434,11 +438,81 @@ export function lessonFromCourse(course) {
   if ((c.prerequisites || []).length) L.prerequisites = c.prerequisites.slice();
   if ((c.baseline || []).length) L.baseline = c.baseline.slice();
   if (c.category) L.category = c.category;
+  if (c.duration) L.duration = c.duration;
   if (c.license) L.license = c.license;
   if (c.source) L.source = c.source;
   if (c.book) L.book = c.book;
   if (c.extra) L.extra = c.extra;
   return L;
+}
+
+/* ================================================================
+   [THE SYLLABUS] — what this is, how long, what it reads, what you do.
+
+   The steward, after building his first real course end to end:
+
+     "there should be like a syllabus in the beginning first… explain what
+      the course would be, how long it would take, what kind of material we
+      cover and what are you expected to do."
+
+   ALMOST ALL OF IT IS DERIVED, and that is the point. The modules already
+   say what they read (`**Reading:**`) and what they ask of you
+   (`**Practice:**`, `**Artifact:**`). Deriving the syllabus from them means
+   an author writes nothing twice, and a syllabus cannot drift from the
+   course it summarises — which is rule 4 rather than tidiness. The one
+   thing that genuinely is not derivable is how long it takes, so that is
+   the one thing the frontmatter has to carry.
+
+   PEEK, DO NOT LIFT. `**Reading:**` is metadata about a module and was
+   lifted out of its body; `**Practice:**` and `**Artifact:**` are content a
+   person reads in place, so these are read WITHOUT removing them. The body
+   still renders exactly as its author wrote it. This is the promotion
+   course-format.js invited in its own header — "they can be promoted the
+   moment something actually consumes one" — done non-destructively.
+   ================================================================ */
+const PART_LABELS = ['Objective', 'Practice', 'Reflection', 'Artifact'];
+export function moduleParts(body) {
+  const src = String(body == null ? '' : body);
+  const out = {};
+  for (const label of PART_LABELS) {
+    /* Everything from the label up to the next bold label at the start of a
+       line, or the end. A practice is often several bullets, not one line. */
+    const re = new RegExp('^\\*\\*' + label + ':\\*\\*\\s*([\\s\\S]*?)(?=\\n\\*\\*[A-Z][^*\\n]*:\\*\\*|$)', 'm');
+    const hit = re.exec(src);
+    if (hit && hit[1].trim()) out[label.toLowerCase()] = hit[1].trim();
+  }
+  return out;
+}
+
+/* What a person should know before they start. Pure, derived, and it counts
+   rather than claims. `owned` is a predicate the caller supplies — this file
+   knows nothing about a shelf. */
+export function courseSyllabus(course, owned) {
+  const c = course || {};
+  const steps = (c.steps || []).filter(s => s && (s.body || s.title));
+  const texts = [];
+  const seen = new Set();
+  for (const s of steps) {
+    if (!s.reading || seen.has(s.reading.toLowerCase())) continue;
+    seen.add(s.reading.toLowerCase());
+    texts.push({ title: s.reading, why: s.readingWhy || '',
+                 have: typeof owned === 'function' ? !!owned(s) : !!s.bookSlug });
+  }
+  const artifacts = steps.map(s => moduleParts(s.body).artifact).filter(Boolean);
+  const practices = steps.filter(s => moduleParts(s.body).practice).length;
+  return {
+    what: c.purpose || c.summary || '',
+    outcome: c.outcome || '',
+    /* NOT derivable, so it is the one thing the frontmatter carries — and it
+       is absent far more often than present, which the caller must say
+       plainly rather than invent. */
+    howLong: c.duration || '',
+    modules: steps.length,
+    texts,
+    missing: texts.filter(t => !t.have).length,
+    practices,
+    artifacts,
+  };
 }
 
 /* ---------- simple checklist, or full course? ----------

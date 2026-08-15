@@ -6675,6 +6675,66 @@ for (const d of SEED_LIBRARY) {
   }
 
   /* ================================================================
+     7a½ · ★ THE SYLLABUS, and it is DERIVED.
+
+     The steward, after building his first real course end to end: "there
+     should be like a syllabus in the beginning first… what the course
+     would be, how long it would take, what kind of material we cover and
+     what are you expected to do."
+
+     Deriving it from the modules means an author writes nothing twice and
+     the syllabus cannot drift from the course it summarises (rule 4). Only
+     "how long" is authored, because only that cannot be counted.
+     ================================================================ */
+  {
+    const doc = ['---', 'title: "M"', 'purpose: "What it is."', 'outcome: "What you end with."',
+      'duration: "8 weeks"', '---', '', '# How', '', 'One line.', '',
+      'Two sentences of intention, long enough to survive the split.', '',
+      '## Module 1 — One', '', '**Reading:** Anthology of Discourses', '',
+      '**Why this text:** In his own words.', '', '**Body:** real prose, long enough to be bodied.', '',
+      '**Practice:** sit twenty minutes.', '', '**Artifact:** one page.',
+      '', '## Module 2 — Two', '', '**Body:** more real prose, long enough to be bodied.', '',
+      '**Practice:** map it.', '', '**Artifact:** a map.'].join('\n');
+    const L = CF2.parseCourse(doc, { user: 'user 1' }).lesson;
+    if (!L) fail('the syllabus fixture no longer parses');
+    else {
+      const c = CF2.courseFromLesson(L, { categories: ['study', 'personal'] });
+      const syl = CF2.courseSyllabus(c, st => st.reading === 'Anthology of Discourses');
+      if (syl.modules !== 2) fail(`courseSyllabus counted ${syl.modules} modules, expected 2`);
+      if (syl.practices !== 2) fail(`courseSyllabus counted ${syl.practices} practices, expected 2 — the `
+                                  + '"what are you expected to do" half comes from the module bodies');
+      if (syl.artifacts.length !== 2) fail('courseSyllabus did not find both artifacts');
+      if (syl.howLong !== '8 weeks') fail('duration did not reach the syllabus — it is the ONE part that '
+                                        + 'cannot be derived, so it is the one part the frontmatter carries');
+      if (syl.texts.length !== 1 || syl.missing !== 0) {
+        fail(`courseSyllabus reported ${syl.texts.length} texts / ${syl.missing} missing, expected 1 / 0`);
+      }
+      if (!syl.texts[0].why) fail('the syllabus dropped the reason for a text');
+    }
+    /* ★ PEEK, DO NOT LIFT. Practice and Artifact are content a person reads in
+       place; only Reading is metadata. If moduleParts() started removing them
+       the body would silently lose half its teaching. */
+    const parts = CF2.moduleParts('**Practice:** do it.\n\n**Artifact:** a page.');
+    if (parts.practice !== 'do it.' || parts.artifact !== 'a page.') {
+      fail('moduleParts() no longer reads Practice/Artifact out of a body');
+    }
+    const bodyAfter = CF2.parseCourse(doc, { user: 'user 1' }).lesson.steps[0].body;
+    if (!/\*\*Practice:\*\*/.test(bodyAfter) || !/\*\*Artifact:\*\*/.test(bodyAfter)) {
+      fail('Practice or Artifact was LIFTED out of the module body. Those are content read in place — only '
+         + 'Reading is metadata. Removing them empties half of what the author wrote.');
+    }
+  }
+  /* ★ THE SYLLABUS AND THE MODULE ROW MUST NOT DISAGREE. The first version
+     asked only whether a book was LINKED, so it said "you have 0 of 2"
+     directly above a row offering to link a book it had just found on the
+     shelf. Two surfaces contradicting each other about one fact. */
+  if (!/const onShelf\s*=\s*st\s*=>[\s\S]{0,200}shelfMatches\(/.test(ovP)) {
+    fail('the syllabus does not use shelfMatches() to decide whether you own a text, so it can report "not '
+       + 'on your shelf yet" directly above a module row offering to link that very book');
+  }
+  if (!/courseSyllabus\(c, onShelf\)/.test(ovP)) fail('the Course Board no longer renders a syllabus');
+
+  /* ================================================================
      7b · ★ THE LIGHTNESS PASS — one obvious next action.
 
      The steward, having looked at the first version of the on-ramp:

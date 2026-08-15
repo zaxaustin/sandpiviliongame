@@ -27,7 +27,8 @@ import { ROLES, DEFAULT_PACE, rosterBlock, rosterForVisitor } from '../data/role
 import { initNoteAuthor, byLine, isAiNote, authorOf, attributionOf, labelledNote, currentUser }
   from '../data/note-versions.js';
 import { parseCourse, emitCourse, COURSE_EXT,
-         courseFromLesson, lessonFromCourse, courseStanding } from '../data/course-format.js';
+         courseFromLesson, lessonFromCourse, courseStanding,
+         courseSyllabus, moduleParts } from '../data/course-format.js';
 import { initTutorial, openTutorial, tutorialStart, tutorialGo, tutorialPickLesson,
          tutorialTickReady, tutorialSetOutcome, tutorialPublish, tutorialRecordGraduation }
   from './tutorial.js';
@@ -6837,13 +6838,56 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
             Open the first time you meet a course — the intention is required
             piece 1 and must not be hidden — and folded every time after, with
             its heading still there. */''}
+      ${(function(){
+        /* ★ THE SYLLABUS, FIRST. The steward, after building his first real
+           course: "there should be like a syllabus in the beginning first…
+           what the course would be, how long it would take, what kind of
+           material we cover and what are you expected to do."
+
+           Almost all of it is DERIVED from the modules — the texts they read,
+           the practices and artifacts they ask for — so an author writes
+           nothing twice and the syllabus cannot drift from the course. Only
+           "how long" is authored, because only that cannot be counted.
+
+           It also answers the knowledge-imports question in the same breath:
+           "reads 5 texts — you have 4". It REPORTS, and never gates. */
+        /* ⚠ "HAVE IT" MEANS IT IS ON THE SHELF, not that you pressed a button.
+           The first version asked only whether `bookSlug` was linked, so the
+           syllabus said "you have 0 of 2" directly above a module row offering
+           to link a book it had just found on the shelf. Two surfaces
+           contradicting each other about the same fact, which is worse than
+           either answer alone — so both ask the same question now. */
+        const onShelf = st => !!(st.bookSlug && Store.getDoc(st.bookSlug))
+          || !!shelfMatches(lookupTerms(st.reading || '', 5))[0];
+        const syl = courseSyllabus(c, onShelf);
+        if(!syl.modules) return '';
+        const bits=[];
+        bits.push(`<b>${syl.modules}</b> module${syl.modules===1?'':'s'}`);
+        if(syl.howLong) bits.push(esc(syl.howLong));
+        else bits.push('<span style="opacity:.6">no length stated</span>');
+        if(syl.practices) bits.push(`<b>${syl.practices}</b> practice${syl.practices===1?'':'s'}`);
+        if(syl.artifacts.length) bits.push(`<b>${syl.artifacts.length}</b> thing${syl.artifacts.length===1?'':'s'} you make`);
+        return `<div id="courseSyllabus" style="margin-top:12px;padding:11px 14px;border:2px solid #55432e;border-radius:8px;background:#1b140d">
+          <div class="meta" style="margin:0 0 5px">The syllabus</div>
+          ${syl.what?`<div style="font-size:13.5px;color:#e2d5bd;line-height:1.5">${esc(syl.what)}</div>`:''}
+          <div class="meta" style="margin-top:7px">${bits.join(' · ')}</div>
+          ${syl.outcome?`<div class="meta" style="margin-top:6px"><b>You end with:</b> ${esc(syl.outcome)}</div>`:''}
+          ${syl.texts.length?`<div class="meta" style="margin-top:8px"><b>It reads ${syl.texts.length}
+            text${syl.texts.length===1?'':'s'}</b>${syl.missing?` — you have ${syl.texts.length-syl.missing},
+            ${syl.missing} not on your shelf yet`:` — you have all of them`}:</div>
+            <ul class="meta" style="margin:4px 0 0;padding-left:18px">${syl.texts.map(t=>
+              `<li style="margin:2px 0">${t.have?'✓':'○'} ${esc(t.title)}${t.why?`
+                 <span style="opacity:.7">— ${esc(t.why)}</span>`:''}</li>`).join('')}</ul>
+            ${syl.missing?`<div class="row" style="margin-top:7px"><button class="btn ghost"
+              style="font-size:11px;padding:3px 9px" onclick="openBookIntake()">bring the missing ${syl.missing===1?'one':'ones'} in</button></div>`:''}`:''}
+        </div>`;
+      })()}
       ${(c.intro||c.outcome||(c.prerequisites||[]).length||(c.baseline||[]).length)?`
       <div class="courseIntro" id="courseIntro" style="margin-top:12px;padding:10px 13px;border-left:3px solid #c9a86a;background:#241c12;border-radius:0 7px 7px 0">
         <div class="meta" style="margin:0;cursor:pointer" onclick="toggleCourseIntro()"
              title="${introOpen?'Fold it away':'Read it again'}">${introOpen?'▾':'▸'} About this course${introOpen?'':' — folded, and still here'}</div>
         ${introOpen?`
-          ${c.outcome?`<div class="meta" style="margin-top:7px"><b>What you end with:</b> ${esc(c.outcome)}</div>`:''}
-          ${(c.prerequisites||[]).length?`<div class="meta" style="margin-top:4px"><b>Before you start:</b> ${c.prerequisites.map(x=>esc(x)).join(' · ')}</div>`:''}
+          ${(c.prerequisites||[]).length?`<div class="meta" style="margin-top:7px"><b>Before you start:</b> ${c.prerequisites.map(x=>esc(x)).join(' · ')}</div>`:''}
           ${(c.baseline||[]).length?`<div class="meta" style="margin-top:4px"><b>Where its author started:</b> ${c.baseline.map(x=>esc(x)).join(' · ')}</div>`:''}
           ${c.intro?`<div style="margin-top:8px">${courseProse(c.intro)}</div>`:''}`:''}
       </div>`:''}

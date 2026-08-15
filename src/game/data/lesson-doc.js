@@ -98,6 +98,7 @@ export function lessonToMarkdown(node, opts = {}) {
     if (node.track) fm.push('track: ' + node.track);
     if (node.level) fm.push('level: ' + node.level);
     if (node.category) fm.push('category: ' + node.category);
+    if (node.duration) fm.push('duration: ' + one(node.duration));
     if ((node.prerequisites || []).length) fm.push(listOut('prerequisites', node.prerequisites));
     /* What the author brought, not what the course demands — see LIST_KEYS in
        data/course-format.js. It travels with the file so the next reader knows

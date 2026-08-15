@@ -121,7 +121,11 @@ export const PROTOCOL_STEPS = [
    holds the shelf block to one line per book plus a fixed header — which is
    what actually stops it hiding bloat. */
 export const PROMPT_MAX_PROSE_LINES = 42;
-export const PROMPT_MAX_LINES = 75;
+/* 75 -> 76 on 2026-08-15: `duration:` joined the frontmatter example when the
+   steward asked a course to say how long it takes. One line, in the example
+   rather than the prose, and a deliberate raise rather than a drift — which
+   is exactly what this constant is for. */
+export const PROMPT_MAX_LINES = 76;
 /* Fixed lines around the book list — the header, the two instruction lines
    about **Reading:** and **Why this text:**, and the four example lines those
    two labels add to the fenced sample. Went 6 -> 9 on 2026-08-15 when the
@@ -207,6 +211,7 @@ export function buildDraftingPrompt(opts) {
     'category: "Skill"   # Practice, Study, Skill, Work, Health or Personal',
     'track: "A subject area"',
     'level: 101          # 101 beginner, 201 working, 301 advanced',
+    'duration: "how long this honestly takes at the pace I said I could keep"',
     'license: "CC-BY-SA 4.0"',
     'prerequisites:',
     '  - "What anyone needs before starting, even if that is nothing"',
