@@ -135,6 +135,41 @@ Simple personal task lists continue to work exactly as they do today.
 - [ ] Progress tracking, artifact linking, and completion work the same way for full courses as for simple ones.
 - [ ] "Export as Markdown" already partially exists; confirm round-trip fidelity for rich courses.
 
+### Phase B¼ — What this course requires you to have (added 2026-08-15)
+
+The steward, while beta-testing the meditation course:
+
+> *"We should plan a wave for the pavilion to have a requirement of knowledge
+> imports — where we have a list of things that we need to get for the books,
+> or a way to reference the books that are already in the pavilion."*
+
+**A course should be able to say what it reads, and the Pavilion should say
+which of those you have.** Most of this exists already and it is derivation
+rather than new authoring:
+
+- **The declaration is already there.** As of 2026-08-15 a module carries
+  `**Reading:** <title>`, and the Board resolves it in three states —
+  a confirmed door, an offer to link a close shelf match, and a plain
+  *"not on your shelf yet"*. The course-level view is the same data, counted.
+- **A required-reading panel on the course:** *"This course reads 5 texts —
+  you have 4, one is missing."* Derived from the modules; nothing new stored,
+  nothing for the author to maintain separately, so it cannot drift from what
+  the modules actually say (rule 4).
+- **The missing ones get a real path, not a shrug.** The **Request Board**
+  already exists (`openRequests` — *"where a book you want but can't fetch
+  in-game is tracked until it's brought in by hand"*) and is exactly the right
+  home. One press adds a missing text to it. `PROTOCOL 1` already lists where
+  books can be had free and legally, and the reading prompt already returns
+  **search terms rather than links** for precisely this moment.
+- **Show it BEFORE pinning.** The Receive preview should say *"reads 5 texts,
+  you have 4"* while a person is deciding — that is the honest moment to learn
+  a course expects a book you do not own, rather than three modules in.
+
+**⚠ What this must NOT become:** a gate. A course you cannot start because a
+book is missing would be the Pavilion auditing your shelf, which
+`plans/GUIDANCE-NOT-ENFORCEMENT` territory forbids — the line is at *spreading*,
+not *holding*. It reports and it offers; it never blocks, and it never scolds.
+
 ### Phase B½ — Intention and Baseline (next session, added 2026-08-14)
 
 - [ ] **Opening Intention** recorded before the high-standard tools open.
