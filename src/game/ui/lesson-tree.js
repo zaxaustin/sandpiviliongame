@@ -22,6 +22,7 @@ import { state, data, persist, todayKey, logActivity, awardBadge } from '../enti
 import { blip } from '../main.js';
 import { Store } from '../data/store.js';
 import { esc, jsq, mdLite, NOTE_SELECT_STYLE } from './dom.js';
+import { renderTreeGraph } from './tree-graph.js';
 import { parseSteps, stepsToText } from '../data/course-format.js';
 import { byLine, currentUser } from '../data/note-versions.js';
 import { WORK_CHARTER } from '../data/charter.js';
@@ -685,6 +686,17 @@ function renderLearningTree(){
           : '\u2713 Every step ticked \u2014 open it to publish it, or pick up something new.'}</div>
       </div>`;
     })()}
+    ${/* THE TREE POINTS AT THE BOARD. The steward settled the two-homes question
+          on 2026-08-14: the Course Board is where courses live and are walked;
+          this is the map of what you might want to do. The full reframe is its
+          own session — this is the signpost, so the relationship is stated
+          somewhere a person actually stands rather than only in a plan. */''}
+    <div class="card" style="cursor:pointer;margin-top:12px;border-color:#c9a86a" onclick="openCourses()">
+      <div class="t">📋 Courses are walked on the Course Board</div>
+      <div class="s" style="margin-top:5px">This tree is the map — what exists, and what leads to what.
+        A course you are actually working through, or one drafted elsewhere and received here, lives on
+        the <b>Course Board</b> with its full text. → open it</div>
+    </div>
     <div class="card" style="cursor:default;margin-top:10px;border-color:#8fb4d9">
       <div class="t">🔒 Your own private sandbox</div>
       <div class="s" style="margin-top:5px">Everything here runs on your own machine. Nothing you do in a
@@ -722,66 +734,6 @@ function renderLearningTree(){
    packets see overlapping trees; neither sees "everything," because
    there is no everything to see.
    ================================================================ */
-const TREE_COL=230, TREE_ROW=112;   // one card's footprint in the graph
-const TREE_CARD_H=84;               // fixed, so a long title can never run into the row below
-/* Depth = the longest chain of prerequisites behind a node. That's what makes
-   the drawing read as a tree rather than a list: roots on the left, and
-   anything that needed something else further right. */
-function graphDepths(nodes, needsOf){
-  const byTitle=new Map(nodes.map(n=>[String(n.title||'').toLowerCase(), n]));
-  const depth=new Map(); const seen=new Set();
-  const walk=(n)=>{
-    const key=n.__k;
-    if(depth.has(key)) return depth.get(key);
-    if(seen.has(key)) return 0;           // a cycle: treat as a root rather than hang
-    seen.add(key);
-    let d=0;
-    for(const need of needsOf(n)){
-      const parent=byTitle.get(String(need||'').toLowerCase());
-      if(parent && parent.__k!==key) d=Math.max(d, walk(parent)+1);
-    }
-    depth.set(key,d); return d;
-  };
-  nodes.forEach((n,i)=>{ n.__k=n.__k||('n'+i); });
-  nodes.forEach(walk);
-  return { depth, byTitle };
-}
-/* The one graph renderer, used by both trees: absolutely-positioned cards with
-   an SVG layer behind them drawing every prerequisite edge. This is the whole
-   "make it look like a skill tree" ask — the prerequisites already existed in
-   the data; they simply were never drawn. */
-function renderTreeGraph(nodes, opts){
-  const { needsOf, cardHTML, onClickAttr } = opts;
-  if(!nodes.length) return '<p class="meta">Nothing here yet.</p>';
-  const { depth, byTitle } = graphDepths(nodes, needsOf);
-  const cols=new Map();
-  for(const n of nodes){ const d=depth.get(n.__k)||0; if(!cols.has(d)) cols.set(d,[]); cols.get(d).push(n); }
-  const maxD=Math.max(...cols.keys());
-  const maxRows=Math.max(...[...cols.values()].map(c=>c.length));
-  const pos=new Map();
-  for(const [d,list] of cols) list.forEach((n,i)=>pos.set(n.__k,{x:d*TREE_COL+14, y:i*TREE_ROW+10}));
-  const W=(maxD+1)*TREE_COL+30, H=maxRows*TREE_ROW+TREE_CARD_H-TREE_ROW+34;
-  const edges=[];
-  for(const n of nodes){
-    const to=pos.get(n.__k);
-    for(const need of needsOf(n)){
-      const parent=byTitle.get(String(need||'').toLowerCase());
-      if(!parent||parent.__k===n.__k) continue;
-      const from=pos.get(parent.__k); if(!from) continue;
-      const x1=from.x+196, y1=from.y+TREE_CARD_H/2, x2=to.x, y2=to.y+TREE_CARD_H/2;
-      const mid=(x1+x2)/2;
-      edges.push(`<path d="M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}" fill="none" stroke="#8a6a3a" stroke-width="2" opacity=".65"/>`
-        +`<circle cx="${x2}" cy="${y2}" r="3" fill="#e0a43c" opacity=".8"/>`);
-    }
-  }
-  return `<div style="overflow:auto;max-height:60vh;border:1px solid var(--edge);border-radius:8px;background:rgba(0,0,0,.12)">
-    <div style="position:relative;width:${W}px;height:${H}px">
-      <svg width="${W}" height="${H}" style="position:absolute;inset:0;pointer-events:none">${edges.join('')}</svg>
-      ${nodes.map(n=>{ const p=pos.get(n.__k);
-        return `<div class="card" style="position:absolute;left:${p.x}px;top:${p.y}px;width:196px;height:${TREE_CARD_H}px;margin:0;padding:8px 10px;overflow:hidden;box-sizing:border-box"
-          ${onClickAttr?onClickAttr(n):''}>${cardHTML(n)}</div>`; }).join('')}
-    </div></div>`;
-}
 /* What has actually been contributed to you: packets that carry real substance.
    A bare completion claim can't get in, because nothing about it is worth
    passing on — that IS the entry price. */

@@ -13,7 +13,10 @@ import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS, notesTod
 import { gatherRecords, recordSummary, RECORD_LOOK } from '../data/records.js';
 import { backendTrouble } from '../data/backend-trouble.js';
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
-import { esc, jsq, NOTE_SELECT_STYLE } from './dom.js';
+import { esc, jsq, mdLite, NOTE_SELECT_STYLE } from './dom.js';
+import { tidyTitle, tidyAuthor, titleNeedsTidying, looksLikeAFilename } from '../data/book-title.js';
+import { BASELINE_QUESTIONS, buildDraftingPrompt, buildReadingPrompt, promptGaps } from '../data/course-prompt.js';
+import { STARTER_COURSES, starterCourse } from '../data/starter-courses.js';
 import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
          studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache,
          studySetAgent, studyFillPrompt, studyAsk, studyKeepReply, studySetBook, studyCarryBook, tableBook,
@@ -23,7 +26,8 @@ import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, DEFAULT_PACE, rosterBlock, rosterForVisitor } from '../data/roles.js';
 import { initNoteAuthor, byLine, isAiNote, authorOf, attributionOf, labelledNote, currentUser }
   from '../data/note-versions.js';
-import { parseCourse, emitCourse, COURSE_EXT } from '../data/course-format.js';
+import { parseCourse, emitCourse, COURSE_EXT,
+         courseFromLesson, lessonFromCourse, courseStanding } from '../data/course-format.js';
 import { initTutorial, openTutorial, tutorialStart, tutorialGo, tutorialPickLesson,
          tutorialTickReady, tutorialSetOutcome, tutorialPublish, tutorialRecordGraduation }
   from './tutorial.js';
@@ -44,7 +48,8 @@ import { initDailyTasks, openDailyTasks, takeDailyTask, toggleDailyTaskStep,
 /* The one road to knowledge — the same term extraction every resident uses to
    search the shelves, now used to search your notes too. Two ways of turning a
    question into a query is the drift this project keeps paying for. */
-import { groundingPlan } from '../data/lookup.js';
+import { groundingPlan, lookupTerms } from '../data/lookup.js';
+import { renderTreeGraph } from './tree-graph.js';
 import { placesByScene } from '../data/places.js';
 import { storageBadge, storageOf, storageSummary, localRoom, nextDestination,
          STORAGE_STATES, DEFAULT_LOCAL_BOOK_CAP, LOCAL_CAP_MIN, LOCAL_CAP_MAX,
@@ -6306,6 +6311,155 @@ const COURSE_CATEGORIES = [
   {id:'personal', label:'Personal'},
 ];
 const courseCatLabel = id => (COURSE_CATEGORIES.find(c=>c.id===id) || COURSE_CATEGORIES[COURSE_CATEGORIES.length-1]).label;
+/* The ids a `category: "Skill"` line may resolve to, DERIVED from the list
+   above rather than restated — data/course-format.js is pure and is handed
+   this rather than keeping its own copy. */
+const COURSE_CAT_IDS = COURSE_CATEGORIES.filter(c=>c.id!=='all').map(c=>c.id);
+
+/* A step body is real prose now — paragraphs, and bold labels inside them
+   ("**Practice:** …") because that is what the portable format asks authors
+   for and what a model emits. mdLite escapes FIRST and introduces only <b>,
+   so this can never turn author text into markup; paragraphs and soft breaks
+   are structure this adds, not markup it honours. */
+const courseProse = s => String(s||'').split(/\n\s*\n/).filter(p=>p.trim())
+  .map(p=>`<p style="margin:.5em 0">${mdLite(p).replace(/\n/g,'<br>')}</p>`).join('');
+/* One badge, from the record's contents and never from its `standard` claim.
+   A checklist is a legitimate thing to keep — this says which it is, it does
+   not say one is a failed version of the other. */
+/* ================================================================
+   THE BOARD EXPLAINS ITSELF. The steward, 2026-08-14:
+
+     "When someone opens the Board, it must be obvious: how to bring a
+      course in, how to draft a high-standard course, what the steps are.
+      No hidden menus, no 'figure it out from a placeholder.'"
+
+   Three steps, and ONE function so the Board's empty state and the
+   Receive panel cannot drift into telling a person two different things.
+   `where` only changes which step is emphasised — never the content,
+   because two versions of "how this works" is how a wrong one survives.
+   ================================================================ */
+/* THREE CHOICES, one sentence each. The steward, after looking at the first
+   version of this — which was three paragraphs in a bordered box:
+
+     "Right now too much is presented as big blocks of text. That makes the
+      path feel heavy even when the daily work is small... one clear next
+      action at a time."
+
+   So the doors are the same three and the reading is gone. `where` decides
+   the SIZE, never the content: three cards where there is room for them, one
+   line above a board you are already working on. Two versions of "how this
+   works" is how a wrong one survives, so both come out of this function. */
+/* The seven, one line each with the detail folded behind it. Kept as data so
+   the panel cannot drift from plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md by
+   a paragraph at a time. */
+const COURSE_STANDARD_PIECES = [
+  ['Opening intention', 'The real question that makes the work worth doing, written before any modules exist and kept visible.'],
+  ['Baseline', 'Where <i>you</i> are on the day you start. It travels with the course, so the next reader learns what the work costs somebody starting there.'],
+  ['Theoretical minimum', 'The few load-bearing things you must rebuild from scratch rather than recall. Cut hard.'],
+  ['A daily commitment', 'One real focused action on the days you commit to. The repetition engine, and deliberately uncomfortable.'],
+  ['Structured modules', 'Real prose, not bullets — each with a practice that forces doing, a reflection, and an artifact.'],
+  ['A final gate', 'The minimum from a blank page, evidence it works in the open, and explaining it to more than one kind of person.'],
+  ['Transmission', 'Polished so somebody can walk it without you present. That is the version worth leaving behind.'],
+];
+const COURSE_DOORS = [
+  { icon:'📥', label:'Bring a course in',       hint:'Paste it, or drop the file here or at the book table.', go:"openReceiveCourse('paste')" },
+  { icon:'✍',  label:'Draft a high-standard one', hint:'Four questions, then a prompt for any chat model.',     go:"openReceiveCourse('draft')" },
+  { icon:'📐', label:'What "high-standard" means', hint:'The seven pieces, briefly.',                            go:'openCourseStandard()' },
+];
+function courseGuidanceBlock(where){
+  if(where==='compact'){
+    return `<div class="row" id="courseGuide" style="margin:12px 0 4px;gap:6px;flex-wrap:wrap">
+      ${COURSE_DOORS.map(d=>`<button class="btn ghost" style="font-size:11.5px;padding:5px 11px"
+        onclick="${d.go}" title="${esc(d.hint)}">${d.icon} ${esc(d.label)}</button>`).join('')}
+    </div>`;
+  }
+  return `<div id="courseGuide" style="margin-top:14px;display:flex;gap:9px;flex-wrap:wrap">
+    ${COURSE_DOORS.map(d=>`<button class="btn ghost" onclick="${d.go}"
+      style="flex:1 1 210px;text-align:left;padding:14px 15px;line-height:1.45">
+      <div style="font-size:15px;color:#ffd98a">${d.icon} ${esc(d.label)}</div>
+      <div class="s" style="margin-top:4px;opacity:.82;font-weight:normal">${esc(d.hint)}</div>
+    </button>`).join('')}
+  </div>`;
+}
+
+/* ================================================================
+   THE BOARD AS A MAP. The steward, 2026-08-14:
+
+     "having an interface for the courses that doesn't have them all
+      just in a list but is also a bit spread out and let you explore
+      things in branches like a tree"
+
+   ⚠ AND THE BRANCHES ARE NOT PREREQUISITES, which is the honest part.
+   renderTreeGraph() matches a node's `needs` against other node TITLES,
+   and on both real courses the `prerequisites:` entries are prose —
+   "Willingness to work from a blank page", "A genuine personal question
+   or project". Those match no course title, so a prerequisite graph
+   would be one column: a list, rotated ninety degrees.
+
+   So the tree is built from structure the data actually has —
+   TRACK → COURSE → MODULE — and a course-to-course edge is drawn only
+   where a prerequisite genuinely names another course on the board,
+   which will be rare until somebody writes one. Better to say that than
+   to ship a skill tree with no links in it.
+
+   Modules appear only for the course you have opened. Nine courses
+   drawing eighty cards would be the wall of text this pass removed,
+   rebuilt in SVG.
+   ================================================================ */
+function courseMapNodes(list, openId){
+  const nodes=[]; const seen=new Set();
+  const trackOf=c=>String(c.track||courseCatLabel(c.category||'personal')||'Yours').trim();
+  for(const c of list){
+    const t=trackOf(c);
+    if(!seen.has(t.toLowerCase())){
+      seen.add(t.toLowerCase());
+      nodes.push({ kind:'track', title:t, needs:[] });
+    }
+  }
+  for(const c of list){
+    /* A prerequisite that names another course on this board becomes a real
+       edge; everything else is prose and is left alone. */
+    const byTitle=new Set(list.map(x=>String(x.title||'').toLowerCase()));
+    const realNeeds=(c.prerequisites||[]).filter(p=>byTitle.has(String(p||'').toLowerCase()));
+    nodes.push({ kind:'course', id:c.id, title:c.title||'A course', course:c,
+                 needs: realNeeds.length?realNeeds:[trackOf(c)] });
+    if(openId===c.id){
+      (c.steps||[]).forEach((s,i)=>{
+        if(!s.body) return;
+        nodes.push({ kind:'module', id:c.id, i, title:s.title||('Module '+(i+1)),
+                     done:!!s.done, needs:[c.title||'A course'] });
+      });
+    }
+  }
+  return nodes;
+}
+function renderCourseMap(list, openId){
+  if(!list.length) return '';
+  const nodes=courseMapNodes(list, openId);
+  return renderTreeGraph(nodes, {
+    needsOf: n => n.needs || [],
+    onClickAttr: n => n.kind==='track' ? ''
+      : n.kind==='course' ? ` onclick="mapOpenCourse(${n.id})" style="cursor:pointer"`
+      : ` onclick="openCourse(${n.id});openCourseModule(${n.id},${n.i})" style="cursor:pointer"`,
+    cardHTML: n => {
+      if(n.kind==='track') return `<div class="t" style="color:#a8926c">${esc(n.title)}</div>
+        <div class="s" style="opacity:.6">track</div>`;
+      if(n.kind==='module') return `<div class="s">${n.done?'✓':'○'} ${esc(String(n.title).slice(0,54))}</div>`;
+      const st=courseStanding(n.course);
+      const done=(n.course.steps||[]).filter(s=>s.done).length;
+      return `<div class="t" style="font-size:12.5px">${esc(String(n.title).slice(0,52))}</div>
+        <div class="s" style="margin-top:3px">${done} of ${(n.course.steps||[]).length}
+          ${st.full?'modules':'steps'}${openId===n.course.id?' · open':''}</div>`;
+    },
+  });
+}
+
+const standingBadge = c => {
+  const st = courseStanding(c);
+  return st.full
+    ? `<span class="badge lic" title="Modules with real explanatory text, an opening intention and a stated outcome.">📘 full course</span>`
+    : `<span class="badge" title="A checklist you keep for yourself. Not a claim about finished, transmissible work.">personal tracking</span>`;
+};
 export function setCourseSearch(v){
   state.courseSearch=v; renderCourses();
   // a full innerHTML rebuild drops the cursor from the box that triggered it;
@@ -6346,15 +6500,19 @@ function renderCourses(){
     const card=c=>{
       const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
       return `<div class="card" onclick="openCourse(${c.id})">
-        <div class="t">${esc(c.title)} <span class="badge">${esc(courseCatLabel(c.category||'personal'))}</span> <span class="badge lic">${done}/${c.steps.length} steps</span></div>
+        <div class="t">${esc(c.title)} <span class="badge">${esc(courseCatLabel(c.category||'personal'))}</span> <span class="badge lic">${done}/${c.steps.length} ${courseStanding(c).full?'modules':'steps'}</span> ${standingBadge(c)}</div>
         <div class="s">${esc(c.why||'')}${c.due?' · due '+esc(c.due):''}</div>
         <div class="prog"><div style="width:${pct}%"></div></div>
       </div>`;
     };
+    /* An empty board used to say "The board is bare. Pin your first path." —
+       true, and it told you nothing about how. The guidance block below is the
+       empty state now; this sentence only covers the cases where the board is
+       not actually empty, just filtered. */
     const emptyMsg = q ? 'No course matches that search.'
       : showArch ? 'No archived courses yet — finished or set-aside paths will collect here.'
       : cat!=='all' ? 'No courses in this category yet.'
-      : 'The board is bare. Pin your first path.';
+      : '';
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
       <h2>The Course Board${showArch?' · Archived':''} ${visBadge('private')}<button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px" onclick="openCommonsTable()" title="Share one at the Commons Table, in the Cafe">🤝 share one</button></h2>
@@ -6363,22 +6521,36 @@ function renderCourses(){
         value="${esc(state.courseSearch||'')}" oninput="setCourseSearch(this.value)" style="margin-top:12px">` : ''}
       ${q ? `<div class="meta" style="margin:8px 0 0">Matching "${esc(state.courseSearch)}".
         <button class="btn ghost" style="font-size:11px;padding:3px 10px;margin-left:6px" onclick="clearCourseSearch()">✕ clear</button></div>` : ''}
-      ${showArch ? '' : `<div class="row" style="margin:12px 0${q?';opacity:.4':''}">
+      ${showArch || !active.length ? '' : `<div class="row" style="margin:12px 0${q?';opacity:.4':''}">
         ${COURSE_CATEGORIES.map(c=>{
           const n = c.id==='all' ? active.length : (counts[c.id]||0);
           return `<button class="btn ${c.id===cat&&!q?'':'ghost'}" style="font-size:11.5px;padding:6px 12px"
             onclick="setCourseCategory('${c.id}')">${esc(c.label)} <span class="badge">${n}</span></button>`;
         }).join('')}
       </div>`}
-      ${shown.map(card).join('') || `<p>${emptyMsg}</p>`}
-      <div class="meta" style="margin-top:16px">Want a guided path rather than one you set yourself? The
-        <b>Learning Tree</b> is the Pavilion's own curriculum — start at a 101 and climb.</div>
-      <div class="row" style="margin-top:6px"><button class="btn ghost" onclick="openLearningTree()">🌳 Open the Learning Tree</button></div>
-      <div class="row" style="margin-top:14px">
+      ${/* THREE CARDS ON AN EMPTY BOARD, one line above a full one. Always
+            present either way: a person with two checklists is exactly the one
+            who has not found out a real course can live here, so hiding it
+            once the board fills would hide it from whoever most needs it. */''}
+      ${showArch?'':courseGuidanceBlock(shown.length?'compact':'cards')}
+      ${/* LIST OR MAP. The list stays and stays the default — nothing is taken
+            away, and a list is the right tool for "which one am I walking".
+            The map answers a different question: how these relate. */''}
+      ${shown.length>1?`<div class="row" style="margin:10px 0 4px;gap:6px">
+        <button class="btn ${state.courseMap?'ghost':''}" style="font-size:11.5px;padding:5px 12px"
+          onclick="setCourseMap(false)">☰ List</button>
+        <button class="btn ${state.courseMap?'':'ghost'}" style="font-size:11.5px;padding:5px 12px"
+          onclick="setCourseMap(true)">🌿 Map</button>
+      </div>`:''}
+      ${(state.courseMap && shown.length>1)
+        ? renderCourseMap(shown, state.courseMapOpen)
+        : (shown.map(card).join('') || (emptyMsg?`<p>${emptyMsg}</p>`:''))}
+      <div class="row" style="margin-top:16px">
         ${showArch
           ? `<button class="btn ghost" onclick="toggleArchivedView()">← Back to active courses</button>`
-          : `<button class="btn" onclick="newCourseForm()">+ Pin a new course</button>
-             ${isAIActive()?'<button class="btn ghost" onclick="newCourseAIForm()">✨ Draft a course with AI</button>':''}
+          : `<button class="btn" onclick="newCourseForm()">+ Pin a simple checklist</button>
+             ${isAIActive()?'<button class="btn ghost" onclick="newCourseAIForm()">✨ Draft with AI</button>':''}
+             <button class="btn ghost" onclick="openLearningTree()">🌳 Learning Tree</button>
              ${archived.length?`<button class="btn ghost" onclick="toggleArchivedView()">🗄 Archived (${archived.length})</button>`:''}`}
       </div>`;
     if(q){ const inp=document.getElementById('courseSearch'); if(inp){ inp.focus(); inp.setSelectionRange(state.courseSearch.length, state.courseSearch.length); } }
@@ -6396,6 +6568,213 @@ function renderCourses(){
         <button class="btn" id="ncDraftBtn" onclick="draftCourseWithAI()">✨ Draft with AI</button>
         <button class="btn ghost" onclick="backToList()">← Back</button>
       </div>`;
+  }
+  else if(v.mode==='standard'){
+    el.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>📐 How high-standard courses work</h2>
+      <div class="meta">A checklist you keep for yourself needs none of this and is a perfectly good thing
+        to keep. This is the deal for anything you would hand to another person.</div>
+      ${/* SEVEN LINES, expandable. The steward: "Keep it to the seven pieces in
+            very compact form (expandable if needed). Do not paste large
+            sections of the full Guide into the panel." The full Guide stays in
+            plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md; this is the reminder
+            you want at the moment you are about to draft, not the reading. */''}
+      <div style="margin-top:12px">
+        ${COURSE_STANDARD_PIECES.map(([t, s], i) => `<details style="border-bottom:1px solid #3a2f22;padding:7px 2px">
+          <summary style="cursor:pointer;color:#ffd98a;font-size:13.5px">${i + 1} · ${esc(t)}</summary>
+          <div class="meta" style="margin:5px 0 2px">${s}</div></details>`).join('')}
+      </div>
+      ${/* RULE 6, and it belongs on the screen rather than in a comment. The
+            badge checks three of the seven; the other four have nowhere to
+            live in a course record yet. Saying so is the difference between a
+            standard and a sticker — and shortening this panel must not be the
+            move that quietly drops it. */''}
+      <div class="meta" style="margin-top:12px;padding:9px 12px;border-left:3px solid #8fb4d9;background:#161c24;border-radius:0 6px 6px 0">
+        The <b>📘 full course</b> badge reads <b>three</b> of these off the course itself — an intention, a
+        stated outcome, and modules with real text. <b>Baseline, theoretical minimum, the daily commitment
+        and the final gate are not checked by anything yet</b>; they are yours to hold. A badge claiming all
+        seven would be a sticker, not a standard.
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="openReceiveCourse()">← Back</button>
+        <button class="btn ghost" onclick="backToList()">All courses</button>
+      </div>`;
+  }
+  else if(v.mode==='receive'){
+    /* RECEIVE A COURSE. The drafting happens in a chat window beside the game
+       — that is the steward's own leverage and this panel does not try to
+       replace it. Its whole job is the hand-off: paste or drop what a model
+       wrote, SEE what will land, and press once.
+
+       Nothing reaches data.courses until that press (rule 9, question 1), and
+       the parse problems are shown as the sentences parseCourse already
+       writes, because a person whose file will not import needs to know which
+       line to fix (rule 6). */
+    const p=v.parsed;
+    const st=p?courseStanding(courseFromLesson(p,{categories:COURSE_CAT_IDS})):null;
+    /* ONE STEP ON SCREEN AT A TIME. `step` is null until a door is chosen, and
+       then it is exactly one of paste / draft / starters. The first version put
+       all three on one screen — a paste box, four questions with two-line
+       hints, and a shelf — which is the density the steward objected to:
+       "one clear next action at a time; everything else folded or one click
+       away." The PREVIEW is the exception and travels with every step, because
+       "Pin it to the board" is the one action that matters and must never be a
+       step away from where you are. */
+    const step=v.step||null;
+    const backRow=`<div class="row" style="margin-top:12px">
+      <button class="btn ghost" onclick="receiveStep('')">← Other ways in</button>
+      <button class="btn ghost" onclick="backToList()">All courses</button></div>`;
+    el.innerHTML = `
+      <button class="xbtn" onclick="closeUI()">Esc ✕</button>
+      <h2>Receive a Course</h2>
+      ${!step?`
+        <div class="meta">Nothing is saved until you have seen what it found and pressed.</div>
+        ${courseGuidanceBlock('cards')}` : ''}
+      ${step==='paste'?`
+      <div class="meta">Paste what a chat window gave you, or open the file.</div>
+      <textarea id="rcText" rows="11" spellcheck="false" placeholder="---
+title: What you are teaching
+purpose: Why it is worth the work
+outcome: What a person can do at the end
+---
+
+## The first module
+
+Real paragraphs. As many as it takes.
+
+**Practice:** the thing they actually do."
+        style="font-family:ui-monospace,Consolas,monospace;font-size:12px">${esc(v.text||'')}</textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="previewReceivedCourse()">Read it</button>
+        <label class="btn ghost" style="cursor:pointer;margin:0">📂 Open a file…
+          <input type="file" id="rcFile" accept=".md,.markdown,.txt" style="display:none"
+                 onchange="receiveCourseFile(event)"></label>
+      </div>
+      ${v.problems&&v.problems.length?`<div id="rcProblems" style="margin-top:14px;padding:10px 13px;border-left:3px solid #c98a6a;background:#241812;border-radius:0 7px 7px 0">
+        <div class="meta" style="margin:0 0 5px;color:#e8b48f">This will not import yet — ${v.problems.length===1?'one thing':v.problems.length+' things'} to fix:</div>
+        <ul class="meta" style="margin:0;padding-left:18px">${v.problems.map(m=>`<li style="margin:3px 0">${esc(m)}</li>`).join('')}</ul>
+      </div>`:''}
+      ${backRow}` : ''}
+
+      ${/* THE PROMPT BUILDER, and now it is the whole screen when chosen.
+            Writes nothing and moves nothing, so it may be as fast as the
+            machine can go (rule 9, question 3) — it is local string-building
+            and a clipboard, with no connection and no key.
+            The hints are PLACEHOLDERS now: a hint belongs inside the box it
+            is about, not as a second line of prose above it. That alone took
+            eight lines of grey text off this screen. */''}
+      ${/* THREE BEATS, in the order the work actually happens. The steward:
+            "have an idea, share with you, then you can help me figure out what
+             topics to search for books and also how to draft a plan with
+             ChatGPT or Grok."
+
+            Reading comes BEFORE drafting and that ordering is the whole point:
+            a course drafted before you know what you are reading names books
+            it hopes exist; drafted after, it names the ones on your shelf.
+
+              your idea → what to read → get the books → draft it → walk it
+
+            Beat 2's shelf search is deterministic and instant (rule 7) — it is
+            lookupTerms() and a substring match, no model and no connection. */''}
+      ${step==='draft'?`
+      <div id="rcDraft">
+        <div class="meta">Three short beats. Nothing here needs a connection — the prompts are text you
+          copy into whatever chat window you already have open.</div>
+
+        <div style="margin-top:14px;font-size:15px;color:#ffd98a">① Your idea</div>
+        <label style="margin-top:8px">What do you want to learn, and why does it matter to you?</label>
+        <input type="text" id="rcGoal" value="${esc(v.goal||'')}"
+          placeholder="e.g. Understand electronics well enough to build a motor that also generates">
+        ${BASELINE_QUESTIONS.map(q=>`
+          <label style="margin-top:9px">${esc(q.label)}</label>
+          <input type="text" id="rcB_${esc(q.key)}" value="${esc((v.baseline||{})[q.key]||'')}"
+            placeholder="${esc(q.hint)}">`).join('')}
+
+        <div style="margin-top:18px;font-size:15px;color:#ffd98a">② What to read</div>
+        <div class="meta" style="margin-top:4px">A course is only as good as what is behind it. Work out the
+          reading first, bring the books in, and the course you draft next can name them.</div>
+        <div class="row" style="margin-top:9px">
+          <button class="btn ghost" onclick="findReadingForIdea()">🔎 What should I read?</button>
+          ${v.reading?`<button class="btn" onclick="copyReadingPrompt()">📋 Copy the reading prompt</button>`:''}
+        </div>
+        <div id="rcReadMsg" class="meta" style="margin-top:7px"></div>
+        ${v.reading?`<div id="rcReading" style="margin-top:9px;padding:10px 13px;border-left:3px solid #7fb069;background:#18200f;border-radius:0 7px 7px 0">
+          ${v.reading.terms.length?`<div class="meta" style="margin:0">Searching your shelf for:
+            ${v.reading.terms.map(t=>`<span class="badge">${esc(t)}</span>`).join(' ')}</div>`:''}
+          ${v.reading.have.length?`<div class="meta" style="margin-top:7px"><b>You already own ${v.reading.have.length}
+            ${v.reading.have.length===1?'book that touches':'books that touch'} this</b> — the reading prompt is told
+            not to suggest ${v.reading.have.length===1?'it':'them'} again:</div>
+            <ul class="meta" style="margin:4px 0 0;padding-left:18px">${v.reading.have.slice(0,8).map(t=>
+              `<li style="margin:2px 0">${esc(t)}</li>`).join('')}</ul>`
+            :`<div class="meta" style="margin-top:7px">Nothing on your shelf matches those words yet — which is
+              exactly what the reading prompt is for.</div>`}
+          <div class="meta" style="margin-top:9px;opacity:.8">Paste the reading prompt into any chat window, then
+            bring what it names in through <b>📥 Bring a book in</b> — dropped files land on your shelf and are
+            readable at once. <b>Protocol 1</b> in the manual lists where books can be had free and legally.</div>
+        </div>`:''}
+        ${v.readingText?`<div class="meta" style="margin-top:8px">Select it all and copy.</div>
+          <textarea id="rcReadingOut" rows="9" readonly
+            style="font-family:ui-monospace,Consolas,monospace;font-size:11.5px">${esc(v.readingText)}</textarea>`:''}
+
+        <div style="margin-top:18px;font-size:15px;color:#ffd98a">③ Draft the course</div>
+        <div class="row" style="margin-top:9px">
+          <button class="btn" style="font-size:14px;padding:11px 18px" onclick="copyDraftingPrompt()">📋 Copy the drafting prompt</button>
+          <button class="btn ghost" onclick="showDraftingPrompt()">Show it</button>
+        </div>
+        <div id="rcCopyMsg" class="meta" style="margin-top:7px"></div>
+        ${v.promptText?`<div class="meta" style="margin-top:8px">Select it all and copy.</div>
+          <textarea id="rcPromptOut" rows="10" readonly
+            style="font-family:ui-monospace,Consolas,monospace;font-size:11.5px">${esc(v.promptText)}</textarea>`:''}
+        ${(v.gaps||[]).length?`<ul class="meta" style="margin:8px 0 0;padding-left:18px;opacity:.75">${
+          v.gaps.map(g=>`<li style="margin:2px 0">${esc(g)}</li>`).join('')}</ul>`:''}
+        <div class="meta" style="margin-top:10px;opacity:.75">Paste it into Claude, ChatGPT, Grok or a local
+          model — then bring the reply back through <b>📥 Bring a course in</b>.</div>
+      </div>
+      ${backRow}` : ''}
+
+      ${/* THE STARTER SHELF LIVES UNDER THE PASTE BOX, and that is a fix rather
+            than a preference. It was its own step for an hour and NOTHING
+            CALLED receiveStep('starters') — the three doors are paste, draft
+            and the standard, so the shelf was built and unreachable, which is
+            the Lab's bug committed twice in one day by the person who wrote
+            the rule down. Both are ways of getting a course in, so they belong
+            on the same screen: paste yours, or take one of these. */''}
+      ${step==='paste'&&STARTER_COURSES.length?`<div id="rcStarters" style="margin-top:18px">
+        <div class="meta">Or start from a real one — read it before you write your own.
+          <b>Nothing is pinned until you press.</b></div>
+        ${STARTER_COURSES.map(sc=>{
+          const r=parseCourse(sc.text,{user:currentUser()});
+          if(!r.ok) return '';
+          const c=courseFromLesson(r.lesson,{categories:COURSE_CAT_IDS});
+          return `<div class="card" onclick="loadStarterCourse('${jsq(sc.id)}')">
+            <div class="t">${esc(r.lesson.title)} ${standingBadge(c)}</div>
+            <div class="s">${esc(String(r.lesson.purpose||r.lesson.summary||'').slice(0,150))}${String(r.lesson.purpose||r.lesson.summary||'').length>150?'…':''}</div>
+            <div class="s" style="margin-top:4px;opacity:.7">${r.lesson.steps.length} modules · level ${esc(r.lesson.level)} · read it →</div>
+          </div>`;
+        }).join('')}
+      </div>`:''}
+      ${/* THE PREVIEW TRAVELS. It is not a step: wherever you are when a course
+            has been read, "Pin it to the board" is right there. Putting the one
+            action that matters behind a navigation would be the density
+            problem solved by making the thing harder to reach. */''}
+      ${p?`<div id="rcPreview" style="margin-top:14px;padding:11px 14px;border:2px solid #55432e;border-radius:8px;background:#1b140d">
+        <div class="meta" style="margin:0 0 6px">What will land on the board:</div>
+        <div style="font-size:15px;color:#ffd98a">${esc(p.title)}</div>
+        <div class="meta" style="margin-top:5px">
+          <span class="badge lic">${p.steps.length} ${st.full?'module':'step'}${p.steps.length===1?'':'s'}</span>
+          ${standingBadge(courseFromLesson(p,{categories:COURSE_CAT_IDS}))}
+          ${p.level?`<span class="badge">level ${esc(p.level)}</span>`:''}
+          ${p.by&&p.by.who==='ai'?`<span class="badge">✨ drafted with ${esc(p.by.model||'a model')}</span>`:''}
+        </div>
+        ${p.purpose?`<div class="meta" style="margin-top:7px">${esc(String(p.purpose).slice(0,220))}${String(p.purpose).length>220?'…':''}</div>`:''}
+        <ol class="meta" style="margin:9px 0 0;padding-left:20px">${p.steps.map(s=>
+          `<li style="margin:2px 0">${esc(s.title)} <span style="opacity:.55">${(s.body||'').length} chars</span></li>`).join('')}</ol>
+        ${st.missing.length?`<div class="meta" style="margin-top:8px;opacity:.8">It will import either way. ${st.missing.length} thing${st.missing.length===1?'':'s'} the standard would still ask for — you can see them on the course once it is pinned.</div>`:''}
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="confirmReceivedCourse()">Pin it to the board</button>
+        </div>
+      </div>`:''}`;
   }
   else if(v.mode==='new'){
     el.innerHTML = `
@@ -6429,19 +6808,98 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
   else if(v.mode==='detail'){
     const c=data.courses.find(x=>x.id===v.id); if(!c){ state.courseView={mode:'list'}; return renderCourses(); }
     const done=c.steps.filter(s=>s.done).length, pct=c.steps.length?Math.round(done/c.steps.length*100):0;
+    const st=courseStanding(c);
+    /* OPEN BY DEFAULT, and that is the requirement rather than a preference:
+       the opening intention is required piece 1 of the standard and a course
+       must not hide it. But LOOKING at the first real import showed the other
+       half — the steward's intention runs 1,752 characters, which is a full
+       screen, and Module 1 sat below the fold every single time the course was
+       opened. Visible on arrival, one click to fold once you are working. */
+    /* FOLDED AFTER THE FIRST TIME, which is the steward's correction to the
+       first version: it used to unfold on every single open, so the intention
+       you had already read pushed Module 1 below the fold forever. `introSeen`
+       is written by openCourse(); absent means unseen, which is the right
+       default for every course already on a board — no migration. */
+    const introOpen = state.courseIntroOpen===true
+      || (state.courseIntroOpen!==false && !c.introSeen);
+    const openMod = openModuleOf(c);
     el.innerHTML = `
       <button class="xbtn" onclick="closeUI()">Esc ✕</button>
-      <h2>${esc(c.title)}${c.archived?' <span class="badge">archived</span>':''}</h2>
-      <div class="meta">${esc(c.why||'')} · begun ${esc(c.begun)}${c.due?' · due '+esc(c.due):''} · ${esc(courseCatLabel(c.category||'personal'))}</div>
-      <div class="prog"><div style="width:${pct}%"></div></div>
+      <h2>${esc(c.title)}${c.archived?' <span class="badge">archived</span>':''} ${standingBadge(c)}</h2>
+      <div class="meta">${esc(c.why||'')} · begun ${esc(c.begun)}${c.due?' · due '+esc(c.due):''} · ${esc(courseCatLabel(c.category||'personal'))}${c.level?' · level '+esc(c.level):''}${c.track?' · '+esc(c.track):''}</div>
+      ${/* ONE FOLD FOR EVERYTHING ABOUT THE COURSE, rather than four stacked
+            paragraphs above the work. Outcome, prerequisites, baseline and the
+            intention are all "what this course is"; the modules are "what you
+            do". Looking at the first version showed them competing: three meta
+            paragraphs plus a screen-tall intention, and Module 1 nowhere near
+            the fold on the very first open.
+
+            Open the first time you meet a course — the intention is required
+            piece 1 and must not be hidden — and folded every time after, with
+            its heading still there. */''}
+      ${(c.intro||c.outcome||(c.prerequisites||[]).length||(c.baseline||[]).length)?`
+      <div class="courseIntro" id="courseIntro" style="margin-top:12px;padding:10px 13px;border-left:3px solid #c9a86a;background:#241c12;border-radius:0 7px 7px 0">
+        <div class="meta" style="margin:0;cursor:pointer" onclick="toggleCourseIntro()"
+             title="${introOpen?'Fold it away':'Read it again'}">${introOpen?'▾':'▸'} About this course${introOpen?'':' — folded, and still here'}</div>
+        ${introOpen?`
+          ${c.outcome?`<div class="meta" style="margin-top:7px"><b>What you end with:</b> ${esc(c.outcome)}</div>`:''}
+          ${(c.prerequisites||[]).length?`<div class="meta" style="margin-top:4px"><b>Before you start:</b> ${c.prerequisites.map(x=>esc(x)).join(' · ')}</div>`:''}
+          ${(c.baseline||[]).length?`<div class="meta" style="margin-top:4px"><b>Where its author started:</b> ${c.baseline.map(x=>esc(x)).join(' · ')}</div>`:''}
+          ${c.intro?`<div style="margin-top:8px">${courseProse(c.intro)}</div>`:''}`:''}
+      </div>`:''}
+      <div class="meta" style="margin-top:10px">${done} of ${c.steps.length} ${st.full?'modules':'steps'}</div>
+      <div class="prog" style="margin-top:5px"><div style="width:${pct}%"></div></div>
       <div style="margin-top:12px">
-        ${c.steps.map((s,i)=>`
-          <div class="step ${s.done?'done':''}" onclick="toggleStep(${c.id},${i})">
-            <div class="box">${s.done?'✓':''}</div>
-            <div><div class="tt">${esc(s.title)}</div>${s.practice?`<div class="pp">${esc(s.practice)}</div>`:''}</div>
-            ${s.url?`<a class="link" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">→ visit</a>`:''}
-          </div>`).join('')}
+        ${c.steps.map((s,i)=>{
+          /* ONE MODULE OPEN. The steward: "Only the current module is fully
+             open. Previous and next modules stay collapsed." Nine modules of
+             real prose all expanded is a document, not a course you are
+             walking.
+
+             WHICH ONE IS OPEN IS DERIVED, never stored — `openModuleOf()` takes
+             the first not-done module, the same rule nextStepOf() has used in
+             ui/lesson-tree.js since it was written. A stored index would be a
+             fourth thing to keep in sync with a list that changes.
+
+             A step with NO body keeps the whole-row click it has always had,
+             so every checklist pinned before today behaves exactly as it did. */
+          const tick=`toggleStep(${c.id},${i})`;
+          const rich=!!s.body;
+          if(!rich){
+            return `<div class="step ${s.done?'done':''}" onclick="${tick}">
+              <div class="box">${s.done?'✓':''}</div>
+              <div style="flex:1"><div class="tt">${esc(s.title)}</div>
+                ${s.practice?`<div class="pp">${esc(s.practice)}</div>`:''}</div>
+              ${s.url?`<a class="link" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">→ visit</a>`:''}
+            </div>`;
+          }
+          if(i!==openMod){
+            return `<div class="step ${s.done?'done':''}" onclick="openCourseModule(${c.id},${i})" style="cursor:pointer">
+              <div class="box">${s.done?'✓':''}</div>
+              <div style="flex:1"><div class="tt">${esc(s.title)}</div></div>
+              <span class="meta" style="opacity:.5;font-size:11px">open</span>
+            </div>`;
+          }
+          return `<div class="step ${s.done?'done':''}" style="border-color:#c9a86a">
+            <div class="box" onclick="${tick}" style="cursor:pointer">${s.done?'✓':''}</div>
+            <div style="flex:1">
+              <div class="tt">${esc(s.title)}</div>
+              ${s.practice?`<div class="pp">${esc(s.practice)}</div>`:''}
+              <div class="stepBody" style="margin-top:6px;font-size:13px;line-height:1.55;color:#e2d5bd">${courseProse(s.body)}</div>
+              <div class="row" style="margin-top:11px">
+                <button class="btn" onclick="${tick}">${s.done?'↺ Not done after all':'✓ Mark this module done'}</button>
+                ${ttsAvailable()?`<button class="btn ghost" id="cmSpeak" onclick="toggleCourseSpeak(${c.id},${i})">${
+                  isSpeaking()?'⏹ Stop':'🔊 Read it to me'}</button>`:''}
+                ${s.url?`<a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">→ visit</a>`:''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
+      ${st.missing.length?`<details style="margin-top:14px"><summary class="meta" style="cursor:pointer">Ready for others? ${st.missing.length} thing${st.missing.length===1?'':'s'} the standard asks for</summary>
+        <ul class="meta" style="margin:6px 0 0;padding-left:18px">${st.missing.map(m=>`<li style="margin:3px 0">${esc(m)}</li>`).join('')}</ul>
+        <div class="meta" style="margin-top:6px;opacity:.75">Nothing here blocks anything. A checklist you keep for yourself is a fine thing to keep.</div>
+      </details>`:''}
       ${pct===100?'<p style="color:#ffd98a;margin-top:12px">The path is walked. Everything turns to sand — pin another when you’re ready.</p>':''}
       <label style="margin-top:14px">Due date (optional)</label>
       <div class="row"><input type="date" id="cDueEdit" value="${esc(c.due||'')}" style="max-width:200px">
@@ -6468,8 +6926,273 @@ export function setCourseCat(id){
   persist(); blip(523,.05,'sine',.03); renderCourses();
 }
 function backToList(){ state.courseView={mode:'list'}; renderCourses(); }
-export function openCourse(id){ state.courseView={mode:'detail',id}; renderCourses(); }
+export function openCourse(id){
+  const c=data.courses.find(x=>x.id===id);
+  /* ⚠ CAPTURE "was this the first time" BEFORE recording that it happened.
+     The first version set introSeen and then let the renderer read it, so the
+     very first view of a course arrived FOLDED — the one view where the
+     opening intention must be open, since it is required piece 1 and the
+     person has never seen it. Found by the live suite: "the stated outcome is
+     shown" went red on a freshly pinned course. */
+  const firstLook = !!(c && c.intro && !c.introSeen);
+  state.courseView={mode:'detail',id};
+  state.courseIntroOpen = firstLook ? true : null;   // else introSeen decides
+  state.courseModule=null;                           // back to "the one you are on"
+  if(firstLook){ c.introSeen=true; persist(); }
+  renderCourses();
+}
+export function toggleCourseIntro(){
+  const c=data.courses.find(x=>x.id===(state.courseView||{}).id);
+  const open = state.courseIntroOpen===true || (state.courseIntroOpen!==false && c && !c.introSeen);
+  state.courseIntroOpen = !open;
+  renderCourses();
+}
+/* WHICH MODULE IS OPEN — derived, so nothing can go stale. The first module
+   not yet done, unless you deliberately opened another one this sitting. Same
+   rule nextStepOf() has used in ui/lesson-tree.js since it was written. */
+function openModuleOf(c){
+  if(state.courseModule!=null && (c.steps||[])[state.courseModule]) return state.courseModule;
+  const i=(c.steps||[]).findIndex(s=>!s.done && s.body);
+  if(i>=0) return i;
+  return (c.steps||[]).findIndex(s=>s.body);   // all done: the first real one
+}
+export function openCourseModule(id,i){ stopSpeaking(); state.courseModule=i; renderCourses(); }
+/* Session-only: which view the board is in, and which course the map has
+   expanded. Neither is worth saving — a view is where you are looking, not
+   something you own. */
+export function setCourseMap(on){ state.courseMap=!!on; renderCourses(); }
+/* On the map, a course card EXPANDS rather than navigating away. Seeing a
+   course's modules in place is the whole point of a map; jumping straight
+   into the detail view would make it a slower list. A second press opens it. */
+export function mapOpenCourse(id){
+  if(state.courseMapOpen===id) return openCourse(id);
+  state.courseMapOpen=id; renderCourses();
+}
+
+/* ----- READ IT TO ME. The same src/game/tts.js the Reader drives — no new
+   audio code, and one audio seam so the pocket, the pause and the voice
+   settings all keep working.
+
+   AUTO-ADVANCE IS DELIBERATE AND PERMITTED: CLAUDE.md rule 9 lists read-aloud
+   auto-advance among the things one press already scopes to — "read this to
+   me" means the next module for the same reason it means the next page of a
+   book. One click stops it. */
+function moduleSpeechText(s){
+  /* Strip the bold markers or it reads "asterisk asterisk Practice". The
+     labels are worth hearing; the punctuation is not. */
+  return [s.title, String(s.body||'').replace(/\*\*/g,'')].filter(Boolean).join('. ');
+}
+export function toggleCourseSpeak(id,i){
+  if(isSpeaking()||isPaused()){ stopSpeaking(); renderCourses(); return; }
+  const c=data.courses.find(x=>x.id===id); if(!c) return;
+  const readFrom=(n)=>{
+    const s=(c.steps||[])[n]; if(!s){ renderCourses(); return; }
+    state.courseModule=n;
+    renderCourses();
+    speak(moduleSpeechText(s), ()=>{
+      /* Only carry on if this is still the course on screen — otherwise a
+         panel you closed keeps talking, which is the opposite of a press. */
+      const v=state.courseView;
+      if(!v || v.mode!=='detail' || v.id!==id) return;
+      const next=(c.steps||[]).findIndex((x,j)=>j>n && x.body);
+      if(next>=0) readFrom(next); else renderCourses();
+    });
+  };
+  readFrom(i);
+}
 export function newCourseForm(){ state.courseView={mode:'new'}; renderCourses(); }
+
+/* ----- RECEIVE A COURSE — the hand-off from a chat window to the board.
+   Step 3 of plans/COURSE-AUTHORING-AND-IMPORT.md, and Phase A of
+   plans/RICH-COURSE-IMPORT-AND-AUTHORING-PATHWAY.md. The parser is the one
+   in data/course-format.js — the same function the authoring textarea uses,
+   so there is no second convention that can drift from it. */
+/* `arg` is either a STEP name ('paste' | 'draft' | 'starters'), which is how
+   the three doors call it, or the TEXT of a dropped file, which is how the
+   window and the book table call it. Telling them apart on whether it is a
+   known step keeps one entry point for both rather than two nearly-identical
+   ones — and a dropped file always wants the paste step, since that is where
+   it lands. */
+const RECEIVE_STEPS=['paste','draft'];
+export function openReceiveCourse(arg){
+  const wasHere = state.ui==='courses' && (state.courseView||{}).mode==='receive';
+  /* KEEP WHAT WAS TYPED when this is a move BETWEEN steps rather than an
+     arrival. The three doors call this, so without it pressing "Bring a course
+     in" after answering the baseline questions silently threw all four
+     answers away — one-thing-at-a-time is only bearable if stepping away and
+     back is free, and punishing someone for looking at the next screen is the
+     opposite of the point. Found by the live suite, not by reading. */
+  /* The parsed course travels with the typed fields, or the preview — and its
+     single "Pin it to the board" — vanishes the moment you glance at another
+     step. That press is the one action that matters and must never be lost to
+     navigation. */
+  const keep = wasHere
+    ? { ...receiveFormState(), parsed:state.courseView.parsed, problems:state.courseView.problems }
+    : {};
+  if(state.ui!=='courses') openCourses();
+  const isStep=typeof arg==='string' && RECEIVE_STEPS.includes(arg);
+  const text=(!isStep && typeof arg==='string') ? arg : '';
+  state.courseView={mode:'receive', ...keep, step:isStep?arg:(text?'paste':null),
+                    ...(text?{text}:{})};
+  renderCourses();
+  if(text.trim()) previewReceivedCourse();
+}
+/* One door at a time; '' goes back to the three cards. */
+export function receiveStep(step){
+  const f=receiveFormState();
+  state.courseView={mode:'receive', ...f, step:RECEIVE_STEPS.includes(step)?step:null,
+                    parsed:state.courseView.parsed, problems:state.courseView.problems};
+  renderCourses();
+}
+/* Everything typed into the receive panel, read off the real inputs so a
+   re-render never loses what someone was halfway through writing. */
+function receiveFormState(){
+  const v=state.courseView||{};
+  const box=document.getElementById('rcText');
+  const goalEl=document.getElementById('rcGoal');
+  const baseline={};
+  for(const q of BASELINE_QUESTIONS){
+    const el=document.getElementById('rcB_'+q.key);
+    baseline[q.key]= el ? el.value : ((v.baseline||{})[q.key]||'');
+  }
+  return { text: box?box.value:(v.text||''),
+           goal: goalEl?goalEl.value:(v.goal||''),
+           baseline };
+}
+export function previewReceivedCourse(){
+  const f=receiveFormState();
+  const r=parseCourse(f.text,{user:currentUser()});
+  state.courseView={mode:'receive', ...f, step:state.courseView.step||'paste', parsed:r.ok?r.lesson:null, problems:r.ok?[]:r.problems};
+  renderCourses();
+  blip(r.ok?659:294,.06,'sine',.03);
+}
+
+/* ----- ② the drafting prompt -----
+   data/course-prompt.js builds it; this only moves it. Nothing is sent
+   anywhere and no connection is needed: the whole feature is a string and
+   a clipboard, which is why it works on a machine that cannot run a model
+   at all — the case the hosted door was opened for. */
+export function copyDraftingPrompt(){
+  const f=receiveFormState();
+  const text=buildDraftingPrompt(f);
+  const done=(msg)=>{
+    state.courseView={mode:'receive', ...f, step:'draft', parsed:state.courseView.parsed, problems:state.courseView.problems,
+                      gaps:promptGaps(f), copied:msg};
+    renderCourses();
+    const m=document.getElementById('rcCopyMsg'); if(m) m.textContent=msg;
+  };
+  /* THE FALLBACK IS NOT OPTIONAL. navigator.clipboard is undefined on an
+     insecure origin and can reject outright under file://, which is exactly
+     where the packaged app runs. A copy button that silently does nothing is
+     rule 5's house failure mode, so a refusal puts the text on screen to be
+     selected by hand instead. */
+  const fallback=()=>{
+    state.courseView={mode:'receive', ...f, step:'draft', parsed:state.courseView.parsed, problems:state.courseView.problems,
+                      gaps:promptGaps(f), promptText:text};
+    renderCourses();
+    const t=document.getElementById('rcPromptOut'); if(t){ t.focus(); t.select(); }
+  };
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>{
+        done('Copied — '+text.split('\n').length+' lines. Paste it into your chat window.');
+        blip(784,.07,'sine',.03);
+      }).catch(fallback);
+    } else fallback();
+  }catch(e){ fallback(); }
+}
+/* ----- ② WHAT TO READ. The deterministic half runs here and now: pull the
+   words out of the idea with lookupTerms() — the ONE term extractor in this
+   application, shared with the shelf lookup and passage retrieval — and match
+   them against what is already on the shelf. No model, no connection, no
+   waiting (rule 7: counting and matching are things code does exactly).
+
+   The part code CANNOT do — "what else is worth reading" — becomes a prompt
+   for a chat window, told which books you already own so it does not suggest
+   them back to you. */
+function shelfMatches(terms){
+  if(!terms.length) return [];
+  const out=[];
+  for(const d of Store.allDocs()){
+    const hay=((d.title||'')+' '+(d.tradition||'')+' '+(d.attribution||'')).toLowerCase();
+    if(terms.some(t=>hay.includes(t))) out.push(d.title||d.slug);
+    if(out.length>=12) break;
+  }
+  return out;
+}
+export function findReadingForIdea(){
+  const f=receiveFormState();
+  const terms=lookupTerms(f.goal, 6);
+  const have=shelfMatches(terms);
+  state.courseView={mode:'receive', ...f, step:'draft', parsed:state.courseView.parsed,
+                    problems:state.courseView.problems, reading:{terms, have}};
+  renderCourses();
+  blip(terms.length?659:294,.06,'sine',.03);
+  const m=document.getElementById('rcReadMsg');
+  if(m && !terms.length) m.textContent='Write the idea above first — there are no words to search for yet.';
+}
+export function copyReadingPrompt(){
+  const f=receiveFormState();
+  const r=(state.courseView||{}).reading||{terms:[],have:[]};
+  const text=buildReadingPrompt({ ...f, have:r.have });
+  const settle=(extra)=>{
+    state.courseView={mode:'receive', ...f, step:'draft', parsed:state.courseView.parsed,
+                      problems:state.courseView.problems, reading:r, ...extra};
+    renderCourses();
+  };
+  const fallback=()=>{ settle({readingText:text});
+    const t=document.getElementById('rcReadingOut'); if(t){ t.focus(); t.select(); } };
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>{
+        settle({});
+        const m=document.getElementById('rcReadMsg');
+        if(m) m.textContent='Copied. Paste it into your chat window, then bring the books in.';
+        blip(784,.07,'sine',.03);
+      }).catch(fallback);
+    } else fallback();
+  }catch(e){ fallback(); }
+}
+
+/* Some people would simply rather see it. Also the honest answer when the
+   clipboard is refused, so it is a real button rather than only a rescue. */
+export function showDraftingPrompt(){
+  const f=receiveFormState();
+  state.courseView={mode:'receive', ...f, step:'draft', parsed:state.courseView.parsed, problems:state.courseView.problems,
+                    gaps:promptGaps(f), promptText:buildDraftingPrompt(f)};
+  renderCourses();
+}
+/* ----- ③ a course you can read before you write one ----- */
+export function loadStarterCourse(id){
+  const sc=starterCourse(id); if(!sc) return;
+  const f=receiveFormState();
+  const r=parseCourse(sc.text,{user:currentUser()});
+  state.courseView={mode:'receive', ...f, step:'paste', text:sc.text,
+                    parsed:r.ok?r.lesson:null, problems:r.ok?[]:r.problems};
+  renderCourses();
+  blip(659,.06,'sine',.03);
+}
+export function receiveCourseFile(ev){
+  const f=ev&&ev.target&&ev.target.files&&ev.target.files[0]; if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{ state.courseView={mode:'receive', step:'paste', text:String(fr.result||'')}; renderCourses(); previewReceivedCourse(); };
+  /* A file that cannot be read is not a course that failed to parse, and
+     saying so is the difference between "fix line 4" and a blank panel. */
+  fr.onerror=()=>{ state.courseView={mode:'receive', step:'paste', text:'', problems:['That file could not be read from disk.']}; renderCourses(); };
+  fr.readAsText(f);
+}
+export function confirmReceivedCourse(){
+  const p=state.courseView&&state.courseView.parsed; if(!p) return;
+  const c=courseFromLesson(p,{id:Date.now(), categories:COURSE_CAT_IDS, today:todayKey()});
+  data.courses.unshift(c);
+  persist(); setHud();
+  logActivity('Received a course: "'+c.title+'" ('+c.steps.length+' '+(courseStanding(c).full?'modules':'steps')+').');
+  awardBadge('first-course'); blip(784,.09);
+  /* Through openCourse(), never around it — it is the one place that decides
+     whether the intention arrives open, and a second path setting the same
+     view is rule 4's shape. */
+  openCourse(c.id);
+}
 
 /* ----- AI-drafted courses — the "auto-fill a lesson plan" path. The
    assistant only ever proposes a draft into the same Pin-a-New-Course
@@ -10914,6 +11637,16 @@ async function acceptDropAnywhere(fileList){
   const files=[...(fileList||[])];
   if(!files.length) return;
   if(files.length===1 && /\.json$/i.test(files[0].name)) return openDroppedBundle(files[0], null);
+  /* A COURSE, not a book — and this branch has to come FIRST.
+     parseBookFile() throws 'not a .txt or .epub' on a .md, so without this a
+     dropped course was reported as a bad book: the house failure mode, an
+     honest-looking message about the wrong thing. A course is a decision
+     rather than a gesture (like a bundle), so it opens its panel and waits
+     for a press instead of landing silently. */
+  if(files.length===1 && /\.(md|markdown)$/i.test(files[0].name)){
+    const text=await files[0].text().catch(()=>'');
+    return openReceiveCourse(text);
+  }
   const toast=document.getElementById('dropToast');
   if(!toast) return intakeBookFiles(fileList, document.getElementById('dropMsg'));
   toast.classList.add('on');
@@ -10991,6 +11724,19 @@ async function intakeBookFiles(fileList, msg){
      genuinely require it; a bundle does not, and making it wait for one would
      tie it to whichever panel happens to be open. */
   if(files.length===1 && /\.json$/i.test(files[0].name)) return openDroppedBundle(files[0], msg);
+  /* A COURSE AT THE BOOK TABLE. The steward, 2026-08-14: "the same place you
+     already drop or add books should also accept a .course.md … One shared
+     Receive path, two entry points."
+
+     ONE branch, and it is here rather than in the two callers on purpose:
+     handleBookDrop() and handleBookFilePick() both funnel through this
+     function, so the drop zone and the 📁 picker are the same door and there
+     is no second copy of the receive logic to drift. It calls the Board's own
+     openReceiveCourse() — not a parallel implementation of it. */
+  if(files.length===1 && /\.(md|markdown)$/i.test(files[0].name)){
+    const text=await files[0].text().catch(()=>'');
+    return openReceiveCourse(text);
+  }
   if(!msg) return;
   if(files.length>1) return bulkShelveDroppedFiles(files, msg);
   return fillFromSingleFile(files[0], msg);
@@ -11098,17 +11844,32 @@ export function acceptBundle(){
 }
 // Parse one .txt/.epub into {title, body, author}. Throws with a short reason so
 // the bulk loop can record which files failed without stopping the rest.
+/* WHEN THE FILE DOES NOT SAY WHAT THE BOOK IS CALLED, the filename is all
+   there is — and a filename is not a title. Measured 2026-08-14 on the
+   steward's own shelf: six books he had just brought in for the electrical
+   course were called `2018_dc-electrical-circuits-workbook`,
+   `CIRCUIT ANALYSIS  AND DESIGN 3ed`,
+   `TattersfieldGeorgeM-ElectricalCircuitAnalysis`. "they're titled wrong",
+   and they were, and the app had written every one of them.
+
+   tidyTitle() is deterministic (rule 7) and only ever runs on the FALLBACK.
+   An EPUB that carries a real `<dc:title>` and a Gutenberg .txt with a
+   `Title:` line are left exactly as their author wrote them — this cannot
+   improve on a real title and must not try. */
+const fromFileName = n => tidyTitle(String(n||'').replace(/\.[a-z0-9]+$/i,''));
 async function parseBookFile(file){
   const name=file.name.toLowerCase();
   if(name.endsWith('.epub')){
     const res=await epubToText(file); // may throw (e.g. NO_DECOMPRESSION)
     if(!res.body || !res.body.trim()) throw new Error('no readable text (image-only?)');
-    return { title:res.title||file.name.replace(/\.epub$/i,''), body:res.body, author:res.author||null };
+    return { title:res.title||fromFileName(file.name), body:res.body,
+             author:res.author?tidyAuthor(res.author):null, fromName:!res.title };
   }
   if(name.endsWith('.txt')){
     const text=await file.text();
     const titleMatch=DROP_TITLE_RE.exec(text), authorMatch=DROP_AUTHOR_RE.exec(text);
-    return { title:titleMatch?titleMatch[1].trim():file.name.replace(/\.txt$/i,''), body:text, author:authorMatch?authorMatch[1].trim():null };
+    return { title:titleMatch?titleMatch[1].trim():fromFileName(file.name), body:text,
+             author:authorMatch?tidyAuthor(authorMatch[1].trim()):null, fromName:!titleMatch };
   }
   throw new Error('not a .txt or .epub');
 }
@@ -11116,7 +11877,7 @@ async function fillFromSingleFile(file, msg){
   const name=file.name.toLowerCase();
   if(name.endsWith('.epub')) msg.textContent='Unpacking the EPUB… a long book can take a few seconds.';
   else if(!name.endsWith('.txt')){
-    msg.textContent='Drop a .txt or .epub file here. (For a PDF, convert it first with '
+    msg.textContent='Drop a .txt or .epub file here — or a .course.md, which opens the course receiver. (For a PDF, convert it first with '
       +'tools/caravan/pdf-to-text.py, then drop the .txt.)';
     return;
   }
@@ -11334,7 +12095,8 @@ function renderReviewQueue(){
       <div id="dropZone" ondragover="event.preventDefault();this.classList.add('over')"
         ondragleave="this.classList.remove('over')" ondrop="handleBookDrop(event)"
         style="margin-top:8px;border:2px dashed #55432e;border-radius:8px;padding:22px;text-align:center;color:#a8926c;font-size:13px">
-        📄 Drag <code>.txt</code> or <code>.epub</code> files here — <b>one, or a whole pile at once</b>.
+        📄 Drag <code>.txt</code> or <code>.epub</code> files here — <b>one, or a whole pile at once</b>.<br>
+        📚 A <code>.course.md</code> works here too — it opens the course receiver instead of the shelf.
         An EPUB is unpacked right here in the game, no conversion needed.<br>
         <b>One file</b> fills the form below to review before adding. <b>Many files</b> go straight to
         Your Shelf, each marked 👤 as your own (personal copies need no license).
@@ -11350,7 +12112,7 @@ function renderReviewQueue(){
           filing a batch onto the wrong shelf is the one state in which the AI cannot help you fix it. Landing
           them unfiled is what lets it do the work.</div>
       </div>
-      <input type="file" id="bulkFilePick" accept=".txt,.epub" multiple style="display:none" onchange="handleBookFilePick(event)">
+      <input type="file" id="bulkFilePick" accept=".txt,.epub,.md,.markdown" multiple style="display:none" onchange="handleBookFilePick(event)">
       <div class="row" style="margin-top:8px"><button class="btn ghost" style="font-size:12px" onclick="document.getElementById('bulkFilePick').click()">📁 Choose files… (one or many)</button></div>
       <div id="dropMsg" class="meta"></div>
       <label style="margin-top:10px;color:#e0a43c">📚 Which shelf? — leave it Unfiled for a mixed batch; pick one only when every file is that subject</label>
@@ -12096,6 +12858,44 @@ export function openStewardIndex(){ state.ui='stewardidx'; state.sidxView=state.
 export function sidxSearch(v){ state.sidxView.q=v; renderStewardIndex(true); }
 export function sidxEdit(slug){ state.sidxView.edit=slug; renderStewardIndex(); }
 export function sidxCancel(){ state.sidxView.edit=null; renderStewardIndex(); }
+/* Puts the suggestion IN THE BOX rather than saving it. Two presses, not
+   one, and deliberately: the second is "Save the card", which is where the
+   person has had a chance to fix what the tidier could not know. */
+export function sidxUseTidyTitle(){
+  const box=document.getElementById('sidxTitle'); if(!box) return;
+  const sug=tidyTitle(box.value);
+  if(!sug || sug===box.value) return;
+  box.value=sug; box.focus(); box.setSelectionRange(sug.length,sug.length);
+  const tip=document.getElementById('sidxTidy');
+  if(tip) tip.innerHTML='<div class="meta" style="margin:0">In the box above. Edit it if it is still not right, then <b>Save the card</b>.</div>';
+  blip(659,.05,'sine',.03);
+}
+/* Everything on the shelves whose title reads like a filename. Deterministic,
+   no AI, and it exists because six such books arrived in one afternoon and
+   there was no way to find them again except scrolling. */
+export function sidxShowFilenames(){
+  state.sidxView.q=''; state.sidxView.onlyFilenames=!state.sidxView.onlyFilenames;
+  renderStewardIndex();
+}
+/* THE STANDARD, INSIDE THE PROGRAM. The steward: "Otherwise the standard
+   only exists in the repo and in this chat." The full guide stays in
+   plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md; this is the part a person
+   needs at the moment they are about to draft — seven pieces, plainly, and
+   the honest note about which of them the app can actually check. */
+export function openCourseStandard(){
+  state.courseView={mode:'standard'};
+  if(state.ui!=='courses') openCourses();
+  state.courseView={mode:'standard'};
+  renderCourses();
+}
+
+/* One door, from Your Library straight to the list of them. The Index is a
+   maintainer's room and stays one; this is the shortcut for the one job a
+   person actually arrives with. */
+export function openTitleTidy(){
+  state.sidxView={q:'',edit:null,onlyFilenames:true};
+  openStewardIndex();
+}
 function catalogEdits(){ if(!data.catalogEdits) data.catalogEdits={}; return data.catalogEdits; }
 export function sidxSave(slug){
   const d=Store.getDoc(slug); if(!d) return;
@@ -12166,6 +12966,23 @@ function renderStewardIndex(keepFocus){
         :visBadge('commons','a certified card — your edits are kept as a correction layer over the shipped entry')}
         · <code>${esc(d.slug)}</code></div>
       <label style="margin-top:12px">Title</label><input type="text" id="sidxTitle" value="${esc(d.title||'')}">
+      ${(function(){
+        /* THE SUGGESTION, and it is only ever a suggestion. tidyTitle() is
+           deterministic and still does not know what the book is called —
+           rule 6 — so this offers, shows exactly what it would write, and
+           waits for a press. Nothing appears when the title is already
+           clean, because a "did you mean" on every card is noise, and noise
+           is how a real prompt stops being read. */
+        const sug=tidyTitle(d.title||'');
+        if(!sug || sug===(d.title||'')) return '';
+        return `<div id="sidxTidy" style="margin-top:6px;padding:8px 11px;border-left:3px solid #c9a86a;background:#241c12;border-radius:0 6px 6px 0">
+          <div class="meta" style="margin:0">${looksLikeAFilename(d.title||'')
+            ? 'That looks like a <b>filename</b> rather than a title — which is what the app writes when the file itself did not say.'
+            : 'A tidier form of this title:'}</div>
+          <div style="margin:5px 0 7px;color:#ffd98a">${esc(sug)}</div>
+          <button class="btn ghost" style="font-size:11.5px;padding:4px 10px" onclick="sidxUseTidyTitle()">Use this — then edit it if it is still not right</button>
+        </div>`;
+      })()}
       <label>Author / attribution</label><input type="text" id="sidxAttr" value="${esc(d.attribution||'')}">
       <label>Licence</label><input type="text" id="sidxLicense" value="${esc(d.license||'')}">
       <label>Source</label><input type="text" id="sidxSource" value="${esc(d.source_url||'')}">
@@ -12185,7 +13002,17 @@ function renderStewardIndex(keepFocus){
   }
 
   const q=(v.q||'').trim().toLowerCase();
-  const list=docs.filter(d=>!q || ((d.title||'')+' '+(d.tradition||'')+' '+(d.license||'')+' '+(d.slug||'')).toLowerCase().includes(q));
+  /* THE ACTIONABLE SET IS "HAS A SUGGESTION", not "looks like a filename",
+     and the distinction cost a guard to find. `Lessons In Electric Circuits`
+     is not a filename by any test — it is properly spaced, properly
+     capitalised, and wrong only in that `In` should be `in`. Filtering on
+     looksLikeAFilename() hid it, so the one book on this list the steward
+     would most want to fix was the one it could not find. That predicate
+     still decides what the card SAYS (an apology versus a small
+     correction); it must not decide what the list CONTAINS. */
+  const filenamey=docs.filter(d=>titleNeedsTidying(d.title||''));
+  const list=(v.onlyFilenames?filenamey:docs)
+    .filter(d=>!q || ((d.title||'')+' '+(d.tradition||'')+' '+(d.license||'')+' '+(d.slug||'')).toLowerCase().includes(q));
   const editedCount=Object.keys(ed).filter(k=>!ed[k].hidden).length;
   el.innerHTML=`
     <button class="xbtn" onclick="closeUI()">Esc ✕</button>
@@ -12200,6 +13027,14 @@ function renderStewardIndex(keepFocus){
       <input type="text" id="sidxSearch" value="${esc(v.q||'')}" placeholder="search all ${docs.length} books…" style="flex:1;min-width:170px" oninput="sidxSearch(this.value)">
       <button class="btn ghost" onclick="sidxExportEdits()">⤓ Export my corrections${editedCount?' ('+editedCount+')':''}</button>
     </div>
+    ${filenamey.length?`<div class="row" style="margin:0 0 10px">
+      <button class="btn ${v.onlyFilenames?'':'ghost'}" style="font-size:11.5px;padding:5px 11px" onclick="sidxShowFilenames()"
+        title="Books where a tidier form of the title is available">
+        ${v.onlyFilenames?'✕ show all books':'🏷 '+filenamey.length+' title'+(filenamey.length===1?'':'s')+' could be tidied'}</button>
+    </div>`:''}
+    ${v.onlyFilenames?`<div class="meta" style="margin:0 0 10px">Some of these came in without a title of their own, so
+      the app used the name of the file; others just want a small correction. Open one and it will offer a tidier
+      form — you press, and you can still edit it. <b>Nothing here has been changed for you.</b></div>`:''}
     <div id="sidxOut"></div>
     ${hidden.length?`<div class="card" style="cursor:default;border-color:#8a6a3a">
       <div class="t">Pulled from the shelves · ${hidden.length}</div>
@@ -12756,6 +13591,25 @@ function renderMyLibrary(keepFocus){
     <div class="meta">Everything you brought in yourself — <b>${books.length}</b> book${books.length===1?'':'s'}.
       No license and no source needed here, ever: a personal copy is your business, not the commons'.
       Papers, drafts, a manual, something you wrote — all of it belongs on this shelf.</div>
+    ${(function(){
+      /* SAY IT WHERE THE BOOKS ARE. The retitling tool lives in the Steward's
+         Index, and the Steward's Index hangs off the Caravan Desk and nothing
+         else — measured 2026-08-14 by clicking rather than by reading the
+         code. So a person looking straight at `2018_electromagnetics_vol-1`
+         on their own shelf had no way to reach the thing that fixes it, two
+         rooms away, that they had no reason to know existed.
+
+         That is the Lab's lesson wearing a smaller coat: built and
+         unreachable is the same as unbuilt. Counted here, not guessed —
+         nothing shows when there is nothing to fix. */
+      const n=books.filter(bk=>titleNeedsTidying(bk.title||'')).length;
+      if(!n) return '';
+      return `<div class="meta" style="margin-top:8px;padding:7px 11px;border-left:3px solid #c9a86a;background:#241c12;border-radius:0 6px 6px 0">
+        🏷 <b>${n}</b> of these ${n===1?'has a title that could be tidier':'have titles that could be tidier'} —
+        usually the name of the file they arrived as.
+        <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px" onclick="openTitleTidy()">Look at them</button>
+      </div>`;
+    })()}
     <div class="row" style="margin:12px 0;gap:6px;flex-wrap:wrap">
       <button class="btn" onclick="openBookIntake()">＋ Add a book or paper</button>
       <button class="btn ghost" onclick="openShelf('Personal')">📚 Read from the shelf</button>
@@ -13030,6 +13884,15 @@ export function openBookIntake(){
       <div class="s" style="margin-top:6px">Drop a whole pile at once if you like. This is the way in that
         works for <i>every</i> website, even the ones with no tidy button — if your browser can download it,
         the Pavilion can shelve it.</div>
+      ${/* THE SAME DOOR TAKES A COURSE. The steward: "the same place you already
+            drop or add books should also accept a .course.md". This panel is the
+            visitor-facing half of that — the Caravan Desk has the other drop
+            zone — and both go through intakeBookFiles(), so this is a sentence
+            rather than a second code path. */''}
+      <div class="s" style="margin-top:6px">📚 <b>A course works here too.</b> Drop a
+        <code>${esc(COURSE_EXT)}</code> — one you drafted in a chat window, or somebody handed you — and it
+        opens the <b>course receiver</b> instead of the shelf, with everything it found shown before anything
+        is saved.</div>
     </div>
 
     <div class="card" style="cursor:default;margin-top:10px">
@@ -13618,6 +14481,11 @@ Object.assign(window, {
   studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
+  openReceiveCourse, receiveStep, previewReceivedCourse, receiveCourseFile, confirmReceivedCourse,
+  openCourseModule, toggleCourseSpeak,
+  copyDraftingPrompt, showDraftingPrompt, loadStarterCourse, openCourseStandard,
+  findReadingForIdea, copyReadingPrompt, setCourseMap, mapOpenCourse,
+  toggleCourseIntro,
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,
   setCourseSearch, clearCourseSearch, setCourseCategory, toggleArchivedView, archiveCourse,
   addConnection, toggleConnection, removeConnection, recheckConnections, setConnectionModel, fillConnectionPreset,
@@ -13707,6 +14575,7 @@ Object.assign(window, {
   openPromptInspector, openStandingForCurrentChat, openPromptForCurrentChat,
   runCopyrightCheck,
   openStewardIndex, sidxSearch, sidxEdit, sidxCancel, sidxSave, sidxToggleHidden, sidxRestore, sidxExportEdits,
+  sidxUseTidyTitle, sidxShowFilenames, openTitleTidy,
   openShelf, openCourses, // both reachable from inline onclicks — see the guard in test/smoke.mjs
   checkMyMachine, copyPullCommand, checkOllama, repairBookAuthors, clearNeedsSort,
   openBookIntake, termSubmit, termQuick, openTheDay, currentDayItems,

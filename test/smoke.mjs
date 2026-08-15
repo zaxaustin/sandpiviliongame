@@ -5615,7 +5615,14 @@ for (const d of SEED_LIBRARY) {
      number here is the moment to ask whether the badge still means one thing. */
   const EXPECTED = {
     'first-steps':1, 'first-menu':1, 'first-word':1, 'first-page':1, 'first-cast':1,
-    'first-plan':1, 'first-course':1, 'first-entry':1, 'first-waypoint':1, 'first-carry':1,
+    'first-plan':1,
+    /* createCourse() and confirmReceivedCourse() — pinning one you typed and
+       pinning one you received. The badge reads "Pin a course on the Course
+       Board", which is true of both presses; it went to 2 on 2026-08-14 when
+       Receive a Course landed, and the description was re-read rather than
+       assumed (that is what the failure message below asks for). */
+    'first-course':2,
+    'first-entry':1, 'first-waypoint':1, 'first-carry':1,
     'first-note':3,          // Notes Log, the Writing Desk, and beside a book
     'first-book-note':1,     // writeBookNote() ONLY — the tutorial leans on this
     'first-lesson':1,        // saveMyLesson() ONLY
@@ -5973,6 +5980,184 @@ for (const d of SEED_LIBRARY) {
     fail('overlays.js: the lesson packet stopped writing the flattened `steps` array. It is there for '
        + 'Pavilions older than 2026-08-10, which read that and nothing else.');
   }
+
+  /* ================================================================
+     7 · ★ THE STEWARD'S OWN COURSES IMPORT — read off disk, not inlined.
+
+     Every check above uses Markdown written inside this file, which is the
+     tidy version, and the tidy version is the one that lies (rule 1 — the
+     chapter finder passed on six seed texts and was wrong on 62% of 296 real
+     ones). On 2026-08-14 that gap came due: parseCourse had been round-
+     tripping its own emitter perfectly for four days while BOTH of the real
+     courses the steward had written returned ok:false, because
+     `prerequisites:` is a YAML block list and the frontmatter reader
+     rejected every bullet of it.
+
+     So these read courses/*.course.md. If a file there stops being a real
+     course, this stops being a test — hence the shape assertions first.
+     ================================================================ */
+  const { readdirSync } = await import('node:fs');
+  const courseDir = new URL('../courses/', import.meta.url);
+  let realCourses = [];
+  try { realCourses = readdirSync(courseDir).filter(f => f.endsWith('.course.md')); } catch { /* below */ }
+  if (realCourses.length < 2) {
+    fail('courses/ holds ' + realCourses.length + ' .course.md file(s). These are the real documents the '
+       + 'import path is tested against — a suite that falls back to Markdown written in this file is '
+       + 'testing the tidy version, which is exactly what rule 1 is about.');
+  }
+  let sawBlockList = false, sawQuoted = false, sawPreamble = false;
+  for (const f of realCourses) {
+    const raw = readFileSync(new URL(f, courseDir), 'utf8');
+    if (/^prerequisites:\s*$/m.test(raw)) sawBlockList = true;
+    if (/^title:\s*"/m.test(raw)) sawQuoted = true;
+    if (/^#\s+\S[\s\S]*?^##\s/m.test(raw)) sawPreamble = true;
+
+    const r = CF.parseCourse(raw, { user: 'user 1' });
+    if (!r.ok) {
+      fail(`courses/${f} will not import: ${r.problems.join(' / ')}. This is a real course a person `
+         + 'wrote, not a fixture — if it cannot enter the Pavilion, the import path is broken for the '
+         + 'only input that matters.');
+      continue;
+    }
+    const L = r.lesson;
+    if (/^["']|["']$/.test(L.title)) {
+      fail(`courses/${f}: the title kept its quote marks (${JSON.stringify(L.title.slice(0, 40))}). `
+         + 'A quoted YAML scalar is how people actually write frontmatter, and the Course Board would '
+         + 'show the punctuation.');
+    }
+    if (!L.intro || L.intro.length < 100) {
+      fail(`courses/${f}: the opening intention was dropped (intro is ${(L.intro || '').length} chars). `
+         + 'Everything before the first `##` used to be read for one paragraph and discarded, which threw '
+         + 'away required piece 1 of plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md.');
+    }
+    if (!L.purpose || !L.outcome || !(L.prerequisites || []).length) {
+      fail(`courses/${f}: purpose/outcome/prerequisites did not land as fields — `
+         + JSON.stringify({ purpose: !!L.purpose, outcome: !!L.outcome, prereqs: (L.prerequisites || []).length })
+         + '. They ride in `extra` only while nothing reads them, and the standard reads them now.');
+    }
+    if (L.steps.some(s => /^-{3,}\s*$/m.test(s.body || ''))) {
+      fail(`courses/${f}: a module body still ends in a literal "---" rule. mdLite renders one mark and `
+         + 'that is not it, so it shows up as three hyphens on the Course Board.');
+    }
+    /* Stable, not merely reversible — the intro/summary split has to survive
+       being written out and read back more than once. Two passes, because the
+       first version of this was stable on pass one and duplicated a paragraph
+       on pass two. */
+    let x = L;
+    for (let i = 0; i < 3; i++) {
+      const again = CF.parseCourse(CF.emitCourse(x), { user: 'user 1' });
+      if (!again.ok) { fail(`courses/${f}: round trip ${i + 1} would not re-read — ${again.problems[0]}`); break; }
+      x = again.lesson;
+    }
+    if (JSON.stringify(x) !== JSON.stringify(L)) {
+      const drifted = [...new Set([...Object.keys(L), ...Object.keys(x)])]
+        .filter(k => JSON.stringify(L[k]) !== JSON.stringify(x[k]));
+      fail(`courses/${f} drifted over three round trips, in: ${drifted.join(', ')}. Export then re-import `
+         + 'must be a no-op or a course degrades a little every time it is handed on.');
+    }
+  }
+  /* THE FIXTURES MUST STILL CARRY THE SHAPES THE FIXES ARE ABOUT. A file
+     tidied into plain `key: value` would make all three checks above vacuous
+     and they would keep passing with the fixes deleted. */
+  if (realCourses.length >= 2) {
+    if (!sawBlockList) fail('no course in courses/ uses a block-list `prerequisites:` any more, so the '
+                          + 'block-list parser is no longer tested by anything real');
+    if (!sawQuoted) fail('no course in courses/ uses a quoted `title:` any more, so quote-stripping is '
+                       + 'no longer tested by anything real');
+    if (!sawPreamble) fail('no course in courses/ has a `#` preamble before its first `##`, so the '
+                         + 'opening-intention capture is no longer tested by anything real');
+  }
+
+  /* --- 8 · ★ THE TWO MODES STAY DISTINGUISHABLE.
+     Board courses and thin checklists share data.courses now. If a checklist
+     can read as a full course the label is decoration. --- */
+  const CATS = ['practice', 'study', 'skill', 'work', 'health', 'personal'];
+  const checklist = { title: 'Morning sit', steps: [
+    { title: 'Sit ten minutes', practice: 'breath counting', body: '', done: false },
+    { title: 'Write a line', practice: '', body: '', done: false }] };
+  const cl = CF.courseStanding(checklist);
+  if (cl.full) fail('courseStanding(): a two-line checklist reads as a full course. The badge is then '
+                  + 'decoration and a thin list can claim work it has not done.');
+  if (cl.label !== 'personal tracking') fail('courseStanding(): a checklist is not labelled personal tracking');
+  if (!cl.missing.length) fail('courseStanding(): a checklist with no purpose, outcome or bodies reported '
+                             + 'nothing missing, so the ready-for-others list would be empty');
+
+  for (const f of realCourses) {
+    const L = CF.parseCourse(readFileSync(new URL(f, courseDir), 'utf8'), { user: 'user 1' }).lesson;
+    if (!L) continue;
+    const c = CF.courseFromLesson(L, { id: 1, categories: CATS, today: '2026-08-14' });
+    const st = CF.courseStanding(c);
+    if (!st.full) {
+      fail(`courses/${f} does not read as a full course once on the board — missing: ${st.missing.join(' / ')}`);
+    }
+    if (c.standard !== 'high') fail(`courses/${f}: the standard claim did not land as high`);
+    if (!CATS.includes(c.category)) {
+      fail(`courses/${f}: category "${L.category}" did not resolve to one of the board's own ids `
+         + `(got "${c.category}"). "Skill" in frontmatter and 'skill' on the board are one idea.`);
+    }
+    if (!c.steps.every(s => 'body' in s)) fail(`courses/${f}: a board step lost its body field`);
+    /* Board -> lesson -> Markdown -> board must be a no-op, or the Board
+       cannot hand a course on without degrading it. */
+    const back = CF.parseCourse(CF.emitCourse(CF.lessonFromCourse(c)), { user: 'user 1' });
+    if (!back.ok) { fail(`courses/${f}: a board course could not be written back out — ${back.problems[0]}`); continue; }
+    const c2 = CF.courseFromLesson(back.lesson, { id: 1, categories: CATS, today: '2026-08-14' });
+    if (JSON.stringify(c2) !== JSON.stringify(c)) {
+      const drifted = [...new Set([...Object.keys(c), ...Object.keys(c2)])]
+        .filter(k => JSON.stringify(c[k]) !== JSON.stringify(c2[k]));
+      fail(`courses/${f}: a board course changed on a round trip through the document, in: ${drifted.join(', ')}`);
+    }
+  }
+  /* Still exactly one emitter — courseFromLesson/lessonFromCourse are a
+     CONVERTER PAIR, and the moment one of them starts assembling Markdown
+     the rule that has held since 2026-08-10 is gone. */
+  if (/lessonFromCourse[\s\S]{0,900}?'---'/.test(cfSrc)) {
+    fail('data/course-format.js: lessonFromCourse() is building Markdown. The board reaches the document '
+       + 'by becoming a lesson and asking lessonToMarkdown — never by writing its own.');
+  }
+
+  /* --- 9 · ★ THE BOARD ACTUALLY RENDERS WHAT IT NOW STORES.
+     A field stored and never shown is this project's oldest bug (groundingFor()
+     had no caller for weeks while two documents said it was load-bearing).
+     Check the STATEMENT, not the word. --- */
+  if (!/\$\{courseProse\(s\.body\)\}/.test(ovC)) {
+    fail('overlays.js: the Course Board detail view does not render a step body through courseProse(). '
+       + 'The Board can store a full module and show a bare heading — stored but invisible.');
+  }
+  if (!/c\.intro\?[\s\S]{0,400}courseProse\(c\.intro\)/.test(ovC)) {
+    fail('overlays.js: the course intro is stored and never rendered. The opening intention is required '
+       + 'piece 1 of the standard; keeping it in the save and not on the screen is not keeping it.');
+  }
+  /* ⚠ `/standingBadge\(c\)/` was the first version of this and it was BORN
+     DEAD: the badge is rendered in three places, so deleting it from the list
+     card left the pattern satisfied by the detail heading and the guard stayed
+     green. Check the statement, not the word — each surface separately. */
+  if (!/const card=c=>\{[\s\S]{0,900}?standingBadge\(c\)/.test(ovC)) {
+    fail('overlays.js: the Course Board LIST does not render a standing badge. Scanning the board, a '
+       + 'checklist and a full course look identical — which is the distinction the steward asked to '
+       + 'keep loud, and the list is where the comparison actually happens.');
+  }
+  if (!/<h2>\$\{esc\(c\.title\)\}[\s\S]{0,200}?standingBadge\(c\)/.test(ovC)) {
+    fail('overlays.js: an opened course does not say which it is in its own heading');
+  }
+  if (!/courseProse\s*=\s*[\s\S]{0,200}mdLite\(/.test(ovC)) {
+    fail('overlays.js: courseProse() no longer escapes through mdLite(). A course body is author text '
+       + 'and can arrive from a file somebody else wrote.');
+  }
+  /* The .md drop must be decided BEFORE the book intake, or parseBookFile
+     throws 'not a .txt or .epub' and a dropped course is reported as a bad
+     book — an honest-looking message about the wrong thing. */
+  const dropFn = /async function acceptDropAnywhere\([\s\S]*?\n}/.exec(ovC);
+  if (!dropFn) fail('overlays.js: acceptDropAnywhere() not found — the drop fan-out has moved');
+  else {
+    const mdAt = dropFn[0].search(/\\\.\(md\|markdown\)/);
+    const bookAt = dropFn[0].search(/bulkShelveDroppedFiles|intakeBookFiles/);
+    if (mdAt < 0) fail('overlays.js: acceptDropAnywhere() has no .md branch, so dropping a course on the '
+                     + 'window reports it as a book that is not a .txt or .epub');
+    else if (bookAt >= 0 && mdAt > bookAt) {
+      fail('overlays.js: the .md course branch comes AFTER the book intake in acceptDropAnywhere(). '
+         + 'A dropped .course.md would be shelved as, or rejected as, a book.');
+    }
+  }
 }
 
 /* ---------- NO CHECK IN THIS FILE MAY DEPEND ON HOW GIT CHECKED IT OUT ----
@@ -6056,6 +6241,646 @@ for (const d of SEED_LIBRARY) {
    checks clean". Two guards written the same day were born dead; that one was
    born invisible, which is worse - a dead guard fails to catch a bug, an
    invisible one also certifies that there is none.
+
+/* ================================================================
+   [THE DRAFTING PROMPT] — data/course-prompt.js, and the on-ramp.
+
+   The Pavilion learned to RECEIVE a rich course on 2026-08-14 and, the
+   same afternoon, could not tell anybody how to MAKE one: a grep for
+   "7-step", "Theoretical Minimum" and "prompt template" across src/game/
+   found nothing. The steward's judgement on that half-bridge:
+
+     "A paste box and a format example is not enough. Without the method,
+      most people will either produce thin checklists or paste low-quality
+      AI output and call it a course — that would quietly erode the
+      standard we just fought to establish."
+
+   So these hold the prompt's CONTENTS, not its existence. A prompt that
+   exists and has lost its format example is worse than none: it produces
+   confident output the parser rejects.
+   ================================================================ */
+{
+  const CP = await import('../src/game/data/course-prompt.js');
+  const CF2 = await import('../src/game/data/course-format.js');
+
+  const filled = { goal: 'Build a motor that also generates', baseline: {
+    done: 'Nothing formal', without: 'Volts and amps, barely',
+    stuck: 'The maths, three videos in', hand: 'A breadboard and an hour most evenings' } };
+  const prompt = CP.buildDraftingPrompt(filled);
+  const lines = prompt.split('\n');
+
+  /* --- 1 · ★ ALL FIVE SECTIONS, each asserted separately. One regex over
+     the whole prompt would pass with four of them deleted. --- */
+  const SECTIONS = [
+    ['the instruction not to produce a checklist', /[Dd]o not produce a thin checklist/],
+    ['the seven required pieces',                  /Opening intention[\s\S]*Theoretical minimum[\s\S]*final gate[\s\S]*Transmission/],
+    ['the three modes',                            /analytical[\s\S]{0,120}creative[\s\S]{0,120}practical/i],
+    ['the portable format, fenced',                /```markdown[\s\S]*```/],
+    ['the module shape with all five labels',      /\*\*Objective:\*\*[\s\S]*\*\*Body:\*\*[\s\S]*\*\*Practice:\*\*[\s\S]*\*\*Reflection:\*\*[\s\S]*\*\*Artifact:\*\*/],
+  ];
+  for (const [what, re] of SECTIONS) {
+    if (!re.test(prompt)) fail(`the drafting prompt has lost ${what}. It is one of the five things the `
+                             + 'steward named, and a prompt missing one of them teaches the model the wrong job.');
+  }
+  /* prerequisites vs baseline is the distinction the whole feature turns on. */
+  if (!/`prerequisites:` is what the COURSE demands/.test(prompt)) {
+    fail('the drafting prompt no longer distinguishes `prerequisites` (what the course demands) from '
+       + '`baseline` (what the author brought). Collapsed, the baseline stops being a reference for '
+       + 'the next reader and becomes a second prerequisites list.');
+  }
+  if (!/baseline:/.test(prompt)) {
+    fail('the drafting prompt does not ask the model to write `baseline:` into the frontmatter — which is '
+       + 'the entire mechanism by which a baseline reaches whoever walks the course next');
+  }
+
+  /* --- 2 · ★ EVERY baseline question reaches the prompt, DERIVED. Adding a
+     fifth question and forgetting the prompt is the drift this catches. --- */
+  for (const q of CP.BASELINE_QUESTIONS) {
+    if (!prompt.includes(q.label)) fail(`BASELINE_QUESTIONS has "${q.label}" and the prompt never asks it`);
+  }
+  for (const k of Object.keys(filled.baseline)) {
+    if (!prompt.includes(filled.baseline[k])) fail(`an answered baseline ("${filled.baseline[k]}") did not `
+                                                 + 'reach the prompt, so the model drafts for a stranger');
+  }
+  if (!prompt.includes(filled.goal)) fail('the goal did not reach the prompt');
+  for (const s of CP.PROTOCOL_STEPS) {
+    if (!prompt.includes(s)) fail(`PROTOCOL_STEPS has "${s}" and the prompt does not carry it`);
+  }
+
+  /* --- 3 · ★ THE CEILINGS. Split because the fenced example cannot shrink
+     much and the prose can — see the comment on the constants. --- */
+  const fence = lines.findIndex(l => l.startsWith('```markdown'));
+  if (fence < 0) fail('the drafting prompt has no ```markdown fence, so the format example cannot be found');
+  else if (fence > CP.PROMPT_MAX_PROSE_LINES) {
+    fail(`the prompt's prose is ${fence} lines, over PROMPT_MAX_PROSE_LINES (${CP.PROMPT_MAX_PROSE_LINES}). `
+       + '"Keep it tight. One strong prompt is better than a long essay." Raising the constant is a '
+       + 'decision; drifting past it is not.');
+  }
+  if (lines.length > CP.PROMPT_MAX_LINES) {
+    fail(`the drafting prompt is ${lines.length} lines, over PROMPT_MAX_LINES (${CP.PROMPT_MAX_LINES})`);
+  }
+
+  /* --- 4 · ★★ THE FORMAT EXAMPLE MUST ITSELF PARSE.
+     Nothing else catches this, and it is the worst failure available here: a
+     prompt that confidently teaches a shape parseCourse() rejects sends every
+     person who follows it into an import error they cannot diagnose. --- */
+  const ex = /```markdown\n([\s\S]*?)```/.exec(prompt);
+  if (!ex) fail('the drafting prompt has no fenced example to check');
+  else {
+    const r = CF2.parseCourse(ex[1], { user: 'user 1' });
+    if (!r.ok) {
+      fail('★ the prompt teaches a format parseCourse() REJECTS: ' + r.problems.join(' / ')
+         + '. Everyone who follows the prompt would get an import error and no way to know why.');
+    } else {
+      if (!r.lesson.intro) fail('the prompt\'s example has no opening intention, so it teaches a course without one');
+      if (!(r.lesson.baseline || []).length) fail('the prompt\'s example frontmatter does not carry `baseline:`');
+      if (!(r.lesson.prerequisites || []).length) fail('the prompt\'s example frontmatter does not carry `prerequisites:`');
+      if (!r.lesson.purpose || !r.lesson.outcome) fail('the prompt\'s example is missing purpose or outcome');
+      const b = r.lesson.steps[0] && r.lesson.steps[0].body || '';
+      if (!/\*\*Practice:\*\*/.test(b)) fail('the prompt\'s example module lost its bold labels in the body');
+    }
+  }
+
+  /* --- 4b · ★ WHAT TO READ COMES BEFORE WHAT TO WRITE.
+     The steward: "have an idea, share with you, then you can help me figure
+     out what topics to search for books and also how to draft a plan." A
+     course drafted before you know what you are reading names books it hopes
+     exist. --- */
+  const rp = CP.buildReadingPrompt({ goal: 'Build a motor', baseline: { done: 'nothing' },
+                                     have: ['Lessons in Electric Circuits'] });
+  if (!/Build a motor/.test(rp)) fail('buildReadingPrompt() drops the goal');
+  if (!/Lessons in Electric Circuits/.test(rp) || !/do not suggest these again/i.test(rp)) {
+    fail('buildReadingPrompt() does not tell the model which books are already on the shelf, so it will '
+       + 'suggest back the ones you own');
+  }
+  if (!/free and legally|Gutenberg|Standard Ebooks/.test(rp)) {
+    fail('buildReadingPrompt() no longer asks whether a book can be had free and legally — the whole '
+       + 'Library is built on that question');
+  }
+  /* ★ TERMS, NOT LINKS. A model inventing a plausible URL is the failure mode
+     here, and a search term you type yourself cannot be a dead link. */
+  if (!/terms rather than links/.test(rp)) {
+    fail('buildReadingPrompt() stopped asking for search terms rather than links. A hallucinated URL looks '
+       + 'exactly like a real one; a search term cannot be dead.');
+  }
+  if (CP.buildReadingPrompt({}).length < 200) fail('buildReadingPrompt({}) is not usable on its own');
+  /* --- 5 · a bare prompt is still usable; gaps never block --- */
+  const bare = CP.buildDraftingPrompt({});
+  if (!bare || bare.length < 500) fail('buildDraftingPrompt({}) produced nothing usable — a person may copy '
+                                     + 'a blank prompt and fill it in inside the chat window, and should be able to');
+  if (!CP.promptGaps({}).length) fail('promptGaps({}) reported nothing missing on an entirely empty form');
+  if (CP.promptGaps(filled).length) fail('promptGaps() still complains when everything is answered');
+
+  /* --- 6 · ★ IT HAS A CALLER. The exact shape of this project's oldest bug:
+     groundingFor() was pure, tested, documented as load-bearing, and called
+     by nothing for weeks. This module was ALSO inert for an hour today. --- */
+  const ovP = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  if (!/buildDraftingPrompt\(/.test(ovP)) {
+    fail('nothing in ui/ calls buildDraftingPrompt(). A pure function with no caller is perfectly testable '
+       + 'and completely inert — see groundingFor(), which two documents called load-bearing while nothing '
+       + 'invoked it.');
+  }
+  /* Deterministic, and it must stay that way: matching words against a shelf
+     is rule 7's example of something code does exactly and a model does
+     approximately, slowly and hot. */
+  const findFn = /export function findReadingForIdea\([\s\S]*?\n}/.exec(ovP);
+  if (!findFn) fail('overlays.js: findReadingForIdea() not found — the reading beat has no caller');
+  else {
+    if (!/lookupTerms\(/.test(findFn[0])) {
+      fail('findReadingForIdea() does not use lookupTerms(). Every term extractor in this application comes '
+         + 'from data/lookup.js — a second one is how a question about Hildegard retrieved two pages of Thoreau.');
+    }
+    if (/AI\.chat|await /.test(findFn[0])) {
+      fail('findReadingForIdea() reaches for a model. Searching your own shelf for words is deterministic and '
+         + 'instant (rule 7); this must work with no connection at all.');
+    }
+  }
+  if (!/copyReadingPrompt\(\)/.test(ovP)) fail('nothing calls copyReadingPrompt() — the reading prompt is inert');
+  const copyRead = /export function copyReadingPrompt\([\s\S]*?\n}/.exec(ovP);
+  if (copyRead && !/\.catch\(fallback\)/.test(copyRead[0])) {
+    fail('copyReadingPrompt() has no fallback for a refused clipboard — see copyDraftingPrompt()');
+  }
+  if (!/BASELINE_QUESTIONS\.map/.test(ovP)) {
+    fail('the receive panel does not render its baseline questions FROM BASELINE_QUESTIONS. A hand-typed '
+       + 'copy of a list that must match another file is rule 4\'s exact shape.');
+  }
+  /* The clipboard is not guaranteed under file://, which is where the packaged
+     app runs. A copy button that silently does nothing is rule 5's house
+     failure mode. */
+  const copyFn = /export function copyDraftingPrompt\([\s\S]*?\n}/.exec(ovP);
+  if (!copyFn) fail('overlays.js: copyDraftingPrompt() not found');
+  else {
+    /* ⚠ THE FIRST VERSION OF THIS WAS /catch|fallback/ AND IT WAS BORN DEAD.
+       Deleting `.catch(fallback)` from the writeText chain left the word
+       `fallback` in three other places — the declaration and two call sites —
+       so the pattern matched and the guard stayed green with the rejection
+       path gone. Check the statement, not the word: there are exactly three
+       ways this button can fail to copy, and each is asserted on its own. */
+    /* The STATEMENT, not a distance. The first version required .catch within
+       200 characters of writeText( and went red on a sibling function whose
+       success branch was slightly longer — a guard failing for a reason that
+       has nothing to do with what it guards is a guard people start ignoring. */
+    if (!/\.catch\(fallback\)/.test(copyFn[0])) {
+      fail('copyDraftingPrompt() does not handle a REJECTED clipboard write. navigator.clipboard.writeText '
+         + 'rejects under file:// — the packaged app\'s own origin — and without a .catch the button '
+         + 'silently does nothing on the platform that matters most (rule 5).');
+    }
+    if (!/navigator\.clipboard\s*&&/.test(copyFn[0])) {
+      fail('copyDraftingPrompt() does not check that navigator.clipboard EXISTS. It is undefined on an '
+         + 'insecure origin, so this would throw rather than fall back.');
+    }
+    if (!/else\s+fallback\(\)/.test(copyFn[0])) {
+      fail('copyDraftingPrompt() has no fallback when there is no clipboard API at all — the person is left '
+         + 'with a button that does nothing and no way to get the prompt out');
+    }
+  }
+
+  /* --- 7 · ★ THE BOARD EXPLAINS ITSELF, in three steps, from ONE function.
+     "No hidden menus, no 'figure it out from a placeholder.'" --- */
+  const guide = /function courseGuidanceBlock\([\s\S]*?\n}/.exec(ovP);
+  if (!guide) fail('overlays.js: courseGuidanceBlock() not found — the Board has stopped explaining itself');
+  /* THE DOORS ARE DATA NOW, so the guard reads the data. The first version
+     matched prose inside the function and went red the moment the three
+     paragraphs became three cards — which was the point of the change, not a
+     regression. Checking COURSE_DOORS survives rewording and still fails if a
+     door is dropped. */
+  const doors = /const COURSE_DOORS\s*=\s*\[[\s\S]*?\n\];/.exec(ovP);
+  if (!doors) fail('overlays.js: COURSE_DOORS not found — the Board explains itself from that table');
+  else {
+    for (const [what, re] of [['bringing a course in', /openReceiveCourse\('paste'\)/],
+                              ['drafting one', /openReceiveCourse\('draft'\)/],
+                              ['what high-standard means', /openCourseStandard\(\)/],
+                              ['the book table as a door', /book table/]]) {
+      if (!re.test(doors[0])) fail(`the Course Board's three doors have lost ${what}. "When someone opens `
+                                 + 'the Board, it must be obvious: how to bring a course in, how to draft a '
+                                 + 'high-standard course, what the steps are."');
+    }
+    const n = (doors[0].match(/label:/g) || []).length;
+    if (n !== 3) fail(`COURSE_DOORS has ${n} doors; the Board is meant to open as three choices, not ${n}`);
+  }
+  /* ONE SENTENCE EACH, and this is the whole point of the pass. The version
+     before it put three paragraphs on the Board and the steward called it a
+     block of text. A hint that grows back into prose is the regression. */
+  for (const h of (doors ? doors[0].match(/hint:\s*'([^']*)'/g) || [] : [])) {
+    const text = h.replace(/^hint:\s*'/, '').replace(/'$/, '');
+    if (text.length > 90) fail(`a Course Board door's hint is ${text.length} characters: "${text.slice(0, 60)}…". `
+                             + 'One short sentence each — the cards are the light version, and prose creeping '
+                             + 'back into them is exactly what this pass removed.');
+  }
+  /* Rendered in BOTH places, or the two surfaces drift into telling a person
+     different things about the same path. */
+  const guideCalls = (ovP.match(/courseGuidanceBlock\(/g) || []).length;
+  if (guideCalls < 3) fail(`courseGuidanceBlock() is called ${guideCalls - 1} time(s) — it must appear on the `
+                         + 'Board list AND in the Receive panel, or one of them stops explaining the path');
+
+  /* --- 8 · ★ ONE RECEIVE PATH, TWO DOORS. The steward asked for the book
+     table to accept a course as well; the point of "one shared path" is that
+     there is nothing to drift. --- */
+  const intake = /async function intakeBookFiles\([\s\S]*?\n}/.exec(ovP);
+  if (!intake) fail('overlays.js: intakeBookFiles() not found — the book table fan-out has moved');
+  else {
+    if (!/openReceiveCourse\(/.test(intake[0])) {
+      fail('the book table does not open the course receiver. A .course.md dropped on its own drop zone '
+         + 'goes to parseBookFile(), which throws "not a .txt or .epub" — an honest-looking message about '
+         + 'entirely the wrong thing.');
+    }
+    if (/parseCourse\(/.test(intake[0])) {
+      fail('intakeBookFiles() parses a course itself. It must hand off to openReceiveCourse() — a second '
+         + 'copy of the receive logic is exactly what "one shared path, two entry points" rules out.');
+    }
+  }
+  if (!/accept="\.txt,\.epub,\.md,\.markdown"/.test(ovP)) {
+    fail('the book table\'s file picker does not accept .md, so the file dialog filters courses out and the '
+       + 'person never gets the chance to try. A door that looks open.');
+  }
+
+  /* ================================================================
+     7b · ★ THE LIGHTNESS PASS — one obvious next action.
+
+     The steward, having looked at the first version of the on-ramp:
+     "Right now too much is presented as big blocks of text... one clear
+     next action at a time; everything else folded or one click away."
+     These hold the shape of that, because density creeps back a sentence
+     at a time and nobody notices until a screenshot.
+     ================================================================ */
+  /* ONE MODULE OPEN, and DERIVED. A stored index is a fourth thing to keep in
+     sync with a list that changes; openModuleOf() takes the first not-done
+     module, the same rule nextStepOf() has used since it was written. */
+  const openMod = /function openModuleOf\([\s\S]*?\n}/.exec(ovP);
+  if (!openMod) fail('overlays.js: openModuleOf() not found — the walking view decides which module is open there');
+  else {
+    if (!/findIndex\(s\s*=>\s*!s\.done/.test(openMod[0])) {
+      fail('openModuleOf() no longer derives the open module from what is done. Nine modules of real prose '
+         + 'all expanded is a document, not a course you are walking.');
+    }
+    if (/persist\(\)|\.openIndex\s*=/.test(openMod[0])) {
+      fail('openModuleOf() writes the open module into the save. It is derived on purpose — a stored index '
+         + 'is a fourth thing to keep in sync with a list that changes.');
+    }
+  }
+  if (!/const openMod\s*=\s*openModuleOf\(c\)/.test(ovP)) {
+    fail('the course detail view does not call openModuleOf() — every module would render expanded again');
+  }
+  if (!/\$\{done\} of \$\{c\.steps\.length\}/.test(ovP)) {
+    fail('the course detail no longer shows plain "N of M" progress. "Avoid long status essays."');
+  }
+  /* THE INTENTION FOLDS AFTER THE FIRST TIME — and the first time must be
+     open, which is the bug this caught when it was written: openCourse() set
+     introSeen before the renderer read it, so the one view where the opening
+     intention MUST be visible arrived folded. */
+  const openCourseFn = /export function openCourse\(id\)\{[\s\S]*?\n}/.exec(ovP);
+  if (!openCourseFn) fail('overlays.js: openCourse() not found');
+  else {
+    if (!/firstLook[\s\S]{0,200}c\.introSeen\s*=\s*true/.test(openCourseFn[0])) {
+      fail('openCourse() does not record introSeen after capturing whether this was the first look. If it '
+         + 'records first and reads after, the FIRST view of a course arrives folded — the one view where '
+         + 'the opening intention must be open, because the person has never read it.');
+    }
+    if (!/const firstLook\s*=[\s\S]{0,120}!c\.introSeen/.test(openCourseFn[0])) {
+      fail('openCourse() no longer decides "is this the first look" from introSeen');
+    }
+  }
+  /* MOVING BETWEEN STEPS MUST NOT LOSE WHAT WAS TYPED. One-thing-at-a-time is
+     only bearable if stepping away and back is free. The three doors all call
+     openReceiveCourse(), and without this it wiped the four baseline answers
+     and the parsed preview every time one was pressed. */
+  const openRecv = /export function openReceiveCourse\(arg\)\{[\s\S]*?\n}/.exec(ovP);
+  if (!openRecv) fail('overlays.js: openReceiveCourse() not found');
+  else {
+    if (!/wasHere\s*\?[\s\S]{0,200}receiveFormState\(\)/.test(openRecv[0])) {
+      fail('openReceiveCourse() does not carry the typed fields when moving between steps. Pressing one of '
+         + 'the three doors after answering the baseline questions would throw all four away.');
+    }
+    if (!/parsed:state\.courseView\.parsed/.test(openRecv[0])) {
+      fail('openReceiveCourse() drops the parsed course when changing step, so the preview and its single '
+         + '"Pin it to the board" vanish on navigation — the one press that matters, lost to a glance.');
+    }
+  }
+  /* READ IT TO ME — through tts.js, never a second audio path, and never a
+     dead button on a machine with no speech. */
+  const speakFn = /export function toggleCourseSpeak\([\s\S]*?\n}/.exec(ovP);
+  if (!speakFn) fail('overlays.js: toggleCourseSpeak() not found — a course cannot be read aloud');
+  else {
+    if (/speechSynthesis/.test(speakFn[0])) {
+      fail('toggleCourseSpeak() reaches for speechSynthesis directly. src/game/tts.js is the one audio seam — '
+         + 'the pocket, the pause and the voice settings all go through it.');
+    }
+    if (!/isSpeaking\(\)\|\|isPaused\(\)/.test(speakFn[0])) fail('toggleCourseSpeak() cannot stop what it started');
+    if (!/v\.id!==id/.test(speakFn[0])) {
+      fail('toggleCourseSpeak() auto-advances without checking the course is still on screen, so a panel you '
+         + 'closed keeps talking — which is the opposite of a press');
+    }
+  }
+  if (!/ttsAvailable\(\)\?`<button class="btn ghost" id="cmSpeak"/.test(ovP)) {
+    fail('the read-aloud button is rendered without checking ttsAvailable(). On a machine with no speech '
+       + 'synthesis that is a button that does nothing — the house failure mode.');
+  }
+  const speechText = /function moduleSpeechText\([\s\S]*?\n}/.exec(ovP);
+  if (speechText && !/replace\(\/\\\*\\\*\/g/.test(speechText[0])) {
+    fail('moduleSpeechText() no longer strips the bold markers, so read-aloud says "asterisk asterisk Practice"');
+  }
+  /* THE STANDARD NOTE STAYS SHORT — and keeps its caveat. */
+  const pieces = /const COURSE_STANDARD_PIECES\s*=\s*\[[\s\S]*?\n\];/.exec(ovP);
+  if (!pieces) fail('overlays.js: COURSE_STANDARD_PIECES not found');
+  else if ((pieces[0].match(/\['/g) || []).length !== 7) {
+    fail('the standard note no longer lists exactly seven pieces');
+  }
+  if (!/not checked by anything yet/.test(ovP) || !/sticker, not a standard/.test(ovP)) {
+    fail('the standard panel has lost the sentence saying which four pieces the app does NOT check. '
+       + 'Shortening that panel must not be the move that quietly drops rule 6 from the screen.');
+  }
+
+  /* ================================================================
+     7c · ★ ONE GRAPH RENDERER, TWO CALLERS — ui/tree-graph.js.
+
+     Extracted from ui/lesson-tree.js on 2026-08-14 when the Course Board
+     needed the same drawing. The ui/dom.js precedent: "a second copy of
+     an escaping rule is exactly the drift this project has paid for
+     three times."
+     ================================================================ */
+  const tg = readFileSync(new URL('../src/game/ui/tree-graph.js', import.meta.url), 'utf8');
+  if (!/export function renderTreeGraph\(/.test(tg) || !/export function graphDepths\(/.test(tg)) {
+    fail('ui/tree-graph.js does not export both renderTreeGraph and graphDepths');
+  }
+  const lt = readFileSync(new URL('../src/game/ui/lesson-tree.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');
+  for (const [who, src] of [['ui/lesson-tree.js', lt], ['ui/overlays.js', ovP]]) {
+    if (!/from '\.\/tree-graph\.js'/.test(src)) {
+      fail(`${who} does not import from ui/tree-graph.js — one of the two callers has stopped sharing the `
+         + 'renderer, which is the moment a second copy appears');
+    }
+    if (/function graphDepths\(/.test(src)) {
+      fail(`${who} has grown its own graphDepths(). There is one layout and it lives in ui/tree-graph.js.`);
+    }
+  }
+  /* THE MAP IS DERIVED. A layout index or a track list in the save would be a
+     second source of truth for something the courses already say. */
+  const mapFn = /function courseMapNodes\([\s\S]*?\n}/.exec(ovP);
+  if (!mapFn) fail('overlays.js: courseMapNodes() not found — the Board has lost its map');
+  else {
+    if (/persist\(\)/.test(mapFn[0])) fail('courseMapNodes() writes to the save; the map is derived from the courses');
+    if (!/kind:'track'/.test(mapFn[0]) || !/kind:'module'/.test(mapFn[0])) {
+      fail('the course map no longer branches track -> course -> module. A PREREQUISITE graph would draw '
+         + 'almost no edges — both real courses list prose prerequisites, which match no course title, so it '
+         + 'would be a list rotated ninety degrees.');
+    }
+    if (!/openId===c\.id/.test(mapFn[0])) {
+      fail('the map draws modules for every course rather than only the opened one. Nine courses would draw '
+         + 'eighty cards — the wall of text this pass removed, rebuilt in SVG.');
+    }
+  }
+  if (!/renderCourseMap\(shown, state\.courseMapOpen\)/.test(ovP)) {
+    fail('the Board never calls renderCourseMap() — the Map tab would show the list');
+  }
+
+  /* --- 8b · ★ ONE PROMPT, NOT TWO. PROTOCOLS.md Protocol 4 carries the same
+     prompt the button copies. It was GENERATED from buildDraftingPrompt() and
+     must stay equal to it — a prompt that exists in two places is a prompt
+     where one copy is quietly wrong, and the doc is the copy nobody re-reads. --- */
+  const protoSrc = readFileSync(new URL('../PROTOCOLS.md', import.meta.url), 'utf8');
+  if (!/^## Protocol 4 — Drafting a course somewhere else$/m.test(protoSrc)) {
+    fail('PROTOCOLS.md has no Protocol 4. The method existed only in plans/ and in a chat window until '
+       + '2026-08-14, which is the gap this whole slice exists to close.');
+  } else {
+    const fenced = /~~~text\n([\s\S]*?)~~~/.exec(protoSrc);
+    if (!fenced) fail('PROTOCOLS.md Protocol 4 has no fenced prompt block');
+    else if (fenced[1].trim() !== CP.buildDraftingPrompt({}).trim()) {
+      fail('PROTOCOLS.md Protocol 4 and buildDraftingPrompt() have drifted apart. Regenerate the doc from '
+         + 'the module — whichever one a person follows, they must get the same course format, and the '
+         + 'one that rots is always the doc.');
+    }
+    for (const q of CP.BASELINE_QUESTIONS) {
+      if (!protoSrc.includes(q.label)) fail(`Protocol 4 does not ask "${q.label}"`);
+    }
+    if (!/book table/.test(protoSrc)) fail('Protocol 4 does not mention the book table as a way back in');
+  }
+
+  /* --- 9 · ★ THE STARTER SHELF IS DERIVED, and honest about what it is.
+
+     ⚠ NOT IMPORTED, deliberately. `import.meta.glob` is a Vite transform and
+     does not exist in plain node, so importing this module here throws — which
+     is exactly what happened the first time this guard was written. The split
+     that survives: `npm test` holds the SOURCE properties (it globs, it does
+     not parse) and reads courses/ off disk itself; test/live/receive-course.mjs
+     runs against the real build, where the glob is real, and asserts the cards
+     are actually on screen. Neither can stand in for the other, and stubbing
+     the glob here would have tested the stub. --- */
+  const scSrc = readFileSync(new URL('../src/game/data/starter-courses.js', import.meta.url), 'utf8');
+  if (!/'\/courses\/\*\.course\.md'/.test(scSrc)) {
+    fail('data/starter-courses.js no longer globs /courses/*.course.md — the starter shelf would be empty '
+       + 'or, worse, pointed somewhere else');
+  }
+  if (!/eager:\s*true/.test(scSrc)) {
+    fail('data/starter-courses.js dropped `eager: true`. A lazily fetched chunk is a second failure mode '
+       + 'under file://, which is where the packaged app runs — and vite.config.js exists in the first '
+       + 'place because of a file:// path bug that shipped a blank window.');
+  }
+  if (!/import\.meta\.glob/.test(scSrc)) {
+    fail('data/starter-courses.js hand-lists its courses instead of globbing courses/. A list that must '
+       + 'match a directory is rule 4, and this project has paid for it three times.');
+  }
+  if (/parseCourse|frontmatter/.test(scSrc)) {
+    fail('data/starter-courses.js has started parsing. It knows where the text is and nothing else — '
+       + 'course-format.js owns what it means.');
+  }
+}
+
+/* ================================================================
+   [A TITLE OFF A FILENAME] — data/book-title.js.
+
+   The steward, 2026-08-14, about six books he had brought in for the
+   electrical-engineering course: "they're titled wrong". They were, and
+   the app had written every one of them — parseBookFile() falls back to
+   the filename when a file carries no title of its own.
+
+   THE GUARD THAT MATTERS HERE IS NOT "does it fix the broken ones".
+   It is "does it leave the good ones alone", because a cleaner runs on
+   every book in a hundred-book drop and the good ones are the majority.
+   Two real bugs were caught exactly that way and neither would have been
+   caught by testing the broken six:
+
+     'A Guide to LaTeX'              -> 'A Guide to La Te X'
+     'Vols 1-4'                      -> 'Vols 1 4'
+
+   So the corpus below is the real `Title:` line out of every book in
+   library-sources/ — actual books, actually in this repo, rather than
+   titles invented to pass. Rule 1 in its usual costume.
+   ================================================================ */
+{
+  const BT = await import('../src/game/data/book-title.js');
+  const { readdirSync } = await import('node:fs');
+
+  /* --- 1 · the six real ones, verbatim out of the steward's own database.
+     Expected values are written out in full: a test that only asserts
+     "something changed" would have passed on `A Guide to La Te X`. --- */
+  const REAL = [
+    ['2018_dc-electrical-circuits-workbook',          'DC Electrical Circuits Workbook (2018)'],
+    ['2018_electromagnetics_vol-1',                   'Electromagnetics Vol 1 (2018)'],
+    ['CIRCUIT ANALYSIS  AND DESIGN 3ed',              'Circuit Analysis and Design 3ed'],
+    ['The_Optics_of_Ibn_Al-Haytham_Books_I',          'The Optics of Ibn Al-Haytham Books I'],
+    ['Lessons In Electric Circuits',                  'Lessons in Electric Circuits'],
+    /* Deliberately NOT split into author and work. It is an archive.org
+       AuthorTitle identifier and nothing here can know where the name ends
+       (rule 6) — so this asserts it stops, rather than that it guesses. */
+    ['TattersfieldGeorgeM-ElectricalCircuitAnalysis', 'Tattersfield George M-Electrical Circuit Analysis'],
+  ];
+  for (const [raw, want] of REAL) {
+    const got = BT.tidyTitle(raw);
+    if (got !== want) fail(`tidyTitle(${JSON.stringify(raw)}) = ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
+    /* What surfaces a book for fixing is titleNeedsTidying() — the actionable
+       set. looksLikeAFilename() only decides what the card SAYS about it, and
+       `Lessons In Electric Circuits` is deliberately NOT one: it is properly
+       spaced and wants a small correction, not an apology. Asserting the
+       stronger predicate here was the bug that revealed the Index was
+       filtering on the wrong one and hiding that book entirely. */
+    if (!BT.titleNeedsTidying(raw)) fail(`titleNeedsTidying() did not flag ${JSON.stringify(raw)}, so the `
+                                       + 'Steward\'s Index would never surface it for fixing');
+  }
+  if (BT.looksLikeAFilename('Lessons In Electric Circuits')) {
+    fail('looksLikeAFilename() calls a properly spaced title a filename. It is used to decide whether to '
+       + 'apologise for the title, and apologising for a nearly-right one is noise.');
+  }
+  for (const f of ['2018_electromagnetics_vol-1', 'TattersfieldGeorgeM-ElectricalCircuitAnalysis',
+                   'CIRCUIT ANALYSIS  AND DESIGN 3ed']) {
+    if (!BT.looksLikeAFilename(f)) fail(`looksLikeAFilename() did not recognise ${JSON.stringify(f)}`);
+  }
+  if (BT.tidyAuthor('Ibn_Al-Haytham') !== 'Ibn Al-Haytham') fail('tidyAuthor() left the underscores in a name');
+
+  /* --- 2 · ★ THE REGRESSIONS. Each of these was real damage this file
+     produced before it was swept against a whole library. --- */
+  const MUST_NOT_CHANGE = [
+    'A Guide to LaTeX',                                   // camel-split a stylised name
+    'iPhone: The Missing Manual',                         // downcased a word starting a subtitle
+    'Popular Tales of the West Highlands, Vols 1-4',      // split a range as if it were a slug
+    'The Sceptical Chymist / or Chymico-Physical Doubts', // hyphen inside a real compound
+    'IEEE Std 802.11',                                    // split an all-caps acronym
+    'The C Programming Language',
+    'On the Origin of Species',
+    'Advice to Sigālaka',                                 // non-ASCII must survive untouched
+  ];
+  for (const t of MUST_NOT_CHANGE) {
+    const got = BT.tidyTitle(t);
+    if (got !== t) {
+      fail(`tidyTitle() DAMAGED an already-correct title: ${JSON.stringify(t)} -> ${JSON.stringify(got)}. `
+         + 'This runs on every file in a bulk drop; breaking good input is worse than fixing bad input.');
+    }
+  }
+  if (BT.tidyTitle('Official congressional directory, 2011-2012').includes('2011 2012')) {
+    fail('tidyTitle() split a year RANGE as if it were a filename slug');
+  }
+  if (BT.tidyTitle('Fifteen Thousand Useful Phrases / A Practical Handbook') !==
+      'Fifteen Thousand Useful Phrases / A Practical Handbook') {
+    fail('tidyTitle() downcased the word after a "/" — Project Gutenberg separates title from subtitle '
+       + 'with one and this library is full of them');
+  }
+
+  /* --- 3 · ★ SWEEP THE WHOLE SHELF, not a sample. Every real Title: line in
+     library-sources/. Nothing may lose a letter, and tidying twice must equal
+     tidying once — an unstable cleaner rewrites a card every time it is
+     opened. --- */
+  let swept = 0;
+  const letters = s => s.toLowerCase().replace(/[^a-z0-9À-ɏ]/g, '').split('').sort().join('');
+  let sources = [];
+  try { sources = readdirSync(new URL('../library-sources/', import.meta.url)).filter(f => f.endsWith('.txt')); } catch { /* below */ }
+  if (sources.length < 10) fail(`library-sources/ has ${sources.length} .txt file(s) — the real-title sweep `
+                              + 'has nothing to sweep, so this whole section is vacuous');
+  for (const f of sources) {
+    const head = readFileSync(new URL(f, new URL('../library-sources/', import.meta.url)), 'utf8').slice(0, 4000);
+    const m = /^Title:\s*(.+)$/m.exec(head);
+    if (!m) continue;
+    const t = m[1].trim();
+    swept++;
+    const once = BT.tidyTitle(t);
+    if (BT.tidyTitle(once) !== once) {
+      fail(`tidyTitle() is not idempotent on ${JSON.stringify(t)}: a second pass gives `
+         + `${JSON.stringify(BT.tidyTitle(once))}. The Steward's Index would offer a new "tidier" form forever.`);
+    }
+    if (letters(once) !== letters(t)) {
+      fail(`tidyTitle() lost or invented characters in ${JSON.stringify(t)} -> ${JSON.stringify(once)}. `
+         + 'Casing and spacing are its whole job; content is not its to change.');
+    }
+    if (/^[a-z]/.test(once) && !/^[a-z]/.test(t)) fail(`tidyTitle() lowercased the first word of ${JSON.stringify(t)}`);
+  }
+  if (swept < 10) fail(`only ${swept} real title(s) were swept — library-sources/ files have stopped carrying `
+                     + 'a `Title:` line, so the sweep is no longer testing anything');
+
+  /* --- 3b · ★ NO INVISIBLE CHARACTERS IN SOURCE.
+     Found the hard way on 2026-08-14, the day book-title.js was written: the
+     character class in `s.replace(/[_ ]+/g, ' ')` contained U+00A0, a
+     NON-BREAKING space, not the ordinary one it appears to be. It reads
+     identically in an editor, in `git diff`, and in `JSON.stringify` — the
+     only reason it surfaced is that a sabotage anchor written by hand did
+     not match a line that printed as its exact twin.
+
+     It happened to be harmless here (a later `\s+` collapse covered it), and
+     that is precisely why it needs a guard rather than a fix: a
+     non-breaking space inside a regex, a string comparison or an identifier
+     is a bug nobody can see, in a file nobody will re-read. Same family as
+     the CRLF failure of 2026-08-13 — a difference the eye cannot resolve
+     silently changing what the program matches. --- */
+  /* Written as ESCAPES, not as the characters themselves. A guard against
+     invisible characters that CONTAINS invisible characters cannot be read,
+     reviewed or grepped — and would flag itself. */
+  const INVISIBLE = /[  -‍  　﻿]/;
+  for (const rel of ['data/book-title.js', 'data/course-format.js', 'data/lesson-doc.js',
+                     'ui/overlays.js', 'ui/dom.js', 'ui/lesson-tree.js', 'entities.js']) {
+    const src = readFileSync(new URL('../src/game/' + rel, import.meta.url), 'utf8');
+    src.split('\n').forEach((line, i) => {
+      if (INVISIBLE.test(line)) {
+        const at = [...line].findIndex(c => INVISIBLE.test(c));
+        fail(`src/game/${rel}:${i + 1} contains U+${line.codePointAt(at).toString(16).toUpperCase().padStart(4, '0')} `
+           + `at column ${at + 1} — an invisible character that reads as an ordinary space. In a regex or a `
+           + `string comparison it silently changes what the code matches, and no diff will show you why.`);
+      }
+    });
+  }
+
+  /* --- 4 · the pure half stays pure --- */
+  const btSrc = readFileSync(new URL('../src/game/data/book-title.js', import.meta.url), 'utf8');
+  for (const bad of [/\bdocument\./, /\bwindow\./, /from\s+'[^']*entities\.js'/, /AI\.chat/]) {
+    if (bad.test(btSrc)) fail(`data/book-title.js touches ${bad} — it is deterministic by design (rule 7)`);
+  }
+
+  /* --- 5 · ★ ONLY THE FALLBACK IS TIDIED. An EPUB with a real <dc:title>
+     and a Gutenberg .txt with a `Title:` line are the author's words, and
+     "improving" them is exactly the overreach rule 6 forbids. --- */
+  const ovT = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const pbf = /async function parseBookFile\([\s\S]*?\n}/.exec(ovT);
+  if (!pbf) fail('overlays.js: parseBookFile() not found — the intake has moved');
+  else {
+    if (!/res\.title\|\|fromFileName\(/.test(pbf[0])) {
+      fail('overlays.js: parseBookFile() no longer derives an EPUB title through fromFileName(). Either the '
+         + 'tidier was dropped, or — worse — it is being applied over a real <dc:title>.');
+    }
+    if (!/titleMatch\?titleMatch\[1\]\.trim\(\):fromFileName\(/.test(pbf[0])) {
+      fail('overlays.js: a .txt with its own `Title:` line is no longer taken verbatim');
+    }
+    if (/tidyTitle\((?:res\.title|titleMatch)/.test(pbf[0])) {
+      fail('overlays.js: parseBookFile() is running tidyTitle() over a title the FILE supplied. That is the '
+         + 'author\'s own words being rewritten by a heuristic.');
+    }
+  }
+  /* --- 6 · ★ THE SUGGESTION IS NOT A SAVE. rule 9, question 1: it writes
+     into the visitor's record, so it needs a press — and the press is the
+     existing "Save the card", not this button. --- */
+  const useFn = /export function sidxUseTidyTitle\([\s\S]*?\n}/.exec(ovT);
+  if (!useFn) fail('overlays.js: sidxUseTidyTitle() not found');
+  else if (/persist\(\)|catalogEdits\(\)\[/.test(useFn[0])) {
+    fail('overlays.js: sidxUseTidyTitle() writes to the save. It must only put the suggestion in the box — '
+       + 'the person still edits it and still presses Save the card. A heuristic that silently renames a '
+       + 'visitor\'s book is the exact overreach this whole file is shaped to avoid.');
+  }
+  if (!/sidxShowFilenames/.test(ovT)) {
+    fail('overlays.js: no way to find the books whose titles look like filenames. Six arrived in one '
+       + 'afternoon and scrolling 423 cards is not a way.');
+  }
+}
+
+/* ================================================================
+   THE VERDICT IS LAST. A check written below the report can never fail:
+   it runs, it appends to `failures`, and nothing reads `failures` again.
 
    So: the report must be the last thing in this file. */
 {

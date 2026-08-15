@@ -120,6 +120,20 @@ export const state = {
   player:{ x:19,y:21,px:19,py:21,dir:'down',moving:false,tx:19,ty:21,t:0 },
   dialog:null, fishing:null, ui:null, time:0,
   shelfTradition:null, currentDoc:null, courseView:{mode:'list',id:null},
+  // Whether a full course shows its opening intention unfolded. Session-only
+  // and true on every openCourse() — the intention is required piece 1 of the
+  // course standard, so a course always reopens showing it; folding is for the
+  // sitting you are in, once you have read it and want the modules.
+  courseIntroOpen:null,
+  // Which module of the open course is expanded. null = "the one you are on",
+  // derived from what is done — a stored index would be a fourth thing to keep
+  // in sync with a list that changes. Session-only; walking resumes from the
+  // first unfinished module every time you come back, which is where you are.
+  courseModule:null,
+  // Board view: list (default) or the branching map, and which course the map
+  // has expanded. Session-only — a view is where you are looking, not
+  // something you own, and it should not follow you to another machine.
+  courseMap:false, courseMapOpen:null,
   archiveView:{mode:'list',slug:null},
   /* WHICH book the phone is showing, if you walked off with one. Genuinely a
      session question — "is the reader minimised" has no meaning after you

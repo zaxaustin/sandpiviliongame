@@ -83,17 +83,38 @@ export function lessonToMarkdown(node, opts = {}) {
      back in. Two Markdown writers for one object would be rule 4's exact
      shape — and this one already existed, written for the steward's friend
      who teaches English, who is the person the whole round trip is for. */
+  /* A frontmatter value is one line. A field that arrives as a paragraph
+     (purpose, outcome — both can be long) is folded onto one. */
+  const one = v => String(v == null ? '' : v).replace(/\s*\n+\s*/g, ' ').trim();
+  /* A block list, the shape the steward writes `prerequisites:` in. */
+  const listOut = (k, arr) => k + ':\n' + arr.map(x => '  - ' + one(x)).join('\n');
   if (opts.frontmatter) {
     const by = node.by || {};
     const fm = ['title: ' + (node.title || 'A lesson')];
-    if (node.summary) fm.push('summary: ' + String(node.summary).replace(/\s*\n+\s*/g, ' ').trim());
+    if (node.summary) fm.push('summary: ' + one(node.summary));
+    if (node.purpose) fm.push('purpose: ' + one(node.purpose));
+    if (node.audience) fm.push('audience: ' + one(node.audience));
+    if (node.outcome) fm.push('outcome: ' + one(node.outcome));
     if (node.track) fm.push('track: ' + node.track);
     if (node.level) fm.push('level: ' + node.level);
+    if (node.category) fm.push('category: ' + node.category);
+    if ((node.prerequisites || []).length) fm.push(listOut('prerequisites', node.prerequisites));
+    /* What the author brought, not what the course demands — see LIST_KEYS in
+       data/course-format.js. It travels with the file so the next reader knows
+       what the work actually cost somebody starting from there. */
+    if ((node.baseline || []).length) fm.push(listOut('baseline', node.baseline));
     if (node.book && node.book.slug) fm.push('reading: ' + node.book.slug);
     if (by.user) fm.push('author: ' + by.user);
     if (by.who === 'ai' && by.model) fm.push('drafted-with: ' + by.model);
     if (node.license) fm.push('license: ' + node.license);
-    for (const k of Object.keys(node.extra || {})) fm.push(k + ': ' + node.extra[k]);
+    /* `source` was in the parser's KNOWN list from the start and was never
+       written back out, so a course's provenance died on the first round
+       trip. Found 2026-08-14 while adding the fields beside it. */
+    if (node.source) fm.push('source: ' + one(node.source));
+    for (const k of Object.keys(node.extra || {})) {
+      const v = node.extra[k];
+      fm.push(Array.isArray(v) ? listOut(k, v) : k + ': ' + one(v));
+    }
     L.push('---'); L.push(fm.join('\n')); L.push('---'); L.push('');
   }
   L.push('# ' + (node.title || 'A lesson'));
@@ -108,6 +129,9 @@ export function lessonToMarkdown(node, opts = {}) {
     L.push('**Before this:** ' + opts.prereqTitles.join(', '));
     L.push('');
   }
+  /* The opening intention, below the facts and above the first module —
+     where the person reading the handout meets it before any of the work. */
+  if (node.intro) { L.push(node.intro); L.push(''); }
   (node.steps || []).forEach((s, i) => {
     const r = book ? readingIn((s.title || '') + ' ' + (s.body || '')) : null;
     L.push(`## ${i + 1}. ${s.title || ''}`);

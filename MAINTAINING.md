@@ -193,7 +193,7 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one: 13,734 lines** (740 top-level
+- **`ui/overlays.js`** — **the big one: 14,604 lines** (740 top-level
   definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
   chat stack, and the window-export block, which it owns permanently. **It opens
   with a map of itself**, anchored to searchable text rather than line numbers
@@ -385,7 +385,82 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
-**Where things stand, end of 2026-08-10 — READ THIS ONE.**
+**Where things stand, end of 2026-08-14 — READ THIS ONE FIRST.**
+Full account in [`archive/dev-log-2026-08-14.txt`](archive/dev-log-2026-08-14.txt).
+
+> ## 🎓 THE COURSES — a real one gets in, and a person can make one
+>
+> **The verdict:** *"the current state of the course logs and the courses that
+> we have are not acceptable."* The reason was worse than "thin" — **the two
+> courses the steward had actually written could not enter the Pavilion at
+> all.** `prerequisites:` is a YAML block list, the frontmatter reader wanted
+> `key: value`, and it refused the file. Four days of green round-trip tests,
+> every one against Markdown written *inside the test file*. Rule 1 again.
+> `courses/` holds the real files now and the suites read those.
+>
+> - **DONE — a course arrives and is walked.** Block lists, quote stripping,
+>   the intro kept **and shown**, and `purpose`/`audience`/`outcome`/
+>   `prerequisites`/`category` promoted into real fields. **The Board's step
+>   grew a `body`**, additively — which settles step 4 of
+>   `COURSE-AUTHORING-AND-IMPORT.md` on the steward's decision: **the Course
+>   Board is where courses live and are walked; the Learning Tree becomes the
+>   map and points here.** `courseFromLesson`/`lessonFromCourse` are a
+>   converter **pair**, not a second emitter.
+> - **DONE — the on-ramp**, because Phase A was half a bridge: a grep for
+>   `7-step` / `Theoretical Minimum` / `prompt template` across `src/game/`
+>   found **nothing**. `data/course-prompt.js` builds a copy-to-clipboard
+>   prompt from four **baseline** questions + the 7-step protocol. No key, no
+>   connection — text on a clipboard, so it works on a machine that cannot run
+>   a model. **The baseline travels IN the course frontmatter**, so a finished
+>   course says what its author knew when they started. `PROTOCOLS.md`
+>   **Protocol 4** is generated from the same module; a guard fails on drift.
+> - **DONE — the lightness pass.** *"Too much is presented as big blocks of
+>   text… one clear next action at a time."* The Board opens as **three
+>   cards**; the Receive panel shows **one step**; only the module you are on
+>   is open (**derived**, never stored); *About this course* folds after the
+>   first look; **🔊 read aloud per module with auto-advance** through
+>   `tts.js`.
+> - **DONE — `data/book-title.js`.** *"they're titled wrong"* — six books whose
+>   titles were the **filenames the app itself wrote**. Deterministic, and it
+>   only ever **suggests**. **The sweep over all 423 real titles is what earned
+>   it: 73 would have changed and two of those were damage.**
+> - **⚠ `npm test` now fails on invisible characters in `src/game/`** — a
+>   U+00A0 was found inside a regex character class. Same family as the CRLF
+>   failure of 2026-08-13.
+>
+> **⚠ `verify:release` is RED, correctly.** The `.exe` is a day behind source
+> and `release/win-unpacked/` is gone, so `packaged-exe.mjs` cannot run until a
+> rebuild. Nothing ships before that.
+>
+> - **DONE — the guided path.** The draft step is three beats: **your idea →
+>   what to read → draft the course.** Beat 2 is half deterministic (rule 7):
+>   `lookupTerms()` pulls words from the idea and names the books **already on
+>   your shelf** that touch it — instant, no model. The rest is a reading
+>   prompt told what you own, whose last line asks for **search terms rather
+>   than links**, because a hallucinated URL looks exactly like a real one.
+> - **DONE — the map.** `ui/tree-graph.js` (extracted unchanged from
+>   `lesson-tree.js`, the `ui/dom.js` precedent) now has **two callers**. The
+>   Board has List / Map tabs and branches **track → course → module**.
+>   ⚠ **Not prerequisites** — both real courses list *prose* prerequisites,
+>   which match no course title, so that graph would be a list rotated 90°.
+>   Modules draw only for the opened course.
+>
+> **NEXT, in order:**
+> 1. **"Today's one thing"** on the Today surface — deferred on purpose:
+>    `data/the-day.js` has four standing rules about not becoming a nag.
+> 2. **The Intention gate, the daily commitment + reset, the blank-page gate.**
+>    They now have a real course to attach to. `standard: 'simple'|'high'` is
+>    the seam.
+> 3. Collections, and the full Tree reframe.
+> 4. **A rebuild** — `verify:release` is red and `release/win-unpacked/` is gone.
+>
+> **But the steward's own test comes first:** draft a fresh course with Grok
+> and receive it. The path exists; whether it *feels* like his is measured by
+> use, never by a suite.
+
+---
+
+**Where things stood, end of 2026-08-10.**
 Full account in [`archive/dev-log-2026-08-10.txt`](archive/dev-log-2026-08-10.txt)
 (Parts One–Five are the Library and the two Grounds; Six is the documentation
 reconciliation; **Seven to Eleven are the grounding chain**).

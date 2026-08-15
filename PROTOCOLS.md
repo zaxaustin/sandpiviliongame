@@ -485,6 +485,173 @@ catalogue and your notes live in the database above, container or not.
 
 ---
 
+## Protocol 4 — Drafting a course somewhere else
+
+**The Pavilion can host a course, walk it with you, and hand it on. It is not
+the best place to WRITE one**, and pretending otherwise would cost you the one
+thing that actually works: a long conversation with a strong model that can hold
+the whole shape in its head. So the method is — draft it out there, live with it
+in here.
+
+This is the same protocol the game hands you. **Course Board → 📥 Receive a
+course** builds the prompt below with your own answers already in it and copies
+it to the clipboard. This page is for working from the docs instead, and for
+knowing what that button is actually doing.
+
+### The seven steps
+
+1. Goal and audience, with success criteria
+2. Prerequisites and gaps
+3. Ordered modules, each with an objective
+4. The explanatory body of each module
+5. Practice · reflection · artifact
+6. Polish for transmission — standalone clarity, attribution, licence
+7. Package, import, and walk it yourself
+
+Step 7 is the one that gets dropped, and it is the one that matters:
+[`plans/INDEPENDENT-COURSE-GRADUATION.md`](plans/INDEPENDENT-COURSE-GRADUATION.md)
+requires the author to have walked their own course before it is worth handing
+to anybody.
+
+### First — where *you* are starting from
+
+Answer these before you ask for anything. A complete beginner and someone with
+real experience need **different material for the same subject**, and a model
+told nothing will draft for a stranger — which usually means too slow to bear or
+too fast to follow.
+
+- **What have you already done in this area?** Projects, jobs, courses, years. Or "nothing at all" — a real answer, and the most useful one to be honest about.
+- **What can you already do without looking it up?** The blank-page question, asked at the start instead of only at the end.
+- **Where did you last get stuck, and what stopped you?** Time, money, a missing tool, a concept that would not land — or you simply stopped. All four are worth saying.
+- **What do you have to hand?** Tools, parts, software, minutes in a day, a computer that can or cannot run a local model.
+
+**These go into the course itself** and stay there, as a `baseline:` block in
+its frontmatter. That is deliberate: *"I built this having never soldered
+anything"* tells the next reader what the work will actually cost them, and no
+`level: 201` ever does.
+
+Note the difference from `prerequisites:` — that is what the **course** demands
+of anyone starting it. The baseline is what its author actually brought.
+
+### The prompt
+
+Paste this into Claude, ChatGPT, Grok, or a local model — anything that will hold
+a long conversation. **No API key and no connection are needed.** It is text on a
+clipboard, which is why this works on a machine that cannot run a model at all.
+
+~~~text
+Draft a full course for the Sand Pavilion in the portable Markdown format below.
+**Do not produce a thin checklist.** Modules need real explanatory prose.
+
+WHAT I WANT TO LEARN
+(replace with the real goal, and the honest reason it matters to you)
+
+WHERE I AM STARTING FROM — write this back into the frontmatter as `baseline:`
+- What have you already done in this area? (not answered)
+- What can you already do without looking it up? (not answered)
+- Where did you last get stuck, and what stopped you? (not answered)
+- What do you have to hand? (not answered)
+Teach for that. Do not re-teach what I can already do, and assume nothing I did not claim.
+If the gap is too wide for one course, say so and propose the smaller one that comes first.
+
+BUILD IT IN THIS ORDER
+1. Goal and audience, with success criteria
+2. Prerequisites and gaps
+3. Ordered modules, each with an objective
+4. The explanatory body of each module
+5. Practice · reflection · artifact
+6. Polish for transmission — standalone clarity, attribution, licence
+7. Package, import, and walk it yourself
+
+IT MUST CONTAIN — all seven
+1. Opening intention — the real question that makes the work worth doing.
+2. Baseline — mine, above, in the frontmatter for whoever reads this next.
+3. Theoretical minimum — the few things I must rebuild from scratch, not recall. Cut hard.
+4. A daily commitment I can actually keep, named in the opening.
+5. Modules with real prose, each with practice, reflection and one artifact.
+6. A final gate — what I demonstrate from a blank page, and what must actually work.
+7. Transmission — polished so another person can walk it without me.
+Note: `prerequisites:` is what the COURSE demands; `baseline:` is what I brought.
+
+Work me in three modes throughout — analytical (predict, measure, diagnose), creative
+(reframe the question), practical (build it, explain it to someone who needs it today).
+
+THE FORMAT — reply with this and nothing else. Every module is a `## ` heading and nothing
+else uses `##`. Objective / Body / Practice / Reflection / Artifact are bold labels inside
+the text, not frontmatter keys. Aim for 5–9 modules. Spell the keys exactly as shown.
+
+```markdown
+---
+title: "The course title"
+purpose: "What this is for, in a sentence or two."
+audience: "Who it is for, and what it assumes."
+outcome: "What I will be able to do at the end."
+category: "Skill"   # Practice, Study, Skill, Work, Health or Personal
+track: "A subject area"
+level: 101          # 101 beginner, 201 working, 301 advanced
+license: "CC-BY-SA 4.0"
+prerequisites:
+  - "What anyone needs before starting, even if that is nothing"
+baseline:
+  - "my four answers from above, one per line"
+---
+
+# How to walk this course
+
+One line on what this course is.
+
+Then the intention: the real question behind it, the daily commitment I am making,
+and how I will know it is working. Kept visible for the whole course.
+
+## Module 1 — Its title
+
+**Objective:** one sentence.
+
+**Body:** real explanatory paragraphs, as many as the idea needs.
+
+**Practice:** something I do, not something I read.
+
+**Reflection:** a question I answer in writing.
+
+**Artifact:** what I will have made when this module is done.
+```
+~~~
+
+### Bringing it back
+
+Save the reply as `something.course.md`. Then, whichever suits you:
+
+- **Course Board → 📥 Receive a course** → paste it → **Read it** → **Pin it**
+- **Drop the file anywhere on the window**
+- **Drop it at the book table** — the same place you add books
+
+All three are the same path and land in the same place.
+
+You see what it found *before* anything is saved: the title, how many modules,
+and whether it reads as a **📘 full course** or as **personal tracking**. Nothing
+is written until you press.
+
+If it will not import, the panel names the line to fix in plain sentences. The
+usual cause is a module that is not a `## ` heading.
+
+### What makes it high-standard
+
+The full standard is
+[`plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md`](plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md),
+and the short version is in the game under **📐 How high-standard courses work**.
+Seven pieces: an opening intention · your baseline · a theoretical minimum · a
+daily commitment · structured modules · a final blank-page gate · transmission.
+
+**The app checks three of them** — an intention, a stated outcome, and modules
+with real explanatory text. The other four are yours to hold, and the surfaces
+for them are still being built. A badge claiming all seven would be a sticker
+rather than a standard.
+
+Two real examples ship in [`courses/`](courses/) and are listed inside the
+Receive panel, so you can read a finished one before writing your own.
+
+---
+
 ## More protocols to come
 
 Written down so they aren't lost, not yet promised as finished:

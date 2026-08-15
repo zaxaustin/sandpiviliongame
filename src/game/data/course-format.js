@@ -50,11 +50,52 @@ export const COURSE_EXT = '.course.md';
 
 /* The frontmatter keys this understands. Anything else is preserved in
    `extra` rather than dropped — a course written for a later version of
-   the Pavilion must not lose fields on a round trip through this one. */
-const KNOWN = ['title', 'summary', 'track', 'level', 'reading', 'author',
-               'drafted-with', 'license', 'source'];
+   the Pavilion must not lose fields on a round trip through this one.
 
-const clean = s => String(s == null ? '' : s).trim();
+   `purpose`/`audience`/`outcome`/`prerequisites`/`category` were promoted
+   OUT of `extra` on 2026-08-14. They rode along untouched for four days,
+   which was correct while nothing read them — and stopped being correct
+   the moment plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md made purpose and
+   outcome load-bearing (required pieces 1 and 5). `category` was the
+   quietest of the five: the Course Board has had a `Skill` category since
+   July and the steward's own frontmatter says `category: "Skill"`, so the
+   two halves of one idea sat a field-name apart and never met. */
+const KNOWN = ['title', 'summary', 'track', 'level', 'reading', 'author',
+               'drafted-with', 'license', 'source',
+               'purpose', 'audience', 'outcome', 'prerequisites', 'category',
+               'baseline'];
+
+/* Frontmatter keys whose value is a block list rather than a scalar.
+
+   `baseline` joined `prerequisites` on 2026-08-14 and the two are a PAIR
+   that must not be collapsed into one field, however similar they look:
+
+     prerequisites — what the COURSE demands of anyone who starts it
+     baseline      — what its AUTHOR actually brought, on the day they began
+
+   The steward asked for the second because a beginner and someone with
+   real experience need different material for the same subject. Keeping it
+   in the file is what makes it useful to the NEXT person as well as to the
+   model that drafted it: "I built this having never soldered anything"
+   tells a reader what the work will cost them, and no `level: 201` does. */
+const LIST_KEYS = ['prerequisites', 'baseline'];
+
+/* Strip whitespace, and then ONE matched pair of surrounding quotes.
+
+   Measured 2026-08-14 against the steward's own two courses: he writes
+   `title: "Junior Electrical Engineer Path — …"`, which is ordinary YAML
+   and which this function used to hand back with the quote marks still
+   attached, so the Course Board would have shown them. Only a MATCHED
+   pair is removed, and only one, so a title that genuinely ends in a
+   quotation mark loses nothing. */
+const clean = s => {
+  const v = String(s == null ? '' : s).trim();
+  const q = v.charAt(0);
+  if (v.length >= 2 && (q === '"' || q === "'") && v.charAt(v.length - 1) === q) {
+    return v.slice(1, -1).trim();
+  }
+  return v;
+};
 
 /* ---------- reading it ----------
    Returns { ok, lesson, problems }. `problems` is always an array of
@@ -73,13 +114,41 @@ export function parseCourse(text, opts) {
   const fm = /^---\n([\s\S]*?)\n---\n?/.exec(src);
   if (fm) {
     body = src.slice(fm[0].length);
+    /* A key with no value opens a BLOCK LIST — the `- item` lines beneath it
+       belong to it until the next key. This is ordinary YAML and it is how
+       the steward writes `prerequisites:`; without it, `parseCourse` reported
+       one problem per bullet and refused the file outright. Measured
+       2026-08-14 on courses/junior-electrical-engineer.course.md: three
+       problems, ok:false, the course could not enter the Pavilion at all.
+
+       A `- ` line is only ever read as a list item when a list is actually
+       open. Otherwise it falls through to the "frontmatter is key: value"
+       problem exactly as before, so a genuinely malformed file still says so. */
+    let listKey = null;
+    let listBag = null;
     for (const line of fm[1].split('\n')) {
       if (!line.trim() || /^\s*#/.test(line)) continue;
+      const item = /^\s*-\s+(.*\S)\s*$/.exec(line);
+      if (item && listKey) { listBag[listKey].push(clean(item[1])); continue; }
       const at = line.indexOf(':');
       if (at < 0) { problems.push(`Could not read the line "${line.trim()}" — frontmatter is "key: value".`); continue; }
       const k = line.slice(0, at).trim().toLowerCase();
       const v = clean(line.slice(at + 1));
-      if (KNOWN.includes(k)) meta[k] = v; else extra[k] = v;
+      const bag = KNOWN.includes(k) ? meta : extra;
+      if (!v && (LIST_KEYS.includes(k) || bag === extra)) {
+        /* Empty value: it is either a declared list key, or an unknown key
+           that may turn out to be one. Start a list; if no `- ` line follows,
+           it collapses back to the empty string below so nothing changes. */
+        bag[k] = [];
+        listKey = k; listBag = bag;
+        continue;
+      }
+      bag[k] = v;
+      listKey = null; listBag = null;
+    }
+    /* A list that never received an item is just an empty value. */
+    for (const bag of [meta, extra]) {
+      for (const k of Object.keys(bag)) if (Array.isArray(bag[k]) && !bag[k].length) bag[k] = '';
     }
   }
 
@@ -107,12 +176,19 @@ export function parseCourse(text, opts) {
   if (cur) steps.push(cur);
 
   /* lessonToMarkdown writes an italic facts line (`*Reading · level 101*`)
-     under the title and an italic provenance footer under a `---` rule. Both
-     are rendered FROM the frontmatter, so reading them back as prose would
-     duplicate them on every round trip. Dropped, not parsed. */
+     under the title, a `**Before this:** …` line when prerequisites were
+     passed, and an italic provenance footer under a `---` rule. All three are
+     rendered FROM the frontmatter, so reading them back as prose would
+     duplicate them on every round trip. Dropped, not parsed.
+
+     A bare `---` rule is dropped too (2026-08-14). The steward separates every
+     module with one, so without this every step body ended in a literal
+     "---" — mdLite renders one mark and that is not it. */
   const tidy = a => a.join('\n')
     .replace(/^\s*\*[^*\n]+\*\s*$/gm, '')
     .replace(/^---\s*$[\s\S]*?_Written in the Sand Pavilion[^_]*_\s*$/m, '')
+    .replace(/^\*\*Before this:\*\*.*$/gm, '')
+    .replace(/^---+\s*$/gm, '')
     .replace(/\n{3,}/g, '\n\n').trim();
 
   if (!title) problems.push('No title — give it a `title:` in the frontmatter, or a `# Heading` at the top.');
@@ -134,18 +210,57 @@ export function parseCourse(text, opts) {
   const model = clean(meta['drafted-with']);
   const by = model ? { who: 'ai', user, model } : { who: 'you', user };
 
+  /* --- THE OPENING INTENTION, kept instead of thrown away.
+
+     Everything before the first `##` used to be read for one paragraph and
+     dropped. On the steward's own courses that discarded the whole of
+     "# How to walk this course" — which is not preamble, it is required
+     piece 1 of plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md, the answer to
+     "what is the real question that brings you here".
+
+     The summary is lifted out of the intro when the two share their first
+     paragraph, so that emitting (which writes the summary as prose above the
+     intro) and re-reading is stable rather than duplicating a paragraph on
+     every pass. --- */
+  const pre = tidy(preamble);
+  const paras = pre ? pre.split('\n\n') : [];
+  /* A summary is one line by the time it is written back out — the emitter
+     folds it, because frontmatter has no multi-line scalar here. So fold it
+     on the way IN as well, or the two disagree the moment a paragraph
+     contains a soft line break. Caught on the real
+     courses/theoretical-minimum.course.md, whose opening paragraph is two
+     lines: the summary round-tripped folded, stopped matching the intro's
+     first paragraph, and the paragraph appeared TWICE on the second pass. */
+  const fold = s => String(s == null ? '' : s).replace(/\s*\n+\s*/g, ' ').trim();
+  const summary = clean(meta.summary) ? fold(clean(meta.summary)) : fold(paras[0] || '');
+  const intro = (paras.length && fold(paras[0]) === summary
+    ? paras.slice(1).join('\n\n')
+    : pre).trim();
+
   const lesson = {
     title,
-    summary: clean(meta.summary) || tidy(preamble).split('\n\n')[0] || '',
+    summary,
     track: clean(meta.track) || 'Your own lessons',
     level: Number(meta.level) || 101,
     steps: steps.map(s => ({ title: s.title, body: tidy(s.lines) })),
     by,
     mine: true,
   };
+  if (intro) lesson.intro = intro;
   if (meta.reading) lesson.book = { slug: clean(meta.reading) };
   if (meta.license) lesson.license = clean(meta.license);
   if (meta.source) lesson.source = clean(meta.source);
+  /* The five promoted 2026-08-14. `purpose` and `outcome` are the standard's
+     required pieces 1 and 5; `category` is the Course Board's own vocabulary
+     arriving under its own name at last. */
+  if (meta.purpose) lesson.purpose = clean(meta.purpose);
+  if (meta.audience) lesson.audience = clean(meta.audience);
+  if (meta.outcome) lesson.outcome = clean(meta.outcome);
+  if (meta.category) lesson.category = clean(meta.category);
+  for (const k of LIST_KEYS) {
+    if (Array.isArray(meta[k]) && meta[k].length) lesson[k] = meta[k].slice();
+    else if (meta[k]) lesson[k] = [clean(meta[k])];
+  }
   /* Unknown keys ride along rather than being dropped — a file from a
      newer Pavilion must survive a trip through an older one. */
   if (Object.keys(extra).length) lesson.extra = extra;
@@ -163,6 +278,167 @@ export function parseCourse(text, opts) {
    npm test asserts parse(emit(x)) === x rather than trusting it. */
 export function emitCourse(lesson) {
   return lessonToMarkdown(lesson || {}, { frontmatter: true });
+}
+
+/* ================================================================
+   [THE BOARD AND THE DOCUMENT] — two shapes for one idea, joined.
+
+   `data.courses` (the Course Board) and `data.myLessons` (the Learning
+   Tree) diverged in July and have disagreed ever since: a Board step was
+   {title, practice, url, done}, a Tree step {title, body}. Step 4 of
+   plans/COURSE-AUTHORING-AND-IMPORT.md named it and deliberately left it.
+
+   The steward settled it 2026-08-14: the COURSE BOARD is where courses
+   live and are walked; the Learning Tree becomes the visual map of what
+   you might want to do and points here. So the Board's step gains `body`
+   — ADDITIVELY, so every course pinned before today renders unchanged —
+   and these two functions are the only place the two shapes meet.
+
+   They are a PAIR ON PURPOSE. `emitCourse` still delegates to
+   data/lesson-doc.js, the one and only Markdown writer; a Board course
+   reaches it by becoming a lesson first, never by growing a second
+   emitter here. npm test fails the build if one appears.
+   ================================================================ */
+
+/* A course carries the standard's own vocabulary in `category`
+   ("Skill", "Study"); the Board keeps a lowercase id. The allowed ids are
+   passed IN rather than restated here, because a second copy of that list
+   is rule 4's exact shape and this file is pure. */
+function categoryId(v, allowed) {
+  const want = String(v == null ? '' : v).trim().toLowerCase();
+  const list = allowed && allowed.length ? allowed : [];
+  return list.includes(want) ? want : 'personal';
+}
+
+export function courseFromLesson(lesson, opts) {
+  const L = lesson || {};
+  const o = opts || {};
+  const c = {
+    id: o.id || Date.now(),
+    title: L.title || 'A course',
+    /* The Board has always shown one line under the title. A full course
+       has a purpose; a checklist has whatever the person typed. */
+    why: L.purpose || L.summary || '',
+    category: categoryId(L.category, o.categories),
+    due: o.due || null,
+    steps: (L.steps || []).map(s => ({
+      title: s.title || '',
+      body: s.body || '',
+      practice: s.practice || '',
+      url: s.url || '',
+      done: false,
+    })),
+    begun: o.today || '',
+    archived: false,
+  };
+  /* The full-course half. Every one of these is absent on a checklist and
+     absent is the whole distinction, so none of them is defaulted. */
+  if (L.summary) c.summary = L.summary;
+  if (L.intro) c.intro = L.intro;
+  if (L.purpose) c.purpose = L.purpose;
+  if (L.audience) c.audience = L.audience;
+  if (L.outcome) c.outcome = L.outcome;
+  if ((L.prerequisites || []).length) c.prerequisites = L.prerequisites.slice();
+  if ((L.baseline || []).length) c.baseline = L.baseline.slice();
+  if (L.track) c.track = L.track;
+  if (L.level) c.level = L.level;
+  if (L.by) c.by = L.by;
+  if (L.license) c.license = L.license;
+  if (L.source) c.source = L.source;
+  if (L.book) c.book = L.book;
+  if (L.extra) c.extra = L.extra;
+  /* THE CLAIM, not the check. `standard` says which contract this course
+     is under; courseStanding() says whether it is actually met. Keeping
+     them apart is the point — a claim nobody checks is decoration. */
+  c.standard = courseStanding(c).full ? 'high' : 'simple';
+  return c;
+}
+
+export function lessonFromCourse(course) {
+  const c = course || {};
+  const L = {
+    title: c.title || 'A course',
+    summary: c.summary || c.why || '',
+    track: c.track || 'Your own lessons',
+    level: c.level || 101,
+    steps: (c.steps || []).map(s => ({ title: s.title || '', body: s.body || '' })),
+    by: c.by || { who: 'you', user: 'user 1' },
+    mine: true,
+  };
+  if (c.intro) L.intro = c.intro;
+  if (c.purpose) L.purpose = c.purpose;
+  if (c.audience) L.audience = c.audience;
+  if (c.outcome) L.outcome = c.outcome;
+  if ((c.prerequisites || []).length) L.prerequisites = c.prerequisites.slice();
+  if ((c.baseline || []).length) L.baseline = c.baseline.slice();
+  if (c.category) L.category = c.category;
+  if (c.license) L.license = c.license;
+  if (c.source) L.source = c.source;
+  if (c.book) L.book = c.book;
+  if (c.extra) L.extra = c.extra;
+  return L;
+}
+
+/* ---------- simple checklist, or full course? ----------
+
+   THE TWO MODES HAVE TO STAY LOUD. Rich courses and thin checklists share
+   `data.courses` now, so a three-line list must never be able to LOOK like
+   a course somebody could hand to a stranger. This decides which it is,
+   and it decides from what the record actually holds — never from what the
+   record CLAIMS in `standard`.
+
+   ⚠ WHAT THIS DOES NOT CHECK, said plainly rather than implied.
+   plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md lists SEVEN required
+   pieces. Four of them — baseline, theoretical minimum, the daily
+   commitment, and the blank-page gate — have nowhere to live in a course
+   record yet, so this function cannot see them and does not pretend to.
+   `full` here means "this is a real multi-module course with explanatory
+   text, an intention and a stated outcome", which is the honest claim the
+   badge makes. It is NOT the graduation gate and must not be read as one.
+   The remaining pieces arrive with Phase B½ of
+   plans/RICH-COURSE-IMPORT-AND-AUTHORING-PATHWAY.md. */
+export function courseStanding(course) {
+  const c = course || {};
+  const steps = c.steps || [];
+  const bodied = steps.filter(s => {
+    const b = String(s.body || '').trim();
+    return b.length >= 120 || /\n\s*\n/.test(b);
+  });
+
+  const has = {
+    intention: !!(String(c.intro || '').trim() || String(c.purpose || '').trim()),
+    outcome: !!String(c.outcome || '').trim(),
+    modules: steps.length >= 2 && bodied.length >= 2,
+    attribution: !!(String(c.license || '').trim() || (c.by && c.by.user)),
+    prerequisites: !!(c.prerequisites || []).length,
+  };
+
+  /* The three that decide it. Attribution and prerequisites are reported
+     so the ready-for-others checklist has them, but a course is not
+     demoted to a checklist for lacking a licence line. */
+  const full = has.intention && has.outcome && has.modules;
+
+  const missing = [];
+  if (!has.intention) missing.push('No opening intention — say what the real question or goal is, in a `purpose:` line or a paragraph before the first module.');
+  if (!has.outcome) missing.push('No stated outcome — say what a person will be able to do at the end, in an `outcome:` line.');
+  if (!has.modules) {
+    missing.push(steps.length < 2
+      ? 'Only one module — a course another person can walk needs at least two.'
+      : 'The modules have no explanatory text — a heading and a one-line note is a checklist, not a course somebody else could follow.');
+  }
+  if (!has.attribution) missing.push('No licence or author — needed before this can be handed to anyone else.');
+  if (!has.prerequisites) missing.push('No prerequisites — say what someone needs before they start, even if the answer is nothing.');
+
+  return {
+    full,
+    has,
+    missing,
+    /* What a person sees. Never "incomplete" or "low" — a personal
+       checklist is a legitimate thing to keep, not a failed course. */
+    label: full ? 'full course' : 'personal tracking',
+    bodied: bodied.length,
+    steps: steps.length,
+  };
 }
 
 /* ---------- the authoring textarea ----------

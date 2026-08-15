@@ -1,0 +1,327 @@
+================================================================
+DEV LOG — 2026-08-14
+THE COURSES: a real one gets in, a person can make one, and
+neither screen is a wall of text
+================================================================
+
+THE VERDICT THAT STARTED IT
+---------------------------
+
+    "the current state of the course logs and the courses that we
+     have are not acceptable"
+
+He arrived with four documents written outside the tree: a
+High-Standard Course Creation Guide, a Rich Course Import plan, and
+two finished courses — Junior Electrical Engineer, and The
+Theoretical Minimum.
+
+The reason was narrower and worse than "thin". MEASURED, first thing,
+by running parseCourse() against his real frontmatter:
+
+    ok: false
+    problems: [ 'Could not read the line "- "A genuine personal
+                 question or project"" — frontmatter is "key: value".' ]
+
+THE TWO COURSES HE HAD ACTUALLY WRITTEN COULD NOT ENTER THE PAVILION
+AT ALL. Three defects, and both documents hit all three:
+
+  1. `prerequisites:` is a YAML block list. The frontmatter reader
+     wanted `key: value` on every line, so it rejected each bullet
+     and refused the file.
+  2. Quoted values kept their quote marks — the title would have
+     rendered as "Junior Electrical Engineer Path", punctuation and
+     all.
+  3. Everything before the first `##` was read for one paragraph and
+     discarded — throwing away `# How to walk this course`, which is
+     not preamble. It is the Opening Intention, required piece 1 of
+     his own standard.
+
+Four days of green round-trip tests, every one of them against
+Markdown written inside the test file. Rule 1 in a new costume: the
+tidy version is the one that lies. courses/ holds the real files now
+and the suites read those.
+
+
+WHAT SHIPPED
+------------
+
+PHASE A — a course can arrive and be walked.
+
+  · parseCourse: block lists, quote stripping, the intro kept AND
+    shown, and purpose/audience/outcome/prerequisites/category
+    promoted out of `extra` into real fields. `category: "Skill"`
+    now lands on the Board's own Skill category — two halves of one
+    idea that had sat a field-name apart since July.
+  · THE BOARD'S STEP GREW A `body`, additively, so every checklist
+    pinned before today renders unchanged. That settles step 4 of
+    COURSE-AUTHORING-AND-IMPORT.md, which had been named and left
+    since 2026-08-10, on the steward's decision: the Course Board is
+    where courses live and are walked; the Learning Tree becomes the
+    map and points here.
+  · courseFromLesson / lessonFromCourse — a converter PAIR, not a
+    second emitter. emitCourse still delegates to lesson-doc.js and
+    npm test still fails if that changes.
+  · courseStanding() — full course vs personal tracking, read off
+    the record and never off what the record CLAIMS in `standard`.
+    A claim nobody checks is decoration.
+  · Receive a Course: paste, a file, or a drop anywhere on the
+    window. Nothing written until a press.
+
+THE ON-RAMP — because Phase A was half a bridge.
+
+  Measured the same afternoon: grep for "7-step", "Theoretical
+  Minimum" and "prompt template" across src/game/ found NOTHING, and
+  PROTOCOLS.md found nothing. The app could receive a finished course
+  and could not tell one living soul how to make one.
+
+  · data/course-prompt.js — four baseline questions, the 7-step
+    protocol, and a prompt a person copies into any chat window. No
+    key, no connection: text on a clipboard, which is why it works on
+    a machine that cannot run a model at all.
+  · THE BASELINE TRAVELS IN THE COURSE. The prompt tells the model to
+    write `baseline:` back into the frontmatter, so the finished
+    course carries an honest statement of what its author knew when
+    they started. "I built this having never soldered anything" tells
+    the next reader what the work costs somebody starting there, and
+    no `level: 201` does. No new save store; four lines in a file.
+  · A starter shelf globbed from courses/, so you can read a real one
+    before writing your own. Nothing pinned without a press.
+  · PROTOCOLS.md Protocol 4, with the prompt GENERATED from the
+    module. A guard fails if the two drift, because the doc is the
+    copy nobody re-reads.
+  · The book table takes a course too — ONE branch in
+    intakeBookFiles(), which both the drop zone and the file picker
+    already funnel through, so there is no second copy to drift.
+
+THE LIGHTNESS PASS — his correction, and it was right.
+
+    "Right now too much is presented as big blocks of text. That
+     makes the path feel heavy even when the daily work is small...
+     one clear next action at a time."
+
+  The screenshot settled it. One screen carried: a header paragraph,
+  a three-paragraph guidance block, a paste label, a large textarea,
+  three buttons, another paragraph, and four questions each with a
+  two-line hint. I had built that an hour earlier.
+
+  · The Board opens as THREE CARDS, one sentence each. Empty-board
+    text went 436 -> 382 characters and the panel to a third of its
+    height. The seven category chips all reading `0` are hidden when
+    there is nothing to filter.
+  · The Receive panel shows ONE STEP at a time. The hints became
+    placeholders, which is where a hint belongs — eight lines of grey
+    text gone on their own.
+  · Walking: only the module you are on is open, DERIVED from what is
+    done (nextStepOf()'s rule). One primary action. "3 of 9 modules".
+  · About this course folds after the first look — outcome,
+    prerequisites, baseline and intention in ONE fold rather than
+    four stacked paragraphs. Module 1 moved from ~1100px to ~300px.
+  · Read aloud, per module, auto-advancing, through tts.js. Rule 9
+    permits it: "read this to me" scopes to the next module the same
+    way it scopes to the next page.
+
+
+FOUR BUGS THE TESTS FOUND, NONE BY READING
+------------------------------------------
+
+1. THE FIRST VIEW OF A COURSE ARRIVED FOLDED. openCourse() set
+   introSeen and then let the renderer read it, so the one view where
+   the opening intention MUST be open — the first — was the one that
+   hid it. Capture firstLook before recording it.
+
+2. PRESSING A DOOR THREW AWAY THE BASELINE. The three cards all call
+   openReceiveCourse(), which built a fresh view; typing four answers
+   and then glancing at the paste step lost all of them. One-thing-
+   at-a-time is only bearable if stepping away and back is free.
+   Found by a live check, not by reading the code.
+
+3. THE STARTER SHELF WAS BUILT AND UNREACHABLE. I made it its own
+   step and never gave it a door — receiveStep('starters') was called
+   by nothing. The Lab's bug, committed by the person who had written
+   the rule down that morning. It lives under the paste box now:
+   both are ways of getting a course in.
+
+4. THE TITLE-TIDYING PATH HUNG OFF THE CARAVAN DESK AND NOTHING ELSE.
+   Passed all 33 assertions; two rooms from where the books are. Only
+   found by clicking rather than calling window.*. Your Library counts
+   them and offers a door now, and the suite is click-driven so it
+   cannot regress silently.
+
+
+"THEY'RE TITLED WRONG"
+----------------------
+
+Six books he had just brought in for the electrical course. Read
+straight out of his own Postgres, they were FILENAMES:
+
+    2018_dc-electrical-circuits-workbook
+    CIRCUIT ANALYSIS  AND DESIGN 3ed
+    TattersfieldGeorgeM-ElectricalCircuitAnalysis
+    The_Optics_of_Ibn_Al-Haytham_Books_I
+
+parseBookFile() falls back to file.name when an EPUB carries no title
+and a .txt has no `Title:` line, which is most real downloads. The app
+had written every one of them.
+
+data/book-title.js is deterministic (rule 7) and only ever SUGGESTS
+(rule 6 — a filename genuinely does not always contain the title; it
+stops at the archive.org AuthorTitle identifier rather than guessing
+where the name ends).
+
+THE SWEEP IS WHAT EARNED IT. All 423 real titles, not the six: 73
+would have changed and TWO OF THOSE CHANGES WERE DAMAGE —
+`2011-2012` -> `2011 2012`, and `/ A Practical Handbook` -> `/ a`.
+`A Guide to LaTeX` -> `La Te X` was a third, caught only by testing
+titles that were already RIGHT. Now 66 suggestions, 0 unstable,
+0 lossy.
+
+
+A NON-BREAKING SPACE IN A REGEX
+--------------------------------
+
+The sabotage runner refused to match a line that printed as its exact
+twin. U+00A0 was sitting inside `/[_ ]+/g` in code I had written an
+hour earlier. Identical in an editor, in git diff, and in
+JSON.stringify. Harmless here by luck — a later \s+ collapse covered
+it — which is exactly why it needed a guard rather than a fix.
+
+npm test now fails on any invisible character in src/game/. Same
+family as the CRLF failure of 2026-08-13: a difference the eye cannot
+resolve, silently changing what the program matches.
+
+⚠ And the guard's own pattern is written as ESCAPES. The first
+version contained the literal characters, which cannot be read,
+reviewed or grepped — and would have flagged itself.
+
+
+VERIFIED
+--------
+
+    npm test                        all clean
+    47 sabotages, 47 caught         (12 + 21 + 14)
+    receive-course.mjs              71 checks, click-driven
+    course-format 16 · teacher 36 · writing-desk 48 ·
+      study-chain 39 · every-room 16 · speaking-pace · records.cjs
+    build:beta                      clean
+
+Three guards were BORN DEAD and had to be rewritten:
+  · /standingBadge\(c\)/ — the badge renders in three places, so
+    deleting it from the list card left the pattern satisfied.
+  · /catch|fallback/ on the clipboard — the word survived in three
+    other places with the rejection path gone.
+  · the Board's guidance guard matched prose inside a function and
+    went red when three paragraphs became three cards, which was the
+    improvement, not a regression. It reads COURSE_DOORS now.
+
+Check the statement, not the word. Third time this year.
+
+
+WHERE THIS LEAVES THINGS
+------------------------
+
+⚠ verify:release is RED, correctly: the .exe is a day behind source
+and release/win-unpacked is gone (deleted with the installed app), so
+packaged-exe.mjs cannot run until a rebuild. Nothing ships first.
+
+NEXT, agreed and in order:
+
+  1. THE MAP (§7 of the plan). The Board gets a branching view
+     instead of only a list. renderTreeGraph() in ui/lesson-tree.js
+     is ALREADY generic — needsOf / cardHTML / onClickAttr, laid out
+     by dependency depth with SVG edges. Extract it to
+     ui/tree-graph.js (the ui/dom.js precedent) and give the Board a
+     second caller. Branch track -> course -> module.
+     ⚠ A pure PREREQUISITE graph would draw almost no edges: both
+     real courses list prose prerequisites ("Willingness to work from
+     a blank page"), which match no course title, so it would be a
+     list rotated 90°. Say so rather than ship an empty skill tree.
+  2. "Today's one thing" on the Today surface — deferred on purpose:
+     data/the-day.js has four standing rules about not becoming a nag
+     that a redesign has to be planned against.
+  3. The Intention gate, the daily commitment + reset, the blank-page
+     gate. They now have a real course to attach to, which is what
+     today was for. `standard: 'simple'|'high'` is the seam.
+  4. Collections, and the full Tree reframe.
+
+The steward's own test comes first, though: generate a fresh course
+with Grok and receive it. The path exists now; whether it FEELS like
+his is measured by use, never by a suite.
+
+================================================================
+LATER THE SAME DAY — the guided path, and the map
+================================================================
+
+    "What I really want to do is... have an idea, share with you, then
+     you can help me figure out what topics to search for books and
+     also how to draft a plan with ChatGPT or Grok."
+
+THE ORDER IS THE POINT. A course drafted before you know what you are
+reading names books it hopes exist; drafted after, it names the ones
+on your shelf. So the draft step became three beats:
+
+    ① your idea → ② what to read → ③ draft the course
+
+② is HALF DETERMINISTIC AND HALF A PROMPT, and the split is rule 7.
+lookupTerms() — the one term extractor in this application, shared
+with the shelf lookup and passage retrieval — pulls words out of the
+idea, and a substring match says which books you ALREADY OWN that
+touch it. Instant, no model, no connection. Measured on a real save:
+"Understand electric circuits well enough to build a motor" found
+`Lessons in Electric Circuits` on the shelf.
+
+What code CANNOT do — "what else is worth reading" — is a prompt,
+told which books you own so it does not suggest them back. Its last
+line asks for SEARCH TERMS RATHER THAN LINKS: a hallucinated URL
+looks exactly like a real one, and a term you type yourself cannot be
+a dead link.
+
+The loop now closes:
+    an idea → what to read → get the books in (titles tidied on the
+    way) → draft the course → receive it → walk it → read it aloud
+
+
+THE MAP
+-------
+
+ui/tree-graph.js — renderTreeGraph + graphDepths, EXTRACTED UNCHANGED
+from ui/lesson-tree.js. It was already generic (needsOf / cardHTML /
+onClickAttr) and its own comment already called it "the whole 'make it
+look like a skill tree' ask"; the only thing between it and a second
+caller was which file it lived in. The ui/dom.js precedent exactly.
+
+⚠ THE BRANCHES ARE NOT PREREQUISITES, and that is the honest part. A
+prerequisite graph matches `needs` against other node TITLES, and both
+real courses list PROSE prerequisites — "Willingness to work from a
+blank page". Those match no course title, so the graph would have been
+one column: a list, rotated ninety degrees. The tree is built from
+structure the data actually has, TRACK → COURSE → MODULE, and a
+course-to-course edge is drawn only where a prerequisite genuinely
+names another course on the board. Rare until somebody writes one, and
+better said than shipped as an empty skill tree.
+
+Modules draw only for the course you have opened — nine courses would
+be eighty cards, the wall of text this pass removed, rebuilt in SVG.
+Measured: 4 nodes / 2 edges collapsed, 13 / 11 with one expanded.
+
+Read the picture, and it reads: tracks left, courses centre, modules
+branching right. Known rough edge: a long title truncates at the fixed
+196px card ("The Theoretical Minimum — Historical Gate + Modern C").
+Honest truncation, not breakage, and left as-is rather than gold-plated.
+
+
+VERIFIED (the whole day)
+------------------------
+
+    npm test                    clean
+    59 sabotages, 59 caught     (12 + 21 + 14 + 12)
+    receive-course              71 checks, click-driven
+    course-format · teacher · writing-desk · study-chain ·
+      every-room · speaking-pace · records.cjs · note-search.cjs
+    build:beta                  clean
+
+FOUR GUARDS WERE BORN DEAD and had to be rewritten — the badge one,
+the clipboard one twice (once matching the WORD `fallback` anywhere,
+once requiring `.catch` within 200 characters and failing on a sibling
+whose success branch was longer), and the Board guidance one. A guard
+that fails for a reason unrelated to what it guards is a guard people
+start ignoring, so the fix is the STATEMENT: `.catch(fallback)`.

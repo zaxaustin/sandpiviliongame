@@ -578,6 +578,35 @@ your own standing instructions, so you can watch them take effect.
   categorize (Practice / Study / Skill / Work / Health / Personal), search,
   and archive when finished. Quill and the Computer can draft one from a
   conversation; you always review before pinning.
+    - **It opens as three choices**, so there is nothing to work out:
+      **📥 Bring a course in · ✍ Draft a high-standard one · 📐 What
+      "high-standard" means.**
+    - **📥 Bring a course in.** A real course — modules with actual
+      explanatory text, practice, reflection and an artifact — arrives as a
+      Markdown file. **Paste it, or drop a `.course.md` anywhere on the
+      window, or at the book table** where you add books; all three go the
+      same way. You see the title, how many modules, and whether it reads as a
+      **📘 full course** or **personal tracking** *before* anything is saved.
+      Two real courses are listed there to start from, and nothing is pinned
+      until you press.
+    - **✍ Draft a high-standard one.** Four short questions about **where you
+      are starting from** — what you have already done, what you can do
+      without looking it up, where you last got stuck, what you have to hand —
+      then **📋 Copy the prompt** and paste it into ChatGPT, Claude, Grok or a
+      local model. It carries the method, the format and your answers, so what
+      comes back is built for you rather than for a stranger. **No connection
+      and no API key are needed** — it is text on a clipboard. Bring the reply
+      back through *Bring a course in*. Written out in full as **Protocol 4**
+      in `PROTOCOLS.md`.
+    - **Walking one.** Only the module you are on is open; the rest are a line
+      each until you click them. Progress reads *3 of 9 modules*. **🔊 Read it
+      to me** speaks a module aloud and rolls into the next one, the same as
+      reading a book aloud — one click stops it. The course's own *About this
+      course* opens the first time you meet it and folds after that, and it
+      never goes away.
+    - Your **simple checklists are untouched** and clearly labelled *personal
+      tracking* — a list you keep for yourself is a fine thing to keep, and it
+      is not being compared to anything.
 - **🌳 Lesson plans (the Learning Tree)** — the Pavilion's own guided
   curriculum: start at a 101 and climb a tree of prerequisites (Getting
   Started, and more as it grows). Open it fast from the **pause menu** (🌳
