@@ -6341,6 +6341,41 @@ for (const d of SEED_LIBRARY) {
     }
   }
 
+  /* --- 4a · ★ THE COURSE IS DRAFTED FROM YOUR OWN SHELF.
+     Measured 2026-08-15: the steward wants a meditation course and already
+     owns the Yoga Sutras, the Hatha Yoga Pradipika, Raja Yoga, the Dhammapada,
+     the Upanishads, the Rig Veda and three Bhagavad Gitas. Without this the
+     model invents a reading list for books he has on the shelf. --- */
+  const shelved = CP.buildDraftingPrompt({ goal: 'Teach meditation',
+    have: ['The Yoga Sutras of Patanjali', 'Dhammapada'] });
+  if (!/BOOKS ALREADY ON MY SHELF/.test(shelved) || !/The Yoga Sutras of Patanjali/.test(shelved)) {
+    fail('the drafting prompt does not tell the model which books are already owned, so a course drafted '
+       + 'for a full shelf will name books the person has to go and find');
+  }
+  /* ⚠ TWO ASSERTIONS. Matching the bold Reading label alone was satisfied by
+     the FORMAT EXAMPLE, and stayed green with the instruction deleted. The
+     instruction and the example are different jobs: one tells the model to do
+     it, the other shows the shape. Check both, separately. */
+  if (!/must say so on its own line/.test(shelved)) {
+    fail('the drafting prompt no longer INSTRUCTS each module to name the book it reads. Without that line '
+       + 'the course cannot become a door to your own copy — a bibliography instead of a citation.');
+  }
+  if (!/\*\*Reading:\*\* the exact title/.test(shelved)) {
+    fail('the drafting prompt\'s format example no longer SHOWS the **Reading:** line, so a model has the '
+       + 'instruction and no shape to follow');
+  }
+  /* THE SHELF BLOCK IS DATA, NOT PROSE, and the ceilings measure the bare
+     prompt. What must hold is that it costs ONE LINE PER BOOK — that is what
+     stops explanatory prose hiding inside a list. */
+  const bareLines = CP.buildDraftingPrompt({ goal: 'x' }).split('\n').length;
+  const five = ['a', 'b', 'c', 'd', 'e'];
+  const grew = CP.buildDraftingPrompt({ goal: 'x', have: five }).split('\n').length - bareLines;
+  if (grew > five.length + CP.SHELF_BLOCK_OVERHEAD) {
+    fail(`the shelf block costs ${grew} lines for ${five.length} books (cap ${five.length + CP.SHELF_BLOCK_OVERHEAD}). `
+       + 'It is meant to be one line per book plus a fixed header; more than that is prose creeping in '
+       + 'where the line ceiling cannot see it.');
+  }
+
   /* --- 4b · ★ WHAT TO READ COMES BEFORE WHAT TO WRITE.
      The steward: "have an idea, share with you, then you can help me figure
      out what topics to search for books and also how to draft a plan." A
@@ -6493,6 +6528,63 @@ for (const d of SEED_LIBRARY) {
   if (!/accept="\.txt,\.epub,\.md,\.markdown"/.test(ovP)) {
     fail('the book table\'s file picker does not accept .md, so the file dialog filters courses out and the '
        + 'person never gets the chance to try. A door that looks open.');
+  }
+
+  /* ================================================================
+     7a · ★ A MODULE NAMES ITS BOOK, AND THE BOARD MAKES IT A DOOR.
+
+     A title sitting in prose is a sentence; a title the Board can resolve
+     is a way in. Four of the five texts the steward's electrical course
+     names were already on his shelf and it could not link to one of them.
+     ================================================================ */
+  {
+    const withRead = CF2.parseCourse([
+      '---', 'title: "T"', 'purpose: "p"', 'outcome: "o"', '---', '',
+      '# How', '', 'One line.', '', 'Two sentences of intention, long enough to survive the split.', '',
+      '## Module 1 — One', '', '**Reading:** The Yoga Sutras of Patanjali', '',
+      '**Body:** real prose here, long enough to count as a bodied module in every check.',
+    ].join('\n'), { user: 'user 1' });
+    if (!withRead.ok) fail('a module carrying **Reading:** no longer parses: ' + withRead.problems.join(' / '));
+    else {
+      const st = withRead.lesson.steps[0];
+      if (st.reading !== 'The Yoga Sutras of Patanjali') {
+        fail('**Reading:** did not become step.reading — the module cannot point at a book');
+      }
+      if (/\*\*Reading:\*\*/.test(st.body)) {
+        fail('the **Reading:** line was left in the body as well as lifted out, so it renders twice');
+      }
+      /* It has to SURVIVE being handed on, or a course loses its citations the
+         first time somebody exports it. */
+      const back = CF2.parseCourse(CF2.emitCourse(withRead.lesson), { user: 'user 1' });
+      if (!back.ok || back.lesson.steps[0].reading !== st.reading) {
+        fail('a module\'s reading does not survive a round trip through the emitter');
+      }
+    }
+  }
+  /* THE THREE STATES, and the third is the one rule 6 is about. */
+  for (const [what, re] of [
+    ['the confirmed door (opens the Reader)', /openReader\('\$\{jsq\(s\.bookSlug\)\}'\)/],
+    ['the offer to link a close match',       /linkModuleBook\(\$\{c\.id\},\$\{i\}/],
+    ['the honest "not on your shelf yet"',    /not on your shelf yet/],
+  ]) {
+    if (!re.test(ovP)) fail(`the Course Board has lost ${what} for a module that names a book`);
+  }
+  /* ★ NEVER AUTO-RESOLVED. "2018_dc-electrical-circuits-workbook" will never
+     automatically be "James Fiore's DC Electrical Circuit Analysis", and a
+     course silently citing the wrong book is worse than one citing none. */
+  const linkFn = /export function linkModuleBook\([\s\S]*?\n}/.exec(ovP);
+  if (!linkFn) fail('overlays.js: linkModuleBook() not found — the offer to link has no press behind it');
+  else if (!/bookSlug=slug/.test(linkFn[0]) || /\.reading\s*=/.test(linkFn[0])) {
+    fail('linkModuleBook() should record `bookSlug` and leave `reading` alone. The TITLE is the author\'s '
+       + 'and travels with the course; the slug is only true on this shelf.');
+  }
+  {
+    const detail = ovP.slice(ovP.indexOf("v.mode==='detail'"));
+    const upToTick = detail.slice(0, detail.indexOf('Mark this module done'));
+    if (/\.bookSlug\s*=/.test(upToTick)) {
+      fail('the Course Board detail view ASSIGNS bookSlug while rendering. Resolving a title to a book must '
+         + 'be a press (rule 6) — a render that links books silently will link the wrong ones.');
+    }
   }
 
   /* ================================================================

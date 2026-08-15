@@ -136,6 +136,9 @@ export function lessonToMarkdown(node, opts = {}) {
     const r = book ? readingIn((s.title || '') + ' ' + (s.body || '')) : null;
     L.push(`## ${i + 1}. ${s.title || ''}`);
     if (r) L.push(`*Reading: ${readingLabel(r)} of ${book.title}*`);
+    /* The module's own book, written back as the bold label it arrived as, so
+       a course handed to somebody else still points at the text it reads. */
+    if (s.reading) { L.push(''); L.push('**Reading:** ' + s.reading); }
     if (s.body) { L.push(''); L.push(s.body); }
     L.push('');
   });

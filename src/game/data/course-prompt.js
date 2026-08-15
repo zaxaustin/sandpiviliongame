@@ -108,9 +108,22 @@ export const PROTOCOL_STEPS = [
    forever. This is copied ONCE, by a person, into a window they already
    have open. ~770 tokens is cheap there and would be extravagant in a
    system prompt. Tight still matters — a long prompt buries its own
-   instructions — but it is a legibility budget, not a token budget. */
+   instructions — but it is a legibility budget, not a token budget.
+
+   ⚠ AND THEY MEASURE THE BARE PROMPT, not one carrying your shelf. Added
+   2026-08-15, when the shelf block took an 8-book prompt to 89 lines and the
+   ceiling fired. That was the guard measuring the wrong thing: the ceiling
+   exists to stop EXPLANATORY PROSE creeping back, and a list of books you
+   personally own is content you asked for, one line each. A person with forty
+   contemplative texts should get a longer prompt, not a truncated course.
+
+   So the ceilings apply to `buildDraftingPrompt({})`, and a separate guard
+   holds the shelf block to one line per book plus a fixed header — which is
+   what actually stops it hiding bloat. */
 export const PROMPT_MAX_PROSE_LINES = 42;
 export const PROMPT_MAX_LINES = 75;
+/* Header + footer around the book list. Anything beyond this is prose. */
+export const SHELF_BLOCK_OVERHEAD = 6;
 
 const clean = s => String(s == null ? '' : s).replace(/\s*\n+\s*/g, ' ').trim();
 
@@ -124,6 +137,27 @@ export function buildDraftingPrompt(opts) {
   const goal = clean(o.goal);
   const base = o.baseline || {};
   const answer = q => clean(base[q.key]) || '(not answered)';
+  const have = (o.have || []).filter(Boolean).slice(0, 14);
+
+  /* ★ THE BOOKS YOU ALREADY OWN, and this is the difference between "a
+     course" and "MY course". Measured 2026-08-15: the steward wants a
+     meditation course and his shelf already holds the Yoga Sutras of
+     Patanjali, the Hatha Yoga Pradipika, Raja Yoga, the Dhammapada, the
+     Upanishads, the Rig Veda, three Bhagavad Gitas, the Serpent Power and
+     the Diamond Sutra — and nothing in this prompt could say so, so a model
+     would have invented a reading list he already owns.
+
+     Named per module rather than in a lump, because a module that says which
+     book it reads becomes a DOOR to that book on the Board. A lump is a
+     bibliography; a per-module citation is the course pointing at your own
+     shelf. */
+  const shelf = have.length ? [
+    '',
+    'BOOKS ALREADY ON MY SHELF — build the modules around THESE, do not invent a reading list',
+    ...have.map(t => '- ' + t),
+    'Each module that reads one must say so on its own line, exactly:  **Reading:** <the title>',
+    'Copy the title as written above. Say plainly if something important is missing from my shelf.',
+  ] : [];
 
   return [
     'Draft a full course for the Sand Pavilion in the portable Markdown format below.',
@@ -136,6 +170,7 @@ export function buildDraftingPrompt(opts) {
     ...BASELINE_QUESTIONS.map(q => '- ' + q.label + ' ' + answer(q)),
     'Teach for that. Do not re-teach what I can already do, and assume nothing I did not claim.',
     'If the gap is too wide for one course, say so and propose the smaller one that comes first.',
+    ...shelf,
     '',
     'BUILD IT IN THIS ORDER',
     ...PROTOCOL_STEPS.map((s, i) => (i + 1) + '. ' + s),
@@ -192,6 +227,7 @@ export function buildDraftingPrompt(opts) {
     '',
     '**Objective:** one sentence.',
     '',
+    ...(have.length ? ['**Reading:** the exact title of the book from my shelf this module reads.', ''] : []),
     '**Body:** real explanatory paragraphs, as many as the idea needs.',
     '',
     '**Practice:** something I do, not something I read.',

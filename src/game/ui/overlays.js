@@ -6886,6 +6886,36 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
               <div class="tt">${esc(s.title)}</div>
               ${s.practice?`<div class="pp">${esc(s.practice)}</div>`:''}
               <div class="stepBody" style="margin-top:6px;font-size:13px;line-height:1.55;color:#e2d5bd">${courseProse(s.body)}</div>
+              ${(function(){
+                /* ★ THE MODULE'S BOOK, AS A DOOR. A title sitting in prose is a
+                   sentence; a title the Board can resolve is a way in.
+
+                   THREE STATES, and the third is the one rule 6 is about:
+                     · confirmed  — you pressed, it opens the Reader
+                     · a guess    — the shelf has something close; it OFFERS
+                     · nothing    — say so plainly and point at the intake
+
+                   Never auto-resolved. "2018_dc-electrical-circuits-workbook"
+                   will never automatically be "James Fiore's DC Electrical
+                   Circuit Analysis", and a course that silently cites the
+                   wrong book is worse than one citing none. */
+                if(!s.reading) return '';
+                const owned = s.bookSlug ? Store.getDoc(s.bookSlug) : null;
+                if(owned) return `<div class="meta" style="margin-top:8px">📖 Reads
+                  <b>${esc(owned.title||s.reading)}</b>
+                  <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
+                    onclick="openReader('${jsq(s.bookSlug)}')">open it</button></div>`;
+                const guess=shelfMatches(lookupTerms(s.reading, 5))[0];
+                const hit=guess?Store.allDocs().find(d=>(d.title||d.slug)===guess):null;
+                if(hit) return `<div class="meta" style="margin-top:8px">📖 Reads <b>${esc(s.reading)}</b> —
+                  is that <b>${esc(hit.title||hit.slug)}</b> on your shelf?
+                  <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
+                    onclick="linkModuleBook(${c.id},${i},'${jsq(hit.slug)}')">yes, link it</button></div>`;
+                return `<div class="meta" style="margin-top:8px;opacity:.8">📖 Reads <b>${esc(s.reading)}</b> —
+                  not on your shelf yet.
+                  <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
+                    onclick="openBookIntake()">bring it in</button></div>`;
+              })()}
               <div class="row" style="margin-top:11px">
                 <button class="btn" onclick="${tick}">${s.done?'↺ Not done after all':'✓ Mark this module done'}</button>
                 ${ttsAvailable()?`<button class="btn ghost" id="cmSpeak" onclick="toggleCourseSpeak(${c.id},${i})">${
@@ -6957,6 +6987,15 @@ function openModuleOf(c){
   return (c.steps||[]).findIndex(s=>s.body);   // all done: the first real one
 }
 export function openCourseModule(id,i){ stopSpeaking(); state.courseModule=i; renderCourses(); }
+/* The press that turns a title into a door. The course keeps the TITLE its
+   author wrote — that travels, and is true everywhere — and `bookSlug` records
+   what it resolves to on THIS shelf, which is only true here. */
+export function linkModuleBook(id,i,slug){
+  const c=data.courses.find(x=>x.id===id); if(!c||!c.steps[i]) return;
+  c.steps[i].bookSlug=slug; persist();
+  logActivity('Linked "'+(c.steps[i].reading||'a reading')+'" to a book on the shelf.');
+  blip(659,.06,'sine',.03); renderCourses();
+}
 /* Session-only: which view the board is in, and which course the map has
    expanded. Neither is worth saving — a view is where you are looking, not
    something you own. */
@@ -7074,7 +7113,10 @@ export function previewReceivedCourse(){
    at all — the case the hosted door was opened for. */
 export function copyDraftingPrompt(){
   const f=receiveFormState();
-  const text=buildDraftingPrompt(f);
+  /* Hand it the shelf. Without this the model invents a reading list for
+     books the person already owns — measured on a shelf holding the Yoga
+     Sutras, the Dhammapada and three Bhagavad Gitas. */
+  const text=buildDraftingPrompt({ ...f, have:shelfMatches(lookupTerms(f.goal, 6)) });
   const done=(msg)=>{
     state.courseView={mode:'receive', ...f, step:'draft', parsed:state.courseView.parsed, problems:state.courseView.problems,
                       gaps:promptGaps(f), copied:msg};
@@ -7158,6 +7200,7 @@ export function copyReadingPrompt(){
    clipboard is refused, so it is a real button rather than only a rescue. */
 export function showDraftingPrompt(){
   const f=receiveFormState();
+  f.have=shelfMatches(lookupTerms(f.goal, 6));
   state.courseView={mode:'receive', ...f, step:'draft', parsed:state.courseView.parsed, problems:state.courseView.problems,
                     gaps:promptGaps(f), promptText:buildDraftingPrompt(f)};
   renderCourses();
@@ -14484,7 +14527,7 @@ Object.assign(window, {
   openReceiveCourse, receiveStep, previewReceivedCourse, receiveCourseFile, confirmReceivedCourse,
   openCourseModule, toggleCourseSpeak,
   copyDraftingPrompt, showDraftingPrompt, loadStarterCourse, openCourseStandard,
-  findReadingForIdea, copyReadingPrompt, setCourseMap, mapOpenCourse,
+  findReadingForIdea, copyReadingPrompt, setCourseMap, mapOpenCourse, linkModuleBook,
   toggleCourseIntro,
   newCourseAIForm, draftCourseWithAI, setCourseDue, setCourseCat, draftTrainingPlanFromChat,
   setCourseSearch, clearCourseSearch, setCourseCategory, toggleArchivedView, archiveCourse,

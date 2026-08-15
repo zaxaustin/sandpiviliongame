@@ -242,7 +242,28 @@ export function parseCourse(text, opts) {
     summary,
     track: clean(meta.track) || 'Your own lessons',
     level: Number(meta.level) || 101,
-    steps: steps.map(s => ({ title: s.title, body: tidy(s.lines) })),
+    steps: steps.map(s => {
+      const body = tidy(s.lines);
+      /* ★ A MODULE CAN NAME ITS BOOK. `**Reading:** <title>` — the same bold
+         label convention the format already uses for Practice and Reflection,
+         which is why the drafting prompt can ask for it in one line.
+
+         It is LIFTED OUT of the body rather than left in it: a title sitting
+         in prose is a sentence, and a title in a field is a door. The Board
+         turns it into "📖 open it". The line is removed from the body so it
+         does not render twice, and the emitter writes it back — so this
+         survives being handed on, which a sentence would not.
+
+         Matched loosely on purpose (rule 6): what a model writes is a TITLE,
+         and what the shelf has is a slug. Resolving one to the other is the
+         Board's job and needs a human press, because
+         "2018_dc-electrical-circuits-workbook" will never automatically be
+         "James Fiore's DC Electrical Circuit Analysis". */
+      const m = /^\*\*Reading:\*\*\s*(.+?)\s*$/m.exec(body);
+      const step = { title: s.title, body: m ? body.replace(m[0], '').replace(/\n{3,}/g, '\n\n').trim() : body };
+      if (m && m[1]) step.reading = clean(m[1]);
+      return step;
+    }),
     by,
     mine: true,
   };
@@ -324,6 +345,10 @@ export function courseFromLesson(lesson, opts) {
     steps: (L.steps || []).map(s => ({
       title: s.title || '',
       body: s.body || '',
+      /* The title the module names. `bookSlug` is what the person confirmed it
+         resolves to on their shelf — kept apart deliberately, because the
+         title travels with the course and the slug is only true here. */
+      ...(s.reading ? { reading: s.reading } : {}),
       practice: s.practice || '',
       url: s.url || '',
       done: false,
@@ -361,7 +386,8 @@ export function lessonFromCourse(course) {
     summary: c.summary || c.why || '',
     track: c.track || 'Your own lessons',
     level: c.level || 101,
-    steps: (c.steps || []).map(s => ({ title: s.title || '', body: s.body || '' })),
+    steps: (c.steps || []).map(s => ({ title: s.title || '', body: s.body || '',
+                                       ...(s.reading ? { reading: s.reading } : {}) })),
     by: c.by || { who: 'you', user: 'user 1' },
     mine: true,
   };
