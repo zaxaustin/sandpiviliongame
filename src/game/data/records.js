@@ -182,6 +182,52 @@ export function gatherRecords(data, bookTitle){
       slug:null, tags:['finished'], source_key:'day:' + ((t && t.id) || i) });
   }
 
+  /* ★ WHAT YOU ACTUALLY TRIED, at the Learning Desk. Added 2026-08-15 when the
+     steward asked for "a way where people can save their work and look back on
+     it" — and the answer turned out to be a FIFTH KIND here rather than a new
+     room. This walk is already the Pavilion's looking-back surface; a second
+     timeline beside it would be a second thing to keep in step with the first,
+     which is what rule 4 is about.
+
+     `data.courseWork` is { courseId: { moduleIndex: [attempt, …] } }. The title
+     names the module rather than the course, because the module is what you
+     were actually working on; `courseTitle` resolves it so the row reads like a
+     sentence instead of like an id.
+
+     ⚠ THE ATTEMPT TEXT IS NOT PUT IN `detail`. A record row can be written to
+     the database and this file cannot see which home it lands in — so the row
+     carries WHAT happened and WHERE to open it, and your working stays in the
+     save. What is carried is the one line you chose to write for whoever comes
+     next, and only if you wrote one. */
+  const courseName = id => {
+    const c = ((data.courses || []).find(x => String(x.id) === String(id)));
+    return c || null;
+  };
+  for(const [courseId, byModule] of Object.entries(data.courseWork || {})){
+    if(!byModule || typeof byModule !== 'object') continue;
+    const course = courseName(courseId);
+    for(const [i, list] of Object.entries(byModule)){
+      if(!Array.isArray(list)) continue;
+      list.forEach((a, n) => {
+        const d = when(a && a.at);
+        if(!d) return;                          // undated -> skipped, not guessed
+        const step = course && (course.steps || [])[Number(i)];
+        const what = (step && step.title) || ('module ' + (Number(i) + 1));
+        out.push({ kind:'work',
+          title: 'Worked: ' + what,
+          detail: (a && a.stuck) ? String(a.stuck).slice(0, 200) : null,
+          /* `ref` is the course id, carried for IDENTITY and not passed to the
+             opener — openLearningDesk takes no argument, and a door to the
+             right room beats a button that does nothing. It is what lets the
+             desk filter this same walk down to one course instead of writing a
+             second gatherer. */
+          happened: d, ref: String(courseId), opener: 'openLearningDesk', slug: null,
+          tags: [a && a.after ? a.after : (a && a.before) || 'attempted'],
+          source_key: 'work:' + courseId + ':' + i + ':' + (a && a.at) + ':' + n });
+      });
+    }
+  }
+
   // work published or received at the Commons Table
   const commons = data.commons || {};
   for(const [field, verb] of [['published','Published'], ['received','Received']]){
@@ -227,5 +273,6 @@ export const RECORD_LOOK = {
   note:          { icon:'🗒', label:'notes' },
   lesson:        { icon:'🎓', label:'lessons' },
   day:           { icon:'☀', label:'days' },
+  work:          { icon:'🧠', label:'practice worked' },
   dissection:    { icon:'🔬', label:'dissections' },
 };

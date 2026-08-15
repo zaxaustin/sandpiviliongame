@@ -57,4 +57,24 @@ export const BADGES = [
   { id:'streak-3',       icon:'🔥', name:'Three in a Row',     desc:'Finish what you set out to do three days running.' },
   { id:'streak-7',       icon:'🔥', name:'A Full Week',        desc:'Seven days running.' },
   { id:'streak-30',      icon:'🏔', name:'A Month of Mornings', desc:'Thirty days running.' },
+  /* ---- THE LEARNING DESK, 2026-08-15. The steward: "some way of acknowledging
+     progress not as a mission but as like a badge system to support them."
+
+     THIS LIST ALREADY IS THAT SYSTEM — see the header: "things to try without a
+     forced walkthrough". So it grows by five rows rather than gaining a second
+     progress system beside it, which is rule 4 and also the reason Missions
+     stay unbuilt. No levels, no points, no ladder, nothing revoked.
+
+     ⚠ AWARDED FROM THE PRESS, NEVER FROM THE AUTOSAVE. `first-plan` above
+     records what that costs: it was earnable by pressing a thing rather than
+     doing the thing, and the fix was NOT to fire from the autosave, because
+     "a badge toast firing while someone is mid-sentence is a machine
+     congratulating them for typing." Every one of these fires from a button. */
+  { id:'first-attempt',  icon:'🖊', name:'Your Own First Try', desc:'Write your own attempt at a practice, at the Learning Desk, before asking for any help.' },
+  { id:'first-artifact', icon:'🔨', name:'Something You Made', desc:'Finish a module that asked you to make something, having worked it yourself.' },
+  /* The one that is really about other people, and it is deliberately the same
+     size as the others — a quiet nod, not a campaign. */
+  { id:'first-stuck',    icon:'🕯', name:'Named the Snag',     desc:'Write down what tripped you, for whoever walks this course next.' },
+  { id:'course-walked',  icon:'🎓', name:'A Course Walked',    desc:'Finish every module of a full course.' },
+  { id:'course-kept',    icon:'🗂', name:'A Course on Disk',   desc:'Save a course to its own folder — plain files, yours without the Pavilion.' },
 ];

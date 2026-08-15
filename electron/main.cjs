@@ -172,6 +172,98 @@ const libraryDir = () => path.join(app.getPath('userData'), 'library');
 function safeLibraryName(name){
   return typeof name === 'string' && /^[a-z0-9][a-z0-9._-]{0,120}\.txt$/i.test(name) && !name.includes('..');
 }
+/* ================================================================
+   [THE COURSE FOLDER] — a real directory per course, on the visitor's own
+   disk, in plain files anything can open.
+
+   The steward, 2026-08-15: "i also wanna see where we're gonna hold all these
+   files together and if we can combine them all into a course folder that
+   people can access in the back end."
+
+   WHY THIS IS NEW AND libraryWrite IS NOT ENOUGH. That writes flat .txt files
+   into ONE directory, for book text. There was nothing in this app that made a
+   DIRECTORY and nothing that opened one — the two things a folder needs. So
+   this is the smallest bridge that does exactly that, and no more.
+
+     userData/courses/<slug>/
+       README.txt      what this folder is, in plain words
+       course.md       the course itself, from the ONE Markdown emitter
+       syllabus.md     derived, rewritten on every save
+       work/           your attempts, one file per module
+       handouts/       anything printed
+
+   PATH SAFETY IS THE WHOLE RISK SURFACE, so it is two locked gates rather than
+   one clever check: the slug and the filename each go through a slug-safe
+   pattern, and `sub` may only be one of three literal words. A crafted save
+   cannot reach outside this tree, because there is no path component here that
+   comes from the renderer un-validated. */
+const coursesDir = () => path.join(app.getPath('userData'), 'courses');
+const SUBS = ['', 'work', 'handouts'];
+function safeSlug(s){
+  return typeof s === 'string' && /^[a-z0-9][a-z0-9._-]{0,120}$/i.test(s) && !s.includes('..');
+}
+function safeCourseFile(name){
+  return typeof name === 'string' && /^[a-z0-9][a-z0-9._-]{0,120}\.(md|txt|html)$/i.test(name) && !name.includes('..');
+}
+function courseTarget(slug, sub, name){
+  if(!safeSlug(slug)) return null;
+  if(!SUBS.includes(sub == null ? '' : sub)) return null;
+  if(name != null && !safeCourseFile(name)) return null;
+  const dir = sub ? path.join(coursesDir(), slug, sub) : path.join(coursesDir(), slug);
+  return name == null ? { dir } : { dir, file: path.join(dir, name) };
+}
+ipcMain.handle('desktop-course-write', async (event, { slug, sub, name, content }) => {
+  const t = courseTarget(slug, sub, name);
+  if(!t || !t.file || typeof content !== 'string') return { ok:false, error:'bad name or content' };
+  try{
+    await fs.mkdir(t.dir, { recursive: true });
+    await fs.writeFile(t.file, content, 'utf-8');
+    return { ok:true, path: t.file };
+  }catch(e){ return { ok:false, error:String(e) }; }
+});
+ipcMain.handle('desktop-course-read', async (event, { slug, sub, name }) => {
+  const t = courseTarget(slug, sub, name);
+  if(!t || !t.file) return { ok:false, error:'bad name' };
+  try{ return { ok:true, text: await fs.readFile(t.file, 'utf-8') }; }
+  catch(e){ return { ok:false, error:String(e) }; }
+});
+ipcMain.handle('desktop-course-list', async (event, { slug }) => {
+  const t = courseTarget(slug, '', null);
+  if(!t) return { ok:false, error:'bad slug' };
+  try{
+    const out = [];
+    for(const sub of SUBS){
+      const dir = sub ? path.join(t.dir, sub) : t.dir;
+      let names = [];
+      try{ names = await fs.readdir(dir); }catch(e){ continue; }
+      for(const n of names){
+        const full = path.join(dir, n);
+        let st; try{ st = await fs.stat(full); }catch(e){ continue; }
+        if(st.isFile()) out.push({ sub, name: n, bytes: st.size });
+      }
+    }
+    return { ok:true, dir: t.dir, files: out };
+  }catch(e){ return { ok:false, error:String(e) }; }
+});
+/* WHERE IT IS, said in a form a person can act on. The renderer shows this
+   path so "it saved" is checkable without trusting the app. */
+ipcMain.handle('desktop-course-folder', async (event, { slug }) => {
+  const t = courseTarget(slug, '', null);
+  return t ? { ok:true, dir: t.dir } : { ok:false, error:'bad slug' };
+});
+/* ★ AND IT ACTUALLY OPENS. A folder you are told about but cannot get to is
+   the same dead end as a button that does nothing. shell.openPath was already
+   imported for openExternal; this is its second caller. */
+ipcMain.handle('desktop-course-reveal', async (event, { slug }) => {
+  const t = courseTarget(slug, '', null);
+  if(!t) return { ok:false, error:'bad slug' };
+  try{
+    await fs.mkdir(t.dir, { recursive: true });
+    const err = await shell.openPath(t.dir);
+    return err ? { ok:false, error:err } : { ok:true, dir: t.dir };
+  }catch(e){ return { ok:false, error:String(e) }; }
+});
+
 /* What this machine actually is. Nothing identifying — no serial, no name, no
    MAC, nothing that leaves the process — just the three numbers that decide
    whether a local model is a good idea here, and how big it may be. Asked for

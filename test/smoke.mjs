@@ -17,6 +17,7 @@
    furniture.
    ================================================================ */
 import { readFileSync as rawReadFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 /* ⚠ EVERY SOURCE READ IN THIS FILE IS NORMALISED TO LF. Do not "simplify"
    this back to a plain import.
@@ -251,7 +252,14 @@ for (const [key, s] of Object.entries(scenes)) {
      would have cost a tester their evening. */
   const shorthand = block.match(/^\s*([A-Za-z_$][\w$]*)\s*,\s*$/gm) || [];
   const names = new Set(shorthand.map(l => l.trim().replace(/,$/, '')));
-  for (const m of block.matchAll(/(?:^|[{,]\s*)([A-Za-z_$][\w$]*)\s*(?=[,}])/g)) names.add(m[1]);
+  /* ⚠ `^` NEEDS THE m FLAG, and without it this missed the FIRST name on every
+     multi-name line — `^` meant start-of-string, and the alternation only ever
+     fired after a `{` or a `,`. Found 2026-08-15: `openLearningDesk` was in the
+     block, on its own line with three others after it, and the opener check
+     below reported it missing. A false alarm is the kinder half of that bug;
+     the same hole means a name could also be believed present when it is not,
+     because `defined` and `names` are built by two different scans. */
+  for (const m of block.matchAll(/(?:^\s*|[{,]\s*)([A-Za-z_$][\w$]*)\s*(?=[,}])/gm)) names.add(m[1]);
   const defined = new Set();
   for (const m of src.matchAll(/(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)) defined.add(m[1]);
   for (const m of src.matchAll(/(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) defined.add(m[1]);
@@ -5596,14 +5604,32 @@ for (const d of SEED_LIBRARY) {
    meaning is knowing how many places award it and failing when that changes. */
 {
   const { BADGES } = await import('../src/game/data/badges.js');
-  const files = ['entities.js', 'main.js', 'ui/overlays.js', 'ui/daily-tasks.js',
-                 'ui/lesson-tree.js', 'ui/study-table.js', 'ui/residents.js'];
+  /* EVERY .js UNDER src/game, walked, rather than a hand-kept list of seven.
+     The list was a list-that-must-match-another-place (rule 4) and it went
+     wrong the first time a new panel awarded anything: ui/learning-desk.js
+     landed 2026-08-15 with three award sites in it, and this guard reported
+     that three badges were declared and awarded by nothing at all. It was
+     reading six files out of eight. */
+  const walkJs = (dir) => {
+    const out = [];
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const full = dir + '/' + e.name;
+      if (e.isDirectory()) out.push(...walkJs(full));
+      else if (e.name.endsWith('.js')) out.push(full);
+    }
+    return out;
+  };
+  /* fileURLToPath, not .pathname — the repo lives under "sand pavilion game"
+     and a URL keeps that space as %20, which scandir then looks for literally. */
+  const gameDir = fileURLToPath(new URL('../src/game', import.meta.url));
   const bodies = {};
-  for (const f of files) {
-    try {
-      bodies[f] = readFileSync(new URL('../src/game/' + f, import.meta.url), 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    } catch (e) { /* not every path exists forever */ }
+  for (const full of walkJs(gameDir)) {
+    bodies[full] = readFileSync(full, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  }
+  if (Object.keys(bodies).length < 15) {
+    fail('badges: walked only ' + Object.keys(bodies).length + ' source files under src/game — the '
+       + 'scan is broken, and "nothing awards it" below would be reporting on nothing');
   }
   const all = Object.values(bodies).join('\n');
   /* The definition and the dispatcher are not award sites. */
@@ -5645,6 +5671,16 @@ for (const d of SEED_LIBRARY) {
     'first-lesson':1,        // saveMyLesson() ONLY
     'first-task':1, 'five-tasks':1, 'twentyfive-tasks':1,
     'streak-3':1, 'streak-7':1, 'streak-30':1,
+    /* ---- The Learning Desk, 2026-08-15. Every one of these is awarded from a
+       BUTTON and from exactly one place, which is what keeps each of them
+       meaning one thing. If a number here rises, re-read the description
+       first: first-note said "add a note to a book in the Reader" while being
+       awarded for planting a bequest three rooms away. */
+    'first-attempt':1,       // keepAttempt() ONLY — the press, never the typing
+    'first-stuck':1,         // the same press, and only if you wrote the line
+    'first-artifact':1,      // toggleStep(), and only with an attempt behind it
+    'course-walked':1,       // toggleStep(), when the last module goes done
+    'course-kept':1,         // saveCourseFolder(), and NOT on the quiet re-save
   };
   for (const id of Object.keys(EXPECTED)) {
     const n = awards.filter(a => a === id).length;
@@ -5667,8 +5703,11 @@ for (const d of SEED_LIBRARY) {
     ['first-book-note', 'ui/overlays.js', 'writeBookNote'],
     ['first-lesson',    'ui/lesson-tree.js', 'saveMyLesson'],
   ];
+  /* `bodies` is keyed by absolute path now that the scan walks the tree, so
+     look a file up by its tail rather than by an exact key. */
+  const bodyOf = rel => bodies[Object.keys(bodies).find(k => k.replace(/\\/g, '/').endsWith('/' + rel))] || '';
   for (const [id, file, fn] of pinned) {
-    const src = bodies[file] || '';
+    const src = bodyOf(file);
     const at = src.search(new RegExp('(?:export\\s+)?(?:async\\s+)?function\\s+' + fn + '\\s*\\('));
     if (at < 0) { fail(`smoke: cannot find ${fn}() in ${file} — the badge pin is watching nothing`); continue; }
     let i = src.indexOf('{', at), depth = 0, end = i;

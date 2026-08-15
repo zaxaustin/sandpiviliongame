@@ -41,6 +41,7 @@ import { state, data, persist, todayKey, logActivity, awardBadge } from '../enti
 import { blip } from '../main.js';
 import { esc, jsq, courseProse } from './dom.js';
 import { moduleParts, courseStanding } from '../data/course-format.js';
+import { courseFolderFiles, courseSlug } from '../data/course-folder.js';
 import { referenceFor, refLine } from '../data/reference.js';
 import { currentUser } from '../data/note-versions.js';
 
@@ -240,11 +241,63 @@ function renderCourseWork() {
     return;
   }
   const i = currentIndex(c);
+  const v = view();
+  if (v.looking) { el.innerHTML = courseHeader(c, i) + allWork(c); return; }
   const step = c.steps[i] || {};
   const parts = moduleParts(step.body);
   el.innerHTML = courseHeader(c, i) + moduleWork(c, i, step, parts);
   restoreDraft();
   renderAids();
+}
+
+/* ---- ★ EVERYTHING YOU HAVE WORKED ON THIS COURSE ----
+
+   The steward: "i wanna see a way where people can save their work and look
+   back on it."
+
+   A FILTER, NOT A SECOND GATHERER. gatherRecords() already walks the save and
+   produces the Pavilion's one history; `work` is a kind in it now, and each row
+   carries its course id in `ref`. So this view is that walk narrowed to one
+   course — which means what you see here and what the Records Hall shows can
+   never drift, because there is only one of them.
+
+   The row text still comes from the save, not from the record: a record row
+   carries WHAT happened, and your working stays where it is private. */
+export function learnLookBack(on) {
+  const v = view();
+  v.looking = !!on;
+  renderLearningDesk();
+  blip(on ? 587 : 523, .05, 'sine', .03);
+}
+function allWork(c) {
+  const rows = X.records ? X.records().filter(r => r.kind === 'work' && r.ref === String(c.id)) : [];
+  const back = `<div class="row" style="margin-top:12px">
+      <button class="btn ghost" onclick="learnLookBack(false)">← Back to the work</button></div>`;
+  if (!rows.length) {
+    return `<p style="margin-top:14px">Nothing kept on this course yet.</p>
+      <div class="meta" style="margin-top:5px">Work a module's practice and press <b>Keep this
+        attempt</b>, and it will be here — with the date, and what you said before and after.</div>${back}`;
+  }
+  /* The record row says what and when; the attempt itself is looked up beside
+     it, because that text never leaves the save. */
+  const detail = r => {
+    const bits = String(r.source_key).split(':');   // work:courseId:i:date:n
+    const list = attemptsFor(c.id, bits[2]);
+    return list[Number(bits[4])] || null;
+  };
+  return `<h3 style="margin:16px 0 2px">Your work on this course</h3>
+    <div class="meta">${rows.length} attempt${rows.length === 1 ? '' : 's'}, newest first.
+      Kept here and nowhere else.</div>
+    ${rows.map(r => {
+      const a = detail(r);
+      return `<div style="margin-top:10px;padding:9px 12px;border:2px solid #3f3225;border-radius:8px;background:#191309">
+        <div class="meta" style="margin:0">${esc(r.happened)} · ${esc(r.title.replace(/^Worked: /, ''))}${
+          a && a.before ? ` · you said: <b>${esc(saidLabel(a.before))}</b>` : ''}${
+          a && a.after ? ` · afterwards: <b>${esc(saidLabel(a.after, 'after'))}</b>` : ''}</div>
+        ${a ? `<div style="margin-top:5px;font-size:13px;line-height:1.5;color:#e2d5bd;white-space:pre-wrap">${esc(a.text)}</div>` : ''}
+        ${r.detail ? `<div class="meta" style="margin-top:5px">🕯 Stuck on: ${esc(r.detail)}</div>` : ''}
+      </div>`;
+    }).join('')}${back}`;
 }
 
 /* ---- WHAT YOU HAVE TYPED AND NOT YET KEPT ----
@@ -284,6 +337,12 @@ function restoreDraft() {
 }
 function clearDraft() { draft.text = ''; draft.stuck = ''; }
 
+/* Every attempt on this course, across every module. Counted from the store
+   directly — a count is cheap and must never be a guess. */
+function workCount(c) {
+  const byModule = workStore()[c.id] || {};
+  return Object.values(byModule).reduce((n, l) => n + (Array.isArray(l) ? l.length : 0), 0);
+}
 function courseHeader(c, i) {
   const list = workableCourses();
   const done = c.steps.filter(s => s.done).length;
@@ -294,7 +353,10 @@ function courseHeader(c, i) {
         ${list.length > 1 ? `· <button class="btn ghost" style="font-size:11px;padding:2px 8px"
           onclick="learnPickCourse(null)">switch course</button>` : ''}
         · <button class="btn ghost" style="font-size:11px;padding:2px 8px"
-          onclick="openCourse(${c.id})">read it on the Board</button></div>
+          onclick="openCourse(${c.id})">read it on the Board</button>
+        ${workCount(c) ? `· <button class="btn ghost" style="font-size:11px;padding:2px 8px"
+          onclick="learnLookBack(${view().looking ? 'false' : 'true'})">📓 your work on this course
+          (${workCount(c)})</button>` : ''}</div>
       <div class="row" style="margin-top:8px;gap:5px;flex-wrap:wrap">
         ${c.steps.map((s, n) => `<button class="btn ${n === i ? '' : 'ghost'}"
           style="font-size:10.5px;padding:3px 8px" title="${esc(s.title)}"
@@ -317,7 +379,8 @@ function moduleWork(c, i, step, parts) {
     ${refChips(parts)}
     ${saidRow()}
     ${blankPage(c, i)}
-    ${pastAttempts(c, i)}`;
+    ${pastAttempts(c, i)}
+    ${folderRow(c)}`;
 }
 function block(label, text, colour) {
   return `<div style="margin-top:11px;padding:9px 12px;border-left:3px solid ${colour};background:#241c12;border-radius:0 7px 7px 0">
@@ -494,10 +557,23 @@ export function keepAttempt(courseId, i) {
   clearDraft();
   v.said = null;
   renderLearningDesk();
-  X.afterAttempt && X.afterAttempt(c, i, entry);
-  const m2 = document.getElementById('lwMsg');
-  if (m2) m2.textContent = 'Kept. Now — could you do it?';
+  /* ★ THE FOLDER RIDES THIS PRESS. One press, both writes — otherwise the copy
+     on disk quietly falls behind the copy in the app, and a person who trusts
+     the folder loses work they can see on screen. `quiet` so it does not steal
+     the message line or fire the badge; it only fires if a folder already
+     exists, because writing one for the first time is a decision, not a side
+     effect of keeping an attempt. */
+  folderAlreadyThere(c).then(there => { if (there) saveCourseFolder(courseId, true); });
   askAfter(courseId, i);
+}
+/* Has this course been written out before? Asked of the disk, never assumed —
+   the folder can be deleted or moved by hand, and it is the person's folder. */
+async function folderAlreadyThere(c) {
+  if (!courseFolderAvailable()) return false;
+  try {
+    const res = await window.desktopBridge.courseList(courseSlug(c));
+    return !!(res && res.ok && (res.files || []).length);
+  } catch (e) { return false; }
 }
 /* The second half of the honor system, drawn only once there is something to
    attach it to. Same three words, and skipping it is a legitimate answer. */
@@ -537,6 +613,87 @@ export function printPractice(courseId, i) {
     ].filter(Boolean),
   });
   blip(587, .05, 'sine', .03);
+}
+
+/* ---------- the folder on disk ----------
+
+   The steward: "hold all these files together… a course folder that people
+   can access in the back end."
+
+   ONE PRESS WRITES EVERYTHING, and the same write rides the keep-attempt press
+   so the folder can never quietly fall behind what the app holds. What goes in
+   it is decided by data/course-folder.js, which is pure and shared; this only
+   moves the bytes and reports what happened.
+
+   ABSENT, NOT DEGRADED, on the web build (rule: never two implementations). No
+   desktop bridge means no folder — it says so, says how to get one, and offers
+   the single-file download the rest of this app already uses. */
+export function courseFolderAvailable() {
+  return !!(typeof window !== 'undefined' && window.desktopBridge && window.desktopBridge.courseWrite);
+}
+export async function saveCourseFolder(courseId, quiet) {
+  const c = (data.courses || []).find(x => x.id === courseId);
+  if (!c) return null;
+  const say = t => { const el = document.getElementById('lfMsg'); if (el) el.textContent = t; };
+  const { slug, files } = courseFolderFiles(c, { attemptsFor, owned: X.owned });
+  if (!courseFolderAvailable()) {
+    if (!quiet) say('The folder needs the desktop app — in a browser there is nowhere on your disk to '
+                  + 'put it. Use “save the course as one file” instead.');
+    return null;
+  }
+  let wrote = 0;
+  for (const f of files) {
+    const res = await window.desktopBridge.courseWrite(slug, f.sub, f.name, f.content);
+    /* ⚠ LOUD, ALWAYS. A full disk, a read-only drive, a folder someone else has
+       open — a save button that quietly does nothing is the house failure mode,
+       and this one is about a person's own work. */
+    if (!res || !res.ok) { say('Could not write ' + f.name + ' — ' + ((res && res.error) || 'no reason given')); return null; }
+    wrote++;
+  }
+  const where = await window.desktopBridge.courseFolder(slug);
+  if (!quiet) {
+    awardBadge('course-kept');
+    blip(700, .07);
+    say(wrote + ' file' + (wrote === 1 ? '' : 's') + ' written to ' + ((where && where.dir) || slug));
+    renderLearningDesk();
+  }
+  return (where && where.dir) || slug;
+}
+export async function revealCourseFolder(courseId) {
+  const c = (data.courses || []).find(x => x.id === courseId);
+  if (!c || !courseFolderAvailable()) return;
+  const slug = courseSlug(c);
+  const res = await window.desktopBridge.courseReveal(slug);
+  const el = document.getElementById('lfMsg');
+  if (el && (!res || !res.ok)) el.textContent = 'Could not open that folder — ' + ((res && res.error) || 'no reason given');
+}
+/* The web build's honest substitute: the course as ONE file, through the same
+   emitter and the same saveFile/<a download> path written six times already in
+   this codebase. Not a second implementation of the folder — a different,
+   smaller thing, named as such. */
+export async function saveCourseFile(courseId) {
+  const c = (data.courses || []).find(x => x.id === courseId);
+  if (!c || !X.saveText) return;
+  const { slug, files } = courseFolderFiles(c, { attemptsFor, owned: X.owned });
+  const md = files.find(f => f.name === 'course.md');
+  await X.saveText(slug + '.md', md ? md.content : '');
+}
+function folderRow(c) {
+  const desktop = courseFolderAvailable();
+  return `<details style="margin-top:16px">
+    <summary class="meta" style="cursor:pointer">🗂 This course as files on your disk</summary>
+    <div class="meta" style="margin-top:7px">Plain Markdown in a folder of its own — the course, its
+      syllabus, and what you wrote. Yours, readable by anything, with or without the Pavilion.</div>
+    <div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">
+      ${desktop
+        ? `<button class="btn" onclick="saveCourseFolder(${c.id})">💾 Save this course to its folder</button>
+           <button class="btn ghost" onclick="revealCourseFolder(${c.id})">📂 Open the folder</button>`
+        : `<button class="btn" onclick="saveCourseFile(${c.id})">⤓ Save the course as one file</button>`}
+    </div>
+    ${desktop ? '' : `<div class="meta" style="margin-top:6px;opacity:.8">A folder needs the desktop app —
+      a browser has nowhere on your disk to put one. The single file above is the whole course.</div>`}
+    <div class="meta" id="lfMsg" style="margin-top:6px"></div>
+  </details>`;
 }
 
 /* ---------- the AI's part, and it reacts ---------- */

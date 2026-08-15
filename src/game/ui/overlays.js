@@ -23,7 +23,8 @@ import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLab
          studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson } from './study-table.js';
 import { initLearningDesk, openLearningDesk, renderLearningDesk, workModuleHere, workableCourses,
          learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter, learnAsk,
-         keepAttempt, printPractice, attemptsFor } from './learning-desk.js';
+         keepAttempt, printPractice, attemptsFor, learnLookBack,
+         saveCourseFolder, revealCourseFolder, saveCourseFile } from './learning-desk.js';
 /* main.js opens rooms through this file, never through the panel modules —
    one import list to read, and the same shape every other station has. */
 export { openLearningDesk };
@@ -5450,6 +5451,34 @@ initLearningDesk({
      renderStudyTable() that lived in the Writing Desk's toolbox, drawing into
      the Learning Desk's body instead. */
   renderStudyTable, studyTableLabel,
+  /* THE ONE HISTORY, narrowed. gatherRecords() is the Pavilion's single walk
+     over the save; the desk filters it to one course rather than writing a
+     second gatherer that would have to agree with the first. */
+  records: () => { try { return gatherRecords(data, s => { const d = Store.getDoc(s); return d && d.title; }); }
+                   catch(e){ return []; } },
+  /* THE SAME SHELF PREDICATE THE SYLLABUS USES. One question, one answer — the
+     folder's syllabus.md and the syllabus on screen must not disagree about
+     whether you own a book, which is the bug they had on the Board a day ago. */
+  owned: syllabusOwned,
+  /* The saveFile → <a download> path, written six times in this file already.
+     The seventh caller gets the sixth implementation. */
+  saveText: async (name, text) => {
+    if(typeof window!=='undefined' && window.desktopBridge?.saveFile){
+      const res=await window.desktopBridge.saveFile(name, text);
+      if(res && res.canceled) return;
+      const el=document.getElementById('lfMsg');
+      if(el) el.textContent=(res&&res.ok)?('Saved as '+name+'.'):'Could not save that file.';
+      if(res&&res.ok) blip(700,.07);
+      return;
+    }
+    const blob=new Blob([text],{type:'text/markdown'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),800);
+    const el=document.getElementById('lfMsg');
+    if(el) el.textContent='Saved to your Downloads folder as '+name+'.';
+  },
   /* A ONE-SHOT TUTORING JOB IS NOT A CONVERSATION, so it wears WORK_CHARTER
      rather than a resident's prompt — the same call draftText() makes, and for
      the same reason it was changed to: routed through a resident, a drafting
@@ -7535,6 +7564,21 @@ export function toggleStep(id,i){
   const c=data.courses.find(x=>x.id===id); if(!c) return;
   c.steps[i].done=!c.steps[i].done; persist();
   blip(c.steps[i].done?740:440,.05,'square',.035);
+  /* ---- TWO MARKS OF PROGRESS, and both come off THIS press.
+
+     "acknowledging progress not as a mission but as like a badge system to
+     support them" — so they hang off the button a person actually pushes to
+     say they finished something, never off a save or a timer. Nothing is
+     revoked when a module is un-ticked; a thing you once did, you did.
+
+     `first-artifact` is deliberately narrow: the module has to have ASKED you
+     to make something, and you have to have written an attempt at it. Ticking
+     a box you never worked is not making a thing, and a badge that fires for
+     it would be exactly the empty encouragement rule 9 keeps out. */
+  if(c.steps[i].done){
+    if(moduleParts(c.steps[i].body).artifact && attemptsFor(c.id, i).length) awardBadge('first-artifact');
+    if(courseStanding(c).full && c.steps.every(s=>s.done)) awardBadge('course-walked');
+  }
   renderCourses();
 }
 export function removeCourse(id){
@@ -14706,7 +14750,8 @@ Object.assign(window, {
   studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
   studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson,
   /* ui/learning-desk.js — same rule, same block. */
-  openLearningDesk, learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter,
+  openLearningDesk, learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter, learnLookBack,
+  saveCourseFolder, revealCourseFolder, saveCourseFile,
   learnAsk, keepAttempt, printPractice, workModuleHere,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,

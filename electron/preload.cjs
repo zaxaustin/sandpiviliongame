@@ -26,6 +26,18 @@ contextBridge.exposeInMainWorld('desktopBridge', {
   libraryWrite: (name, content) => ipcRenderer.invoke('desktop-library-write', { name, content }),
   libraryRead: (name) => ipcRenderer.invoke('desktop-library-read', { name }),
   libraryDelete: (name) => ipcRenderer.invoke('desktop-library-delete', { name }),
+  /* THE COURSE FOLDER — a real directory per course under userData/courses,
+     in plain Markdown anything can open. Asked for 2026-08-15: "hold all these
+     files together... a course folder that people can access in the back end."
+     `sub` is only ever '' | 'work' | 'handouts', and both slug and name go
+     through a slug-safe pattern in main.cjs — see courseTarget(). */
+  courseWrite: (slug, sub, name, content) => ipcRenderer.invoke('desktop-course-write', { slug, sub, name, content }),
+  courseRead: (slug, sub, name) => ipcRenderer.invoke('desktop-course-read', { slug, sub, name }),
+  courseList: (slug) => ipcRenderer.invoke('desktop-course-list', { slug }),
+  courseFolder: (slug) => ipcRenderer.invoke('desktop-course-folder', { slug }),
+  /* Opens it in Explorer/Finder. A folder you are told about but cannot reach
+     is the same dead end as a button that does nothing. */
+  courseReveal: (slug) => ipcRenderer.invoke('desktop-course-reveal', { slug }),
   // Personal-Library text in the local Docker MinIO (the 100 GB space) —
   // SELF-HOSTED-STACK-PLAN.md. Preferred over libraryWrite when Docker/MinIO is
   // available; returns {ok,bucket,key} so the catalog stores a storage pointer
