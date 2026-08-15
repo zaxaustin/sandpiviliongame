@@ -40,7 +40,8 @@
 import { state, data, persist, todayKey, logActivity, awardBadge } from '../entities.js';
 import { blip } from '../main.js';
 import { esc, jsq, courseProse } from './dom.js';
-import { moduleParts, courseStanding } from '../data/course-format.js';
+import { moduleParts, courseStanding, parseSteps } from '../data/course-format.js';
+import { buildExtendPrompt } from '../data/course-prompt.js';
 import { courseFolderFiles, courseSlug } from '../data/course-folder.js';
 import { referenceFor, refLine } from '../data/reference.js';
 import { currentUser } from '../data/note-versions.js';
@@ -248,6 +249,7 @@ function renderCourseWork() {
   el.innerHTML = courseHeader(c, i) + moduleWork(c, i, step, parts);
   restoreDraft();
   renderAids();
+  renderExtend();
 }
 
 /* ---- ★ EVERYTHING YOU HAVE WORKED ON THIS COURSE ----
@@ -380,6 +382,7 @@ function moduleWork(c, i, step, parts) {
     ${saidRow()}
     ${blankPage(c, i)}
     ${pastAttempts(c, i)}
+    ${extendRow(c)}
     ${folderRow(c)}`;
 }
 function block(label, text, colour) {
@@ -694,6 +697,182 @@ function folderRow(c) {
       a browser has nowhere on your disk to put one. The single file above is the whole course.</div>`}
     <div class="meta" id="lfMsg" style="margin-top:6px"></div>
   </details>`;
+}
+
+/* ---------- one more module ----------
+
+   The steward: "the local AI generate more coursework and some practice
+   problems — for meditation it can ask us about karma, list a book about
+   karma, and have a book report about what it says."
+
+   DETERMINISTIC FIRST. What the model is handed — the modules that exist, the
+   books on YOUR shelf for this topic, and the lines you wrote about where you
+   got stuck — is all counted here. The model writes the module; nothing else.
+
+   AND IT LANDS AS A DRAFT YOU PRESS TO ACCEPT. Nothing is ever appended to
+   your course by a machine (rule 9). The draft is shown, stamped, and either
+   taken or thrown away by you.
+
+   NO MODEL, NO PROBLEM: "copy the prompt" is always there, and is how the
+   whole course pathway already works. A laptop that cannot host a model keeps
+   the entire feature. */
+function stuckLines(c) {
+  const byModule = workStore()[c.id] || {};
+  const out = [];
+  for (const list of Object.values(byModule)) {
+    for (const a of (Array.isArray(list) ? list : [])) if (a && a.stuck) out.push(a.stuck);
+  }
+  return out.slice(-5);
+}
+function extendOpts(c) {
+  const about = (document.getElementById('lxAbout') || {}).value || '';
+  return {
+    title: c.title,
+    purpose: c.purpose || c.why || '',
+    modules: (c.steps || []).map(s => s.title),
+    /* The shelf, searched on the course's own subject plus whatever you typed
+       into the box — so "karma" finds the books you own about karma. */
+    have: X.shelfFor ? X.shelfFor([about, c.title, c.purpose || '', c.track || ''].join(' ')) : [],
+    stuck: stuckLines(c),
+    about,
+  };
+}
+export function learnSetAbout() { /* the box is read at press time; this only re-renders the count */
+  renderExtend();
+}
+export async function copyModulePrompt(courseId) {
+  const c = (data.courses || []).find(x => x.id === courseId);
+  if (!c) return;
+  const text = buildExtendPrompt(extendOpts(c));
+  const say = t => { const el = document.getElementById('lxMsg'); if (el) el.textContent = t; };
+  try { await navigator.clipboard.writeText(text); say('Copied. Paste it into ChatGPT, Grok, or whatever you use — then bring the module back below.'); blip(700, .07); }
+  catch (e) { say('The clipboard refused. The prompt is below — select it and copy by hand.'); }
+  const v = view();
+  v.extendPrompt = text;
+  renderExtend();
+}
+export async function askForModule(courseId) {
+  const c = (data.courses || []).find(x => x.id === courseId);
+  if (!c || !X.askTutor) return;
+  const v = view();
+  v.extendBusy = true; v.extendDraft = null;
+  renderExtend();
+  let text = '';
+  try { text = await X.askTutor(buildExtendPrompt(extendOpts(c))); } catch (e) { text = ''; }
+  v.extendBusy = false;
+  v.extendDraft = text ? { text, by: X.aiName ? X.aiName() : 'the model' } : null;
+  if (!text) { const el = document.getElementById('lxMsg'); if (el) el.textContent = 'Nothing came back. Copy the prompt instead and use a window you already have open.'; }
+  renderExtend();
+}
+/* Paste a module back in from outside — the laptop path, and the one that
+   actually gets used. Same parser the Board uses; a module is just a course
+   with one heading in it. */
+export function readPastedModule(courseId) {
+  const box = document.getElementById('lxPaste');
+  const v = view();
+  if (!box) return;
+  v.extendDraft = box.value.trim() ? { text: box.value, by: 'you pasted it' } : null;
+  renderExtend();
+}
+/* ⚠ THE PARSER IS FOR A WHOLE COURSE, AND THIS IS A FRAGMENT. parseCourse()
+   requires a title — reasonably, since a course without one cannot be pinned —
+   and a bare `## Module 10` has none, so the first version of this silently
+   found zero modules in a perfectly good reply and said "that is not a module
+   yet". Give the fragment a title it does not keep, rather than teaching the
+   format an exception. A reply that DOES carry its own title (a model handing
+   back the whole course) still parses as itself. */
+function draftedSteps(text) {
+  let src = String(text || '').replace(/^```[a-z]*\s*|\s*```\s*$/g, '').trim();
+  if (!/^title:/m.test(src) && !/^#\s+\S/m.test(src)) src = '# A module\n\n' + src;
+  const r = parseSteps(src, { user: currentUser() });
+  return r.ok ? (r.lesson.steps || []) : [];
+}
+export function acceptDraftedModule(courseId) {
+  const c = (data.courses || []).find(x => x.id === courseId);
+  const v = view();
+  if (!c || !v.extendDraft) return;
+  const steps = draftedSteps(v.extendDraft.text);
+  if (!steps.length) {
+    const el = document.getElementById('lxMsg');
+    if (el) el.textContent = 'That does not contain a module — it needs one `## ` heading with the bold labels under it.';
+    return;
+  }
+  /* ONE MODULE. If the model returned the whole course anyway, take the LAST
+     heading — the new one is the one it added — and say plainly that is what
+     happened, rather than silently doubling the course. */
+  const took = steps[steps.length - 1];
+  const many = steps.length > 1;
+  c.steps.push({ ...took, done: false });
+  persist();
+  v.extendDraft = null; v.extendPrompt = null;
+  blip(700, .07);
+  renderLearningDesk();
+  const el = document.getElementById('lxMsg');
+  if (el) el.textContent = many
+    ? 'Added "' + took.title + '". The reply held ' + steps.length + ' modules and only the last was new, so the rest were left out — check it reads right.'
+    : 'Added "' + took.title + '" to the end of the course.';
+}
+export function discardDraftedModule() {
+  const v = view();
+  v.extendDraft = null;
+  renderExtend();
+}
+export function learnExtend(on) {
+  const v = view();
+  v.extending = !!on;
+  if (!on) { v.extendDraft = null; v.extendPrompt = null; }
+  renderLearningDesk();
+}
+function extendRow(c) {
+  const v = view();
+  if (!v.extending) {
+    return `<div class="row" style="margin-top:14px">
+      <button class="btn ghost" onclick="learnExtend(true)">✎ Ask for one more module</button></div>`;
+  }
+  return `<div style="margin-top:14px;padding:10px 13px;border:2px solid #55432e;border-radius:8px;background:#1b140d">
+    <div class="meta" style="margin:0 0 6px">One more module for this course</div>
+    <label>What should it be about? (optional)</label>
+    <input type="text" id="lxAbout" placeholder="e.g. karma — a question, a book from my shelf, and a report on what it says"
+      value="${esc(v.extendAbout || '')}">
+    <div class="meta" style="margin-top:5px;opacity:.8">It is told which modules you already have,
+      which of your own books touch this, and anything you wrote about getting stuck.</div>
+    <div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">
+      ${X.aiActive && X.aiActive()
+        ? `<button class="btn" onclick="askForModule(${c.id})">✎ Ask the model here</button>` : ''}
+      <button class="btn ghost" onclick="copyModulePrompt(${c.id})">📋 Copy the prompt</button>
+      <button class="btn ghost" onclick="learnExtend(false)">✕ Never mind</button>
+    </div>
+    <div id="lxBody"></div>
+  </div>`;
+}
+function renderExtend() {
+  const el = document.getElementById('lxBody');
+  if (!el) return;
+  const v = view();
+  const c = currentCourse();
+  if (!c) return;
+  const steps = v.extendDraft ? draftedSteps(v.extendDraft.text) : [];
+  el.innerHTML = `
+    <div class="meta" id="lxMsg" style="margin-top:7px"></div>
+    ${v.extendBusy ? '<div class="meta" style="margin-top:6px">thinking…</div>' : ''}
+    ${v.extendPrompt ? `<textarea rows="6" readonly style="margin-top:8px;font-size:11.5px">${esc(v.extendPrompt)}</textarea>` : ''}
+    <label style="margin-top:9px">…or paste a module back in from wherever you drafted it</label>
+    <textarea id="lxPaste" rows="4" placeholder="## Module 10 — …" oninput="readPastedModule(${c.id})"></textarea>
+    ${v.extendDraft ? `
+      <div style="margin-top:10px;padding:9px 12px;border:2px dashed #6b5d4e;border-radius:8px;background:#191309">
+        <div class="meta" style="margin:0 0 5px">🤖 ${esc(v.extendDraft.by)} — nothing is on your course until you press</div>
+        ${steps.length
+          ? `<div style="font-size:13.5px;color:#e2d5bd">${esc(steps[steps.length - 1].title)}</div>
+             <div style="margin-top:5px;font-size:12.5px;line-height:1.5;color:#cbbda3">${courseProse(steps[steps.length - 1].body)}</div>
+             ${steps.length > 1 ? `<div class="meta" style="margin-top:5px">⚠ ${steps.length} modules came back;
+               only the last one is new, and only that one would be added.</div>` : ''}
+             <div class="row" style="margin-top:9px;gap:6px">
+               <button class="btn" onclick="acceptDraftedModule(${c.id})">✓ Add it to the course</button>
+               <button class="btn ghost" onclick="discardDraftedModule()">Throw it away</button>
+             </div>`
+          : `<div class="meta">That is not a module yet — it needs one <b>## </b> heading with the bold
+              labels under it. Nothing has been added.</div>`}
+      </div>` : ''}`;
 }
 
 /* ---------- the AI's part, and it reacts ---------- */

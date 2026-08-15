@@ -68,6 +68,18 @@ await wait(1500);
 const save = () => p.evaluate(() => JSON.parse(localStorage.getItem('sandPavilionSave.v2') || '{}'));
 const text = () => p.evaluate(() => (document.getElementById('learnPanel') || {}).textContent || '');
 
+/* Bring an element into view before shooting it. ⚠ #learnPanel is NOT the
+   scroller — the overlay above it is — so walk up and move whatever moves. The
+   Pass 0 suite lost two screenshots to exactly this and did not notice, because
+   an unscrolled shot looks like a perfectly good shot of the top. */
+async function scrollTo(id) {
+  await p.evaluate(sel => {
+    const el = document.getElementById(sel) || document.querySelector(sel);
+    if (el) el.scrollIntoView({ block: 'center' });
+  }, id);
+  await wait(350);
+}
+
 async function clickText(t, sel) {
   const hit = await p.evaluate((tt, s) => {
     const pick = q => [...document.querySelectorAll(q)]
@@ -194,6 +206,7 @@ ok('★ with no AI connected it says there is nobody to ask',
 ok('★ and says the rest of the desk is unaffected',
    /everything else on this desk works/i.test(aidsNow));
 ok('the "write something first" notice is gone now', !/Write something first/i.test(aidsNow));
+await scrollTo('lwAids');
 await p.screenshot({ path: 'test/live/_ld-2-written.png' });
 
 console.log('\n7 · Keep it — one press, and it is yours\n');
@@ -288,6 +301,106 @@ ok('★ the Writing Desk no longer offers "Work through a book"',
    !/Work through a book/i.test(plan), plan.slice(0, 140));
 ok('and its other tools are untouched',
    /Rhythm blocks/.test(plan) && /Sparks/.test(plan) && /Past days/.test(plan));
+
+console.log('\n14 · Looking back across the whole course\n');
+/* ⚠ COME BACK TO THE DESK FIRST. Section 13 walked to the Writing Desk, and
+   rendering the learning panel while its overlay is closed fills a hidden
+   element — clickText correctly finds nothing, while textContent reads full.
+   Three checks failed and one threw before this line existed. */
+await p.evaluate(() => window.openLearningDesk());
+await wait(500);
+/* And back to the course tab — section 12 left it on the book, and
+   openLearningDesk() deliberately does not reset which tab you were on. */
+await p.evaluate(() => window.learnTab('course'));
+await wait(400);
+await p.evaluate(() => window.learnPickModule(0));
+await wait(400);
+const t14a = await text();
+ok('★ the header offers "your work on this course", with a count',
+   /your work on this course\s*\(\s*1\s*\)/.test(t14a.replace(/\s+/g, ' ')), t14a.slice(0, 0) || undefined);
+ok('and pressing it opens the look-back view', await clickText('your work on this course'));
+await wait(450);
+const t14 = await text();
+ok('★ it lists the attempt', /Your work on this course/.test(t14) && /water analogy/.test(t14));
+ok('with the date and both honest answers',
+   /2026|20\d\d-\d\d-\d\d/.test(t14) && /you said:/.test(t14) && /afterwards:/.test(t14));
+ok('and a way back to the work', /Back to the work/.test(t14));
+await p.screenshot({ path: 'test/live/_ld-6-lookback.png' });
+await clickText('Back to the work');
+await wait(400);
+
+console.log('\n15 · One more module — the prompt, with no model at all\n');
+ok('★ the desk offers to ask for one more module', await clickText('Ask for one more module'));
+await wait(400);
+const t15 = await text();
+ok('it says what it will tell the model about you',
+   /which of your own books touch this/.test(t15) && /getting stuck/.test(t15));
+ok('★ with no AI connected there is no "ask the model here" button',
+   !/Ask the model here/.test(t15));
+ok('★ but "Copy the prompt" is still there — the laptop keeps the feature',
+   /Copy the prompt/.test(t15));
+await p.evaluate(() => { document.getElementById('lxAbout').value = 'karma'; });
+/* Clipboard is not grantable in headless; the press still stores the prompt so
+   the panel can show it, and that is what is asserted. */
+await clickText('Copy the prompt');
+await wait(500);
+const prompt = await p.evaluate(() => {
+  const t = [...document.querySelectorAll('#lxBody textarea')].map(x => x.value);
+  return t.join('\n---\n');
+});
+ok('★ the prompt asks for ONE module and says so', /ONE more module/.test(prompt));
+ok('it lists the modules that already exist', /1\. Module 1 — Charge/.test(prompt));
+ok('★ it carries what I wrote about getting stuck, in my own words',
+   /water analogy/.test(prompt), prompt.split('\n').find(l => /water/.test(l)) || 'absent');
+ok('and the subject I typed', /karma/.test(prompt));
+ok('it forbids inventing a reading list it cannot check',
+   /do not invent a reading list/i.test(prompt) || !/BOOKS ALREADY ON MY SHELF/.test(prompt));
+
+console.log('\n16 · A module pasted back in lands as a DRAFT, not on the course\n');
+const MODULE = ['## Module 10 — What Karma Actually Claims', '',
+  '**Objective:** Say what the word means in its own tradition before arguing with it.', '',
+  '**Body:** Karma is not cosmic bookkeeping. It is a claim about intention and consequence.',
+  'Read it in the source before reading it in a summary.', '',
+  '**Practice:** Write the claim in one sentence, then find one passage that contradicts your sentence.', '',
+  '**Reflection:** Where did your own version come from?', '',
+  '**Artifact:** A one-page report on what the text actually says.'].join('\n');
+const stepsBefore = (await save()).courses.find(c => c.id === Number(courseId)).steps.length;
+await p.evaluate(m => {
+  const box = document.getElementById('lxPaste');
+  box.value = m; box.dispatchEvent(new Event('input', { bubbles: true }));
+}, MODULE);
+await wait(450);
+const t16 = await text();
+ok('the draft is previewed with its title', /What Karma Actually Claims/.test(t16));
+ok('★ and it says plainly that nothing is on your course yet',
+   /nothing is on your course until you press/i.test(t16));
+const stepsMid = (await save()).courses.find(c => c.id === Number(courseId)).steps.length;
+ok('★ NOTHING WAS ADDED by previewing it', stepsMid === stepsBefore, stepsBefore + ' -> ' + stepsMid);
+await scrollTo('lxBody');
+await p.screenshot({ path: 'test/live/_ld-7-one-more-module.png' });
+
+ok('★ "Add it to the course" is a real button', await clickText('Add it to the course'));
+await wait(600);
+const after16 = (await save()).courses.find(c => c.id === Number(courseId));
+ok('★ ONE PRESS added exactly one module', after16.steps.length === stepsBefore + 1,
+   stepsBefore + ' -> ' + after16.steps.length);
+ok('and it is the one that was drafted',
+   /What Karma Actually Claims/.test(after16.steps[after16.steps.length - 1].title));
+ok('with its body intact, not flattened',
+   /cosmic bookkeeping/.test(after16.steps[after16.steps.length - 1].body));
+
+console.log('\n17 · The folder — absent in a browser, and honest about it\n');
+const t17 = await text();
+ok('the desk offers the course as files', /This course as files on your disk/.test(t17));
+await clickText('This course as files on your disk');
+await wait(350);
+const t17b = await text();
+ok('★ in a browser it does NOT offer a folder', !/Save this course to its folder/.test(t17b));
+ok('★ it offers the single file instead', /Save the course as one file/.test(t17b));
+ok('and says why, rather than failing quietly',
+   /a browser has nowhere on your disk/i.test(t17b));
+await scrollTo('lfMsg');
+await p.screenshot({ path: 'test/live/_ld-8-folder.png' });
 
 ok('no page errors anywhere in the run', errs.length === 0, errs.join(' | '));
 console.log(failed ? `\n✗ learning-desk: ${failed} failure(s)\n` : '\n✓ learning-desk: all checks passed\n');

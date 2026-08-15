@@ -302,6 +302,91 @@ export function buildReadingPrompt(opts) {
   ].join('\n');
 }
 
+/* ---------- one more module, for a course you are already walking ----------
+
+   The steward, 2026-08-15:
+
+     "the local AI generate more coursework and some practice problems — for
+      example for meditation it can ask us about karma, list a book about
+      karma, and have a book report about what it says."
+
+   That example IS the format's own shape, which is why this is one more prompt
+   builder and not a system: the question about karma is the **Objective**, the
+   book about karma is **Reading** + **Why this text**, and the book report is
+   the **Artifact**. Nothing new had to be invented to hold it.
+
+   DETERMINISTIC FIRST (rule 7). Everything a model would be bad at — what
+   modules already exist, which of YOUR books touch the topic, where you said
+   you got stuck — is counted here and handed over. The model's job is the one
+   thing code cannot do: write the module.
+
+   SHORTER THAN THE DRAFTING PROMPT ON PURPOSE. It is not being asked for a
+   course; it is being asked for one module that belongs beside nine others,
+   so most of what the drafting prompt establishes is already established by
+   the modules it is shown.
+
+   ⚠ IT ASKS FOR ONE MODULE AND SAYS SO THREE TIMES, because a model handed a
+   course and asked to extend it will cheerfully return the whole course again.
+   The receiving side parses whatever comes back, so a wrong answer here is a
+   duplicate course, not a crash — which is exactly the quiet kind of wrong
+   this house does not want. */
+export function buildExtendPrompt(opts) {
+  const o = opts || {};
+  const title = clean(o.title);
+  const purpose = clean(o.purpose);
+  /* Titles only, capped. The bodies would be the whole course, and rule 4's
+     cap is the difference between context and recitation. */
+  const modules = (o.modules || []).filter(Boolean).slice(0, 12);
+  const have = (o.have || []).filter(Boolean).slice(0, 14);
+  const stuck = (o.stuck || []).filter(Boolean).slice(0, 5);
+  const about = clean(o.about);
+
+  return [
+    'Write ONE more module for a course I am already walking. One module — not a course,',
+    'not a revision of what exists, and not a summary of it.',
+    '',
+    'THE COURSE',
+    title || '(untitled)',
+    ...(purpose ? [purpose] : []),
+    '',
+    'THE MODULES IT ALREADY HAS, in order',
+    ...modules.map((t, i) => (i + 1) + '. ' + clean(t)),
+    'Do not repeat any of these. The new one goes after them and assumes them.',
+    ...(about ? ['', 'WHAT THE NEW MODULE SHOULD BE ABOUT', about] : []),
+    ...(have.length ? ['',
+      'BOOKS ALREADY ON MY SHELF — read one of THESE, do not invent a reading list',
+      ...have.map(t => '- ' + t),
+      'Copy the title exactly as written above. If none of them fits, say so plainly',
+      'and leave the **Reading:** line out rather than naming a book I do not have.'] : []),
+    ...(stuck.length ? ['',
+      /* WHAT I ACTUALLY FOUND HARD, in my own words, from my own record. This
+         is the one thing a general model cannot know and the reason a course
+         extended here beats one extended in a chat window. */
+      'WHERE I HAVE ACTUALLY GOT STUCK ON THIS COURSE — my own words, from my own working',
+      ...stuck.map(s => '- ' + clean(s)),
+      'Take these seriously. If one of them is the real obstacle, the new module should address it.'] : []),
+    '',
+    'REPLY WITH THE MODULE AND NOTHING ELSE — one `## ` heading, then the bold labels.',
+    'No frontmatter, no preamble, no closing remarks.',
+    '',
+    '```markdown',
+    '## Module N — Its title',
+    '',
+    '**Objective:** one sentence — the real question this module answers.',
+    '',
+    ...(have.length ? ['**Reading:** the exact title of the book from my shelf this module reads.', '',
+                       '**Why this text:** why this one, and what to look for in it.', ''] : []),
+    '**Body:** real explanatory paragraphs. Not a checklist.',
+    '',
+    '**Practice:** something I do, not something I read.',
+    '',
+    '**Reflection:** a question I answer in writing.',
+    '',
+    '**Artifact:** what I will have made when this module is done.',
+    '```',
+  ].join('\n');
+}
+
 /* What is still missing before this is worth sending. Sentences, not codes,
    and it NEVER blocks — filling the gaps inside the chat window is a
    perfectly good way to work. */

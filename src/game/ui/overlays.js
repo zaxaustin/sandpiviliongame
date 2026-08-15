@@ -24,7 +24,9 @@ import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLab
 import { initLearningDesk, openLearningDesk, renderLearningDesk, workModuleHere, workableCourses,
          learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter, learnAsk,
          keepAttempt, printPractice, attemptsFor, learnLookBack,
-         saveCourseFolder, revealCourseFolder, saveCourseFile } from './learning-desk.js';
+         saveCourseFolder, revealCourseFolder, saveCourseFile,
+         learnExtend, askForModule, copyModulePrompt, readPastedModule,
+         acceptDraftedModule, discardDraftedModule } from './learning-desk.js';
 /* main.js opens rooms through this file, never through the panel modules —
    one import list to read, and the same shape every other station has. */
 export { openLearningDesk };
@@ -5460,6 +5462,10 @@ initLearningDesk({
      folder's syllabus.md and the syllabus on screen must not disagree about
      whether you own a book, which is the bug they had on the Board a day ago. */
   owned: syllabusOwned,
+  /* WHICH OF YOUR OWN BOOKS TOUCH THIS. The same deterministic match the
+     Board uses to turn an idea into a reading list — counted, never asked
+     of a model (rule 7). */
+  shelfFor: (text) => { try { return shelfMatches(lookupTerms(text || '', 8)); } catch(e){ return []; } },
   /* The saveFile → <a download> path, written six times in this file already.
      The seventh caller gets the sixth implementation. */
   saveText: async (name, text) => {
@@ -14752,6 +14758,8 @@ Object.assign(window, {
   /* ui/learning-desk.js — same rule, same block. */
   openLearningDesk, learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter, learnLookBack,
   saveCourseFolder, revealCourseFolder, saveCourseFile,
+  learnExtend, askForModule, copyModulePrompt, readPastedModule,
+  acceptDraftedModule, discardDraftedModule,
   learnAsk, keepAttempt, printPractice, workModuleHere,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
