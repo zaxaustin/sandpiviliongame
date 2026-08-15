@@ -122,8 +122,13 @@ export const PROTOCOL_STEPS = [
    what actually stops it hiding bloat. */
 export const PROMPT_MAX_PROSE_LINES = 42;
 export const PROMPT_MAX_LINES = 75;
-/* Header + footer around the book list. Anything beyond this is prose. */
-export const SHELF_BLOCK_OVERHEAD = 6;
+/* Fixed lines around the book list — the header, the two instruction lines
+   about **Reading:** and **Why this text:**, and the four example lines those
+   two labels add to the fenced sample. Went 6 -> 9 on 2026-08-15 when the
+   steward's first real course came back naming books and never saying why.
+   Tight on purpose and with no headroom: raising it should be a decision
+   somebody makes, not a number that drifts. */
+export const SHELF_BLOCK_OVERHEAD = 9;
 
 const clean = s => String(s == null ? '' : s).replace(/\s*\n+\s*/g, ' ').trim();
 
@@ -156,6 +161,7 @@ export function buildDraftingPrompt(opts) {
     'BOOKS ALREADY ON MY SHELF — build the modules around THESE, do not invent a reading list',
     ...have.map(t => '- ' + t),
     'Each module that reads one must say so on its own line, exactly:  **Reading:** <the title>',
+    'and on the next line  **Why this text:** <why THIS book, and what to look for in it>.',
     'Copy the title as written above. Say plainly if something important is missing from my shelf.',
   ] : [];
 
@@ -227,7 +233,8 @@ export function buildDraftingPrompt(opts) {
     '',
     '**Objective:** one sentence.',
     '',
-    ...(have.length ? ['**Reading:** the exact title of the book from my shelf this module reads.', ''] : []),
+    ...(have.length ? ['**Reading:** the exact title of the book from my shelf this module reads.', '',
+                       '**Why this text:** why this one and not another, and what to look for in it.', ''] : []),
     '**Body:** real explanatory paragraphs, as many as the idea needs.',
     '',
     '**Practice:** something I do, not something I read.',

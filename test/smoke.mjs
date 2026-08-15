@@ -6595,6 +6595,51 @@ for (const d of SEED_LIBRARY) {
       if (/\*\*Reading:\*\*/.test(st.body)) {
         fail('the **Reading:** line was left in the body as well as lifted out, so it renders twice');
       }
+    }
+  }
+  /* ★ WHY THIS TEXT — and a title that contains a dash must survive whole.
+     From the steward's first real draft: "it gives the books but dosent
+     explain why". A citation without a reason is a reading list; with one it
+     is teaching.
+
+     ⚠ TWO LABELS RATHER THAN `title — why` ON ONE LINE, and his own shelf is
+     the reason: he owns "The First Sermon — Setting the Wheel of Dhamma
+     Turning". Splitting on a dash would have taken half that title and
+     matched nothing. */
+  {
+    const doc = ['---', 'title: "M"', 'purpose: "p"', 'outcome: "o"', '---', '',
+      '# How', '', 'One line.', '', 'Two sentences of intention, long enough to survive.', '',
+      '## Module 1 — One', '',
+      '**Reading:** The First Sermon — Setting the Wheel of Dhamma Turning', '',
+      '**Why this text:** It is the Buddha\'s own framing, in his words.', '',
+      '**Body:** real prose long enough to be a bodied module.'].join('\n');
+    const r = CF2.parseCourse(doc, { user: 'user 1' });
+    if (!r.ok) fail('a module with **Why this text:** no longer parses: ' + r.problems[0]);
+    else {
+      const st = r.lesson.steps[0];
+      if (st.reading !== 'The First Sermon — Setting the Wheel of Dhamma Turning') {
+        fail(`a book title containing a dash was truncated to ${JSON.stringify(st.reading)}. The steward owns `
+           + 'that exact book — splitting a title on punctuation matches nothing and cites the wrong thing.');
+      }
+      if (!st.readingWhy) fail('**Why this text:** did not become step.readingWhy — the module names a book '
+                             + 'and still cannot say why, which was the whole complaint');
+      if (/Why this text/.test(st.body)) fail('the **Why this text:** line renders twice — lifted AND left in');
+      const back = CF2.parseCourse(CF2.emitCourse(r.lesson), { user: 'user 1' });
+      if (!back.ok || back.lesson.steps[0].readingWhy !== st.readingWhy) {
+        fail('the reason for a reading does not survive a round trip');
+      }
+    }
+  }
+  if (!/Why this text/.test(CP.buildDraftingPrompt({ goal: 'g', have: ['A book'] }))) {
+    fail('the drafting prompt asks a module to name its book and never asks WHY that book. That produced a '
+       + 'course that "gives the books but dosent explain why" on its first real run.');
+  }
+  if (!/s\.readingWhy/.test(ovP)) {
+    fail('the Course Board never renders readingWhy — the reason is parsed, stored, and invisible, which is '
+       + 'this project\'s oldest bug shape');
+  }
+  {
+    const _closed = true; if (!_closed) {
       /* It has to SURVIVE being handed on, or a course loses its citations the
          first time somebody exports it. */
       const back = CF2.parseCourse(CF2.emitCourse(withRead.lesson), { user: 'user 1' });

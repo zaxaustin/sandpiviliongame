@@ -272,9 +272,30 @@ export function parseCourse(text, opts) {
          Board's job and needs a human press, because
          "2018_dc-electrical-circuits-workbook" will never automatically be
          "James Fiore's DC Electrical Circuit Analysis". */
-      const m = /^\*\*Reading:\*\*\s*(.+?)\s*$/m.exec(body);
-      const step = { title: s.title, body: m ? body.replace(m[0], '').replace(/\n{3,}/g, '\n\n').trim() : body };
-      if (m && m[1]) step.reading = clean(m[1]);
+      /* TWO LABELS, NOT ONE LINE WITH A SEPARATOR — and the steward's own
+         shelf is why. He has a book called "The First Sermon — Setting the
+         Wheel of Dhamma Turning". Splitting `**Reading:** title — why` on a
+         dash would have eaten half of that title and matched nothing. Bold
+         labels are what this format already uses for Objective, Body,
+         Practice and Reflection, so a second one costs no new convention and
+         cannot collide with punctuation inside a title. */
+      let rest = body;
+      const lift = (label) => {
+        const re = new RegExp('^\\*\\*' + label + ':\\*\\*\\s*(.+?)\\s*$', 'm');
+        const hit = re.exec(rest);
+        if (!hit) return '';
+        rest = rest.replace(hit[0], '');
+        return clean(hit[1]);
+      };
+      const reading = lift('Reading');
+      /* WHY THIS TEXT. Asked for after the first real course came back naming
+         a real book from his shelf and saying nothing about it — "it gives
+         the books but dosent explain why". A citation without a reason is a
+         reading list; with one it is teaching. */
+      const why = lift('Why this text');
+      const step = { title: s.title, body: rest.replace(/\n{3,}/g, '\n\n').trim() };
+      if (reading) step.reading = reading;
+      if (why) step.readingWhy = why;
       return step;
     }),
     by,
@@ -362,6 +383,7 @@ export function courseFromLesson(lesson, opts) {
          resolves to on their shelf — kept apart deliberately, because the
          title travels with the course and the slug is only true here. */
       ...(s.reading ? { reading: s.reading } : {}),
+      ...(s.readingWhy ? { readingWhy: s.readingWhy } : {}),
       practice: s.practice || '',
       url: s.url || '',
       done: false,
@@ -400,7 +422,8 @@ export function lessonFromCourse(course) {
     track: c.track || 'Your own lessons',
     level: c.level || 101,
     steps: (c.steps || []).map(s => ({ title: s.title || '', body: s.body || '',
-                                       ...(s.reading ? { reading: s.reading } : {}) })),
+                                       ...(s.reading ? { reading: s.reading } : {}),
+                                       ...(s.readingWhy ? { readingWhy: s.readingWhy } : {}) })),
     by: c.by || { who: 'you', user: 'user 1' },
     mine: true,
   };

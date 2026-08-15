@@ -139,6 +139,7 @@ export function lessonToMarkdown(node, opts = {}) {
     /* The module's own book, written back as the bold label it arrived as, so
        a course handed to somebody else still points at the text it reads. */
     if (s.reading) { L.push(''); L.push('**Reading:** ' + s.reading); }
+    if (s.readingWhy) { L.push(''); L.push('**Why this text:** ' + s.readingWhy); }
     if (s.body) { L.push(''); L.push(s.body); }
     L.push('');
   });

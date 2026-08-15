@@ -6900,21 +6900,27 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
                    Circuit Analysis", and a course that silently cites the
                    wrong book is worse than one citing none. */
                 if(!s.reading) return '';
+                /* WHY THIS TEXT, under the title. Asked for the moment the
+                   first real course came back: "it gives the books but dosent
+                   explain why". A citation without a reason is a reading list;
+                   with one it is teaching. */
+                const why = s.readingWhy
+                  ? `<div class="meta" style="margin-top:3px;opacity:.85">${esc(s.readingWhy)}</div>` : '';
                 const owned = s.bookSlug ? Store.getDoc(s.bookSlug) : null;
                 if(owned) return `<div class="meta" style="margin-top:8px">📖 Reads
                   <b>${esc(owned.title||s.reading)}</b>
                   <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
-                    onclick="openReader('${jsq(s.bookSlug)}')">open it</button></div>`;
+                    onclick="openReader('${jsq(s.bookSlug)}')">open it</button>${why}</div>`;
                 const guess=shelfMatches(lookupTerms(s.reading, 5))[0];
                 const hit=guess?Store.allDocs().find(d=>(d.title||d.slug)===guess):null;
                 if(hit) return `<div class="meta" style="margin-top:8px">📖 Reads <b>${esc(s.reading)}</b> —
                   is that <b>${esc(hit.title||hit.slug)}</b> on your shelf?
                   <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
-                    onclick="linkModuleBook(${c.id},${i},'${jsq(hit.slug)}')">yes, link it</button></div>`;
+                    onclick="linkModuleBook(${c.id},${i},'${jsq(hit.slug)}')">yes, link it</button>${why}</div>`;
                 return `<div class="meta" style="margin-top:8px;opacity:.8">📖 Reads <b>${esc(s.reading)}</b> —
                   not on your shelf yet.
                   <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
-                    onclick="openBookIntake()">bring it in</button></div>`;
+                    onclick="openBookIntake()">bring it in</button>${why}</div>`;
               })()}
               <div class="row" style="margin-top:11px">
                 <button class="btn" onclick="${tick}">${s.done?'↺ Not done after all':'✓ Mark this module done'}</button>
