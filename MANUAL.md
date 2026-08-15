@@ -76,8 +76,8 @@ is scenery, not access; nothing in this Pavilion is reachable only on foot.
   so the collection can grow past one room. There may be more to this room than
   is written here.
 - **The Study** (through the Library's east door, or its own south door) —
-  the day-planning room: the Writing Desk, the Course Board, the Computer,
-  and the Request Board.
+  the day-planning room: the Writing Desk, the **Learning Desk**, the Course
+  Board, the Learning Tree, Your Notes, the Computer, and the Request Board.
 - **The Workshop** (the Works, north-east) — the working building, three floors. Ground
   floor: Sebastian, his calendar, the Archive / Research / Caravan desks.
   One floor up: the Records Hall. Above that: an unfinished floor, honest
@@ -540,6 +540,60 @@ your own standing instructions, so you can watch them take effect.
 ---
 
 ## 5. The Study — planning the day and the long paths
+
+- **The Learning Desk** — beside the Writing Desk, and the difference between
+  them is the whole point: *the writing table is for writing, the study table
+  is for studying.* This is where a course's practice is actually **worked**.
+
+  Open it (**🧠** in the pause menu, or walk up and press **E**) and it shows
+  the module you are up to and what it asks of you — the **practice**, the
+  **thing you make**, the **question to answer honestly** — read straight out
+  of the module, so an author writes them once and nothing has to be kept in
+  step.
+
+    - **The blank page comes first.** You write your attempt before anything
+      else is offered. The three AI beats — *another problem like this*,
+      *explain the theory*, *look at what I wrote* — are not greyed out before
+      then; they are **not there**. They appear the moment there are words in
+      the box, and they react to what you wrote rather than writing first.
+      Anything a model says is stamped as the model's and is **never** put into
+      your attempt.
+    - **Before you start, three words, and they are optional:** *not yet* ·
+      *with my notes* · *on my own*. It asks again once you have written. Both
+      answers sit beside the attempt in words — there is no number, no score,
+      nothing added up, and no streak. Skip it and the desk says plainly that
+      there is nothing to compare, rather than inventing an answer.
+    - **"not yet" is a door, not a shrug.** It offers the previous module, the
+      book this module reads, and what the course expects you to have brought.
+      It offers; it never moves you, and it never un-ticks a module you have
+      marked done.
+    - **Where you got stuck** — one optional line, and it is the one thing here
+      written with somebody else in mind. It stays on this machine and goes
+      nowhere; there is no way to publish it. It exists so that one day, if you
+      choose, what cost you an afternoon can save the next person one.
+    - **🖨 Print the practice** — the practice and the artifact on a plain page
+      and nothing else, because the goal is doing it away from the screen.
+    - **📓 Your work on this course** — everything you have written, across
+      every module, with its dates. The same attempts also appear in the
+      **Records Hall** beside the days you finished.
+    - **✎ Ask for one more module** — for a course you are already walking. It
+      is told which modules exist, **which of your own books touch the
+      subject**, and anything you wrote about getting stuck. With a local AI it
+      asks directly; without one it hands you the prompt for a chat window and
+      takes the module back in a paste box. Either way it arrives as a draft
+      and **nothing is added to your course until you press**.
+    - **🗂 This course as files on your disk** *(desktop app)* — writes the
+      whole course into a folder of its own: `README.txt`, `course.md`,
+      `syllabus.md`, and a `work/` file per module holding what you wrote.
+      Plain Markdown, readable by anything, yours with or without the Pavilion.
+      **📂 Open the folder** opens it in Explorer. Hand someone `course.md` and
+      they can walk the same course; `work/` is your own working and is not
+      part of it. In a browser there is nowhere on your disk to put a folder,
+      so it offers the course as a single file instead and says why.
+    - **📚 A book** — the second tab, and it is the old Study Table: work
+      through a book you are carrying, one unit at a time, with your notes
+      growing beside it. It used to live inside the Writing Desk's toolbox and
+      moved here, unchanged.
 
 - **The Writing Desk** — today's page, and the one room where the work you
   are actually doing is all on one surface. Write the day's intention, keep

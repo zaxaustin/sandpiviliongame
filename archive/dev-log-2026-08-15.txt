@@ -1,0 +1,346 @@
+================================================================
+  DEV LOG — 2026-08-15
+  The Learning Desk, the course folder, and a paragraph that was
+  on screen twice
+================================================================
+
+WHERE THE DAY STARTED
+
+Slice 1 had shipped the night before: a course drafted around the books
+you own, received, given a derived syllabus, walked one module at a
+time, read aloud. The steward's meditation course was live in his own
+save, and he said the only thing left was small front-end work.
+
+Grok's note agreed and put it well — "no new systems, just make what
+already works feel smooth" — and then the steward added four things on
+reading the plan for slice 2:
+
+  · a way to save your work and look back on it
+  · a course FOLDER people can access in the back end
+  · progress acknowledged as a badge, not a mission
+  · the local AI generating more coursework and practice problems
+    ("for meditation it can ask us about karma, list a book about
+     karma, and have a book report about what it says")
+
+and then, mid-turn:
+
+  "lets priortize no new systmens but if theres no pathway go make one,
+   plz check whats already there first and dont forget screenshots"
+
+That instruction shaped the whole day. The search it demanded found
+ELEVEN of the pieces already built. Only two things had no pathway at
+all — a folder per course on disk, and a place to write an attempt —
+and those are the two that got built. Everything else is a caller.
+
+
+----------------------------------------------------------------
+PASS 0 — AND THE PICTURE FOUND SOMETHING BETTER THAN SPACING
+----------------------------------------------------------------
+
+Wrote test/live/course-calm.mjs, which says out loud that it proves
+nothing by itself: density is a judgement and only a picture settles it.
+What it does is stand the Board and an open course up in a REALISTIC
+state — the real 17 KB Junior EE course plus three checklists, which is
+what a board looks like after a month rather than on day one — and shoot
+them the same way twice.
+
+The numbers it can carry: 14 controls above the first card. Seven of
+them category chips on two wrapped rows, TWO OF THEM READING ZERO. A
+filter you cannot want to press, drawn above the thing you came to read.
+
+Then I read the second screenshot and found the real thing.
+
+  THE PURPOSE PARAGRAPH WAS ON SCREEN TWICE. Four lines of `.meta` under
+  the course title, and the syllabus box directly beneath it opening
+  with the identical four lines. Two hundred words of duplicate prose
+  above "0 of 9 modules", with Module 1 starting at y=526.
+
+Neither surface was wrong on its own. The syllabus is where "what is
+this course" belongs; the meta line predates it by exactly one day. This
+is what rule 2 is for — no amount of reading the code says "that
+paragraph is on screen twice", and the picture says it instantly.
+
+Fixed as a DERIVATION rather than a deletion: `syllabusHere` decides
+once whether the syllabus will speak, and the meta line takes `why` only
+when it will not. A checklist keeps its `why` where it always was.
+
+Also found: the syllabus rendered on a three-line checklist as "The
+syllabus · 2 modules · no length stated" — a heading promising a
+syllabus over a course that has none, which is worse than its absence.
+It is for full courses only now, on the same test the badge uses.
+
+Result: 7 controls, not 14. Panel 756px → 632px. Module 1 at y=470.
+
+TWO HARNESS BUGS, both worth the scar:
+
+  · offsetParent is NOT null inside a closed <details>. Chrome folds
+    with content-visibility, so the children keep a layout box. The
+    counter reported 2 form fields on a screen where the picture plainly
+    showed them folded. The number said the change had not worked and
+    the screenshot said it had. The screenshot was right.
+
+  · The foot shot never scrolled — scrollTop was set on #coursePanel,
+    which is not the scroller — so shots 2 and 3 came back byte-
+    identical and looked like perfectly good shots of the top.
+
+
+----------------------------------------------------------------
+THE LEARNING DESK
+----------------------------------------------------------------
+
+A module has said **Practice:** since the format was written and NOTHING
+IN THE PAVILION READ THAT LABEL. course-format.js said so in its own
+header — "a field nobody reads is a field that rots… they can be
+promoted the moment something actually consumes one." moduleParts() was
+written yesterday for the syllabus, which only COUNTED them.
+
+Built as a station in the Study at (5,3), beside the Writing Desk, on
+the steward's own line: "for the study table that means study for the
+writing table that means wright."
+
+ui/learning-desk.js lives outside overlays.js — the study-table.js
+pattern, deps injected once, imports nothing backwards. His words when
+he asked for the desk were "i know its gona kill the overlays."
+
+THE ORDER IS THE WHOLE DESIGN:
+
+  1. the module's practice / artifact / reflection, read out of the
+     module, not lifted from it
+  2. THE BLANK PAGE. You write before anything else exists.
+  3. only then the three beats: another problem · explain the theory ·
+     look at what I wrote
+  4. print it, because the goal is pen and paper away from the screen
+
+The AI buttons are ABSENT, not disabled. A greyed button still tells you
+help exists and invites you to want it, which is the thing this desk is
+built to postpone. And learnAsk() refuses an empty attempt AT THE DOOR
+as well, because a button that is not drawn is still callable from a
+console, a stale panel, or a test.
+
+THE HONOR SYSTEM. Asked him directly how the standard should be held:
+
+  "i mainly want to hold this standard by an honor system where people
+   are honest about where they come from… if they tell us that they're
+   confused or don't understand something then we put them back to the
+   beginner course… this isn't just for them this is also for the people
+   coming after them… doing it honestly today saves them from a hassle
+   tomorrow and the next person from going through the same thing."
+
+So: three words, never a number. not yet · with my notes · on my own,
+asked before and again after, optional, in words beside the attempt. A
+number is a score, a score gets averaged, and an average of how capable
+you felt is a judgement of a person — the stick rule 9 keeps out.
+
+"not yet" is a DOOR, not a shrug: the previous module, this module's
+book, the course's prerequisites. It offers. It moves nothing and
+un-ticks nothing, and the suite asserts both.
+
+And the `stuck` line, which is the part that is really about other
+people. Private, sent nowhere, no path to publish built. What is built
+is the field, the honest label ("kept for you — and one day, if you
+choose, for whoever walks this next"), and a paragraph in visibility.js
+saying where it is meant to go. A promise in a data shape costs nothing;
+a promise in a feature nobody asked for costs everything.
+
+THE STUDY TABLE MOVED IN as the second tab. Its 761 lines are untouched;
+only where it draws changed, and that is an injected mount id now rather
+than a second hard-coded one. Its two live suites followed the room —
+same clicks, same assertions, one different door.
+
+
+----------------------------------------------------------------
+TWO BUGS THAT ONLY LOOKING FOUND
+----------------------------------------------------------------
+
+1 · moduleParts() TRUNCATED EVERY MULTI-LINE PART TO ITS FIRST LINE.
+
+The `m` flag made `$` in the lookahead mean END OF LINE, so a lazy match
+stopped at the first newline. The real Junior EE module asks three
+things and the screen showed one. Two-thirds of what the author wrote,
+gone, with nothing on screen to say so.
+
+Invisible to every test until the desk rendered it, and invisible for
+exactly the reason rule 1 names: the guard fed it "**Practice:** do it."
+— a tidy one-liner — and the syllabus only ever counted parts rather
+than rendering them. The guard reads courses/*.course.md now and counts
+bullets. Broken on purpose: it catches.
+
+2 · PRESSING AN HONESTY CHIP THREW AWAY THE STUCK LINE.
+
+Every press on the panel redraws it, and a redraw is an empty form. The
+attempt saved fine, so nothing looked wrong — the sentence written for
+whoever comes next was simply gone. The Receive panel had this exact bug
+a day earlier ("pressing a door threw away the baseline"), and it is the
+same fix: the panel does not own the words, a module-level draft does.
+The live suite now presses a chip AFTER typing, on purpose.
+
+And a third, from the same screenshot: mdLite() alone rendered a
+three-bullet practice as one running sentence. courseProse() lives in
+ui/dom.js now, beside the escaping it depends on, and both callers share
+it. A second copy of an ESCAPER is the worst thing to have two of.
+
+
+----------------------------------------------------------------
+LOOKING BACK, AND THE FOLDER
+----------------------------------------------------------------
+
+"i wanna see a way where people can save their work and look back on it
+ · i also wanna see where we're gonna hold all these files together and
+ if we can combine them all into a course folder that people can access
+ in the back end"
+
+CHECKED FIRST, AND IT CHANGED THE ANSWER. gatherRecords() in
+data/records.js is already the Pavilion's one walk over the save —
+milestone, reading, day, packet. So looking back is a FIFTH KIND, not a
+new room: `work` joins them, an attempt shows up in the Records Hall
+beside the days you finished, and the desk's "your work on this course"
+view is that same walk filtered by the course id it now carries in
+`ref`. A second timeline would be a second thing to keep in step.
+
+THE FOLDER IS THE ONE GENUINELY NEW PATHWAY. libraryWrite puts flat
+.txt files in ONE directory for book text; nothing in this app made a
+DIRECTORY and nothing opened one.
+
+  userData/courses/<slug>/
+    README.txt   what this folder is, in plain words
+    course.md    the course itself, portable, re-importable
+    syllabus.md  derived, rewritten on every save
+    work/        your attempts, one file per module
+    handouts/    anything printed
+
+data/course-folder.js is PURE — returns { sub, name, content }, touches
+no disk and no window — so npm test can assert the whole file set and
+the desktop and browser paths share one answer.
+
+NOTHING IN IT WRITES MARKDOWN. course.md is lessonFromCourse() →
+lessonToMarkdown(), and the Electron suite asserts it is byte-identical
+to what the export button produces AND that it parses straight back in.
+A folder whose course.md the Pavilion cannot read is a folder of
+souvenirs, not a course you can hand to somebody.
+
+test/live/course-folder.cjs is Electron and that is not optional: a
+browser has no bridge and could only stub one. It reads the files back
+with fs, OUTSIDE the app, because a bridge that returns {ok:true} and
+writes nothing is this project's oldest bug shape. Five path-traversal
+shapes tried, five refused. And it refuses to run at all if it cannot
+reach main.cjs's handlers, rather than reporting that as a red result
+about the code.
+
+The folder write rides the keep-attempt press, but only if a folder
+already exists — writing the first one is a decision, not a side effect.
+On the web build it is ABSENT and says so, falling back to the
+saveFile/<a download> path already written six times here.
+
+
+----------------------------------------------------------------
+BADGES, AND ONE MORE MODULE
+----------------------------------------------------------------
+
+"some way of acknowledging progress not as a mission but as like a badge
+ system to support them"
+
+data/badges.js ALREADY IS that system — its own header says "things to
+try without a forced walkthrough". So five rows, not a second progress
+system beside it. Every one fires from a button; badges.js already
+records why, from the first-plan scar: "a badge toast firing while
+someone is mid-sentence is a machine congratulating them for typing."
+
+first-artifact is deliberately narrow — the module has to have ASKED you
+to make something and you have to have written an attempt at it.
+
+buildExtendPrompt() for the fourth ask. His karma example IS the
+format's own shape: the question is the Objective, the book is Reading +
+Why this text, the report is the Artifact. Nothing new to invent.
+
+Deterministic first: it is handed the modules that exist, which of YOUR
+books touch the subject (the same shelfMatches the Board uses), and your
+own stuck lines. That last one is why extending here beats extending in
+a chat window — no general model knows the sticking point was voltage
+versus current and the water analogy was what moved it.
+
+It lands as a DRAFT. If a model returns the whole course instead of one
+module the last heading is taken and it SAYS so, rather than quietly
+doubling the course. Works with no model at all via copy-the-prompt,
+which is the half that matters on a laptop.
+
+One real bug from reading the failure rather than the assertion:
+parseCourse() requires a title — reasonably — and a bare `## Module 10`
+has none, so a perfectly good reply parsed to zero modules. The fragment
+gets a title it does not keep, rather than teaching the format an
+exception.
+
+
+----------------------------------------------------------------
+THREE GUARDS WERE READING LESS THAN THEY CLAIMED
+----------------------------------------------------------------
+
+All three found by ADDING to what they watch, which is the only way this
+kind of hole ever surfaces.
+
+  · The window-export scan missed the FIRST name on every multi-line
+    entry — `^` with no m flag meant start-of-string, so the alternation
+    only fired after a `{` or a `,`. openLearningDesk was in the block
+    and the opener check reported it missing. A false alarm is the kind
+    half of that bug; the same hole can believe a name present when it
+    is not.
+
+  · The badge award scan read a HAND-KEPT LIST OF SEVEN FILES and there
+    are eight. ui/learning-desk.js landed with three award sites in it
+    and the guard said three badges were awarded by nothing at all. It
+    walks every .js under src/game now, and fails loudly below fifteen.
+
+  · KNOWN_STATION_KINDS was a hand-list whose own comment said it "must
+    stay in sync by hand with the st.kind=== checks in main.js — there
+    is no way to check that automatically without parsing the file."
+    That is rule 4's shape, admitted in the comment, inside the guard
+    whose job is catching drift. Parsing the file was all it took.
+
+AND ONE GUARD WAS BORN DEAD, caught by breaking it: it allowed 300 chars
+between `function syllabusOwned(step){` and `shelfMatches(`, and the
+very next function in the file calls shelfMatches() on its second line.
+Deleting the real call left the suite GREEN against a different
+function. Brace-bounded now, and it names step.reading.
+
+test/sabotage/ is new. Four runners, kept because the evidence is the
+point — every one found a dead guard or a dead runner on its first run.
+Two rules in its README: verify a green baseline before breaking
+anything (2026-08-14's runner reported "all 11 caught" while smoke.mjs
+had a syntax error), and match either line ending (a literal multi-line
+search found nothing against the CRLF working copy and reported "the
+line to break is not there" — the same shape as the CRLF scrape of
+2026-08-13).
+
+
+----------------------------------------------------------------
+WHAT IS STILL OPEN
+----------------------------------------------------------------
+
+1. GRADUATION IS BROKEN FOR BOARD COURSES. readyChecks() reads
+   myLessons, so a finished Board course fails all five checks. Recorded
+   yesterday, still true, and it is the next slice.
+2. A course still does not touch Today, Daily Tasks or Sebastian. The
+   Learning Desk closed the Records Hall row of that gap table and none
+   of the others.
+3. verify:release is RED — the .exe predates the source and
+   release/win-unpacked/ is gone. Nothing ships until it is rebuilt, and
+   BOTH artifact suites must run before an installer moves.
+4. 64 open plans against 20 done. A reconciliation pass is overdue.
+5. The hosted-model path has still never been used by anyone who needed
+   it. ollama signin → ollama pull gpt-oss:20b-cloud is surfaced in
+   three places and untested by a person on a laptop.
+
+
+----------------------------------------------------------------
+THE INSTRUCTION THAT MADE THE DAY WORK
+----------------------------------------------------------------
+
+  "lets priortize no new systmens but if theres no pathway go make one,
+   plz check whats already there first"
+
+Eleven pieces already existed. Two did not. The plan named both lists
+before any code was written, and every time a step later seemed to want
+a new module, that turned out to be a mistake in the step.
+
+Worth keeping as a habit: write the "what already does this" table
+BEFORE the "what to build" one. It is short, it is checkable, and on
+this evidence it is where most of the answer already is.

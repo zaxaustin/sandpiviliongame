@@ -6847,6 +6847,84 @@ for (const d of SEED_LIBRARY) {
   }
 
   /* ================================================================
+     7c · ★ THE LEARNING DESK — the three properties a live suite proves and
+     source cannot, plus the three a live suite CANNOT prove and source can.
+
+     test/live/learning-desk.mjs is the real instrument here: it types into the
+     box and reads the DOM. What it cannot do is stop someone reintroducing the
+     shape of the bug six months from now in a code path the suite happens not
+     to walk. That is what these are for, and each one holds a SHAPE that was
+     actually gone wrong once. */
+  const ldP = readFileSync(new URL('../src/game/ui/learning-desk.js', import.meta.url), 'utf8');
+  const ldBody = ldP.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+  /* ★ THE BLANK PAGE IS ENFORCED AT THE DOOR, not only in the renderer. A
+     button that is not drawn is still callable — from the console, from a
+     stale panel, from a test. The renderer's half is what a person sees; this
+     is what makes it true. */
+  if (!/if \(!attempt\) return;/.test(ldBody)) {
+    fail('ui/learning-desk.js: learnAsk() no longer refuses an empty attempt at the top. The blank page '
+       + 'would then be enforced only by NOT DRAWING the buttons, which is a rule about pixels rather '
+       + 'than about behaviour.');
+  }
+  /* And the renderer's half: the aids must be absent, never disabled. A greyed
+     button still tells you help exists and invites you to want it, which is
+     the thing this desk is built to postpone. */
+  if (!/const written = !!\(box && box\.value\.trim\(\)\);/.test(ldBody)
+      || !/if \(!written\) \{[\s\S]{0,400}Write something first/.test(ldP)) {
+    fail('ui/learning-desk.js: renderAids() no longer gates on there being written words — the AI beats '
+       + 'must be ABSENT before an attempt exists, not disabled');
+  }
+  if (/disabled\s*=?\s*["']?\s*(true|disabled)?["']?\s*[>\s]/.test(
+        (/function renderAids\(\)[\s\S]*?\n}/.exec(ldBody) || [''])[0])) {
+    fail('ui/learning-desk.js: renderAids() draws a DISABLED control. The rule is absent, not disabled.');
+  }
+
+  /* ★ AI WORDS ARE NEVER WRITTEN INTO THE ATTEMPT. Rule 9's core, and the one
+     failure here that would be genuinely dishonest rather than merely broken:
+     a person would read their own textarea and find a model's sentences in it.
+     Nothing in this file may assign to the attempt box except restoreDraft(). */
+  const writesToAttempt = [...ldBody.matchAll(/getElementById\('lwAttempt'\)[^\n;]*\.value\s*=/g)].length
+                        + [...ldBody.matchAll(/\bbox\.value\s*=(?!=)/g)].length;
+  if (writesToAttempt > 1) {
+    fail('ui/learning-desk.js: something other than restoreDraft() assigns to the attempt textarea — '
+       + `${writesToAttempt} write sites. AI text must never be read back as the visitor's own words.`);
+  }
+
+  /* ★ THE FOLDER USES THE ONE EMITTER. A hand-rolled `## ` in course-folder.js
+     would be a second Markdown writer, and the round-trip guard would quietly
+     stop meaning anything about what actually lands on disk. */
+  const cfolder = readFileSync(new URL('../src/game/data/course-folder.js', import.meta.url), 'utf8');
+  if (!/lessonToMarkdown\(lessonFromCourse\(course\)/.test(cfolder)) {
+    fail('data/course-folder.js: course.md is not produced by lessonToMarkdown(lessonFromCourse(...)) — '
+       + 'that is a second Markdown emitter, and the format has exactly one');
+  }
+  /* Its own `work/` file IS hand-written, and legitimately so — it is your
+     working, not a course. But it must not emit the FORMAT's labels, or a
+     reader (or the parser) could mistake it for one. */
+  const workFn = (/export function workMarkdown\([\s\S]*?\n}/.exec(cfolder) || [''])[0];
+  if (/\*\*(Objective|Practice|Reflection|Artifact|Reading):\*\*/.test(workFn)) {
+    fail('data/course-folder.js: workMarkdown() emits the portable format\'s bold labels. A file of your '
+       + 'own attempts must not be parseable as a course module.');
+  }
+
+  /* ★ THE PRIVATE STORE IS DECLARED IN BOTH PLACES. entities.js and
+     visibility.js — the pair guard exists elsewhere; this names courseWork
+     specifically because it is the newest and the most personal. */
+  const entP = readFileSync(new URL('../src/game/entities.js', import.meta.url), 'utf8');
+  const visP = readFileSync(new URL('../src/game/data/visibility.js', import.meta.url), 'utf8');
+  if (!/courseWork\s*:/.test(entP)) fail('entities.js: freshData() no longer creates courseWork');
+  if (!/key\s*:\s*'courseWork'/.test(visP)) {
+    fail('data/visibility.js: courseWork is not in DATA_MAP — a store of a person\'s own working with no '
+       + 'row in the privacy line is the exact gap bookMarks and study were found in');
+  }
+  const cwRow = (/\{[^{}]*key\s*:\s*'courseWork'[^{}]*\}/.exec(visP) || [''])[0];
+  if (!/state\s*:\s*'private'/.test(cwRow)) {
+    fail('data/visibility.js: courseWork is not marked private. What someone attempted, and where they '
+       + 'got stuck, does not leave this machine.');
+  }
+
+  /* ================================================================
      7b · ★ THE LIGHTNESS PASS — one obvious next action.
 
      The steward, having looked at the first version of the on-ramp:
@@ -7005,6 +7083,54 @@ for (const d of SEED_LIBRARY) {
       if (!protoSrc.includes(q.label)) fail(`Protocol 4 does not ask "${q.label}"`);
     }
     if (!/book table/.test(protoSrc)) fail('Protocol 4 does not mention the book table as a way back in');
+  }
+
+  /* --- 8c · ★ AND PROTOCOL 5, THE SAME WAY. Growing a course you are already
+     walking. Generated from buildExtendPrompt(), and held equal to it for the
+     identical reason: two copies of a prompt is one copy quietly wrong.
+
+     ⚠ THE ARGUMENTS ARE PART OF THE GUARD. buildExtendPrompt({}) produces a
+     much shorter prompt than one carrying a shelf and a stuck line, so
+     comparing against the bare call would let the doc show a version of the
+     prompt no person ever receives. These are the same placeholders the doc
+     was generated with. */
+  const EXTEND_SAMPLE = {
+    title: 'The course title',
+    purpose: 'What it is for, in a sentence.',
+    modules: ['The first module', 'The second module', 'The third module'],
+    have: ['A book you own that touches this', 'Another one'],
+    stuck: ['Where you actually got stuck, in your own words'],
+    about: 'the subject of the new module, if you have one in mind',
+  };
+  if (!/^## Protocol 5 — Growing a course you are already walking$/m.test(protoSrc)) {
+    fail('PROTOCOLS.md has no Protocol 5. The Learning Desk can extend a course and the docs would not '
+       + 'say how — which is the same gap Protocol 4 was written to close.');
+  } else {
+    const p5 = protoSrc.slice(protoSrc.indexOf('## Protocol 5 —'));
+    const fenced5 = /~~~text\n([\s\S]*?)~~~/.exec(p5);
+    if (!fenced5) fail('PROTOCOLS.md Protocol 5 has no fenced prompt block');
+    else if (fenced5[1].trim() !== CP.buildExtendPrompt(EXTEND_SAMPLE).trim()) {
+      fail('PROTOCOLS.md Protocol 5 and buildExtendPrompt() have drifted apart. Regenerate the doc from '
+         + 'the module — the doc is always the copy that rots.');
+    }
+    /* The three things the desk knows and a chat window does not. If the doc
+       stops naming them, the protocol has become "paste your course into
+       ChatGPT", which a person could already do.
+
+       ⚠ CHECKED AGAINST THE PROSE, NOT THE WHOLE SECTION. The generated prompt
+       contains those phrases too, so searching the section would let the doc
+       stop EXPLAINING them while still passing — the guard satisfied by the
+       very thing it is meant to be independent of. Found by breaking it:
+       deleting the explanation left the suite green. */
+    const p5prose = p5.replace(/~~~text\n[\s\S]*?~~~/g, ' ');
+    for (const claim of [/modules you already have/i, /your own books/i, /where you actually got stuck/i]) {
+      if (!claim.test(p5prose)) fail('Protocol 5 no longer explains what the desk knows that a chat window '
+                                   + 'does not: ' + claim);
+    }
+    if (!/without one it copies the prompt/i.test(p5prose)) {
+      fail('Protocol 5 does not say the whole feature works with no model — which is the half that '
+         + 'matters to anyone on a laptop');
+    }
   }
 
   /* --- 9 · ★ THE STARTER SHELF IS DERIVED, and honest about what it is.

@@ -653,6 +653,104 @@ Receive panel, so you can read a finished one before writing your own.
 
 ---
 
+## Protocol 5 — Growing a course you are already walking
+
+**A course is not finished when you pin it.** You walk two modules, find the
+third assumes something nobody taught you, and the honest fix is one more
+module — not a rewrite.
+
+The Pavilion does this at the **Learning Desk** (in the Study, beside the
+Writing Desk): open the course, press **✎ Ask for one more module**, and it
+builds the prompt below with three things filled in that no chat window knows:
+
+1. **The modules you already have**, in order, so it does not repeat one.
+2. **Which of your own books touch the subject** — matched against your shelf,
+   by the same lookup the Course Board uses. A model that is not told this will
+   invent a reading list you do not own.
+3. **Where you actually got stuck**, in your own words, from the lines you
+   wrote at the desk. This is the one that makes the module *yours*: nothing
+   outside your own record knows that the sticking point was voltage versus
+   current, or that the water analogy was what finally moved it.
+
+With a local AI connected it asks directly. **Without one it copies the prompt
+to your clipboard** and takes the module back in a paste box — the whole
+feature works on a laptop that cannot host a model, which is the point.
+
+**Either way it arrives as a draft, and nothing is added to your course until
+you press.** Read it first. A module you did not read is a module you will skip.
+
+### One module, not a course
+
+The prompt says so three times, and that is deliberate: a model handed a course
+and asked to extend it will cheerfully hand the whole thing back. If that
+happens the Pavilion takes the **last** heading — the new one — and tells you
+that is what it did, rather than quietly doubling your course.
+
+### The prompt
+
+Generated from `buildExtendPrompt()` in `src/game/data/course-prompt.js`, and
+`npm test` fails if this copy drifts from it. Placeholders in the example
+below are replaced with your real course, your real shelf and your real notes.
+
+~~~text
+Write ONE more module for a course I am already walking. One module — not a course,
+not a revision of what exists, and not a summary of it.
+
+THE COURSE
+The course title
+What it is for, in a sentence.
+
+THE MODULES IT ALREADY HAS, in order
+1. The first module
+2. The second module
+3. The third module
+Do not repeat any of these. The new one goes after them and assumes them.
+
+WHAT THE NEW MODULE SHOULD BE ABOUT
+the subject of the new module, if you have one in mind
+
+BOOKS ALREADY ON MY SHELF — read one of THESE, do not invent a reading list
+- A book you own that touches this
+- Another one
+Copy the title exactly as written above. If none of them fits, say so plainly
+and leave the **Reading:** line out rather than naming a book I do not have.
+
+WHERE I HAVE ACTUALLY GOT STUCK ON THIS COURSE — my own words, from my own working
+- Where you actually got stuck, in your own words
+Take these seriously. If one of them is the real obstacle, the new module should address it.
+
+REPLY WITH THE MODULE AND NOTHING ELSE — one `## ` heading, then the bold labels.
+No frontmatter, no preamble, no closing remarks.
+
+```markdown
+## Module N — Its title
+
+**Objective:** one sentence — the real question this module answers.
+
+**Reading:** the exact title of the book from my shelf this module reads.
+
+**Why this text:** why this one, and what to look for in it.
+
+**Body:** real explanatory paragraphs. Not a checklist.
+
+**Practice:** something I do, not something I read.
+
+**Reflection:** a question I answer in writing.
+
+**Artifact:** what I will have made when this module is done.
+```
+~~~
+
+### Then walk it
+
+Adding a module is the easy half. The module goes to the end of the course, so
+it is the last thing you will reach — and if it turns out to belong earlier,
+that is a real edit, not a reorder button. The standard from Protocol 4 still
+applies to it: real explanatory prose, a practice you do rather than read, and
+one artifact.
+
+---
+
 ## More protocols to come
 
 Written down so they aren't lost, not yet promised as finished:

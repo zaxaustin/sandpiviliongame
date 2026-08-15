@@ -385,7 +385,111 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
-**Where things stand, end of 2026-08-14 — READ THIS ONE FIRST.**
+**Where things stand, end of 2026-08-15 — READ THIS ONE FIRST.**
+Full account in [`archive/dev-log-2026-08-15.txt`](archive/dev-log-2026-08-15.txt).
+
+> ## 🧠 THE LEARNING DESK — the practice finally gets done
+>
+> A module has said `**Practice:**` since the format was written and **nothing
+> in the Pavilion read that label.** `course-format.js` said so in its own
+> header: *"a field nobody reads is a field that rots."* There is a consumer
+> now, and it is a station in the Study beside the Writing Desk, on the
+> steward's line: *"for the study table that means study for the writing table
+> that means wright."*
+>
+> - **DONE — `ui/learning-desk.js`, outside the monolith.** The
+>   `ui/study-table.js` pattern: deps injected by `initLearningDesk()`, imports
+>   nothing backwards, window-export block stays in `overlays.js`.
+> - **DONE — THE BLANK PAGE COMES FIRST, and it is a property of the surface.**
+>   The three AI beats are **not rendered** until the attempt box has words, and
+>   `learnAsk()` refuses an empty attempt **at the door** as well — a button
+>   that is not drawn is still callable. AI text is stamped as the model's and
+>   is never written into the attempt; `npm test` counts the write sites.
+> - **DONE — the honor system, in three words and never a number.** *not yet ·
+>   with my notes · on my own*, asked before and again after, optional, nothing
+>   tallied. **"not yet" is a door**: the previous module, this module's book,
+>   the course's prerequisites. It offers; it moves nothing and un-ticks
+>   nothing. Each attempt carries an optional line about where you got stuck,
+>   labelled as being for whoever walks this next — **private, and no path to
+>   publish it is built.**
+> - **DONE — `data.courseWork`**, on the save and not on the course, so an
+>   attempt cannot ride inside a published packet. Rows in both `freshData()`
+>   and `DATA_MAP`.
+> - **DONE — the Study Table moved in** as the desk's second tab. Its 761 lines
+>   are untouched; the mount id is injected now instead of hard-coded. Its two
+>   live suites followed the room.
+> - **DONE — looking back is a FIFTH RECORD KIND, not a new room.**
+>   `gatherRecords()` gains `work`, so an attempt shows up in the Records Hall
+>   beside the days you finished, and the desk's *your work on this course* view
+>   is that same walk filtered by the course id it carries in `ref`.
+> - **DONE — the course folder.** `userData/courses/<slug>/` with `README.txt`,
+>   `course.md`, `syllabus.md`, `work/` and `handouts/`, plus `courseReveal` so
+>   **📂 Open the folder** really opens Explorer. `data/course-folder.js` is
+>   pure and **writes no Markdown** — `course.md` is
+>   `lessonToMarkdown(lessonFromCourse(...))`, asserted byte-identical to the
+>   export button's output and asserted to parse back in.
+> - **DONE — five badges**, all fired from a press, none from an autosave.
+>   `data/badges.js` already was "things to try without a forced walkthrough",
+>   so it grew rather than gaining a second progress system beside it.
+> - **DONE — `buildExtendPrompt()` and `PROTOCOLS.md` Protocol 5.** One more
+>   module for a course you are already walking, fed the modules that exist,
+>   **which of your own books touch the subject**, and **your own stuck lines**.
+>   Lands as a draft; nothing is added until you press. Works with no model at
+>   all via copy-the-prompt, which is the half that matters on a laptop.
+> - **DONE — Pass 0, and it found something better than spacing.** The purpose
+>   paragraph was **on screen twice** on every open course — four lines of meta
+>   under the title and the identical four lines opening the syllabus box. No
+>   amount of reading the code says that; the picture said it instantly.
+>   Fourteen controls above the first card on the Board became seven.
+>
+> **Three bugs that only LOOKING found, and one that only breaking a guard
+> found:**
+>
+> - **`moduleParts()` truncated every multi-line part to its first line.** The
+>   `m` flag made `$` mean end-of-LINE. The real Junior EE module asks three
+>   things and the screen showed one. Invisible to every test because the guard
+>   fed it a tidy one-liner and the syllabus only ever *counted* parts. **Rule
+>   1, in a course** — the guard reads `courses/*.course.md` now.
+> - **An honesty chip's re-render silently threw away the stuck line.** The
+>   attempt still saved, so nothing looked wrong; the sentence written for the
+>   next person was simply gone. Same bug the Receive panel had a day earlier.
+> - **`mdLite()` alone rendered a three-bullet practice as one running
+>   sentence.** `courseProse()` lives in `ui/dom.js` now and both callers share
+>   it; a guard fails if either `ui/` file declares its own.
+> - **A guard allowed 300 chars between `function syllabusOwned(step){` and
+>   `shelfMatches(`** — and the *next function in the file* calls
+>   `shelfMatches()` on its second line. Deleting the real call left the suite
+>   green against a different function.
+>
+> **Three guards were reading less than they claimed**, all found by adding to
+> what they watch: the window-export scan missed the first name on every
+> multi-line entry (`^` with no `m` flag); the badge award scan read a
+> hand-kept list of six files out of eight; and `KNOWN_STATION_KINDS` was a
+> hand-list whose own comment admitted it "must stay in sync by hand… there is
+> no way to check that automatically without parsing the file." All three are
+> derived now.
+>
+> **`test/sabotage/` is new and the README is the point** — every runner in it
+> found a dead guard on its first run. Two rules it enforces: verify a green
+> baseline before breaking anything, and match either line ending.
+>
+> ### Still open, in order
+>
+> 1. **Graduation is broken for Board courses.** `readyChecks()` reads
+>    `myLessons`, so a finished Board course fails all five checks. Recorded
+>    2026-08-14, still true.
+> 2. **A course still does not touch Today, Daily Tasks or Sebastian.** The gap
+>    table is below; the Learning Desk closed the Records Hall row and none of
+>    the others.
+> 3. **`verify:release` is RED** — the `.exe` predates the source and
+>    `release/win-unpacked/` is gone. Nothing ships until that is rebuilt.
+> 4. **64 open plans against 20 done.** A reconciliation pass is overdue.
+> 5. **The hosted-model path has still never been used by anyone who needed
+>    it** (`plans/AFTER-THE-BETA.md` §5). `ollama signin` →
+>    `ollama pull gpt-oss:20b-cloud` is surfaced in three places and untested by
+>    a person on a laptop.
+
+**Where things stand, end of 2026-08-14 — the slice before.**
 Full account in [`archive/dev-log-2026-08-14.txt`](archive/dev-log-2026-08-14.txt).
 
 > ## 🎓 THE COURSES — a real one gets in, and a person can make one
