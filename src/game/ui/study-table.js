@@ -163,18 +163,29 @@ export function studySetBook(slug) {
   const v = view();
   v.slug = slug; v.idx = 1; v.labelling = false;
   cache = null;
-  /* THE HEADING LIVES OUTSIDE THIS BODY. renderStudyTable() rewrites
-     #planToolBody; the tool's title is drawn one level up by renderToolPanel().
-     Re-rendering only the body left the heading naming the PREVIOUS book while
-     the pages below it were the new one — which is worse than no heading,
-     because it is confidently wrong. Redraw both. */
+  /* THE HEADING LIVES OUTSIDE THIS BODY. renderStudyTable() rewrites the mount
+     element; the tool's title is drawn one level up by whichever panel is
+     hosting it. Re-rendering only the body left the heading naming the
+     PREVIOUS book while the pages below it were the new one — which is worse
+     than no heading, because it is confidently wrong. Redraw both. */
   if (X.refreshPanel) X.refreshPanel(); else renderStudyTable();
 }
 
 /* ---------- render ---------- */
 
+/* WHERE THIS TABLE DRAWS ITSELF, asked of the host rather than assumed.
+
+   It hard-coded `#planToolBody` for as long as it had exactly one home — a tab
+   inside the Writing Desk — and that stopped being true on 2026-08-15, when
+   the steward's line about which table is for what ("for the study table that
+   means study for the writing table that means wright") moved it into the
+   Learning Desk. One id in one place, handed over by initStudyTable(), rather
+   than a second hard-coded id or a second copy of the renderer. */
+function mount() {
+  return document.getElementById(X.mountId || 'planToolBody');
+}
 export async function renderStudyTable() {
-  const el = document.getElementById('planToolBody');
+  const el = mount();
   if (!el) return;
   const b = tableBook();
   if (!b) {

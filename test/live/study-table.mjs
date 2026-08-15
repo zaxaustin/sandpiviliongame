@@ -12,6 +12,15 @@
    note-taking need nothing installed, which is the claim that matters for the
    shipped beta. The chat section below asserts the picker where a model is
    present and asserts the honest "no local AI connected" line where it is not. */
+/* ⚠ THE STUDY TABLE MOVED, 2026-08-15. It was a tab inside the Writing Desk
+   (openPlanner + togglePlannerTool('study'), drawing into #planToolBody) until
+   the steward drew the line between the two desks: "for the study table that
+   means study for the writing table that means wright." It is now the Learning
+   Desk's book tab, in the Study, drawing into #learnBody.
+
+   The 761 lines of ui/study-table.js did not change — only where it draws. So
+   this suite follows the room rather than being rewritten: same clicks, same
+   assertions, one different door. */
 import puppeteer from 'file:///C:/Users/resto/Desktop/projects/sand%20pavilion%20game/node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js';
 import { readFileSync } from 'node:fs';
 
@@ -53,17 +62,22 @@ const open = async (slug) => p.evaluate(async (s) => {
   await openFullText(s);
   minimizeReader();                       // walk off with it — the pocket is the table
   await new Promise(r => setTimeout(r, 250));
-  openPlanner();
+  openLearningDesk();
   await new Promise(r => setTimeout(r, 250));
-  togglePlannerTool('study');
+  learnTab('book');
   await new Promise(r => setTimeout(r, 600));
-  const body = document.getElementById('planToolBody');
+  const body = document.getElementById('learnBody');
   return {
     heading: body.querySelector('b')?.textContent.trim() || '',
     meta: [...body.querySelectorAll('.meta')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
     text: body.textContent.replace(/\s+/g, ' '),
     buttons: [...body.querySelectorAll('button')].map(x => x.textContent.trim()),
-    toolbox: [...document.querySelectorAll('#planToolbox button')].map(x => x.textContent.trim()),
+    /* THE HEADING NAMES THE BOOK. In the Writing Desk this was the toolbox
+       BUTTON's label; at the Learning Desk it is the panel heading above the
+       work. Same rule, same reason it was written (2026-08-07: the button
+       said which book and the heading did not, so the one place you actually
+       look never told you) — a different element carries it. */
+    named: [...document.querySelectorAll('#learnPanel h3')].map(x => x.textContent.trim()),
   };
 }, slug);
 
@@ -73,8 +87,8 @@ const plain = await open('personal-sigalaka');
 ok('the workroom opens for it at all', /Page 1/.test(plain.heading), plain.heading);
 ok('and says the division is page by page, as an invitation',
   plain.meta.some(m => /no divisions found yet/.test(m)), plain.meta[0] || '(none)');
-ok('the toolbox button names the book you are working through',
-  plain.toolbox.some(t => /Advice to Sigalaka/.test(t)), plain.toolbox.join(' | '));
+ok('the desk heading names the book you are working through',
+  plain.named.some(t => /Advice to Sigalaka/.test(t)), plain.named.join(' | '));
 ok('the text of the page is actually on the table', /So I have heard/.test(plain.text), plain.text.slice(0, 90));
 ok('it offers to label the page and to read it',
   plain.buttons.some(t => /Label this page/.test(t)) && plain.buttons.some(t => /Read it here/.test(t)),
@@ -87,7 +101,7 @@ const labelled = await p.evaluate(async () => {
   document.getElementById('studyLabelInput').value = 'The six directions';
   studyLabelSave();
   await new Promise(r => setTimeout(r, 700));
-  const body = document.getElementById('planToolBody');
+  const body = document.getElementById('learnBody');
   const save = JSON.parse(localStorage.getItem('sandPavilionSave.v2'));
   return {
     heading: body.querySelector('b')?.textContent.trim() || '',
@@ -107,7 +121,7 @@ ok('the mark is saved, with the page it was made on',
 const opening = await p.evaluate(async () => {
   studyStep(-1);
   await new Promise(r => setTimeout(r, 400));
-  const body = document.getElementById('planToolBody');
+  const body = document.getElementById('learnBody');
   return { heading: body.querySelector('b')?.textContent.trim() || '',
            meta: [...body.querySelectorAll('.meta')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
            text: body.textContent.replace(/\s+/g, ' ') };
@@ -129,7 +143,7 @@ const noted = await p.evaluate(async () => {
   return {
     msg: document.getElementById('studyMsg')?.textContent || '',
     note: n ? { text: (n.text || '').slice(0, 40), page: n.page, ts: n.ts } : null,
-    shown: /six relationships/.test(document.getElementById('planToolBody').textContent),
+    shown: /six relationships/.test(document.getElementById('learnBody').textContent),
     cleared: document.getElementById('studyNoteInput').value === '',
   };
 });
@@ -159,11 +173,11 @@ ok('and says where the division came from',
    chapters table went in, driven here rather than asserted in a unit test. */
 const outranks = await p.evaluate(async () => {
   studyLabelToggle(); await new Promise(r => setTimeout(r, 250));
-  const before = document.getElementById('planToolBody').querySelector('b')?.textContent.trim();
+  const before = document.getElementById('learnBody').querySelector('b')?.textContent.trim();
   document.getElementById('studyLabelInput').value = 'What is truly ours';
   studyLabelSave();
   await new Promise(r => setTimeout(r, 700));
-  const body = document.getElementById('planToolBody');
+  const body = document.getElementById('learnBody');
   return { before, after: body.querySelector('b')?.textContent.trim() || '',
            meta: [...body.querySelectorAll('.meta')].map(x => x.textContent.replace(/\s+/g, ' ').trim()) };
 });
@@ -181,7 +195,7 @@ const { ROLES, ROLE_KEYS } = await import('../../src/game/data/roles.js');
 const studio = ROLE_KEYS.find(k => ROLES[k].studio);
 
 const chat = await p.evaluate(async () => {
-  const body = document.getElementById('planToolBody');
+  const body = document.getElementById('learnBody');
   const row = [...body.querySelectorAll('.row')].find(r => r.innerHTML.includes('studySetAgent'));
   return {
     picker: row ? [...row.querySelectorAll('button')].map(x => ({
@@ -217,7 +231,7 @@ console.log('\nA lesson out of the work you did\n');
    chaptered one for the hand-outranks-detection checks above */
 await open('personal-sigalaka');
 const draft = await p.evaluate(async () => {
-  const offered = /Draft a lesson from these notes/.test(document.getElementById('planToolBody').textContent);
+  const offered = /Draft a lesson from these notes/.test(document.getElementById('learnBody').textContent);
   if (!offered) return { offered };
   studyDraftLesson();
   for (let i = 0; i < 150; i++) {

@@ -476,8 +476,25 @@ export function moduleParts(body) {
   const out = {};
   for (const label of PART_LABELS) {
     /* Everything from the label up to the next bold label at the start of a
-       line, or the end. A practice is often several bullets, not one line. */
-    const re = new RegExp('^\\*\\*' + label + ':\\*\\*\\s*([\\s\\S]*?)(?=\\n\\*\\*[A-Z][^*\\n]*:\\*\\*|$)', 'm');
+       line, or the end of the body. A practice is often several bullets, not
+       one line.
+
+       ⚠ NO `m` FLAG, AND THAT IS THE WHOLE POINT. It had one, and under `m`
+       the `$` in the lookahead matches END OF LINE — so a lazy match stopped at
+       the first newline and every multi-line part was silently truncated to its
+       first bullet. LOOKING at the Learning Desk on 2026-08-15 is what found
+       it: the real Junior EE module asks for three things and the screen showed
+       one, with two whole practices missing and nothing to indicate it.
+
+       Invisible to every test until then, and invisible for exactly the reason
+       rule 1 names: the guard fed it a tidy one-line fixture
+       ("**Practice:** do it.") and the syllabus only ever COUNTED parts rather
+       than rendering them. The guard reads the real course file now.
+
+       `(?:^|\n)` replaces the flag's job of anchoring the label to a line
+       start; `$` without `m` is the end of the string, which is what was
+       meant. */
+    const re = new RegExp('(?:^|\\n)\\*\\*' + label + ':\\*\\*[ \\t]*([\\s\\S]*?)(?=\\n\\*\\*[A-Z][^*\\n]*:\\*\\*|$)');
     const hit = re.exec(src);
     if (hit && hit[1].trim()) out[label.toLowerCase()] = hit[1].trim();
   }

@@ -501,6 +501,25 @@ function drawStation(st,ox,oy){
     ctx.fillStyle='#9c8b74'; ctx.fillRect(x+S*.22,y+S*.39,S*.24,S*.03); ctx.fillRect(x+S*.22,y+S*.45,S*.18,S*.03);
     ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.66,y+S*.28,S*.12,S*.14); // inkwell
     ctx.fillStyle='#e0a43c'; ctx.fillRect(x+S*.7,y+S*.14,S*.03,S*.16);  // quill
+  } else if(st.kind==='learning'){
+    /* THE LEARNING DESK. It stands next to the Writing Desk and must not read
+       as a second one, so the silhouette differs where a glance lands: a
+       squarer worktable, a book propped OPEN on a stand at the back, loose
+       worked paper in front of it, and a stub pencil rather than a quill.
+       Writing desk = paper and ink. Learning desk = a book and your working. */
+    ctx.fillStyle='#75542e'; ctx.fillRect(x+S*.1,y+S*.62,S*.1,S*.34); ctx.fillRect(x+S*.8,y+S*.62,S*.1,S*.34);
+    ctx.fillStyle='#8a6438'; ctx.fillRect(x,y+S*.44,S,S*.2);              // a broad flat top
+    ctx.fillStyle='#6b4a28'; ctx.fillRect(x+S*.3,y+S*.36,S*.4,S*.09);     // the stand behind it
+    ctx.fillStyle='#f5e9d4'; ctx.fillRect(x+S*.3,y+S*.14,S*.19,S*.24);    // the book, propped open
+    ctx.fillStyle='#e8dcc4'; ctx.fillRect(x+S*.51,y+S*.14,S*.19,S*.24);
+    ctx.fillStyle='#8a6438'; ctx.fillRect(x+S*.49,y+S*.13,S*.02,S*.26);   // its spine
+    ctx.fillStyle='#9c8b74';
+    for(let i=0;i<3;i++){ ctx.fillRect(x+S*.33,y+S*(.19+i*.06),S*.13,S*.02);
+                          ctx.fillRect(x+S*.54,y+S*(.19+i*.06),S*.13,S*.02); }
+    ctx.fillStyle='#fffaf0'; ctx.fillRect(x+S*.16,y+S*.42,S*.3,S*.2);     // your working, loose on the desk
+    ctx.fillStyle='#7f6a52'; ctx.fillRect(x+S*.19,y+S*.47,S*.2,S*.02); ctx.fillRect(x+S*.19,y+S*.53,S*.14,S*.02);
+    ctx.fillStyle='#d9a441'; ctx.fillRect(x+S*.58,y+S*.5,S*.22,S*.04);    // the stub pencil
+    ctx.fillStyle='#2a2118'; ctx.fillRect(x+S*.78,y+S*.5,S*.04,S*.04);
   } else if(st.kind==='courses'){ // course board — enlarged, spills over its own tile like a real bulletin board would
     ctx.fillStyle='#63402a'; ctx.fillRect(x-S*.18,y-S*.32,S*1.36,S*1.14);
     ctx.fillStyle='#a97c50'; ctx.fillRect(x-S*.1,y-S*.24,S*1.2,S*1.0);

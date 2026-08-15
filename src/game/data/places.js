@@ -76,6 +76,13 @@ export const PLACES = {
 
   planner: { icon: '✍', label: 'The Writing Desk', door: 'openPlanner',
     scene: 'study', station: 'planner' },
+  /* The desk for DOING the work a course asks for — the practice written out
+     by hand before anything helps you, and the record of what you actually
+     managed. It also holds "work through a book", which used to be a tab
+     inside the Writing Desk: the steward's line is that the writing table is
+     for writing, so studying moved out of it. */
+  learning: { icon: '🧠', label: 'The Learning Desk', door: 'openLearningDesk',
+    scene: 'study', station: 'learning' },
   courses: { icon: '📋', label: 'The Course Board', door: 'openCourses',
     scene: 'study', station: 'courses' },
   tree: { icon: '🌳', label: 'The Learning Tree', door: 'openLearningTree',

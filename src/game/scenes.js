@@ -401,6 +401,12 @@ function buildStudy(){
     signs:[],
     stations:[
       {x:3,y:3,kind:'planner',name:'THE WRITING DESK'},
+      /* THE LEARNING DESK stands beside the Writing Desk, and the placement is
+         the steward's: "a study table that is designed for learning… perhaps
+         next to the writing table." Two desks, one room, and the difference is
+         stated rather than implied — "for the study table that means study,
+         for the writing table that means wright." */
+      {x:5,y:3,kind:'learning',name:'THE LEARNING DESK'},
       {x:8,y:2,kind:'courses',name:'THE COURSE BOARD'},
       // The Learning Tree stands beside the board rather than behind it — asked
       // for directly after real use: a progression you climb deserves its own

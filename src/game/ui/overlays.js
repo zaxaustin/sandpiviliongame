@@ -13,7 +13,7 @@ import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS, notesTod
 import { gatherRecords, recordSummary, RECORD_LOOK } from '../data/records.js';
 import { backendTrouble } from '../data/backend-trouble.js';
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
-import { esc, jsq, mdLite, NOTE_SELECT_STYLE } from './dom.js';
+import { esc, jsq, mdLite, courseProse, NOTE_SELECT_STYLE } from './dom.js';
 import { tidyTitle, tidyAuthor, titleNeedsTidying, looksLikeAFilename } from '../data/book-title.js';
 import { BASELINE_QUESTIONS, buildDraftingPrompt, buildReadingPrompt, promptGaps } from '../data/course-prompt.js';
 import { STARTER_COURSES, starterCourse } from '../data/starter-courses.js';
@@ -21,6 +21,12 @@ import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLab
          studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache,
          studySetAgent, studyFillPrompt, studyAsk, studyKeepReply, studySetBook, studyCarryBook, tableBook,
          studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson } from './study-table.js';
+import { initLearningDesk, openLearningDesk, renderLearningDesk, workModuleHere, workableCourses,
+         learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter, learnAsk,
+         keepAttempt, printPractice, attemptsFor } from './learning-desk.js';
+/* main.js opens rooms through this file, never through the panel modules —
+   one import list to read, and the same shape every other station has. */
+export { openLearningDesk };
 import { rememberInto } from '../data/memory.js';
 import { manPage, manIndex, MAN_PAGES } from '../data/man-pages.js';
 import { ROLES, DEFAULT_PACE, rosterBlock, rosterForVisitor } from '../data/roles.js';
@@ -5255,9 +5261,19 @@ export function removePlanLogEntry(id){
    one deliberate exception, per the plan: they already follow the
    passive/glanceable automation-philosophy pattern correctly and stay
    visible unconditionally. */
+/* ⚠ "Work through a book" IS NOT IN THIS LIST ANY MORE, and its absence is
+   the point. It lived here as a tab from 2026-08-04 until 2026-08-15, when the
+   steward drew the line between the two desks in one sentence:
+
+     "for the study table that means study for the writing table that means
+      wright"
+
+   It now stands in the Study as the Learning Desk's own tab. The 761 lines of
+   ui/study-table.js did not change; only where it draws did. Do not add it
+   back here — a tool in two panels is two places for the same state to
+   disagree, and the whole reason it moved was that this one is for writing. */
 const TOOLBOX_ITEMS = [
   {id:'book', icon:'📖', label:'The book in front of you'},
-  {id:'study', icon:'📚', label:'Work through a book'},
   {id:'blocks', icon:'🔥', label:'Rhythm blocks'},
   {id:'sparks', icon:'✨', label:'Sparks from reading'},
   {id:'notes', icon:'🗂', label:'Your notes'},
@@ -5265,7 +5281,6 @@ const TOOLBOX_ITEMS = [
   {id:'past', icon:'📅', label:'Past days'},
 ];
 const TOOLBOX_TITLES = {book:'The book in front of you',
-  study:'Work through a book, one story at a time',
   blocks:'Rhythm blocks — tap to cycle: waiting → tended → rested',
   sparks:'Sparks from reading', notes:'Your notes — lately, and worth another look',
   assist:'Call someone over', past:'Past days'};
@@ -5279,12 +5294,6 @@ const TOOLBOX_TITLES = {book:'The book in front of you',
    rule, applied to the tool beside it. */
 function toolTitle(id){
   if(id==='book'){ const b=deskBook(); return b ? b.doc.title : TOOLBOX_TITLES.book; }
-  /* tableBook(), NOT deskBook(). They were different answers: the table works
-     from the BACKPACK now and deskBook() is only the pocketed book, so with a
-     carried book on the table the heading fell back to the generic title and
-     said nothing. Two notions of "the book on the table" is the drift this
-     whole day has been about — there is one, and study-table.js owns it. */
-  if(id==='study'){ const b=tableBook(); return b ? 'Working through '+b.doc.title : TOOLBOX_TITLES.study; }
   return TOOLBOX_TITLES[id];
 }
 /* The toolbox button for the chat says WHO is at the desk, not a fixed
@@ -5296,7 +5305,6 @@ function toolLabel(t){
   /* And the book button names the book you are actually carrying — the desk
      should show what is ON it before you open anything. */
   if(t.id==='book'){ const b=deskBook(); return b ? b.doc.title : t.label; }
-  if(t.id==='study') return studyTableLabel();
   return t.label;
 }
 /* THE SEAM between this file and ui/study-table.js, written down rather than
@@ -5355,7 +5363,12 @@ initStudyTable({
   deskBook,
   getDoc: (slug) => { try { return Store.getDoc(slug); } catch(e){ return null; } },
   pageIn,
-  refreshPanel: () => renderToolPanel(),
+  /* REDRAW THE HOST, not the Writing Desk. The table asks for this when the
+     book under it changes, because its heading is drawn one level up — and
+     one level up is the Learning Desk now. Pointing it at renderToolPanel()
+     after the move would have left the heading naming the previous book
+     forever, which is the exact bug this callback exists to prevent. */
+  refreshPanel: () => renderLearningDesk(),
   carryBook: (slug) => { if(!isCarrying(carryList(),'book',slug)) toggleInventory(slug); },
   // A carried note is a REFERENCE. Resolved live from gatherNotes() so an edit
   // elsewhere reads correctly here, and a deletion simply stops appearing.
@@ -5418,6 +5431,49 @@ initStudyTable({
     const reply = await AI.chat([{role:'system', content:system}, ...history], chatOptsFor(key));
     return isEmptyReply(reply) ? 'The words did not come this time — ask again, or try a lighter model.' : reply;
   },
+  /* WHERE THE STUDY TABLE DRAWS. It used to hard-code `#planToolBody`, which
+     was fine while it had exactly one home and became a lie the moment it got
+     a second. One file, and one place in it that knows where it puts itself. */
+  mountId: 'learnBody',
+});
+/* THE LEARNING DESK — the same seam again, and the same reason the Study Table
+   has one. The steward, asking for the desk: "i know its gona kill the
+   overlays." It imports nothing from this file; everything it needs from here
+   is handed over once, below. */
+initLearningDesk({
+  hideAllOv, showOv, closeUI,
+  aiActive: isAIActive,
+  /* Whoever actually answered, so AI words can be stamped with something truer
+     than "the model" — the same name the chat header shows. */
+  aiName: () => (AI && AI.model) ? String(AI.model) : 'the model',
+  /* THE STUDY TABLE, RE-HOSTED. Not re-implemented: this is the very same
+     renderStudyTable() that lived in the Writing Desk's toolbox, drawing into
+     the Learning Desk's body instead. */
+  renderStudyTable, studyTableLabel,
+  /* A ONE-SHOT TUTORING JOB IS NOT A CONVERSATION, so it wears WORK_CHARTER
+     rather than a resident's prompt — the same call draftText() makes, and for
+     the same reason it was changed to: routed through a resident, a drafting
+     job came back as navigation instructions about the Pavilion's rooms. */
+  askTutor: async (prompt) => {
+    const reply = await AI.chat([
+      {role:'system', content:WORK_CHARTER + '\n\nYou are helping someone work through a practice '
+        + 'exercise from a course they are studying. They have already written their own attempt — '
+        + 'react to what is actually in front of you rather than starting over. Be concrete and brief. '
+        + 'Never praise for its own sake, and never write the finished answer in their place.'},
+      {role:'user', content:prompt}], {long:true});
+    return isEmptyReply(reply) ? '' : reply;
+  },
+  /* PRINTING GOES THROUGH THE ONE EMITTER. lessonToHTML() already turns a
+     lesson-shaped node into a plain page; a second formatter here would be a
+     second thing to keep in step with the format. */
+  printLesson: (node) => {
+    const w = window.open('', '_blank');
+    if(!w) return;
+    w.document.write(lessonToHTML(node, {}));
+    w.document.close();
+    w.focus();
+    setTimeout(()=>{ try{ w.print(); }catch(e){} }, 250);
+  },
 });
 export function openPlanner(){
   state.ui='planner'; hideAllOv();
@@ -5472,7 +5528,6 @@ function renderToolPanel(){
     <div id="planToolBody"></div>
   </div>`;
   if(tool==='book') renderDeskBookBody();
-  else if(tool==='study') renderStudyTable();
   else if(tool==='blocks') renderBlocksBody();
   else if(tool==='sparks') renderPlanSparksBody();
   else if(tool==='notes') renderNotesBody();
@@ -6317,13 +6372,9 @@ const courseCatLabel = id => (COURSE_CATEGORIES.find(c=>c.id===id) || COURSE_CAT
    this rather than keeping its own copy. */
 const COURSE_CAT_IDS = COURSE_CATEGORIES.filter(c=>c.id!=='all').map(c=>c.id);
 
-/* A step body is real prose now — paragraphs, and bold labels inside them
-   ("**Practice:** …") because that is what the portable format asks authors
-   for and what a model emits. mdLite escapes FIRST and introduces only <b>,
-   so this can never turn author text into markup; paragraphs and soft breaks
-   are structure this adds, not markup it honours. */
-const courseProse = s => String(s||'').split(/\n\s*\n/).filter(p=>p.trim())
-  .map(p=>`<p style="margin:.5em 0">${mdLite(p).replace(/\n/g,'<br>')}</p>`).join('');
+/* courseProse lives in ui/dom.js now, beside the escaping it depends on —
+   the Learning Desk renders the same kind of text and a second copy is the
+   drift rule 4 exists for. */
 /* One badge, from the record's contents and never from its `standard` claim.
    A checklist is a legitimate thing to keep — this says which it is, it does
    not say one is a failed version of the other. */
@@ -7001,6 +7052,25 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
                   not on your shelf yet.
                   <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
                     onclick="openBookIntake()">bring it in</button>${why}</div>`;
+              })()}
+              ${(function(){
+                /* ★ THE DOOR TO THE WORK. Reading a module and DOING it are
+                   different acts in different rooms, and until now the second
+                   room did not exist — `**Practice:**` was a line of text
+                   nothing could act on.
+
+                   Offered only when this module actually asks for something,
+                   so it is never a button onto an empty page. If you have
+                   attempted it before, it says so: coming back to a practice
+                   is the normal case, not the exception. */
+                const parts = moduleParts(s.body);
+                if(!parts.practice && !parts.artifact && !parts.reflection) return '';
+                const tried = attemptsFor(c.id, i).length;
+                return `<div class="meta" style="margin-top:8px">🧠 This module asks you to do something —
+                  <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
+                    onclick="workModuleHere(${c.id},${i})">${tried
+                      ? 'back to it at the Learning Desk ('+tried+' tried)'
+                      : 'work it at the Learning Desk'}</button></div>`;
               })()}
               <div class="row" style="margin-top:11px">
                 <button class="btn" onclick="${tick}">${s.done?'↺ Not done after all':'✓ Mark this module done'}</button>
@@ -14635,6 +14705,9 @@ Object.assign(window, {
   studyStep, studyLabelToggle, studyLabelSave, studyUnlabel, studyOpenHere, studyAddNote,
   studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
   studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson,
+  /* ui/learning-desk.js — same rule, same block. */
+  openLearningDesk, learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter,
+  learnAsk, keepAttempt, printPractice, workModuleHere,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   openReceiveCourse, receiveStep, previewReceivedCourse, receiveCourseFile, confirmReceivedCourse,

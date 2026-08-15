@@ -4,11 +4,17 @@
    bundler) and assert the config shape that has no runtime error
    until a human clicks the wrong thing.
 
-   KNOWN_STATION_KINDS below must stay in sync by hand with the
-   `st.kind===` checks in src/game/main.js's onAction() — there is no
-   way to check that automatically without parsing the file, and a
-   hardcoded list here is exactly the kind of thing this script exists
-   to catch drifting silently.
+   KNOWN_STATION_KINDS used to be a hand-written list that "must stay in
+   sync by hand" with the `st.kind===` checks in main.js's onAction(),
+   with a note saying there was no way to check that automatically
+   without parsing the file — which is rule 4's exact shape, admitted in
+   its own comment, in the guard whose whole job is catching drift.
+
+   It is READ OUT OF main.js now (2026-08-15, while adding the Learning
+   Desk, which is what made the list wrong). Parsing the file is all it
+   took. A station kind main.js does not dispatch is a desk you can walk
+   up to and press E at for nothing at all — the house failure mode with
+   furniture.
    ================================================================ */
 import { readFileSync as rawReadFileSync, readdirSync } from 'node:fs';
 
@@ -44,7 +50,18 @@ const readFileSync = (p, enc) => {
 import { scenes, SOLID } from '../src/game/scenes.js';
 import { SEED_LIBRARY, TRADITIONS } from '../src/game/data/seed.js';
 
-const KNOWN_STATION_KINDS = ['planner', 'courses', 'archive', 'computer', 'requests', 'notice', 'hearth', 'grantdesk', 'residents', 'research', 'coffee', 'review', 'records', 'calendar', 'ledger', 'makersbench', 'greenhouse', 'roundtable', 'mailroom', 'yourshelf', 'intake', 'notes', 'inheritance', 'commons', 'alexandria', 'tree', 'lift'];
+/* DERIVED FROM THE DISPATCH ITSELF. Every `st.kind==='x'` in onAction() —
+   which is precisely the set of kinds pressing E can do something with. */
+const MAIN_SRC = readFileSync(new URL('../src/game/main.js', import.meta.url), 'utf8');
+const KNOWN_STATION_KINDS = [...new Set([...MAIN_SRC.matchAll(/st\.kind\s*===\s*'([a-z]+)'/g)].map(m => m[1]))];
+if (KNOWN_STATION_KINDS.length < 20) {
+  /* A SCRAPE THAT MATCHES NOTHING REPORTS THAT EVERYTHING IS FINE — this one
+     the wrong way round: an empty list would fail every station in the world
+     and bury the real cause. Green here / red on CI, 2026-08-13, was the same
+     shape. Say it plainly instead. */
+  throw new Error('smoke: read only ' + KNOWN_STATION_KINDS.length + ' station kinds out of main.js\'s '
+    + 'onAction() — the scrape is broken, and every station assertion below it is meaningless');
+}
 
 const failures = [];
 const fail = (msg) => failures.push(msg);
@@ -6139,9 +6156,22 @@ for (const d of SEED_LIBRARY) {
   if (!/<h2>\$\{esc\(c\.title\)\}[\s\S]{0,200}?standingBadge\(c\)/.test(ovC)) {
     fail('overlays.js: an opened course does not say which it is in its own heading');
   }
-  if (!/courseProse\s*=\s*[\s\S]{0,200}mdLite\(/.test(ovC)) {
-    fail('overlays.js: courseProse() no longer escapes through mdLite(). A course body is author text '
+  /* courseProse moved to ui/dom.js on 2026-08-15 — the Learning Desk renders
+     the same kind of text and a second copy of a SANITISER is the worst thing
+     to have two of. The guard follows it rather than being deleted, and now
+     also holds the thing it was really about: that there is exactly ONE of it,
+     and every surface that renders course prose calls that one. */
+  const domC = readFileSync(new URL('../src/game/ui/dom.js', import.meta.url), 'utf8');
+  if (!/export const courseProse\s*=\s*[\s\S]{0,300}mdLite\(/.test(domC)) {
+    fail('ui/dom.js: courseProse() no longer escapes through mdLite(). A course body is author text '
        + 'and can arrive from a file somebody else wrote.');
+  }
+  for (const [file, src] of [['ui/overlays.js', ovC],
+                             ['ui/learning-desk.js', readFileSync(new URL('../src/game/ui/learning-desk.js', import.meta.url), 'utf8')]]) {
+    if (/const courseProse\s*=/.test(src)) {
+      fail(file + ' declares its own courseProse(). There is one, in ui/dom.js — a second copy of an '
+         + 'escaper is how one of them quietly stops escaping.');
+    }
   }
   /* The .md drop must be decided BEFORE the book intake, or parseBookFile
      throws 'not a .txt or .epub' and a dropped course is reported as a bad
@@ -6717,6 +6747,27 @@ for (const d of SEED_LIBRARY) {
     const parts = CF2.moduleParts('**Practice:** do it.\n\n**Artifact:** a page.');
     if (parts.practice !== 'do it.' || parts.artifact !== 'a page.') {
       fail('moduleParts() no longer reads Practice/Artifact out of a body');
+    }
+    /* ★ AND THE WHOLE PART, NOT ITS FIRST LINE — read off the REAL course file,
+       because the one-line fixture above is precisely what hid this for a day.
+       A `m` flag made `$` mean end-of-LINE, so a three-bullet practice arrived
+       as one bullet and two-thirds of what the author asked for vanished with
+       nothing on screen to say so. Found by LOOKING at the Learning Desk, and
+       invisible to every assertion until then because the syllabus only ever
+       counted parts rather than rendering them. Rule 1, in a course. */
+    const realMd = readFileSync(new URL('../courses/junior-electrical-engineer.course.md', import.meta.url), 'utf8');
+    const realStep = (CF2.parseCourse(realMd, { user: 'user 1' }).lesson || { steps: [] }).steps[0];
+    if (!realStep) fail('the real Junior EE course no longer parses — every check below reads it');
+    else {
+      const rp = CF2.moduleParts(realStep.body);
+      const bullets = (rp.practice || '').split('\n').filter(l => /^\s*-\s/.test(l)).length;
+      if (bullets < 3) {
+        fail(`moduleParts() read only ${bullets} of the real module's practice bullets. A multi-line `
+           + `part is being truncated — check for an 'm' flag making $ mean end-of-line.`);
+      }
+      if (!/three sentences/.test(rp.practice || '')) {
+        fail('moduleParts() dropped the last line of a real multi-line practice');
+      }
     }
     const bodyAfter = CF2.parseCourse(doc, { user: 'user 1' }).lesson.steps[0].body;
     if (!/\*\*Practice:\*\*/.test(bodyAfter) || !/\*\*Artifact:\*\*/.test(bodyAfter)) {

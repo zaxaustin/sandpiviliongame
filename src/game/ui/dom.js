@@ -36,6 +36,23 @@ export function mdLite(s) {
   return esc(s == null ? '' : s).replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
 }
 
+/* A COURSE'S PROSE — paragraphs, soft line breaks, and the bold labels
+   ("**Practice:** …") the portable format asks authors for and a model emits.
+   mdLite escapes FIRST and introduces only <b>, so this can never turn author
+   text into markup; paragraphs and breaks are structure this adds, not markup
+   it honours.
+
+   It lived in overlays.js as a one-liner until 2026-08-15, when the Learning
+   Desk needed the same thing — and the desk's first version reached for
+   mdLite() alone instead. LOOKING at it showed why that is not the same: a
+   three-bullet practice rendered as one running sentence, "- In Falstad… - On
+   paper… - Write three sentences…", which reads as prose that has lost its
+   punctuation rather than as a list of three things to do. Two renderers for
+   one kind of text is the drift rule 4 is about; there is one, and it is
+   here, beside the escaping it depends on. */
+export const courseProse = s => String(s == null ? '' : s).split(/\n\s*\n/).filter(p => p.trim())
+  .map(p => `<p style="margin:.5em 0">${mdLite(p).replace(/\n/g, '<br>')}</p>`).join('');
+
 /* The one <select> skin used across the panels. It lived in overlays.js until
    the Learning Tree moved out and took a `<select>` with it — a bare constant,
    so it crashed at runtime rather than at build time, and neither `npm test`

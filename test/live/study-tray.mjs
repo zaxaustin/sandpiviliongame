@@ -17,6 +17,15 @@
      npm run build:beta && npm run preview
      node test/live/study-tray.mjs
    ================================================================ */
+/* ⚠ THE STUDY TABLE MOVED, 2026-08-15. It was a tab inside the Writing Desk
+   (openPlanner + togglePlannerTool('study'), drawing into #planToolBody) until
+   the steward drew the line between the two desks: "for the study table that
+   means study for the writing table that means wright." It is now the Learning
+   Desk's book tab, in the Study, drawing into #learnBody.
+
+   The 761 lines of ui/study-table.js did not change — only where it draws. So
+   this suite follows the room rather than being rewritten: same clicks, same
+   assertions, one different door. */
 import puppeteer from 'puppeteer-core';
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -59,13 +68,15 @@ await p.evaluate(() => {
 await new Promise(r => setTimeout(r, 800));
 
 const open = await p.evaluate(async () => {
-  window.closeUI(); window.openPlanner();
+  window.closeUI(); window.openLearningDesk();
   await new Promise(r => setTimeout(r, 300));
-  window.togglePlannerTool('study');
+  window.learnTab('book');
   await new Promise(r => setTimeout(r, 900));
-  const panel = document.getElementById('planToolPanel');
-  const body = document.getElementById('planToolBody');
-  return { heading: panel ? panel.innerText.split('\n')[0] : '', text: body ? body.innerText : '' };
+  /* The heading is the Learning Desk's own <h3> now, not the Writing Desk's
+     tool-panel title. Same sentence, drawn one room over. */
+  const head = document.querySelector('#learnPanel h3');
+  const body = document.getElementById('learnBody');
+  return { heading: head ? head.innerText.trim() : '', text: body ? body.innerText : '' };
 });
 
 check('the table opens on a book you are CARRYING, with no pocketing at all',
@@ -78,14 +89,14 @@ check('the tray offers BOTH books you carried',
 
 // switching is one press, and it is YOUR press
 const swapped = await p.evaluate(async () => {
-  const before = document.getElementById('planToolPanel').innerText.split('\n')[0];
-  const btns = [...document.querySelectorAll('#planToolBody button')];
+  const head = () => (document.querySelector('#learnPanel h3') || {}).innerText || '';
+  const before = head().trim();
+  const btns = [...document.querySelectorAll('#learnBody button')];
   const labels = btns.map(b => b.innerText.trim());
   const other = btns.find(b => /Second Book/.test(b.innerText)) || btns.find(b => /First Book/.test(b.innerText));
   if (other) other.click();
   await new Promise(r => setTimeout(r, 700));
-  return { before, labels, found: !!other,
-           after: document.getElementById('planToolPanel').innerText.split(String.fromCharCode(10))[0] };
+  return { before, labels, found: !!other, after: head().trim() };
 });
 check('the tray renders a chip per carried book', swapped.found,
       'buttons: ' + JSON.stringify(swapped.labels));
@@ -119,11 +130,11 @@ check('and it lands in the backpack', carried.notesHeld === 1, 'held ' + carried
 const beside = await p.evaluate(async (slugA) => {
   window.closeUI();
   window.studySetBook(slugA);
-  window.openPlanner();
+  window.openLearningDesk();
   await new Promise(r => setTimeout(r, 300));
-  window.togglePlannerTool('study');
+  window.learnTab('book');
   await new Promise(r => setTimeout(r, 900));
-  const body = document.getElementById('planToolBody');
+  const body = document.getElementById('learnBody');
   return body ? body.innerText : '';
 }, A);
 check('the carried note appears at the table, beside its part',

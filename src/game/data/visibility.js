@@ -81,6 +81,18 @@ export const DATA_MAP = [
      the privacy line was short by one store — and by the one holding your
      own words about how a book is divided. */
   { key:'bookMarks',    name:'Chapters you marked yourself', state:'private', leaves:'Never — not unless you hand a book on with them.' },
+  /* WHAT YOU ACTUALLY TRIED at the Learning Desk — your attempt at a module's
+     practice, what you said you could do before and after, and the line about
+     where you got stuck. Kept OFF the course record on purpose, so it cannot
+     ride along inside a course you publish: a course is a thing you hand over,
+     your working is not.
+
+     The steward's own framing, and it is why the `stuck` line exists at all:
+     "this isn't just for them, this is also for the people coming after
+     them… doing it honestly today saves them from a hassle tomorrow." That
+     day is not today. Nothing here goes anywhere until a person writes it out
+     themselves, and no path to do so is built. */
+  { key:'courseWork',   name:'Your work at the Learning Desk', state:'private', leaves:'Never on its own. What you attempted, and where you got stuck, is yours — a course you publish carries none of it.' },
   /* The path you picked up. Declared 2026-08-07, when a new guard found that
      lesson-tree.js had been writing it to a store freshData() never mentioned
      — so it was in neither list, which is precisely the gap the older guard
