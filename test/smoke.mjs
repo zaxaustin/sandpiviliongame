@@ -6341,6 +6341,48 @@ for (const d of SEED_LIBRARY) {
     }
   }
 
+  /* --- 3c · ★★ THE BULLET A MODEL ACTUALLY WRITES.
+
+     From the FIRST real run of the real prompt through a real model, by a
+     real person, 2026-08-15. The steward drafted a meditation course with
+     ChatGPT and the Pavilion refused it with eight problems, every one of
+     them this:
+
+       Could not read the line "* "A basic familiarity with Buddhism and
+       meditation."" — frontmatter is "key: value".
+
+     `-` is YAML's bullet and what the prompt's example shows. `*` is what a
+     Markdown-trained model reaches for. They are the same list. This is the
+     SECOND time the format a person's model actually produces was not the
+     format the parser accepted — the first cost two courses on 2026-08-14 —
+     so the lines below are HIS, verbatim from the error he pasted back, and
+     all three bullets are covered rather than waiting for a third failure. --- */
+  {
+    const HIS = [
+      '* "A basic familiarity with Buddhism and meditation."',
+      '* "The ability to sit or practice meditation for at least 20 minutes without requiring constant instruction."',
+      '* "Willingness to maintain a daily practice and write honest observations about it."',
+    ];
+    for (const bullet of ['-', '*', '+']) {
+      const doc = ['---', 'title: "A Meditation Course"', 'purpose: "p"', 'outcome: "o"', 'prerequisites:',
+        ...HIS.map(l => l.replace(/^\*/, bullet)),
+        'baseline:',
+        bullet + ' "What have you already done in this area? read mnany books and praticed for years"',
+        '---', '', '# How', '', 'One line.', '',
+        'Two sentences of intention, long enough to survive the summary split.', '',
+        '## Module 1 — One', '', '**Body:** real prose, long enough to count as a bodied module.'].join('\n');
+      const r = CF2.parseCourse(doc, { user: 'user 1' });
+      if (!r.ok) {
+        fail(`a course whose frontmatter list uses "${bullet}" is refused: ${r.problems[0]} — these are the `
+           + 'three interchangeable Markdown bullets, and a model will use whichever it likes. Rejecting two '
+           + 'of them is the parser being right in a way that helps nobody.');
+      } else if ((r.lesson.prerequisites || []).length !== 3 || (r.lesson.baseline || []).length !== 1) {
+        fail(`"${bullet}" parsed but lost items: ${(r.lesson.prerequisites || []).length} prerequisites, `
+           + `${(r.lesson.baseline || []).length} baseline`);
+      }
+    }
+  }
+
   /* --- 4a · ★ THE COURSE IS DRAFTED FROM YOUR OWN SHELF.
      Measured 2026-08-15: the steward wants a meditation course and already
      owns the Yoga Sutras, the Hatha Yoga Pradipika, Raja Yoga, the Dhammapada,

@@ -128,7 +128,20 @@ export function parseCourse(text, opts) {
     let listBag = null;
     for (const line of fm[1].split('\n')) {
       if (!line.trim() || /^\s*#/.test(line)) continue;
-      const item = /^\s*-\s+(.*\S)\s*$/.exec(line);
+      /* ★ ANY MARKDOWN BULLET, not just YAML's. Found 2026-08-15 the first
+         time a real person ran the real prompt through a real model: ChatGPT
+         returned `* "A basic familiarity with Buddhism and meditation."` and
+         the course was refused with eight problems.
+
+         `-` is what YAML says and what the prompt's example shows. `*` and
+         `+` are what a model trained on Markdown reaches for anyway, and it
+         is not wrong — it is the same list. Insisting on one of three
+         interchangeable bullets is the parser being right in a way that helps
+         nobody, and it is the SAME failure as the original block-list bug:
+         the format the person's model actually writes is not the format the
+         parser accepts. That has now cost two imports, so this accepts all
+         three rather than waiting for a third. */
+      const item = /^\s*[-*+]\s+(.*\S)\s*$/.exec(line);
       if (item && listKey) { listBag[listKey].push(clean(item[1])); continue; }
       const at = line.indexOf(':');
       if (at < 0) { problems.push(`Could not read the line "${line.trim()}" — frontmatter is "key: value".`); continue; }
