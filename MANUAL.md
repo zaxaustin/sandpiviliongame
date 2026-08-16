@@ -551,6 +551,14 @@ your own standing instructions, so you can watch them take effect.
   of the module, so an author writes them once and nothing has to be kept in
   step.
 
+    - **A module tells you its contract, in the order you meet it.** Read the
+      book first, if it names one — with a press to open it. Then **the
+      theory** (the few things to rebuild from scratch, not recall), **the
+      homework**, **what you make**, and **by the end of this part, you should
+      be able to…** — the level, stated before you start rather than discovered
+      after. Where a practice repeats, it says so: *once a day for 20 days*,
+      with a plain tally of how many **days** you have kept. Not a streak —
+      nothing to break, and two attempts on one day are one day.
     - **The blank page comes first.** You write your attempt before anything
       else is offered. The three AI beats — *another problem like this*,
       *explain the theory*, *look at what I wrote* — are not greyed out before
@@ -571,6 +579,15 @@ your own standing instructions, so you can watch them take effect.
       written with somebody else in mind. It stays on this machine and goes
       nowhere; there is no way to publish it. It exists so that one day, if you
       choose, what cost you an afternoon can save the next person one.
+    - **📥 Hand this in to be marked** *(needs an AI)* — once you have kept
+      an attempt, a model reads it **against the bar the course's own author
+      wrote** in *By the end*, and against nothing else. It answers in three
+      words — *meets the bar* · *not yet* · *cannot tell from this* — never a
+      score, because a score gets averaged and an average of your work is a
+      stick. When it is short it says exactly what is missing and gives **one**
+      concrete piece of extra work, with a press to have another go. **It
+      changes nothing**: not your words, not your own answer about whether you
+      could do it, not whether the module is done. Those stay yours.
     - **🖨 Print the practice** — the practice and the artifact on a plain page
       and nothing else, because the goal is doing it away from the screen.
     - **📓 Your work on this course** — everything you have written, across
@@ -593,7 +610,10 @@ your own standing instructions, so you can watch them take effect.
     - **📚 A book** — the second tab, and it is the old Study Table: work
       through a book you are carrying, one unit at a time, with your notes
       growing beside it. It used to live inside the Writing Desk's toolbox and
-      moved here, unchanged.
+      moved here. **The page reads exactly as it does in the Library** —
+      the same parchment, the same size, one page at a time with Prev/Next, and
+      your notes in a column beside it rather than below. A note you write
+      keeps the page you were actually on.
 
 - **The Writing Desk** — today's page, and the one room where the work you
   are actually doing is all on one surface. Write the day's intention, keep

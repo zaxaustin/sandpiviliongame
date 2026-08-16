@@ -388,6 +388,63 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 **Where things stand, end of 2026-08-15 — READ THIS ONE FIRST.**
 Full account in [`archive/dev-log-2026-08-15.txt`](archive/dev-log-2026-08-15.txt).
 
+> ## 🧠 THE DESK, THE SECOND PASS — the same evening, from real use
+>
+> He opened the Learning Desk, said he was impressed, and then found three
+> things by USING it that no test had. All three are shipped.
+>
+> - **DONE — the book page at the desk is the page in the Library.** *"the way
+>   the book is set up right now is not as good as it is in actual library we
+>   should just use that same format."* Measured: the Reader gave a page 15.5px
+>   of serif on parchment with notes beside it; the desk gave the SAME BOOK
+>   12.5px of mono on dark, in a 260px box, **truncated at 2,400 characters**.
+>   Five tokens now carry the ink, size, lead and paper and both rooms read
+>   them. It turns pages instead of truncating, and the page follows you: a
+>   note keeps the page you were actually on (it used to file every note on the
+>   unit's first page), and so does a kept reply, and so does "Read it here".
+>
+> - **DONE — the module's contract.** *"this is homework, this is the theory,
+>   and this is the level I expect you to be at at the end of this part. Small
+>   attainable goals digested one by one."* Three new peeked labels —
+>   `**Theory:**`, `**By the end:**`, `**Repeat:**` — each closing a required
+>   piece of the standard that `course-format.js` said had **nowhere to live in
+>   a course record yet**. Additive; every existing course renders unchanged.
+>
+> - **DONE — "do it once, and keep going for 20 days."** `repeatSpec()` reads
+>   the author's own count and the desk tallies **distinct dates**, never
+>   presses. Not a streak: no consecutive requirement, nothing to break, no
+>   flame. When the author names no number it says so rather than inventing
+>   one, and `repeatSpec('once a day for 20 days')` returning **1** was a real
+>   bug caught before it shipped — it would have told you that you were
+>   finished on the first morning.
+>
+> - **DONE — handing homework in to be marked**, and the reason it is allowed
+>   now is worth keeping. This was OFFERED AND REJECTED that same morning: the
+>   verdict would have been the model's own idea of good work, a grader with
+>   its own taste, and he chose the honor system instead. **`**By the end:**`
+>   changed the question.** There is now a bar the AUTHOR wrote, so marking is
+>   a machine checking one sentence against another rather than forming an
+>   opinion of a person — on your own course you are held to your own standard.
+>   Three words, never a score. It must name what is missing and give ONE piece
+>   of extra work. **It writes nothing**: guards forbid `persist()`, `.done=`,
+>   `awardBadge()` and `.after=` inside `markHomework()`.
+>
+> **AND THE PROMPT CEILING DID ITS JOB RATHER THAN BEING RAISED AROUND.** The
+> first draft of the contract wanted seven more prose lines and fired at 47.
+> It was cut instead: the contract went INTO required piece 5, the
+> practice-subject note went three lines to two, net two. A ceiling that only
+> ever gets raised is a comment.
+>
+> **`scripts/regen-protocols.mjs`** is new — a drift guard is only kind if one
+> command puts the doc right, or the pressure is to loosen the guard.
+>
+> **Two guards born dead today, both the same shape**, and it is worth naming
+> because it is clearly this codebase's most common way to write a useless
+> check: a pattern that matches a DIFFERENT USE OF THE SAME NAME elsewhere in
+> the file. `syllabusOwned` matched `shelfMatches(` in the next function down;
+> `parts.theory ?` matched the marking prompt rather than the render. Both were
+> found by breaking them, neither by reading them.
+
 > ## 🧠 THE LEARNING DESK — the practice finally gets done
 >
 > A module has said `**Practice:**` since the format was written and **nothing

@@ -344,3 +344,229 @@ a new module, that turned out to be a mistake in the step.
 Worth keeping as a habit: write the "what already does this" table
 BEFORE the "what to build" one. It is short, it is checkable, and on
 this evidence it is where most of the answer already is.
+
+
+================================================================
+  SECOND SESSION, same evening — the desk in real use
+================================================================
+
+He opened the Learning Desk and used it, which found three things no
+test had. That is the whole argument for rule 2 in one evening: every
+assertion was green, and a person looking at it for ten minutes had a
+list.
+
+  "so far i'm very impressed with what I see. The courses are broken up
+   enough where I have space to read things and write notes but when it
+   comes to the book page it's already fine how it was set up in the
+   library... we should just use that same format in that situation."
+
+
+----------------------------------------------------------------
+1 · THE PAGE AT THE DESK WAS NOT THE PAGE IN THE LIBRARY
+----------------------------------------------------------------
+
+Measured rather than felt, and the gap was embarrassing:
+
+  Reader    15.5px serif, 1.8 lead, dark ink on parchment, ONE PAGE at a
+            time with Prev/Next, notes in a column beside it
+  the desk  12.5px mono, 1.55, light-on-dark, a 260px box, and
+            TRUNCATED at 2,400 characters with an apology
+
+A unit spanning nine pages showed you the first two and told you to go
+somewhere else to read the rest — at a table whose entire purpose is
+working through a book.
+
+Five design tokens now carry the ink, the size, the lead and the paper;
+both rooms read them. `.readingSheet` frames it as a sheet laid on a
+dark desk, which is the one thing that SHOULD differ — in the Reader the
+whole panel is the book and needs no edge.
+
+It turns pages instead of truncating, and once it did, three other
+things had to follow the page:
+
+  · a note keeps the page you are actually on. It used to file every
+    note on the unit's FIRST page — the only honest answer while the
+    table showed a whole unit at once, and a confident lie the moment it
+    showed one page. It is the number the note cites when you open it.
+  · so does a reply you keep from the resident.
+  · "Read it here" opens the Reader where you are, not at the top.
+
+Notes sit BESIDE the page at 860px, on the Reader's breakpoint and for
+its stated reason: "so you can write while reading instead of scrolling
+down and losing your place."
+
+One layout bug found by looking: navRow went in the full-width row, so
+the story's arrows sat at the far edges of a 1,320px panel with its name
+floating in the middle of nothing. A control bar for a column, stretched
+across two.
+
+
+----------------------------------------------------------------
+2 · THE MODULE HAD NO CONTRACT
+----------------------------------------------------------------
+
+Both of his real courses said the same thing was missing, from opposite
+directions:
+
+  "the first thing I see is do something in Falstead — that is exactly
+   the kind of material that people need to self study. I don't want to
+   give people guard rails but I want to give people more guidance on
+   THIS IS HOMEWORK, THIS IS THE THEORY, and THIS IS THE LEVEL I EXPECT
+   YOU TO BE AT at the end of this part. Small attainable goals that are
+   digested one by one."
+
+  "[meditation] there's not enough homework... no preliminary stress of
+   GO READ THE BOOK... I should say do it once, see how you feel, write
+   a report, and keep going for 20 days."
+
+Three labels answered both, and every one closed a required piece of the
+High-Standard Guide that course-format.js's own header had listed as
+having "nowhere to live in a course record yet":
+
+  **Theory:**     rebuild from scratch, not recall — the theoretical
+                  minimum, per module rather than once per course
+  **By the end:** the level when this part is done. Small, attainable,
+                  and stated BEFORE you start rather than found after
+  **Repeat:**     "20 days", "once" — some practice is understood the
+                  first time and some only after a month
+
+Additive and peeked, like Practice: they live in the body, nothing is
+lifted, every course written before today renders exactly as it did.
+
+The desk lays a module out in the order you meet it — read the book
+FIRST (its own row with a door; a citation buried in prose is not an
+instruction), then theory, homework, artifact, reflection, the tally,
+the gate. Only then the blank page.
+
+THE TALLY IS NOT A STREAK. Distinct dates, never presses — sitting once
+and pressing keep four times is not four days of practice. No
+consecutive requirement, nothing to break, no flame, no encouragement
+copy. When the author names no number it says so rather than inventing
+one.
+
+A real bug caught before shipping: repeatSpec("once a day for 20 days")
+— which is exactly how a person writes it — returned ONE, because the
+word was tested before the number. A target of 1 for a twenty-day
+practice tells you that you are finished on the first morning.
+
+AND THE THING HE TAUGHT ME, which went into the drafting prompt in two
+lines because the shape of it is the argument:
+
+  "Meditation and spirituality when it comes to teaching are quite the
+   high level fields and mostly esoteric. You can show people the door,
+   you can show people the exact mindset they need to reach, but the
+   person practicing has to do it themselves — whereas something like a
+   math problem you won't get unless you do the fundamental work. It's
+   the same thing. You can't understand that high level talk unless you
+   put in the basic work. A lot of the Buddha's words themselves are
+   just reassuring you, letting you know that these changes that are
+   happening to you are normal, expected and great blessings."
+
+So: for subjects only learned by doing them, the explanation says what
+is normal to experience and what it means, not what the destination is
+like.
+
+
+----------------------------------------------------------------
+3 · HANDING THE HOMEWORK IN — and why it is allowed NOW
+----------------------------------------------------------------
+
+  "We should be able to quote unquote submit our homework to the AI, the
+   local AI, to be able to judge and grade it and ask us to do more work
+   if it's met lacking."
+
+THIS IS THE THING I TALKED HIM OUT OF THIS MORNING. When I offered "ask
+the AI to judge it" as one of three options for holding the standard, I
+argued against it and he chose the honor system. That was right at the
+time, and the reason was specific: the verdict would have been the
+MODEL'S idea of good work — a grader with its own taste, in a house
+whose rule is that nothing judges the visitor.
+
+**By the end:** changes the question completely. There is now a bar the
+AUTHOR wrote, in the course, in their own words. Marking against a
+stated bar is a machine checking one sentence against another, not
+forming an opinion of a person. And on your own course the author is
+you: you are being held to your own standard, which is the honor system
+with an extra pair of eyes.
+
+Worth recording as a pattern: the right answer to "should the AI do X"
+changed because a DIFFERENT feature landed. Not because anyone's mind
+changed, and not because the objection was wrong.
+
+The rules, each closing a way it could go wrong:
+
+  · marks against the bar, QUOTED, and told to judge against that and
+    nothing else
+  · three words, never a score — meets / not yet / cannot tell. A number
+    gets averaged and an average of your work is the stick.
+  · "cannot tell from what you wrote" is rule 6 out loud, and is what an
+    unparseable reply falls back to rather than a guessed verdict
+  · when short it must name what is missing and give ONE piece of extra
+    work, which is the half he actually asked for
+  · IT WRITES NOTHING. Guards forbid persist(), .done=, awardBadge() and
+    .after= inside markHomework(). It is an opinion on the record, never
+    an edit to it, and every decision stays the visitor's.
+
+
+----------------------------------------------------------------
+THE CEILING DID ITS JOB
+----------------------------------------------------------------
+
+The first draft of the module contract wanted SEVEN more prose lines in
+the drafting prompt and fired PROMPT_MAX_PROSE_LINES at 47. It was cut
+rather than paid for: the contract went INTO required piece 5, which was
+already the line about modules, and the practice-subject note went from
+three lines to two. Net two, and the prompt says the same things.
+
+A ceiling that only ever gets raised is a comment.
+
+scripts/regen-protocols.mjs exists now because a drift guard is only
+kind if one command puts the doc right — otherwise the pressure is to
+loosen the guard. Its sample arguments briefly lived in the script,
+which made `npm test` import a module with side effects and rewrite
+PROTOCOLS.md mid-run; they live in course-prompt.js now, imported by
+both, so the doc and the guard cannot disagree.
+
+
+----------------------------------------------------------------
+TWO GUARDS BORN DEAD, THE SAME SHAPE, IN ONE DAY
+----------------------------------------------------------------
+
+Worth naming, because it is clearly this codebase's most common way to
+write a useless check: A PATTERN THAT MATCHES A DIFFERENT USE OF THE
+SAME NAME ELSEWHERE IN THE FILE.
+
+  · `syllabusOwned` allowed 300 chars before `shelfMatches(` — and the
+    NEXT FUNCTION calls shelfMatches() on its second line.
+  · `parts.theory ?` matched markHomework() building its prompt, not the
+    render it was meant to hold.
+
+Both stayed green with the real code deleted. Both were found by
+breaking them, neither by reading them. The fix in both cases is to name
+the CALL, not the identifier — `parts.theory ? block(`, and a
+brace-bounded body match.
+
+test/sabotage/ now has five runners. Eleven cases in the newest one, all
+caught after that fix.
+
+
+----------------------------------------------------------------
+STATE AT THE END OF THE DAY
+----------------------------------------------------------------
+
+npm test green. Every live suite green: learning-desk, receive-course,
+study-table, study-tray, writing-desk, course-format, study-chain,
+preflight (zero network), course-folder (Electron, real bytes on disk),
+packaged-boot (SHIPPABLE).
+
+STILL OPEN, unchanged and still in this order:
+
+1. Graduation is broken for Board courses — readyChecks() reads
+   myLessons, so a finished Board course fails all five checks.
+2. A course does not touch Today, Daily Tasks or Sebastian.
+3. verify:release is RED — the .exe predates the source.
+4. 64 open plans against 20 done.
+5. The hosted-model path has still never been used by anyone who needed
+   it, and THE WHOLE MARKING FEATURE ABOVE IS UNTESTED WITH A REAL
+   MODEL — it has only ever run with AI disconnected, where it is
+   correctly absent. That is the first thing to try tomorrow.
