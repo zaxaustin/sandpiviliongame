@@ -40,7 +40,7 @@
 import { state, data, persist, todayKey, logActivity, awardBadge } from '../entities.js';
 import { blip } from '../main.js';
 import { esc, jsq, courseProse } from './dom.js';
-import { moduleParts, courseStanding, parseSteps } from '../data/course-format.js';
+import { moduleParts, courseStanding, parseSteps, repeatSpec } from '../data/course-format.js';
 import { buildExtendPrompt } from '../data/course-prompt.js';
 import { courseFolderFiles, courseSlug } from '../data/course-folder.js';
 import { referenceFor, refLine } from '../data/reference.js';
@@ -337,7 +337,13 @@ function restoreDraft() {
     stuck.oninput = () => { draft.stuck = stuck.value; };
   }
 }
-function clearDraft() { draft.text = ''; draft.stuck = ''; }
+function clearDraft() {
+  draft.text = ''; draft.stuck = '';
+  /* A MARKING BELONGS TO THE ATTEMPT IT MARKED. Carrying one across to another
+     module — or leaving it up beside a fresh attempt it never saw — is a
+     verdict on work it did not read, which is worse than no verdict. */
+  const v = state.learnView; if (v) v.mark = null;
+}
 
 /* Every attempt on this course, across every module. Counted from the store
    directly — a count is cheap and must never be a guess. */
@@ -367,23 +373,113 @@ function courseHeader(c, i) {
     </div>`;
 }
 
+/* ---- THE ORDER OF A MODULE, AND IT IS THE ORDER OF THE WORK ----
+
+   The steward, reading both of his real courses back:
+
+     "I want to give people more guidance on THIS IS HOMEWORK, THIS IS THE
+      THEORY, and THIS IS THE LEVEL I EXPECT YOU TO BE AT at the end of this
+      part of the course. Small attainable goals that are digested one by one."
+
+   and, on meditation specifically, the thing the format could not hold:
+
+     "there's not enough homework… no preliminary stress of GO READ THE BOOK…
+      I should say do it once, see how you feel, write a report, and keep going
+      for 20 days."
+
+   So the module is laid out in the order you actually meet it:
+
+     1. read the book first        — the Reading, with a door to it
+     2. the theory                 — what you must be able to rebuild
+     3. the homework               — what you do
+     4. what you make
+     5. by the end                 — the level, small and attainable
+     6. and then the blank page
+
+   Reading is FIRST and is its own row rather than a line in the body, because
+   "go read the book" was the thing he said was missing and a citation buried
+   in prose is not an instruction. */
 function moduleWork(c, i, step, parts) {
   const has = parts.practice || parts.artifact || parts.reflection;
   return `
     <h3 style="margin:16px 0 2px">${esc(step.title || 'Module ' + (i + 1))}</h3>
     ${parts.objective ? `<div class="meta" style="margin-bottom:8px">${esc(parts.objective)}</div>` : ''}
+    ${readFirstRow(step)}
     ${!has ? `<p class="meta" style="margin-top:10px">This module asks for no practice in so many words —
         it has no <b>Practice</b>, <b>Reflection</b> or <b>Artifact</b> line. Work it anyway if you like;
         the page below is yours either way.</p>` : ''}
-    ${parts.practice ? block('The practice', parts.practice, '#c9a86a') : ''}
+    ${parts.theory ? block('The theory — be able to rebuild this, not recall it', parts.theory, '#c98fb4') : ''}
+    ${parts.practice ? block('The homework', parts.practice, '#c9a86a') : ''}
     ${parts.artifact ? block('What you make', parts.artifact, '#7fa36b') : ''}
     ${parts.reflection ? block('Afterwards, honestly', parts.reflection, '#9ac7e8') : ''}
+    ${repeatRow(c, i, parts)}
+    ${gateRow(parts)}
     ${refChips(parts)}
-    ${saidRow()}
+    ${saidRow(parts)}
     ${blankPage(c, i)}
     ${pastAttempts(c, i)}
     ${extendRow(c)}
     ${folderRow(c)}`;
+}
+
+/* ★ GO READ THE BOOK — first, and as a press rather than a mention.
+   Three states, the same three the Board uses and for the same reason (rule 6):
+   you own it and it opens · the shelf has something close and it OFFERS ·
+   nothing, said plainly with the way to fix it. */
+function readFirstRow(step) {
+  if (!step.reading) return '';
+  const owned = step.bookSlug && X.getDoc ? X.getDoc(step.bookSlug) : null;
+  const why = step.readingWhy
+    ? `<div class="meta" style="margin-top:3px;opacity:.85">${esc(step.readingWhy)}</div>` : '';
+  return `<div style="margin-top:11px;padding:9px 12px;border-left:3px solid #8fb4d9;background:#241c12;border-radius:0 7px 7px 0">
+    <div class="meta" style="margin:0 0 4px">First — read this</div>
+    <div style="font-size:13px;color:#e2d5bd">📖 <b>${esc((owned && owned.title) || step.reading)}</b>
+      ${owned ? `<button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
+          onclick="openReader('${jsq(step.bookSlug)}')">open it</button>`
+        : `<span class="meta" style="opacity:.8">— not on your shelf yet</span>
+           <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:4px"
+          onclick="openBookIntake()">bring it in</button>`}</div>
+    ${why}
+  </div>`;
+}
+
+/* ★ "DO IT ONCE, SEE HOW YOU FEEL, AND KEEP GOING FOR 20 DAYS."
+
+   Counted from the attempts you kept, and DAYS ARE COUNTED AS DAYS — distinct
+   dates, not presses, because sitting once and pressing keep four times is not
+   four days of practice and a surface that says it is would be lying to the
+   one person it is for.
+
+   NOT A STREAK. No consecutive requirement, nothing to break, no flame, no
+   encouragement copy. It is a tally against a number the AUTHOR wrote, and on
+   your own course the author is you. When there is no number it says so
+   instead of inventing one. */
+function repeatRow(c, i, parts) {
+  const spec = repeatSpec(parts.repeat);
+  if (!spec) return '';
+  const list = attemptsFor(c.id, i);
+  const done = spec.byDay ? new Set(list.map(a => a.at)).size : list.length;
+  const label = spec.byDay ? (done === 1 ? 'day' : 'days') : (done === 1 ? 'time' : 'times');
+  return `<div style="margin-top:11px;padding:9px 12px;border-left:3px solid #d9a441;background:#241c12;border-radius:0 7px 7px 0">
+    <div class="meta" style="margin:0 0 4px">Keep going</div>
+    <div style="font-size:13px;color:#e2d5bd">${esc(spec.text)}</div>
+    <div class="meta" style="margin-top:5px">${spec.times
+      ? `You have kept <b>${done}</b> ${label} of <b>${spec.times}</b>.${done >= spec.times
+          ? ' That is the whole of it — well done, and it is yours now.' : ''}`
+      : `You have kept <b>${done}</b> ${label} so far. This one names no number, so there is nothing to
+         count towards — which is a real answer, not a gap.`}</div>
+  </div>`;
+}
+
+/* ★ THE LEVEL EXPECTED AT THE END OF THIS PART. His "small attainable goals
+   that are digested one by one" — the course's own gate for this module, put
+   where you can read it BEFORE you start rather than discovering it after. */
+function gateRow(parts) {
+  if (!parts.byTheEnd) return '';
+  return `<div style="margin-top:11px;padding:9px 12px;border:2px solid #7fa36b;border-radius:8px;background:#1b140d">
+    <div class="meta" style="margin:0 0 4px">By the end of this part, you should be able to</div>
+    <div style="font-size:13.5px;color:#e2d5bd">${courseProse(parts.byTheEnd)}</div>
+  </div>`;
 }
 function block(label, text, colour) {
   return `<div style="margin-top:11px;padding:9px 12px;border-left:3px solid ${colour};background:#241c12;border-radius:0 7px 7px 0">
@@ -404,11 +500,17 @@ function refChips(parts) {
     `<span class="badge" title="${esc(refLine(h))}">${esc(h.name)}${h.symbol ? ' ' + esc(h.symbol) : ''}</span>`).join(' ')}</div>`;
 }
 
-function saidRow() {
+function saidRow(parts) {
   const v = view();
+  /* ASK ABOUT THE BAR THE COURSE SET, when it set one. "Can you do this now?"
+     is vague against a nine-paragraph module and exact against "by the end you
+     should be able to size a resistor from a voltage and a current." */
+  const bar = parts && parts.byTheEnd
+    ? 'Before you start — can you already do that?'
+    : 'Before you start — can you do this now?';
   return `
     <div style="margin-top:15px">
-      <div class="meta" style="margin:0 0 5px">Before you start — can you do this now?</div>
+      <div class="meta" style="margin:0 0 5px">${bar}</div>
       <div class="row" style="gap:6px">
         ${SAID.map(s => `<button class="btn ${v.said === s.id ? '' : 'ghost'}"
           style="font-size:11.5px;padding:5px 12px" onclick="learnSaid('${s.id}')">${s.label}</button>`).join('')}
@@ -446,15 +548,30 @@ function renderAids() {
   const box = document.getElementById('lwAttempt');
   const written = !!(box && box.value.trim());
   const v = view();
+  const c0 = currentCourse();
+  const i0 = c0 ? currentIndex(c0) : 0;
+  /* ★ HANDING IN IS A SEPARATE THING FROM ASKING FOR HELP, and it survives an
+     empty box: once the work is KEPT there is homework to mark whether or not
+     you are mid-way through writing the next attempt. This is the only part of
+     the desk that is about work already finished rather than work in progress,
+     so it is drawn first and on its own condition. */
+  const handedIn = c0 ? sortedAttempts(c0.id, i0)[0] : null;
+  const markRow = (handedIn && X.aiActive && X.aiActive()) ? `
+    <div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="btn" onclick="markHomework(${c0.id},${i0})">📥 Hand this in to be marked</button>
+      <span class="meta" style="margin:0;opacity:.75">Marked against what the course itself asks for —
+        not against anybody's taste.</span>
+    </div>` : '';
   if (!written) {
-    el.innerHTML = `<div class="meta" style="margin-top:10px;opacity:.6">Write something first.
+    el.innerHTML = (v.mark ? markBlock(v.mark) : '') + markRow
+      + `<div class="meta" style="margin-top:10px;opacity:.6">Write something first.
       Help appears once there is an attempt to help with.</div>`;
     return;
   }
   const ai = X.aiActive && X.aiActive();
   const c = currentCourse();
   const i = c ? currentIndex(c) : 0;
-  el.innerHTML = `
+  el.innerHTML = (v.mark ? markBlock(v.mark) : '') + markRow + `
     <div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap">
       ${ai ? `<button class="btn ghost" style="font-size:11.5px" onclick="learnAsk('another',${c.id},${i})">✎ Another problem like this</button>
         <button class="btn ghost" style="font-size:11.5px" onclick="learnAsk('theory',${c.id},${i})">💡 Explain the theory</button>
@@ -697,6 +814,138 @@ function folderRow(c) {
       a browser has nowhere on your disk to put one. The single file above is the whole course.</div>`}
     <div class="meta" id="lfMsg" style="margin-top:6px"></div>
   </details>`;
+}
+
+/* ================================================================
+   [MARKING THE HOMEWORK] — hand it in, and be told honestly.
+
+   The steward, 2026-08-15:
+
+     "We should be able to quote unquote submit our homework to the AI, the
+      local AI, to be able to judge and grade it and ask us to do more work if
+      it's met lacking."
+
+   ⚠ THIS IS THE THING I TALKED HIM OUT OF THIS MORNING, and it is right now
+   for a reason that did not exist then. When I offered it as an option the
+   answer would have been the MODEL'S idea of good work — a grader with its own
+   taste, in a house whose rule is that nothing judges the visitor. He chose the
+   honor system instead.
+
+   `**By the end:**` changes that completely. There is now a bar THE AUTHOR
+   WROTE, in the course, in their own words. Marking against a stated bar is
+   not a machine forming an opinion of you; it is a machine checking one
+   sentence against another and showing its working. On your own course, the
+   author is you — you are being held to your own standard, which is exactly
+   the honor system with an extra pair of eyes.
+
+   SO THE RULES, and each one closes a way this could go wrong:
+
+     · IT MARKS AGAINST THE BAR, QUOTED. The prompt carries `By the end` and
+       `Practice` verbatim and says to judge against those and nothing else.
+       With no bar stated it says so and marks against the practice alone.
+     · THREE WORDS, NOT A SCORE. meets it / not yet / can't tell. A number
+       gets averaged and an average of your work is the stick this house keeps
+       out — and "can't tell from what you wrote" is rule 6, out loud.
+     · IT MAY SEND YOU BACK FOR MORE, which is the half he actually asked for:
+       when it is short, it must say what specifically is missing and what to
+       do about it.
+     · IT CHANGES NOTHING. Not your attempt, not your before/after, not whether
+       the module is done. It is an opinion on your record, stamped as the
+       model's, and every one of those decisions stays yours.
+     · YOU PRESS. And only after the work is kept — you cannot hand in a blank
+       page, and the desk will not offer to mark one.
+   ================================================================ */
+export const MARKS = {
+  meets:   { icon: '✓', label: 'meets the bar',  colour: '#7fa36b' },
+  'not-yet': { icon: '○', label: 'not yet',      colour: '#d9a441' },
+  unclear: { icon: '?', label: 'cannot tell',    colour: '#8fb4d9' },
+};
+/* The verdict is read off the model's FIRST LINE, which the prompt demands be
+   exactly one of three words. Anything else is 'unclear' — a marker that
+   cannot be parsed has not marked anything, and guessing which of three it
+   meant would be inventing the verdict. */
+function readVerdict(text) {
+  const first = String(text || '').trim().split('\n')[0].toUpperCase();
+  if (/\bMEETS\b/.test(first)) return 'meets';
+  if (/\bNOT YET\b|\bNOTYET\b/.test(first)) return 'not-yet';
+  return 'unclear';
+}
+export async function markHomework(courseId, i) {
+  const c = (data.courses || []).find(x => x.id === courseId);
+  if (!c || !X.askTutor) return;
+  const list = sortedAttempts(courseId, i);
+  const latest = list[0];
+  /* THE BLANK PAGE STILL COMES FIRST, at the door as well as in the drawing.
+     There is nothing to mark until you have kept something. */
+  if (!latest || !String(latest.text || '').trim()) return;
+  const v = view();
+  v.mark = { busy: true };
+  renderAids();
+  const step = c.steps[i] || {};
+  const parts = moduleParts(step.body);
+  const bar = parts.byTheEnd || '';
+  const body = [
+    'You are marking one piece of homework for a learner working through a course.',
+    '',
+    'THE COURSE: ' + c.title,
+    'THE MODULE: ' + (step.title || 'Module ' + (i + 1)),
+    parts.objective ? 'ITS OBJECTIVE: ' + parts.objective : '',
+    parts.theory ? 'THE THEORY IT ASKED THEM TO HOLD:\n' + parts.theory : '',
+    parts.practice ? 'THE HOMEWORK IT SET:\n' + parts.practice : '',
+    '',
+    bar
+      ? 'THE BAR, WRITTEN BY THE COURSE\'S OWN AUTHOR — judge against THIS and nothing else. Not against\n'
+        + 'your own idea of a good answer, and not against what an expert would write:\n' + bar
+      : 'THE COURSE STATES NO BAR for this module, so judge only whether the homework above was actually\n'
+        + 'done, and say in your first sentence that the course set no explicit standard here.',
+    '',
+    'WHAT THEY WROTE:',
+    String(latest.text),
+    latest.stuck ? '\nTHEY ALSO SAID THEY GOT STUCK ON: ' + latest.stuck : '',
+    '',
+    'REPLY IN THIS SHAPE, and nothing else:',
+    'First line: exactly one of  MEETS  ·  NOT YET  ·  CANNOT TELL',
+    'Then two or three sentences on WHAT IS ACTUALLY IN THEIR ANSWER — quote a phrase of theirs.',
+    'If NOT YET: say precisely what is missing, then give ONE concrete piece of extra work that would',
+    'close that gap. One. Not a syllabus.',
+    'If CANNOT TELL: say what they would have to write for you to be able to judge it.',
+    'No score, no mark out of anything, no praise for its own sake. Do not rewrite their answer for them.',
+  ].filter(Boolean).join('\n');
+  let text = '';
+  try { text = await X.askTutor(body); } catch (e) { text = ''; }
+  v.mark = text
+    ? { verdict: readVerdict(text), text, by: X.aiName ? X.aiName() : 'the model', at: todayKey() }
+    : { verdict: 'unclear', text: 'No answer came back. Nothing on this desk waits on one — the work is '
+        + 'kept either way.', by: 'the Pavilion', at: todayKey() };
+  renderAids();
+}
+export function clearMark() { view().mark = null; renderAids(); }
+function markBlock(m) {
+  if (m.busy) return `<div class="meta" style="margin-top:10px">marking it…</div>`;
+  const look = MARKS[m.verdict] || MARKS.unclear;
+  return `<div style="margin-top:12px;padding:10px 13px;border:2px dashed ${look.colour};border-radius:8px;background:#191309">
+    <div class="meta" style="margin:0 0 5px">
+      <b style="color:${look.colour}">${look.icon} ${look.label}</b> ·
+      🤖 ${esc(m.by)} — an opinion on your work, not a change to it</div>
+    <div style="font-size:13px;line-height:1.55;color:#cbbda3">${courseProse(m.text)}</div>
+    <div class="row" style="margin-top:9px;gap:6px">
+      ${m.verdict === 'not-yet'
+        ? `<button class="btn" onclick="anotherGo()">✎ Have another go</button>` : ''}
+      <button class="btn ghost" onclick="clearMark()">Put it away</button>
+    </div>
+    <div class="meta" style="margin-top:6px;opacity:.7">Nothing here ticked a module or changed what you
+      wrote. Whether this is finished is yours to say.</div>
+  </div>`;
+}
+/* "Ask us to do more work if it's lacking" — made into a press rather than a
+   sentiment. It clears the page for a fresh attempt and leaves the marking on
+   screen to work against. The previous attempt is untouched; a second go is a
+   second entry, because the pair of them is the record. */
+export function anotherGo() {
+  clearDraft();
+  renderLearningDesk();
+  const box = document.getElementById('lwAttempt');
+  if (box) box.focus();
 }
 
 /* ---------- one more module ----------

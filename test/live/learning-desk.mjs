@@ -402,6 +402,94 @@ ok('and says why, rather than failing quietly',
 await scrollTo('lfMsg');
 await p.screenshot({ path: 'test/live/_ld-8-folder.png' });
 
+console.log('\n18 · ★ The module\'s contract — theory, homework, and the level at the end\n');
+/* A module carrying all three new labels, brought in the way a real one
+   arrives: through the extend path, parsed by the real parser. His shape,
+   almost verbatim — "do it once, see how you feel, write a report, and keep
+   going for 20 days." */
+const SIT = ['## Module 11 — Sit Once, Then Twenty Days', '',
+  '**Objective:** Find out what actually happens when you sit, before reading what is supposed to.', '',
+  '**Theory:** Attention wanders. Noticing that it wandered IS the practice, not a failure of it.',
+  'Nothing else here needs to be held in your head.', '',
+  '**Body:** What you will notice first is restlessness, and it is normal. The texts spend more',
+  'words reassuring you about this than describing anything further on, and that is deliberate.', '',
+  '**Practice:** Sit for ten minutes. Do nothing about your thoughts except notice them.', '',
+  '**Repeat:** once a day for 20 days', '',
+  '**Reflection:** What did you expect, and what actually happened?', '',
+  '**Artifact:** A short written report after the first sit, and another after the twentieth.', '',
+  '**By the end:** You can sit for ten minutes without needing to be told how, and you can say',
+  'in your own words what changed between day one and day twenty.'].join('\n');
+await p.evaluate(m => {
+  const box = document.getElementById('lxPaste');
+  box.value = m; box.dispatchEvent(new Event('input', { bubbles: true }));
+}, SIT);
+await wait(450);
+await clickText('Add it to the course');
+await wait(600);
+const sitAt = (await save()).courses.find(c => c.id === Number(courseId)).steps.length - 1;
+await p.evaluate(n => window.learnPickModule(n), sitAt);
+await wait(500);
+const t18 = await text();
+ok('★ the theory is its own block, and says rebuild not recall',
+   /The theory — be able to rebuild this, not recall it/.test(t18) && /Attention wanders/.test(t18));
+ok('★ the practice is called the homework', /The homework/.test(t18));
+ok('★ the level expected at the end is stated before you start',
+   /By the end of this part, you should be able to/.test(t18) && /without needing to be told how/.test(t18));
+ok('★ "keep going" is a tally against the author\'s own number',
+   /once a day for 20 days/.test(t18) && /You have kept .*0 days of .*20/.test(t18.replace(/\s+/g, ' ')),
+   (t18.replace(/\s+/g, ' ').match(/You have kept[^.]*\./) || ['(absent)'])[0]);
+ok('and the chips ask about THAT bar, not a vague "this"',
+   /can you already do that\?/.test(t18));
+ok('★ no streak, no flame, nothing to break',
+   !/🔥|streak|in a row|don.t break/i.test(t18));
+await p.evaluate(() => { const h = document.querySelector('#learnBody h3'); if (h) h.scrollIntoView({block:'start'}); });
+await wait(350);
+await p.screenshot({ path: 'test/live/_ld-9-contract-top.png' });
+await scrollTo('lwAttempt');
+await p.screenshot({ path: 'test/live/_ld-9-contract.png' });
+
+console.log('\n19 · Keep one, and the tally counts a DAY not a press\n');
+await p.evaluate(() => {
+  const box = document.getElementById('lwAttempt');
+  box.value = 'Sat ten minutes. Mostly a list of things I should be doing instead. Noticed that maybe four times.';
+  box.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await wait(350);
+await clickText('Keep this attempt');
+await wait(600);
+const t19 = await text();
+ok('the tally moved to one day', /You have kept .*1 day of .*20/.test(t19.replace(/\s+/g, ' ')),
+   (t19.replace(/\s+/g, ' ').match(/You have kept[^.]*\./) || ['(absent)'])[0]);
+/* ★ TWO PRESSES IN ONE DAY IS ONE DAY. Counting presses would let one sitting
+   and four presses read as four days of practice. */
+await p.evaluate(() => {
+  const box = document.getElementById('lwAttempt');
+  box.value = 'Second go, same afternoon.';
+  box.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await wait(300);
+await clickText('Keep this attempt');
+await wait(600);
+const t19b = await text();
+ok('★ a second attempt on the SAME DAY is still one day',
+   /You have kept .*1 day of .*20/.test(t19b.replace(/\s+/g, ' ')),
+   (t19b.replace(/\s+/g, ' ').match(/You have kept[^.]*\./) || ['(absent)'])[0]);
+ok('but both attempts are kept', /2 attempts/.test(t19b));
+
+console.log('\n20 · Handing homework in — absent with no model, and it changes nothing\n');
+ok('★ with no AI connected there is no "hand this in"', !/Hand this in to be marked/.test(t19b));
+const beforeMark = await save();
+ok('★ and calling the marker directly still writes nothing',
+   await p.evaluate(async (id, i) => {
+     await window.markHomework(id, i);
+     return true;
+   }, Number(courseId), sitAt));
+await wait(500);
+const afterMark = await save();
+ok('the save is untouched by a marking',
+   JSON.stringify(beforeMark.courses) === JSON.stringify(afterMark.courses)
+   && JSON.stringify(beforeMark.courseWork) === JSON.stringify(afterMark.courseWork));
+
 ok('no page errors anywhere in the run', errs.length === 0, errs.join(' | '));
 console.log(failed ? `\n✗ learning-desk: ${failed} failure(s)\n` : '\n✓ learning-desk: all checks passed\n');
 await b.close();

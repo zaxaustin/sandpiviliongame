@@ -6908,6 +6908,128 @@ for (const d of SEED_LIBRARY) {
        + 'own attempts must not be parseable as a course module.');
   }
 
+  /* ================================================================
+     ★ THE MODULE'S CONTRACT — theory, homework, the level at the end.
+
+     The steward, 2026-08-15: "I want to give people more guidance on this is
+     homework, this is the theory, and this is the level I expect you to be at
+     at the end of this part of the course."
+
+     Three labels, and the reason they need a guard is course-format.js's own
+     warning about the four that already had "nowhere to live in a course
+     record yet": a field nobody reads is a field that rots. Each of these must
+     PARSE and must be CONSUMED, or it is decoration.
+     ================================================================ */
+  {
+    const body = ['**Objective:** know it.', '', '**Theory:** V = IR, and why.', '',
+                  '**Practice:** do the thing.\n- and the second bullet', '',
+                  '**Repeat:** once a day for 20 days', '',
+                  '**By the end:** you can size a resistor from a voltage and a current.'].join('\n');
+    const mp = CF2.moduleParts(body);
+    for (const [k, want] of [['theory', /V = IR/], ['byTheEnd', /size a resistor/], ['repeat', /20 days/]]) {
+      if (!mp[k] || !want.test(mp[k])) fail(`moduleParts() does not read ${k} out of a module body`);
+    }
+    /* ★ THE KEY HAS NO SPACE IN IT. "By the end" produced parts['by the end']
+       until the labels grew explicit keys — a property nobody can reach
+       without quoting, which is how a field gets read in one place and
+       misspelled in another. */
+    if ('by the end' in mp) fail('moduleParts() still keys "By the end" by its label — the key must be byTheEnd');
+    /* ★ AND THE MULTI-LINE PART STILL SURVIVES. The labels grew; the m-flag
+       bug must not come back with them. */
+    if (!/second bullet/.test(mp.practice || '')) fail('moduleParts() truncated a multi-line practice again');
+
+    /* ⚠ THE NUMBER WINS OVER THE WORD. "once a day for 20 days" is how a
+       person writes it, and reading it as ONE tells them they are finished on
+       the first morning. */
+    const rs = CF2.repeatSpec('once a day for 20 days');
+    if (!rs || rs.times !== 20) fail(`repeatSpec("once a day for 20 days") gave ${rs && rs.times}, expected 20 — `
+                                   + 'a target of 1 for a twenty-day practice says you are done on day one');
+    if (!rs.byDay) fail('repeatSpec did not notice that a twenty-DAY practice is counted in days');
+    /* And it says "I don't know" rather than inventing a target. */
+    const vague = CF2.repeatSpec('as often as you can');
+    if (!vague || vague.times !== null) fail('repeatSpec invented a number for a repeat that names none');
+    if (CF2.repeatSpec('') !== null) fail('repeatSpec should return null for no repeat at all');
+
+    /* CONSUMED, not merely parsed — the desk DRAWS all three.
+
+       ⚠ EACH PATTERN NAMES THE RENDER CALL, not the field. The first version
+       looked for `parts.theory ?` anywhere in the file and stayed green with
+       the render deleted, because markHomework() mentions parts.theory too
+       when it builds the prompt. That is this morning's syllabusOwned bug
+       exactly: a guard satisfied by a different use of the same name. */
+    for (const [what, re] of [['the theory', /parts\.theory \? block\(/],
+                              ['the homework gate', /function gateRow[\s\S]{0,400}parts\.byTheEnd/],
+                              ['the repeat tally', /function repeatRow[\s\S]{0,200}repeatSpec\(parts\.repeat\)/]]) {
+      if (!re.test(ldBody)) fail('ui/learning-desk.js does not render ' + what + ' — a field nobody reads rots');
+    }
+    /* ★ DAYS ARE COUNTED AS DAYS. Counting presses would let one sitting and
+       four presses read as four days of practice, which is the flattering lie
+       rule 9 exists to keep out. */
+    if (!/new Set\(list\.map\(a => a\.at\)\)\.size/.test(ldBody)) {
+      fail('ui/learning-desk.js: the repeat tally does not count DISTINCT DATES. Counting presses means '
+         + 'sitting once and pressing keep four times reads as four days.');
+    }
+    /* And the prompts ask for all three, or a drafted course will never have
+       them and the desk will render nothing. */
+    for (const label of ['**Theory:**', '**Repeat:**', '**By the end:**']) {
+      if (!CP.buildDraftingPrompt({}).includes(label)) fail('the drafting prompt no longer asks for ' + label);
+      if (!CP.buildExtendPrompt({}).includes(label)) fail('the extend prompt no longer asks for ' + label);
+    }
+  }
+
+  /* ================================================================
+     ★ MARKING THE HOMEWORK — against the author's bar, never the model's.
+
+     "We should be able to submit our homework to the AI to judge and grade it
+      and ask us to do more work if it's met lacking."
+
+     This is the one feature in the desk that lets a machine form an opinion of
+     a person's work, and the ONLY thing that makes it acceptable in this house
+     is that it marks against `**By the end:**` — a sentence the course's author
+     wrote. Take that away and it is a grader with its own taste.
+     ================================================================ */
+  {
+    const mark = (/export async function markHomework\([\s\S]*?\n}/.exec(ldBody) || [''])[0];
+    if (!mark) fail('ui/learning-desk.js: markHomework() is gone');
+    else {
+      if (!/parts\.byTheEnd/.test(mark)) {
+        fail('markHomework() no longer reads the module\'s **By the end:** bar. Marking against anything '
+           + 'else is a machine forming its own opinion of a person\'s work, which is the one thing this '
+           + 'desk must not do.');
+      }
+      if (!/judge against THIS and nothing else/.test(mark)) {
+        fail('markHomework() no longer tells the model to judge against the author\'s bar and nothing else');
+      }
+      /* ★ NO SCORE. He asked for "judge and grade"; the house rule is that
+         nothing here becomes a number, because a number gets averaged and an
+         average of your work is a stick. Three words instead. */
+      if (!/No score, no mark out of anything/.test(mark)) {
+        fail('markHomework() no longer forbids a score. Three words — meets / not yet / cannot tell — '
+           + 'is a judgement; a number is a grade, and a grade gets averaged.');
+      }
+      /* ★ AND IT MUST BE ABLE TO SEND YOU BACK, which is the half he actually
+         asked for: "ask us to do more work if it's met lacking." */
+      if (!/If NOT YET: say precisely what is missing/.test(mark)) {
+        fail('markHomework() no longer asks for what is missing and one concrete piece of extra work');
+      }
+      /* ★ IT CHANGES NOTHING. Not the attempt, not the chips, not whether the
+         module is done. An opinion on the record, never an edit to it. */
+      for (const forbidden of [/persist\(/, /\.done\s*=/, /awardBadge\(/, /\.after\s*=/]) {
+        if (forbidden.test(mark)) {
+          fail('markHomework() writes to the visitor\'s record (' + forbidden + '). A marking is an '
+             + 'opinion — ticking a module or setting an answer on their behalf is the machine deciding '
+             + 'they are finished.');
+        }
+      }
+    }
+    /* The verdict is READ, not guessed. A reply that does not name one of the
+       three is 'cannot tell' — inventing which it meant is inventing a mark. */
+    if (!/function readVerdict\([\s\S]{0,400}return 'unclear';/.test(ldBody)) {
+      fail('ui/learning-desk.js: readVerdict() no longer falls back to "cannot tell" for a reply it '
+         + 'cannot parse — it would be guessing the verdict');
+    }
+  }
+
   /* ★ THE PRIVATE STORE IS DECLARED IN BOTH PLACES. entities.js and
      visibility.js — the pair guard exists elsewhere; this names courseWork
      specifically because it is the newest and the most personal. */
@@ -7131,14 +7253,11 @@ for (const d of SEED_LIBRARY) {
      comparing against the bare call would let the doc show a version of the
      prompt no person ever receives. These are the same placeholders the doc
      was generated with. */
-  const EXTEND_SAMPLE = {
-    title: 'The course title',
-    purpose: 'What it is for, in a sentence.',
-    modules: ['The first module', 'The second module', 'The third module'],
-    have: ['A book you own that touches this', 'Another one'],
-    stuck: ['Where you actually got stuck, in your own words'],
-    about: 'the subject of the new module, if you have one in mind',
-  };
+  /* IMPORTED FROM THE GENERATOR, not copied beside it. Two hand-kept copies of
+     the sample would drift and the failure would read as "the doc drifted" when
+     in fact the guard did — the worst kind, because the fix would be applied to
+     the innocent side. `node scripts/regen-protocols.mjs` puts the doc right. */
+  const EXTEND_SAMPLE = CP.EXTEND_DOC_SAMPLE;
   if (!/^## Protocol 5 — Growing a course you are already walking$/m.test(protoSrc)) {
     fail('PROTOCOLS.md has no Protocol 5. The Learning Desk can extend a course and the docs would not '
        + 'say how — which is the same gap Protocol 4 was written to close.');

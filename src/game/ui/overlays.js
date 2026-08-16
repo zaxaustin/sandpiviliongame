@@ -26,7 +26,8 @@ import { initLearningDesk, openLearningDesk, renderLearningDesk, workModuleHere,
          keepAttempt, printPractice, attemptsFor, learnLookBack,
          saveCourseFolder, revealCourseFolder, saveCourseFile,
          learnExtend, askForModule, copyModulePrompt, readPastedModule,
-         acceptDraftedModule, discardDraftedModule } from './learning-desk.js';
+         acceptDraftedModule, discardDraftedModule,
+         markHomework, clearMark, anotherGo } from './learning-desk.js';
 /* main.js opens rooms through this file, never through the panel modules —
    one import list to read, and the same shape every other station has. */
 export { openLearningDesk };
@@ -5462,6 +5463,9 @@ initLearningDesk({
      folder's syllabus.md and the syllabus on screen must not disagree about
      whether you own a book, which is the bug they had on the Board a day ago. */
   owned: syllabusOwned,
+  /* So the desk can open the module's own book the way the Board does —
+     'go read the book' is a press there and had to be one here too. */
+  getDoc: (slug) => { try { return Store.getDoc(slug); } catch(e){ return null; } },
   /* WHICH OF YOUR OWN BOOKS TOUCH THIS. The same deterministic match the
      Board uses to turn an idea into a reading list — counted, never asked
      of a model (rule 7). */
@@ -14760,6 +14764,7 @@ Object.assign(window, {
   saveCourseFolder, revealCourseFolder, saveCourseFile,
   learnExtend, askForModule, copyModulePrompt, readPastedModule,
   acceptDraftedModule, discardDraftedModule,
+  markHomework, clearMark, anotherGo,
   learnAsk, keepAttempt, printPractice, workModuleHere,
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,

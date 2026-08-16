@@ -568,13 +568,17 @@ IT MUST CONTAIN — all seven
 2. Baseline — mine, above, in the frontmatter for whoever reads this next.
 3. Theoretical minimum — the few things I must rebuild from scratch, not recall. Cut hard.
 4. A daily commitment I can actually keep, named in the opening.
-5. Modules with real prose, each with practice, reflection and one artifact.
+5. Modules with real prose — each naming the theory to rebuild, the homework, how often it
+   repeats, and the level I reach by its end. Small and attainable, digested one at a time.
 6. A final gate — what I demonstrate from a blank page, and what must actually work.
 7. Transmission — polished so another person can walk it without me.
 Note: `prerequisites:` is what the COURSE demands; `baseline:` is what I brought.
 
 Work me in three modes throughout — analytical (predict, measure, diagnose), creative
 (reframe the question), practical (build it, explain it to someone who needs it today).
+
+For subjects only learned by DOING them — meditation, an instrument, a craft — the explanation
+says what is normal to experience and what it means, not what the destination is like.
 
 THE FORMAT — reply with this and nothing else. Every module is a `## ` heading and nothing
 else uses `##`. Objective / Body / Practice / Reflection / Artifact are bold labels inside
@@ -608,13 +612,20 @@ and how I will know it is working. Kept visible for the whole course.
 
 **Objective:** one sentence.
 
+**Theory:** the few things I must be able to rebuild from scratch here, not recall. Cut hard.
+
 **Body:** real explanatory paragraphs, as many as the idea needs.
 
-**Practice:** something I do, not something I read.
+**Practice:** the homework — something I do, not something I read.
+
+**Repeat:** how many times, or over how many days. Say "once" if once is right.
 
 **Reflection:** a question I answer in writing.
 
 **Artifact:** what I will have made when this module is done.
+
+**By the end:** the level I should be at when this part is finished — one attainable thing,
+stated so plainly that I can tell for myself whether I am there.
 ```
 ~~~
 
@@ -731,13 +742,20 @@ No frontmatter, no preamble, no closing remarks.
 
 **Why this text:** why this one, and what to look for in it.
 
+**Theory:** the few things I must be able to rebuild from scratch here, not recall.
+
 **Body:** real explanatory paragraphs. Not a checklist.
 
-**Practice:** something I do, not something I read.
+**Practice:** the homework — something I do, not something I read.
+
+**Repeat:** how many times, or over how many days. Say "once" if once is right.
 
 **Reflection:** a question I answer in writing.
 
 **Artifact:** what I will have made when this module is done.
+
+**By the end:** the level I should be at when this part is finished — one attainable thing,
+stated so plainly that I can tell for myself whether I am there.
 ```
 ~~~
 

@@ -120,12 +120,29 @@ export const PROTOCOL_STEPS = [
    So the ceilings apply to `buildDraftingPrompt({})`, and a separate guard
    holds the shelf block to one line per book plus a fixed header — which is
    what actually stops it hiding bloat. */
-export const PROMPT_MAX_PROSE_LINES = 42;
+/* 42 -> 45 on 2026-08-15, and the story is worth more than the number.
+
+   The first attempt at this raise wanted SEVEN more prose lines: three for the
+   module contract, three about practice-based subjects, and a blank. It fired
+   the ceiling at 47, which is exactly what the ceiling is for — "keep it
+   tight. One strong prompt is better than a long essay."
+
+   So it was cut rather than paid for. The module contract went INTO required
+   piece 5, which was already the line about modules, and the practice-subject
+   note went from three lines to two. Two net new lines instead of seven, and
+   the prompt says the same things.
+
+   A ceiling that only ever gets raised is a comment. This one did its job. */
+export const PROMPT_MAX_PROSE_LINES = 45;
 /* 75 -> 76 on 2026-08-15: `duration:` joined the frontmatter example when the
    steward asked a course to say how long it takes. One line, in the example
    rather than the prose, and a deliberate raise rather than a drift — which
    is exactly what this constant is for. */
-export const PROMPT_MAX_LINES = 76;
+/* 76 -> 86 on 2026-08-15: **Theory:**, **By the end:** and **Repeat:** joined
+   the module example, three labels at two lines each plus their blanks. In the
+   EXAMPLE rather than the prose, and a deliberate raise rather than a drift —
+   which is exactly what this constant is for. */
+export const PROMPT_MAX_LINES = 87;
 /* Fixed lines around the book list — the header, the two instruction lines
    about **Reading:** and **Why this text:**, and the four example lines those
    two labels add to the fenced sample. Went 6 -> 9 on 2026-08-15 when the
@@ -190,13 +207,31 @@ export function buildDraftingPrompt(opts) {
     '2. Baseline — mine, above, in the frontmatter for whoever reads this next.',
     '3. Theoretical minimum — the few things I must rebuild from scratch, not recall. Cut hard.',
     '4. A daily commitment I can actually keep, named in the opening.',
-    '5. Modules with real prose, each with practice, reflection and one artifact.',
+    /* ★ THE MODULE'S CONTRACT, folded into the piece that was already about
+       modules rather than added beside it. The steward: "I want to give people
+       more guidance on THIS IS HOMEWORK, THIS IS THE THEORY, and THIS IS THE
+       LEVEL I EXPECT YOU TO BE AT at the end of this part of the course. Small
+       attainable goals that are digested one by one." */
+    '5. Modules with real prose — each naming the theory to rebuild, the homework, how often it',
+    '   repeats, and the level I reach by its end. Small and attainable, digested one at a time.',
     '6. A final gate — what I demonstrate from a blank page, and what must actually work.',
     '7. Transmission — polished so another person can walk it without me.',
     'Note: `prerequisites:` is what the COURSE demands; `baseline:` is what I brought.',
     '',
     'Work me in three modes throughout — analytical (predict, measure, diagnose), creative',
     '(reframe the question), practical (build it, explain it to someone who needs it today).',
+    '',
+    /* ★ THE THING HE TAUGHT ME, kept in his own shape because the shape is the
+       argument: "you can show people the door… but the person practicing has to
+       do it themselves… a lot of the Buddha's words are just reassuring you
+       that these changes are normal, expected and great blessings."
+
+       TWO LINES, and the module's contract went into required piece 5 rather
+       than beside it — the seven pieces ARE the list, and a prompt that says
+       the same thing in two places teaches the model that repetition is the
+       format. */
+    'For subjects only learned by DOING them — meditation, an instrument, a craft — the explanation',
+    'says what is normal to experience and what it means, not what the destination is like.',
     '',
     'THE FORMAT — reply with this and nothing else. Every module is a `## ` heading and nothing',
     'else uses `##`. Objective / Body / Practice / Reflection / Artifact are bold labels inside',
@@ -240,13 +275,20 @@ export function buildDraftingPrompt(opts) {
     '',
     ...(have.length ? ['**Reading:** the exact title of the book from my shelf this module reads.', '',
                        '**Why this text:** why this one and not another, and what to look for in it.', ''] : []),
+    '**Theory:** the few things I must be able to rebuild from scratch here, not recall. Cut hard.',
+    '',
     '**Body:** real explanatory paragraphs, as many as the idea needs.',
     '',
-    '**Practice:** something I do, not something I read.',
+    '**Practice:** the homework — something I do, not something I read.',
+    '',
+    '**Repeat:** how many times, or over how many days. Say "once" if once is right.',
     '',
     '**Reflection:** a question I answer in writing.',
     '',
     '**Artifact:** what I will have made when this module is done.',
+    '',
+    '**By the end:** the level I should be at when this part is finished — one attainable thing,',
+    'stated so plainly that I can tell for myself whether I am there.',
     '```',
   ].join('\n');
 }
@@ -330,6 +372,27 @@ export function buildReadingPrompt(opts) {
    The receiving side parses whatever comes back, so a wrong answer here is a
    duplicate course, not a crash — which is exactly the quiet kind of wrong
    this house does not want. */
+/* THE PLACEHOLDERS PROTOCOLS.md IS GENERATED WITH, kept HERE rather than in
+   the generator or the guard. Both of those import it, so the doc and the check
+   cannot disagree about what the doc should contain — and a sample that lived
+   in the script would make 
+> sand-pavilion@0.1.0-beta.6 test
+> node test/smoke.mjs
+
+PROTOCOLS.md: prompts regenerated from data/course-prompt.js import a script with side effects, which
+   it did for about four minutes and rewrote PROTOCOLS.md mid-run.
+
+   They matter: buildExtendPrompt({}) is a much shorter prompt than one carrying
+   a shelf and a stuck line, so a doc generated bare would show a version no
+   person ever receives. */
+export const EXTEND_DOC_SAMPLE = {
+  title: 'The course title',
+  purpose: 'What it is for, in a sentence.',
+  modules: ['The first module', 'The second module', 'The third module'],
+  have: ['A book you own that touches this', 'Another one'],
+  stuck: ['Where you actually got stuck, in your own words'],
+  about: 'the subject of the new module, if you have one in mind',
+};
 export function buildExtendPrompt(opts) {
   const o = opts || {};
   const title = clean(o.title);
@@ -376,13 +439,20 @@ export function buildExtendPrompt(opts) {
     '',
     ...(have.length ? ['**Reading:** the exact title of the book from my shelf this module reads.', '',
                        '**Why this text:** why this one, and what to look for in it.', ''] : []),
+    '**Theory:** the few things I must be able to rebuild from scratch here, not recall.',
+    '',
     '**Body:** real explanatory paragraphs. Not a checklist.',
     '',
-    '**Practice:** something I do, not something I read.',
+    '**Practice:** the homework — something I do, not something I read.',
+    '',
+    '**Repeat:** how many times, or over how many days. Say "once" if once is right.',
     '',
     '**Reflection:** a question I answer in writing.',
     '',
     '**Artifact:** what I will have made when this module is done.',
+    '',
+    '**By the end:** the level I should be at when this part is finished — one attainable thing,',
+    'stated so plainly that I can tell for myself whether I am there.',
     '```',
   ].join('\n');
 }

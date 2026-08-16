@@ -470,11 +470,57 @@ export function lessonFromCourse(course) {
    course-format.js invited in its own header — "they can be promoted the
    moment something actually consumes one" — done non-destructively.
    ================================================================ */
-const PART_LABELS = ['Objective', 'Practice', 'Reflection', 'Artifact'];
+/* ---- THE MODULE'S CONTRACT WITH YOU ----
+
+   Extended 2026-08-15, from the steward reading both of his real courses back:
+
+     "the first thing I see is do something in Falstead — that is exactly the
+      kind of material that people need to self study. I don't want to give
+      people guard rails but I want to give people more guidance on THIS IS
+      HOMEWORK, THIS IS THE THEORY, and THIS IS THE LEVEL I EXPECT YOU TO BE AT
+      at the end of this part of the course. Small attainable goals that are
+      digested one by one."
+
+   and, on the meditation course:
+
+     "there's not enough homework… no preliminary stress of GO READ THE BOOK…
+      I should say do it once, see how you feel, write a report, and keep going
+      for 20 days."
+
+   Three labels answer all of that, and each one closes a required piece of
+   plans/HIGH-STANDARD-COURSE-CREATION-GUIDE.md that this file's own header
+   said had "nowhere to live in a course record yet":
+
+     **Theory:**     the few things you must be able to rebuild from scratch,
+                     not recall — required piece 3, the theoretical minimum,
+                     PER MODULE rather than once for the whole course.
+     **By the end:** the level expected when this part is finished. Required
+                     piece 6's gate, made small and attainable and repeated,
+                     which is his "digested one by one".
+     **Repeat:**     "20 days", "once", "3 sessions". Some practice is done
+                     once and understood; some is only understood by doing it
+                     for a month. The format could not tell those apart.
+
+   ADDITIVE AND PEEKED, like Practice and Artifact — they live in the body,
+   nothing is lifted out of it, and every course written before today renders
+   exactly as it did. */
+/* The label is what an author writes; the key is what code reads. They were
+   the same string until "By the end" arrived and produced `parts['by the end']`
+   — a property nobody can reach without quoting, which is how a field ends up
+   read in one place and misspelled in another. Named explicitly instead. */
+const PART_LABELS = [
+  { label: 'Objective',  key: 'objective' },
+  { label: 'Theory',     key: 'theory' },
+  { label: 'Practice',   key: 'practice' },
+  { label: 'Reflection', key: 'reflection' },
+  { label: 'Artifact',   key: 'artifact' },
+  { label: 'By the end', key: 'byTheEnd' },
+  { label: 'Repeat',     key: 'repeat' },
+];
 export function moduleParts(body) {
   const src = String(body == null ? '' : body);
   const out = {};
-  for (const label of PART_LABELS) {
+  for (const { label, key } of PART_LABELS) {
     /* Everything from the label up to the next bold label at the start of a
        line, or the end of the body. A practice is often several bullets, not
        one line.
@@ -496,9 +542,42 @@ export function moduleParts(body) {
        meant. */
     const re = new RegExp('(?:^|\\n)\\*\\*' + label + ':\\*\\*[ \\t]*([\\s\\S]*?)(?=\\n\\*\\*[A-Z][^*\\n]*:\\*\\*|$)');
     const hit = re.exec(src);
-    if (hit && hit[1].trim()) out[label.toLowerCase()] = hit[1].trim();
+    if (hit && hit[1].trim()) out[key] = hit[1].trim();
   }
   return out;
+}
+
+/* ---- HOW MANY TIMES, AND OVER WHAT ----
+
+   The steward's meditation shape: "do it once, see how you feel, write a
+   report, and keep going for 20 days." Some practice is done once and
+   understood; some is only understood by doing it for a month, and the format
+   had no way to tell those apart.
+
+   ⚠ IT SAYS "I DON'T KNOW" RATHER THAN GUESSING A NUMBER. `Repeat: as often as
+   you can` is a perfectly good instruction from an author and a terrible thing
+   to invent a target from — a desk reporting "3 of 1" against a number nobody
+   wrote is worse than one reporting nothing. No digits, no target, and the
+   caller is told plainly that there is a repeat with no count.
+
+   DAYS ARE COUNTED AS DAYS. "20 days" means twenty days, not twenty presses,
+   so the caller counts distinct dates — otherwise sitting once and pressing
+   keep four times would read as four days of practice, which is the kind of
+   flattering lie rule 9 exists to keep out. */
+export function repeatSpec(text) {
+  const s = String(text == null ? '' : text).trim();
+  if (!s) return null;
+  /* ⚠ THE NUMBER WINS OVER THE WORD. The first version tested `^once` first,
+     so "once a day for 20 days" — which is exactly how a person writes it —
+     came back as ONE. A target of 1 for a twenty-day practice is not a small
+     error; it tells you that you are finished on the first morning. */
+  const byDay = /\b(day|days|daily|morning|mornings|evening|evenings|night|nights)\b/i.test(s);
+  const num = /(\d+)/.exec(s);
+  if (num) return { times: Number(num[1]), byDay, text: s };
+  if (/^once\b/i.test(s)) return { times: 1, byDay, text: s };
+  /* "every morning for a month" has no digit in it, and inventing 30 here
+     would be a target nobody wrote. Say there is a repeat and no count. */
+  return { times: null, byDay, text: s };
 }
 
 /* What a person should know before they start. Pure, derived, and it counts
@@ -515,8 +594,22 @@ export function courseSyllabus(course, owned) {
     texts.push({ title: s.reading, why: s.readingWhy || '',
                  have: typeof owned === 'function' ? !!owned(s) : !!s.bookSlug });
   }
-  const artifacts = steps.map(s => moduleParts(s.body).artifact).filter(Boolean);
-  const practices = steps.filter(s => moduleParts(s.body).practice).length;
+  const parts = steps.map(s => moduleParts(s.body));
+  const artifacts = parts.map(p => p.artifact).filter(Boolean);
+  const practices = parts.filter(p => p.practice).length;
+  /* ★ WHAT THE COURSE ACTUALLY ASKS OF YOU, counted rather than claimed —
+     the steward's "this is homework, this is the theory, this is the level I
+     expect you to be at." A syllabus that says "9 modules" and nothing about
+     the work is a table of contents. */
+  const theory = parts.filter(p => p.theory).length;
+  const gates = parts.filter(p => p.byTheEnd).length;
+  /* The longest sustained practice in the course, because that is the one
+     that decides whether you can take this on. Null when an author asked for
+     repetition without naming a count — reported as "over days", never as a
+     number nobody wrote. */
+  const repeats = parts.map(p => repeatSpec(p.repeat)).filter(r => r && (r.times > 1 || r.byDay));
+  const longestRepeat = repeats.reduce((best, r) =>
+    (r.times && (!best || !best.times || r.times > best.times)) ? r : (best || r), null);
   return {
     what: c.purpose || c.summary || '',
     outcome: c.outcome || '',
@@ -529,6 +622,10 @@ export function courseSyllabus(course, owned) {
     missing: texts.filter(t => !t.have).length,
     practices,
     artifacts,
+    theory,
+    gates,
+    repeats: repeats.length,
+    longestRepeat,
   };
 }
 
