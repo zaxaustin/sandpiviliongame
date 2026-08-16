@@ -1,4 +1,4 @@
-**Sand Pavilion 0.1.0-beta.6** — a small world for reading, thinking, and the
+**Sand Pavilion 0.1.0-beta.7** — a small world for reading, thinking, and the
 quiet work of a day, kept entirely on your own machine.
 
 This is a **beta**. Expect rough edges, and please tell me about them.
@@ -7,11 +7,11 @@ This is a **beta**. Expect rough edges, and please tell me about them.
 
 ### Installing
 
-**Windows:** download `Sand Pavilion Setup 0.1.0-beta.6.exe` below and run it.
+**Windows:** download `Sand Pavilion Setup 0.1.0-beta.7.exe` below and run it.
 It installs for you only — no administrator password — and appears in the Start
 menu.
 
-**macOS:** `Sand Pavilion 0.1.0-beta.6 arm64.dmg` (Apple Silicon — M1 and
+**macOS:** `Sand Pavilion 0.1.0-beta.7 arm64.dmg` (Apple Silicon — M1 and
 later) or `… x64.dmg` (Intel Macs). It is **not notarised**, so macOS will
 likely say *"Sand Pavilion is damaged and can't be opened"* — that is what it
 says about every unsigned app, and it is not true. **Right-click the app →
@@ -29,8 +29,8 @@ then **Run anyway**. That's because I haven't bought a code-signing certificate
 because anything is wrong. If you'd like to check the download:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.6.exe" -Algorithm SHA256
-# D8C6BF5780F5CD2D5D1E5E41D73502BC4520F525BD1ABD007757AF64E3592325
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.exe" -Algorithm SHA256
+# 3832B9614AE75885D59B96048309348449C9A34AD95DB0DD7C458F9A2CB9B8A2
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -59,6 +59,54 @@ who will talk with you — **if** you give them a mind to think with.
 you plan, not a word you say to a resident. There is no account and no server;
 the app makes **zero** network requests on startup. Sharing, when you want it,
 happens by writing a file and handing it over.
+
+---
+
+### New in beta.7 — a course you can actually walk
+
+**Every module now says what gets you to the next one.** Reading a module and
+knowing what to *do* were different things, and the second was missing: `✓ Mark
+this module done` was a button you pressed on a hunch. There is now a short
+checklist under each open module — read the book, write notes as you read, do
+the homework, keep it up for the days the course asks for — and **it fills
+itself in from what you have actually done.** Nothing to tick, nothing stored,
+nothing to go stale. It counts the pages you reached, the notes you wrote, the
+attempts you kept, and the distinct *days* you kept them.
+
+**And it admits what it cannot see.** Whether you can rebuild the theory from a
+blank page is not a thing a program can check, so those lines sit under their
+own heading — *"and these are yours to say, nobody can check them for you"* —
+with no tick at all. A checklist that pretended to know would be believed.
+
+**A course can become today's work.** `📋 Take this into today` turns what is
+left of a module into today's tasks, each with a door to the room where it
+happens. The course and the day never touched before this. It carries only the
+things a program can check; the honest ones stay with the module where they
+belong.
+
+**The Learning Desk** — new since beta.6, and this is its first release. It is
+a room for *doing* a course rather than reading one: the blank page comes
+first, before any help is on the screen; what you write is kept and you can
+look back over every attempt; and each course becomes a **real folder of plain
+Markdown on your disk** that you can open, back up, or read without this app.
+
+**You can hand homework in to be marked** — *meets the bar · not yet · cannot
+tell from this*, never a score. It marks against the bar the course's own
+author wrote, quotes your own words back, and when it is short it says exactly
+what is missing and gives **one** piece of extra work. It changes nothing: not
+your words, not whether the module is done. Those stay yours.
+
+**A module now has a contract.** Courses can state `**Theory:**` (what to
+rebuild from scratch, not recall), `**By the end:**` (the level when this part
+is finished, said *before* you start), and `**Repeat:**` (*"once a day for 20
+days"*, with a plain tally of days kept — not a streak, nothing to break).
+
+**And there is somewhere to send what you find.** *Tell them what happened* has
+asked four good questions since the first beta and then left you holding a note
+with nowhere to put it. It now points at the
+[discussions page](https://github.com/zaxaustin/sandpiviliongame/discussions)
+and an email address. Nothing is sent from the app — it still writes a note you
+copy, and you choose where it goes.
 
 ---
 

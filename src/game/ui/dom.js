@@ -53,6 +53,60 @@ export function mdLite(s) {
 export const courseProse = s => String(s == null ? '' : s).split(/\n\s*\n/).filter(p => p.trim())
   .map(p => `<p style="margin:.5em 0">${mdLite(p).replace(/\n/g, '<br>')}</p>`).join('');
 
+/* ★ WHAT GETS YOU TO THE NEXT MODULE, drawn. `moduleChecklist()` in
+   data/course-format.js derives the rows; this is the only thing that paints
+   them, and it is here rather than in either caller for the same reason
+   courseProse is — the Board and the Learning Desk both show this list, and
+   two renderers for one list is the drift rule 4 is about. The Board would
+   have grown one and the desk the other, and they would have disagreed about
+   what "done" looks like within a week.
+
+   `doors` maps a row's `door` string to HTML the caller supplies, because the
+   two rooms open different things: the Board sends you to the desk, and the
+   desk is already the desk. dom.js knows nothing about either. */
+export function checklistHTML(list, doors, opts) {
+  if (!list || !list.any) return '';
+  const d = doors || {};
+  /* THE LEAD IS SUPPRESSIBLE, and the desk suppresses it. LOOKING at the desk
+     showed the same reading instruction twice on one screen — once as its own
+     "First — go through these" block with the full list, and again three
+     inches below in the checklist. That is the bug we fixed yesterday (the
+     purpose paragraph, rendered by the meta line AND the syllabus), and the
+     fix then was the same as the fix now: one of them defers. The Board keeps
+     it, because there the checklist is the only place it is stated plainly. */
+  const lead = (!opts || opts.lead !== false) ? (list.lead || '') : '';
+  const counted = list.rows.filter(r => r.counted);
+  const yours = list.rows.filter(r => !r.counted);
+  const row = r => `<div style="display:flex;gap:8px;align-items:baseline;margin:5px 0">
+      <span style="flex:0 0 auto;width:15px;text-align:center;color:${r.done ? '#7fa36b' : '#8a7a5f'}">${r.done ? '✓' : '○'}</span>
+      <span style="flex:0 0 auto;opacity:.8">${r.icon}</span>
+      <span style="flex:1;font-size:13px;line-height:1.5;color:${r.done ? '#9db98a' : '#e2d5bd'}">${esc(r.text)}
+        <span class="meta" style="opacity:.7"> — ${esc(r.how)}</span>
+        ${!r.done && r.door && d[r.door] ? d[r.door] : ''}</span>
+    </div>`;
+  const mine = r => `<div style="display:flex;gap:8px;align-items:baseline;margin:5px 0">
+      <span style="flex:0 0 auto;width:15px;text-align:center;opacity:.45">·</span>
+      <span style="flex:0 0 auto;opacity:.8">${r.icon}</span>
+      <span style="flex:1;font-size:13px;line-height:1.5;color:#cbbda3">${esc(r.text)}</span>
+    </div>`;
+  /* A REAL CLASS, not a shape a test has to infer. The first live suite found
+     this box by looking for a div whose text starts with the heading — and got
+     the WHOLE MODULE ROW, because the box's own textContent starts with the
+     heading too and document order hands you the outer one first. Every
+     assertion then read the module's prose and passed or failed on the wrong
+     text entirely. A surface worth testing is worth naming. */
+  return `<div class="modChecklist" style="margin-top:12px;padding:10px 12px;border:2px solid #55432e;border-radius:8px;background:#1b140d">
+    <div class="meta" style="margin:0 0 6px">What gets you to the next module${counted.length
+      ? ' — <b>' + list.done + ' of ' + counted.length + '</b>' : ''}</div>
+    ${lead ? `<div style="margin:0 0 8px;padding-left:2px;font-size:13px;line-height:1.5;color:#cbbda3">
+        📖 ${esc(lead)}</div>` : ''}
+    ${counted.map(row).join('')}
+    ${yours.length ? `<div class="meta" style="margin:9px 0 3px;opacity:.75;border-top:1px solid #3a2e1c;padding-top:7px">
+        And these are yours to say — nobody can check them for you</div>
+      ${yours.map(mine).join('')}` : ''}
+  </div>`;
+}
+
 /* The one <select> skin used across the panels. It lived in overlays.js until
    the Learning Tree moved out and took a `<select>` with it — a bare constant,
    so it crashed at runtime rather than at build time, and neither `npm test`

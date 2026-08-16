@@ -13,7 +13,7 @@ import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS, notesTod
 import { gatherRecords, recordSummary, RECORD_LOOK } from '../data/records.js';
 import { backendTrouble } from '../data/backend-trouble.js';
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
-import { esc, jsq, mdLite, courseProse, NOTE_SELECT_STYLE } from './dom.js';
+import { esc, jsq, mdLite, courseProse, checklistHTML, NOTE_SELECT_STYLE } from './dom.js';
 import { tidyTitle, tidyAuthor, titleNeedsTidying, looksLikeAFilename } from '../data/book-title.js';
 import { BASELINE_QUESTIONS, buildDraftingPrompt, buildReadingPrompt, promptGaps } from '../data/course-prompt.js';
 import { STARTER_COURSES, starterCourse } from '../data/starter-courses.js';
@@ -38,7 +38,7 @@ import { initNoteAuthor, byLine, isAiNote, authorOf, attributionOf, labelledNote
   from '../data/note-versions.js';
 import { parseCourse, emitCourse, COURSE_EXT,
          courseFromLesson, lessonFromCourse, courseStanding,
-         courseSyllabus, moduleParts } from '../data/course-format.js';
+         courseSyllabus, moduleParts, moduleChecklist } from '../data/course-format.js';
 import { initTutorial, openTutorial, tutorialStart, tutorialGo, tutorialPickLesson,
          tutorialTickReady, tutorialSetOutcome, tutorialPublish, tutorialRecordGraduation }
   from './tutorial.js';
@@ -56,6 +56,9 @@ import { reachOf, setReach, mayReachNote, REACH_STATES, REACH_NOTICE, sealedCoun
 import { initDailyTasks, openDailyTasks, takeDailyTask, toggleDailyTaskStep,
          dailyTaskGo, finishDailyTask, setDownDailyTask, retakeDailyTask,
          todaysTaskLine, closeOutPastDays, dailyTaskWhereChanged } from './daily-tasks.js';
+/* ⚠ ALIASED. `canTake` is already a local const inside renderGrove() — legal
+   shadowing, and exactly the kind of thing that reads as a bug at 3am. */
+import { canTake as canTakeToday, taskFromChecklist } from '../data/daily-tasks.js';
 /* The one road to knowledge — the same term extraction every resident uses to
    search the shelves, now used to search your notes too. Two ways of turning a
    question into a query is the drift this project keeps paying for. */
@@ -5459,6 +5462,11 @@ initLearningDesk({
      second gatherer that would have to agree with the first. */
   records: () => { try { return gatherRecords(data, s => { const d = Store.getDoc(s); return d && d.title; }); }
                    catch(e){ return []; } },
+  /* ONE EVIDENCE GATHERER, not two. checklistFor() walks the save for read
+     marks, notes, attempts and days; the desk gets the very same function
+     rather than counting them again from over here. Two counters for one
+     number is the drift that has already produced two bugs in this file. */
+  checklistFor,
   /* THE SAME SHELF PREDICATE THE SYLLABUS USES. One question, one answer — the
      folder's syllabus.md and the syllabus on screen must not disagree about
      whether you own a book, which is the bug they had on the Board a day ago. */
@@ -7111,12 +7119,43 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
                       ? 'back to it at the Learning Desk ('+tried+' tried)'
                       : 'work it at the Learning Desk'}</button></div>`;
               })()}
+              ${(function(){
+                /* ★ WHAT GETS YOU TO THE NEXT MODULE. His one complaint about
+                   an otherwise finished desk: "there's no clear direction —
+                   next to it there should be a checklist on how to get to the
+                   next module." It sits directly above the button it is about,
+                   because "✓ Mark this module done" was a press you made on a
+                   hunch and this is what makes it a press you can justify. */
+                const list = checklistFor(c, i);
+                if(!list.any) return '';
+                return checklistHTML(list, {
+                  read: ` <button class="btn ghost" style="font-size:10.5px;padding:2px 8px"
+                    onclick="event.stopPropagation();openReader('${jsq(s.bookSlug||'')}')">open it</button>`,
+                  get:  ` <button class="btn ghost" style="font-size:10.5px;padding:2px 8px"
+                    onclick="event.stopPropagation();openBookIntake()">bring it in</button>`,
+                  desk: ` <button class="btn ghost" style="font-size:10.5px;padding:2px 8px"
+                    onclick="event.stopPropagation();workModuleHere(${c.id},${i})">work it</button>`,
+                });
+              })()}
               <div class="row" style="margin-top:11px">
                 <button class="btn" onclick="${tick}">${s.done?'↺ Not done after all':'✓ Mark this module done'}</button>
+                ${(function(){
+                  /* ★ THE COURSE FINALLY TOUCHES THE DAY. Gap 2 in
+                     MAINTAINING.md since the desk was built, and his own
+                     question: "I don't know really how to do daily missions
+                     and tasks like this that are integrated part of the
+                     course." Offered only when something is actually left —
+                     a button that hands you a day of ticked boxes is worse
+                     than no button. */
+                  const list = checklistFor(c, i);
+                  if(!list.rows.some(r=>r.counted && !r.done)) return '';
+                  return `<button class="btn ghost" onclick="courseToTasks(${c.id},${i})">📋 Take this into today</button>`;
+                })()}
                 ${ttsAvailable()?`<button class="btn ghost" id="cmSpeak" onclick="toggleCourseSpeak(${c.id},${i})">${
                   isSpeaking()?'⏹ Stop':'🔊 Read it to me'}</button>`:''}
                 ${s.url?`<a class="btn ghost" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">→ visit</a>`:''}
               </div>
+              <div class="meta" id="courseMsg" style="margin-top:6px;min-height:0"></div>
             </div>
           </div>`;
         }).join('')}
@@ -7196,6 +7235,70 @@ function openModuleOf(c){
   return (c.steps||[]).findIndex(s=>s.body);   // all done: the first real one
 }
 export function openCourseModule(id,i){ stopSpeaking(); state.courseModule=i; renderCourses(); }
+
+/* ★ THE ONE PLACE THAT COUNTS THE EVIDENCE for a module's checklist.
+   moduleChecklist() is pure and takes what it is told; this is what walks the
+   save to tell it. One gatherer, handed to the Learning Desk over the seam
+   too, because the Board and the desk showing different numbers for the same
+   module is the drift that has already bitten this file twice (the syllabus
+   and the shelf predicate, both on the same day).
+
+   EVERY FIGURE IS SOMETHING THE VISITOR ACTUALLY DID:
+     data.read[slug]        you pressed "mark as read"
+     data.readingPos[slug]  the page you reached, saved as you read
+     data.bookNotes[slug]   notes you wrote on that book
+     attemptsFor()          attempts you kept at the desk
+     distinct `at` dates    days, not presses — the repeatRow rule, and the
+                            reason it is a Set here as well                */
+export function checklistFor(c, i){
+  const s = (c && c.steps && c.steps[i]) || null;
+  if(!s) return { rows:[], done:0, total:0, any:false };
+  const slug = s.bookSlug || '';
+  const at = attemptsFor(c.id, i);
+  return moduleChecklist(s, {
+    attempts: at.length,
+    days: new Set(at.map(a=>a.at)).size,
+    haveBook: !!(slug && Store.getDoc(slug)),
+    bookRead: !!(slug && data.read && data.read[slug]),
+    bookPage: (slug && data.readingPos && data.readingPos[slug]) || 0,
+    bookNotes: (slug && data.bookNotes && data.bookNotes[slug] || []).length,
+  });
+}
+
+/* ★ A MODULE, TAKEN INTO TODAY. The join that never existed between a course
+   and the day — his "I don't know really how to do daily missions and tasks
+   like this that are integrated part of the course."
+
+   The whole of the decision is in data/daily-tasks.js and pure; this is the
+   press, the refusal, and the sentence. THREE THINGS IT WILL NOT DO:
+   it will not take a second day's tasks while one is live (canTake() already
+   owns that rule and its refusal is a sentence, never a silent no-op), it
+   will not carry the rows nobody can check, and it does not move you — the
+   day is a press away and you may not want to go there now. */
+export function courseToTasks(id, i){
+  const c=data.courses.find(x=>x.id===id); if(!c) return;
+  /* TWO ROOMS OFFER THIS PRESS, so the answer goes to whichever is on screen.
+     ⚠ The first draft gave both surfaces the same element id and wrote to
+     `getElementById('courseMsg')` — which returns the FIRST in the document,
+     i.e. the Board's copy inside a hidden panel. Pressed at the desk, the
+     refusal would have gone somewhere nobody could see it: a button that does
+     nothing, which is the house failure mode exactly. */
+  const say=t=>{ for(const id2 of ['courseMsg','lwTaskMsg']){
+    const el=document.getElementById(id2); if(el) el.textContent=t; } };
+  if(!Array.isArray(data.dailyTasks)) data.dailyTasks=[];
+  const gate=canTakeToday(data.dailyTasks, todayKey());
+  if(!gate.ok) return say(gate.reason);
+  const task=taskFromChecklist(c, i, checklistFor(c, i), todayKey());
+  if(!task) return say('Nothing left on this module that today could help with — what remains is yours to say.');
+  data.dailyTasks.unshift(task); persist();
+  logActivity('Took "'+task.title+'" into today\'s tasks.');
+  blip(784,.08); setHud();
+  /* Re-draw the room you are standing in, not the other one. */
+  if(state.ui==='learning') renderLearningDesk(); else renderCourses();
+  say('Taken into today — '+task.steps.length+' thing'+(task.steps.length===1?'':'s')
+    +', each with a door. It is on the Tasks board whenever you want it.');
+}
+
 /* The press that turns a title into a door. The course keeps the TITLE its
    author wrote — that travels, and is true everywhere — and `bookSlug` records
    what it resolves to on THIS shelf, which is only true here. */
@@ -7811,6 +7914,13 @@ function reportContext(){
     'Days used:  ' + Object.keys(data.planner||{}).length,
   ].join('\n');
 }
+/* WHERE A BETA TESTER'S NOTE CAN ACTUALLY GO. Named constants rather than two
+   URLs typed into a template, because `npm test` checks them against
+   package.json's repository field — a feedback link pointing at the wrong repo
+   is a dead end that looks like a door, and nobody would report it because
+   reporting it is the thing that is broken. */
+export const FEEDBACK_DISCUSSIONS = 'https://github.com/zaxaustin/sandpiviliongame/discussions';
+export const FEEDBACK_EMAIL = 'zacmezac@gmail.com';
 export function openReport(){
   state.ui='report'; hideAllOv(); renderReport(); showOv('reportOv');
   setTimeout(function(){ const e=document.getElementById('rpExpected'); if(e) e.focus(); },40);
@@ -7890,7 +8000,34 @@ function renderReport(){
     + '<div class="row" style="margin-top:12px;gap:6px;flex-wrap:wrap">'
     + '<button class="btn" onclick="copyReport()">📋 Copy it</button>'
     + '<button class="btn ghost" onclick="saveReport()">💾 Save it as a file</button>'
-    + '</div><div class="meta" id="rpMsg" style="margin-top:8px"></div>';
+    + '</div><div class="meta" id="rpMsg" style="margin-top:8px"></div>'
+    /* ★ AND WHERE TO SEND IT. This panel has asked four good questions since
+       the first beta and then left the person holding a note with nowhere to
+       put it — "copy it, paste it wherever you like" is the house failure mode
+       wearing politeness. Asked for plainly on 2026-08-15, opening the beta up
+       to friends: "maybe they can email us or complain in the GitHub
+       discussion that we make for the next beta launch."
+
+       ⚠ STILL NOTHING IS SENT FROM HERE, and the copy above says so twice.
+       These are two links you press, in your own browser and your own mail
+       client, carrying only what you already read on this screen. A beta that
+       posted home by itself would break the one promise this whole build is
+       verified against — `preflight.mjs` asserts ZERO network. */
+    + '<div class="card" style="cursor:default;margin-top:14px">'
+    + '<div class="t">Where it helps most</div>'
+    + '<div class="s" style="margin-top:4px">Both open outside the Pavilion, and both are optional. '
+    + 'The discussion is the better one: someone else has probably hit the same thing.</div>'
+    + '<div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">'
+    /* ⚠ text-decoration:none — an <a class="btn"> inherits the link underline
+       and reads as a stray hyperlink sitting between real buttons. Caught by
+       LOOKING at the panel; invisible in the markup. */
+    + '<a class="btn ghost" style="text-decoration:none" href="' + FEEDBACK_DISCUSSIONS
+    + '" target="_blank" rel="noopener noreferrer">💬 Say it in the discussion</a>'
+    + '<a class="btn ghost" style="text-decoration:none" href="mailto:' + FEEDBACK_EMAIL
+    + '?subject=Sand%20Pavilion%20beta%20—%20a%20note">✉ Email it instead</a>'
+    + '</div>'
+    + '<div class="meta" style="margin-top:7px;opacity:.8">Paste the note first — neither of these '
+    + 'carries it for you.</div></div>';
 }
 /* ----- SEBASTIAN'S STAND-UP (2026-07-28) — ONE-STEP-AT-A-TIME-PLAN.md, item 1.
 
@@ -14769,7 +14906,7 @@ Object.assign(window, {
   togglePlannerTool, createNote, openNote, backToNotesList, deleteNote, updateNoteField,
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   openReceiveCourse, receiveStep, previewReceivedCourse, receiveCourseFile, confirmReceivedCourse,
-  openCourseModule, toggleCourseSpeak,
+  openCourseModule, toggleCourseSpeak, courseToTasks,
   copyDraftingPrompt, showDraftingPrompt, loadStarterCourse, openCourseStandard,
   findReadingForIdea, copyReadingPrompt, setCourseMap, mapOpenCourse, linkModuleBook,
   toggleCourseIntro,

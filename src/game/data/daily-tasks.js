@@ -75,8 +75,18 @@ export const STEP_WHERE = {
   learn:   { icon: '🎓', label: 'on the path',   door: 'openLearningTree' },
   /* The Study Table is a TOOL INSIDE the Writing Desk, not a room with its own
      opener — `openStudyTable` does not exist and the guard below caught the
-     first draft naming it. The honest door is the desk it lives on. */
+     first draft naming it. The honest door is the desk it lives on.
+
+     ⚠ It moved to the Learning Desk on 2026-08-15 and this row did NOT follow
+     it, deliberately: `work` is the Writing Desk and always was. The Study
+     Table's new home has its own row below. */
   work:    { icon: '🔨', label: 'at the desk',   door: 'openPlanner' },
+  /* ★ THE LEARNING DESK. Added 2026-08-15 so a course's own homework can be
+     taken into today's tasks — the steward: "I don't know really how to do
+     daily missions and tasks like this that are integrated part of the
+     course." This row is the join, and `taskFromChecklist()` below is what
+     walks across it. */
+  desk:    { icon: '🧠', label: 'work the module', door: 'openLearningDesk' },
   build:   { icon: '⚙', label: 'at the bench',  door: 'openLab' },
   ask:     { icon: '💬', label: 'ask someone',   door: 'talkTo',       needsRef: true },
   note:    { icon: '🗒', label: 'write a note',  door: 'openNotesLog' },
@@ -97,6 +107,68 @@ export const STEP_DOORS = [...new Set(
 export function stepDoor(where) {
   const w = STEP_WHERE[where];
   return w ? w.door : null;
+}
+
+/* ---- ★ A MODULE, AS TODAY'S TASKS -------------------------------------
+
+   The steward, 2026-08-15:
+
+     "I don't know really how to do daily missions and tasks like this that
+      are integrated part of the course."
+
+   Neither did the Pavilion: a course and the day were the two things that
+   never touched, written down as gap 2 in MAINTAINING.md since the desk was
+   built. This is the bridge, and it is a CONVERSION rather than a system —
+   the checklist already knows what is left, and today's tasks already know
+   how to hold a short list of things with doors on them. Nothing new is
+   invented; one shape is written as the other.
+
+   THREE RULES, and each one is a way this could have gone wrong:
+
+     · ONLY WHAT IS NOT DONE. Taking a finished module to today's tasks would
+       hand you a day of boxes already ticked, which is a machine
+       congratulating you for yesterday.
+     · ONLY WHAT CAN BE COUNTED. The `counted:false` rows — can you rebuild
+       the theory, are you at the level — are not tasks. They are the honor
+       system, they belong to the module, and a day that says "tick when you
+       can rebuild the theory" turns a question you answer honestly into a box
+       you clear. They stay behind on purpose.
+     · IT RETURNS THE TASK; IT DOES NOT TAKE IT. `canTake()` above still
+       decides whether today already has one, and the caller still needs a
+       press. Pure, and it writes nothing.
+
+   Returns null when there is nothing left to do — the caller says so plainly
+   rather than taking up an empty day (rule 5).                            */
+export function taskFromChecklist(course, index, list, today) {
+  const c = course || {};
+  const step = (c.steps || [])[index];
+  if (!step || !list || !list.rows) return null;
+  const steps = list.rows
+    .filter(r => r.counted && !r.done)
+    .map(r => ({
+      title: r.text,
+      where: WHERE_KEYS.includes(r.door) ? r.door : 'desk',
+      /* The reference a door needs to open the RIGHT thing — the book's slug
+         for `read`, the course for the desk. A door with no ref opens the
+         room and leaves you to find the thing again, which is the dead-drop
+         this table's own header warns about. */
+      ref: r.door === 'read' ? (step.bookSlug || '') : String(c.id),
+      done: false,
+    }));
+  if (!steps.length) return null;
+  return {
+    id: Date.now(),
+    title: step.title || (c.title || 'A module'),
+    /* Where this came from, in the SHAPE THE FIELD ALREADY HAS — `{kind, ref,
+       label}`, the same one the board's own "part of X — one sitting at a
+       time" line reads and the same one gatherRecords() reads. A second
+       parallel `courseId` field beside it would be two answers to one
+       question, and the board would go on rendering the one it already knew
+       about. The ref carries the module too, because a course is not a place
+       to come back to — a module is. */
+    source: { kind: 'course', ref: String(c.id) + ':' + index, label: c.title || '' },
+    taken: today, closed: false, steps,
+  };
 }
 
 /* ---- IS THIS TODAY'S? --------------------------------------------------

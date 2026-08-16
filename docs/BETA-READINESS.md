@@ -19,7 +19,7 @@ The standing instruction it serves:
 use it is still the only thing missing.**
 
 *Updated 2026-08-13.* Everything on the critical path is built, guarded and
-green, and `0.1.0-beta.6` is on disk with `verify:release` passing. What has
+green, and `0.1.0-beta.7` is on disk with `verify:release` passing. What has
 never happened is a person who is not the steward sitting down at a fresh
 install and getting anywhere. Until that happens, "ready" is a claim about test
 suites, and this project's whole method says that is not the same thing.
@@ -77,12 +77,12 @@ Gate 1 of this page has been *"a human who is not the steward walks Stage 1
 cold"* since the day it was written — while there was **no artifact to walk it
 in.** A release gate that cannot be attempted is not a gate, it is a shelf.
 
-**`0.1.0-beta.6` is cut, and `verify:release` is green for the first time since
+**`0.1.0-beta.7` is cut, and `verify:release` is green for the first time since
 2026-08-07.** Both artifact guards pass: `packaged-boot.cjs` (the packaged load
 path) and the new `packaged-exe.mjs` (the real `.exe` out of `win-unpacked`,
 which is the only one that exercises the asar pack, the `files` glob and
 `asarUnpack`). The `.exe` opens its own database with the schema applied
-*inside the pack* and names itself `0.1.0-beta.6`.
+*inside the pack* and names itself `0.1.0-beta.7`.
 
 **The rule this cost:** never let a gate depend on something only a person can
 do while the thing they would do it *to* does not exist. Build the artifact

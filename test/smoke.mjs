@@ -5219,6 +5219,11 @@ for (const d of SEED_LIBRARY) {
     bookNoteFromKey:    'returns the whole note object, so `by` travels with it intrinsically.',
     studyRestoreVersion:'version machinery on one already-identified note; never reads the author.',
     studyTidyNote:      'version machinery on one already-identified note; never reads the author.',
+    /* COUNTS THEM, AND ONLY EVER COUNTS THEM. The module checklist asks "have
+       you written anything on this book yet" and shows a number. No note text
+       and no note author reaches the screen through here, so there is nothing
+       an attribution could be wrong about — `.length` is the whole of it. */
+    checklistFor:       'counts notes on a book for a checklist row; no text and no author is read.',
   };
   /* WHAT "ATTRIBUTES" HAS TO MEAN, or the list is a promise nobody keeps. Every
      function declared as attributing must actually call one of the two
@@ -5252,7 +5257,20 @@ for (const d of SEED_LIBRARY) {
   let readersSeen = 0;
   for (const rel of ['ui/overlays.js', 'ui/study-table.js']) {
     const src = readFileSync(new URL('../src/game/' + rel, import.meta.url), 'utf8');
-    const lines = src.split('\n');
+    /* ⚠ BLANK THE BLOCK COMMENTS FIRST, KEEPING THE LINE NUMBERS.
+       This skipped lines starting `//` or `*` and nothing else, so a
+       CONTINUATION line inside a block comment — which starts with plain
+       indentation in this codebase's comment style — read as code. On
+       2026-08-15 a doc comment listing `data.bookNotes[slug]` among the things
+       a new function counts was reported as an undeclared reader, and blamed
+       on the function ABOVE it, which does not touch notes at all.
+
+       That is this project's oldest guard bug wearing its other face: three
+       guards here have been satisfied by a comment, and this one was broken by
+       one. Replacing each comment character with a space (never a delete)
+       keeps every line number and every `function` declaration exactly where
+       it was, so the blame line stays true. */
+    const lines = src.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' ')).split('\n');
     let fnName = '(top level)';
     lines.forEach((line, i) => {
       const decl = /^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/.exec(line);
@@ -6814,6 +6832,189 @@ for (const d of SEED_LIBRARY) {
          + 'Reading is metadata. Removing them empties half of what the author wrote.');
     }
   }
+  /* ================================================================
+     ★ WHAT GETS YOU TO THE NEXT MODULE — the checklist (2026-08-15)
+     ================================================================ */
+  {
+    const DT = await import('../src/game/data/daily-tasks.js');
+    /* A REAL MODULE, from the real course file — rule 1. A fixture written to
+       suit the checklist would have every label in the tidiest possible shape,
+       which is the exact tidiness that made moduleParts()' truncation bug
+       invisible for a day on this same function's input. */
+    const realCourse = readFileSync(new URL('../courses/junior-electrical-engineer.course.md',
+                                            import.meta.url), 'utf8');
+    const realLesson = CF2.parseCourse(realCourse, { user: 'u' }).lesson;
+    const withPractice = (realLesson.steps || []).find(s => CF2.moduleParts(s.body).practice);
+    if (!withPractice) {
+      fail('no module of the real Junior EE course has a Practice — the checklist guards below are '
+         + 'testing nothing, which is a vacuous pass, not a green one');
+    } else {
+      const empty = CF2.moduleChecklist(withPractice, {});
+      if (!empty.any) fail('moduleChecklist() found nothing to do in a real module that has a Practice');
+      if (empty.done !== 0) {
+        fail(`moduleChecklist() reported ${empty.done} rows already done with NO evidence at all. A row `
+           + 'that ticks itself before you have done anything is the flattering lie rule 9 exists to stop.');
+      }
+      /* ★ NOTHING IS STORED, AND NOTHING IS REACHED FOR. The whole design.
+         `ticks` is the field the rejected checkbox version would have needed;
+         `data.` is the save this pure module must never touch. */
+      const mcBody = String(CF2.moduleChecklist);
+      for (const bad of ['ticks', 'persist(', 'localStorage']) {
+        if (mcBody.includes(bad)) {
+          fail(`moduleChecklist() mentions \`${bad}\` — the checklist is DERIVED from evidence already in `
+             + 'the save. A stored tick beside a fact that is already recorded is two answers to one '
+             + 'question, and the reason this was built without checkboxes at all.');
+        }
+      }
+      /* ★ EVIDENCE MOVES IT, AND ONLY EVIDENCE. */
+      const tried = CF2.moduleChecklist(withPractice, { attempts: 1, days: 1 });
+      if (tried.done <= empty.done) {
+        fail('keeping an attempt did not tick anything on the checklist — the rows are not reading the '
+           + 'evidence they claim to');
+      }
+      if (tried.total !== tried.rows.filter(r => r.counted).length) {
+        fail('the checklist\'s "N of M" counts rows that can never tick — a score nobody can finish');
+      }
+    }
+    /* ★ THE ROWS NOBODY CAN CHECK ARE NEVER COUNTED AND NEVER TICKED. Rule 6
+       in list form: whether you can rebuild the theory from a blank page is
+       not a thing any program can see, and a checklist that pretended to know
+       would be believed.
+
+       ⚠ RUN AGAINST A MODULE THAT ACTUALLY HAS ALL THREE. The first version
+       asserted this over the real Junior EE module — which was written before
+       `**Theory:**` and `**By the end:**` existed, so it has NO unverifiable
+       rows and the loop ran zero times. Setting `done:true` on the theory row
+       by hand left the suite green. A check over an empty list is not a check,
+       which is the vacuous pass this file keeps re-learning, so it counts what
+       it examined and fails if that is nothing. */
+    {
+      const all = { title: 'M', body: '**Theory:** Ohm\'s law.\n\n**Practice:** measure it.\n\n'
+        + '**Artifact:** a table of readings.\n\n**By the end:** you can size a resistor.' };
+      const cl = CF2.moduleChecklist(all, { attempts: 1, days: 1 });
+      const mine = cl.rows.filter(r => !r.counted);
+      if (mine.length !== 3) {
+        fail(`a module with Theory, Artifact and By-the-end produced ${mine.length} unverifiable rows, `
+           + 'not 3 — this guard is examining the wrong thing and would pass on anything');
+      }
+      for (const r of mine) {
+        if (r.done) {
+          fail(`checklist row "${r.key}" is marked done, but it is one of the rows nothing can verify. `
+             + 'Those are the honor system; a program must not answer them for you.');
+        }
+      }
+    }
+    /* ★ A REPEAT WITH NO NUMBER INVENTS NO NUMBER (rule 6).
+
+       ⚠ THE FIXTURE HAS TO PRODUCE THE ROW. "as often as you can" alone names
+       no count AND no day, so no repeat row is built at all and the assertion
+       below had nothing to look at — green with the rule deleted. It needs a
+       Repeat that is real but uncounted, which is "every morning". */
+    {
+      const vague = { body: '**Practice:** sit.\n\n**Repeat:** every morning, as often as you can.' };
+      const cl = CF2.moduleChecklist(vague, { attempts: 3, days: 3 });
+      const rep = cl.rows.find(r => r.key === 'repeat');
+      if (!rep) fail('a Repeat line saying "every morning" produced no checklist row to test');
+      if (rep && rep.done) {
+        fail('a Repeat: line naming no count came back DONE. There is no target to have met — reporting '
+           + 'one is a number nobody wrote.');
+      }
+    }
+    /* ★ A NUMBER WRITTEN AS A WORD IS STILL A NUMBER. Found by running the
+       drafting prompt against the real local model for the first time: every
+       module it wrote said "**Repeat:** Seven times." and the tally read "this
+       one names no number." */
+    if (CF2.repeatSpec('Seven times.').times !== 7) {
+      fail('repeatSpec("Seven times.") does not read seven. A model writes counts as words, and the '
+         + 'tally then reports no target against a course that plainly states one.');
+    }
+    if (CF2.repeatSpec('Twice a week.').times !== 2) fail('repeatSpec does not read "Twice"');
+    /* ⚠ AND THE NUMBER STILL BEATS THE WORD. */
+    if (CF2.repeatSpec('once a day for 20 days').times !== 20) {
+      fail('the word beat the number again in repeatSpec — "once a day for 20 days" must be twenty');
+    }
+    /* ⚠ AND A STRAY "one" MID-SENTENCE IS NOT A TARGET OF ONE, which would say
+       you had finished on the first morning. */
+    if (CF2.repeatSpec('do this one every morning, for as long as it takes').times !== null) {
+      fail('repeatSpec read a target out of a stray number-word mid-sentence — a target of 1 tells '
+         + 'someone they are finished the first time they sit down');
+    }
+    /* ★ THE DAY BRIDGE CARRIES ONLY WHAT CAN BE COUNTED, AND ONLY WHAT IS LEFT. */
+    {
+      const course = { id: 7, title: 'A course', steps: [{ title: 'Module 1',
+        body: '**Theory:** the law.\n\n**Practice:** do it.\n\n**By the end:** you can do it.' }] };
+      const list = CF2.moduleChecklist(course.steps[0], {});
+      const task = DT.taskFromChecklist(course, 0, list, '2026-08-15');
+      if (!task) fail('taskFromChecklist() gave back nothing for a module with real work left in it');
+      else {
+        const titles = task.steps.map(s => s.title).join(' | ');
+        if (/rebuild the theory|you can do it/i.test(titles)) {
+          fail('a row nobody can check was taken into today\'s tasks: "' + titles + '". Those belong to '
+             + 'the module and the honor system — as a task it becomes a box you clear.');
+        }
+        for (const s of task.steps) {
+          if (!DT.WHERE_KEYS.includes(s.where)) fail(`a task step from a course names where="${s.where}", `
+            + 'which is not in STEP_WHERE — a step with no door is a dead drop');
+        }
+        if (!task.source || task.source.kind !== 'course' || !task.source.label) {
+          fail('a task taken from a course does not carry the {kind, ref, label} source the board reads, '
+             + 'so it will not say what it is part of');
+        }
+      }
+      /* ★ AND A FINISHED MODULE HANDS YOU NOTHING. A day of already-ticked
+         boxes is a machine congratulating you for yesterday. */
+      const doneList = CF2.moduleChecklist(course.steps[0], { attempts: 2, days: 2 });
+      if (DT.taskFromChecklist(course, 0, doneList, '2026-08-15')) {
+        fail('a module with nothing countable left still produced a day of tasks');
+      }
+    }
+    /* ★ ONE PAINTER. Both rooms show this list; neither may draw it by hand. */
+    for (const [rel, src] of [['ui/overlays.js', ovP],
+                              ['ui/learning-desk.js', readFileSync(
+                                new URL('../src/game/ui/learning-desk.js', import.meta.url), 'utf8')]]) {
+      if (!/checklistHTML\(/.test(src)) {
+        fail(`src/game/${rel} shows the module checklist without calling checklistHTML(). Two renderers `
+           + 'for one list is the drift rule 4 is about — they disagreed about what "done" looks like '
+           + 'within a week last time this happened (the syllabus and the shelf predicate).');
+      }
+    }
+  }
+
+  /* ★ THE FEEDBACK LINKS POINT AT THE REAL REPO (2026-08-15). The beta report
+     panel has asked four good questions since beta.1 and then left the person
+     holding a note with nowhere to send it. Now it names two places — and a
+     link to the wrong repository is a dead end that LOOKS like a door, which
+     nobody would ever report, because reporting it is the broken thing. */
+  {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    const repo = String((pkg.repository && (pkg.repository.url || pkg.repository)) || '')
+      .replace(/^git\+/, '').replace(/\.git$/, '');
+    const disc = /FEEDBACK_DISCUSSIONS = '([^']+)'/.exec(ovP);
+    const mail = /FEEDBACK_EMAIL = '([^']+)'/.exec(ovP);
+    if (!disc || !mail) fail('the beta report panel no longer names where a note can be sent');
+    else {
+      if (!repo) {
+        fail('package.json has no `repository` field, so the feedback link in the app cannot be checked '
+           + 'against anything. Add it — an unverifiable link is how a dead door survives a release.');
+      } else if (disc[1] !== repo + '/discussions') {
+        fail(`the app sends beta feedback to ${disc[1]}, but package.json's repository is ${repo}. `
+           + 'One of them is wrong, and a tester would meet a 404 at the one moment they were trying '
+           + 'to help.');
+      }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail[1])) fail('the feedback email is not an address');
+      if (!/FEEDBACK_DISCUSSIONS \+/.test(ovP) || !/FEEDBACK_EMAIL$/m.test(ovP.replace(/\s*\n\s*/g, '\n'))) {
+        /* Both constants must actually reach the panel. A named constant that
+           nothing renders is the window-export bug in miniature. */
+        if (!/href="' \+ FEEDBACK_DISCUSSIONS/.test(ovP)) {
+          fail('FEEDBACK_DISCUSSIONS is declared but the report panel does not render it');
+        }
+      }
+      if (!/mailto:' \+ FEEDBACK_EMAIL/.test(ovP)) {
+        fail('FEEDBACK_EMAIL is declared but the report panel does not render it');
+      }
+    }
+  }
+
   /* ★ THE SYLLABUS AND THE MODULE ROW MUST NOT DISAGREE. The first version
      asked only whether a book was LINKED, so it said "you have 0 of 2"
      directly above a row offering to link a book it had just found on the

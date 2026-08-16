@@ -388,6 +388,88 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 **Where things stand, end of 2026-08-15 — READ THIS ONE FIRST.**
 Full account in [`archive/dev-log-2026-08-15.txt`](archive/dev-log-2026-08-15.txt).
 
+> ## 🚢 0.1.0-beta.7 IS CUT, AND IT IS THE ONE TO HAND TO PEOPLE
+>
+> *"I think we're ready to redo the beta build for number 7. This is definitely
+> the part where I wanna have my friends try to test things out as well, see if
+> they can build a course."*
+>
+> `verify:release` is **GREEN** — installer, hash and docs all agree, for the
+> first time since beta.6 was tagged. Both artifact suites pass against the
+> real binary, which names itself `0.1.0-beta.7`. Every live suite green.
+>
+> - **DONE — what gets you to the next module.** His one complaint about an
+>   otherwise finished desk: *"there's no clear direction — next to it there
+>   should be a checklist on how to get to the next module."* A short list under
+>   each open module, on the Board and at the desk, from **one** derivation
+>   (`moduleChecklist()`, pure) through **one** renderer (`checklistHTML()`).
+>
+>   **NOTHING IS STORED, and that is the design rather than a shortcut.** The
+>   obvious build is a list of checkboxes; it was rejected because a stored tick
+>   beside a fact already in the save is two answers to one question (rule 4),
+>   because a second list to maintain is the guilt inventory `the-day.js`
+>   already refused, and mostly because **a box you tick yourself measures
+>   nothing.** Rows fill from the read mark, the page reached, notes written on
+>   that book, attempts kept, and distinct dates. Then `✓ Mark this module done`
+>   means something when you press it.
+>
+>   **And what cannot be counted is said so, never faked.** Theory, artifact and
+>   the gate come back `counted:false` with no tick at all, under *"and these
+>   are yours to say — nobody can check them for you."* They are excluded from
+>   the "N of M", because a score you cannot finish is a stick.
+>
+> - **DONE — a course finally touches the day.** Gap 2 in this file since the
+>   desk was built, and his own question: *"I don't know really how to do daily
+>   missions and tasks like this that are integrated part of the course."*
+>   `📋 Take this into today` converts what is LEFT of a module into today's
+>   tasks — a conversion, not a system: `taskFromChecklist()` is pure, `canTake()`
+>   still owns the one-a-day rule, and its refusal is a sentence. It carries only
+>   the countable rows; *"tick when you can rebuild the theory"* would turn an
+>   honest question into a box to clear.
+>
+> - **DONE — somewhere to send a bug.** *"Maybe they can email us or complain in
+>   the GitHub discussion."* `✍ Tell them what happened` has asked four good
+>   questions since beta.1 and then left the person holding a note with nowhere
+>   to put it. It now names the discussions page and an email, both outside the
+>   app. **Still zero network** — `preflight.mjs` re-verified.
+>
+> **★ TWO THINGS WERE PROVEN AGAINST A REAL MODEL FOR THE FIRST TIME**
+> (`ornith:latest`, 9B, on this machine), which was open item 5:
+>
+> - **Full course generation still works, and works well.** The drafting prompt
+>   returned 6 modules in **202s**, `parseCourse` clean, **all seven labels on
+>   every module**, and all six reading a book off the real shelf. It even hit
+>   his karma-and-a-book-report example unprompted.
+> - **Marking works.** Three attempts of very different quality against one bar
+>   → NOT YET · MEETS · NOT YET, each quoting the person's own phrase, each
+>   naming exactly one piece of extra work. No score, no empty praise. ~40–55s.
+>
+> **AND THE REAL MODEL FOUND A BUG NO TEST HAD.** Every module it wrote said
+> `**Repeat:** Seven times.` — and `repeatSpec()` read **no number**, because it
+> parsed digits and the word "once" and nothing else. The count was on the page
+> and the tally said there was none. Word-numbers to twelve now parse, **anchored
+> at the start** so "do this one every morning" is still not a target of one.
+>
+> **`**Primary resources:**` is read too.** The real EE course was written before
+> `**Reading:**` existed and says that instead, so on his own course the checklist
+> had one row. It is a LEAD LINE rather than a row — LOOKING is what settled
+> that: as a row it landed in the unverifiable group at the BOTTOM, so a module
+> whose first instruction is *go read this* showed it underneath the homework.
+>
+> **A GUARD WAS BROKEN BY A COMMENT, which is the mirror of the usual fault.**
+> Guard B skipped lines starting `//` or `*` and nothing else, so a continuation
+> line inside a block comment read as code — a doc comment listing
+> `data.bookNotes[slug]` was reported as an undeclared reader and **blamed on the
+> function above it.** Block comments are now blanked to spaces (never deleted,
+> so line numbers and the blame stay true). Three guards here have been satisfied
+> by a comment; this is the first broken by one.
+>
+> **19 sabotage cases, all caught against a green baseline** — and four of the
+> first run's misses were worth more than the catches: two were vacuous guards
+> (one loop ran over an empty list, one fixture produced no row at all), and two
+> were my own sabotage cases being wrong. A live suite of its own,
+> `test/live/module-checklist.mjs`, holds what a person actually sees.
+
 > ## 🧠 THE DESK, THE SECOND PASS — the same evening, from real use
 >
 > He opened the Learning Desk, said he was impressed, and then found three
@@ -534,17 +616,32 @@ Full account in [`archive/dev-log-2026-08-15.txt`](archive/dev-log-2026-08-15.tx
 >
 > 1. **Graduation is broken for Board courses.** `readyChecks()` reads
 >    `myLessons`, so a finished Board course fails all five checks. Recorded
->    2026-08-14, still true.
-> 2. **A course still does not touch Today, Daily Tasks or Sebastian.** The gap
->    table is below; the Learning Desk closed the Records Hall row and none of
->    the others.
-> 3. **`verify:release` is RED** — the `.exe` predates the source and
->    `release/win-unpacked/` is gone. Nothing ships until that is rebuilt.
-> 4. **64 open plans against 20 done.** A reconciliation pass is overdue.
+>    2026-08-14, **still true and now the top of the list** — beta.7 hands
+>    people a course they can walk all the way to the end of, and the end does
+>    not work. This is the next slice.
+> 2. ~~**A course does not touch Today or Daily Tasks.**~~ **CLOSED 2026-08-15**
+>    by `📋 Take this into today`. **Sebastian is still not in it** — he plans
+>    your day and has never heard of a course, which is now the whole of what is
+>    left of this row.
+> 3. ~~**`verify:release` is RED.**~~ **GREEN 2026-08-15.** `0.1.0-beta.7` is on
+>    disk, hash-verified, docs agree, both artifact suites pass against the real
+>    binary.
+> 4. **64 open plans against 20 done.** A reconciliation pass is overdue, and it
+>    is the oldest untouched item here.
 > 5. **The hosted-model path has still never been used by anyone who needed
 >    it** (`plans/AFTER-THE-BETA.md` §5). `ollama signin` →
 >    `ollama pull gpt-oss:20b-cloud` is surfaced in three places and untested by
->    a person on a laptop.
+>    a person on a laptop. ⚠ Note what beta.7 did NOT settle: the local model
+>    was proven on **this** machine, an i9 with an A770. Nothing has been
+>    measured on a laptop, and a 200-second course draft here could be ten
+>    minutes there. **That is the first thing a friend's machine will tell us**,
+>    and it is the main reason to want other testers.
+> 6. **A thin course gets a thin checklist, and that is honest but plain.** The
+>    real EE course was written before `**Theory:**` / `**By the end:**` /
+>    `**Repeat:**` existed, so module 1 shows **one** countable row. Nothing is
+>    wrong; there is simply less stated. Whether the desk should offer to
+>    *extend* an old module with the missing labels — the `learnExtend` path
+>    already exists — is a real question and is deliberately not answered yet.
 
 **Where things stand, end of 2026-08-14 — the slice before.**
 Full account in [`archive/dev-log-2026-08-14.txt`](archive/dev-log-2026-08-14.txt).

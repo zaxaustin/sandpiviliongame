@@ -39,7 +39,7 @@
 
 import { state, data, persist, todayKey, logActivity, awardBadge } from '../entities.js';
 import { blip } from '../main.js';
-import { esc, jsq, courseProse } from './dom.js';
+import { esc, jsq, courseProse, checklistHTML } from './dom.js';
 import { moduleParts, courseStanding, parseSteps, repeatSpec } from '../data/course-format.js';
 import { buildExtendPrompt } from '../data/course-prompt.js';
 import { courseFolderFiles, courseSlug } from '../data/course-folder.js';
@@ -405,6 +405,8 @@ function moduleWork(c, i, step, parts) {
     <h3 style="margin:16px 0 2px">${esc(step.title || 'Module ' + (i + 1))}</h3>
     ${parts.objective ? `<div class="meta" style="margin-bottom:8px">${esc(parts.objective)}</div>` : ''}
     ${readFirstRow(step)}
+    ${!step.reading && parts.resources
+      ? block('First — go through these', parts.resources, '#8fb4d9') : ''}
     ${!has ? `<p class="meta" style="margin-top:10px">This module asks for no practice in so many words —
         it has no <b>Practice</b>, <b>Reflection</b> or <b>Artifact</b> line. Work it anyway if you like;
         the page below is yours either way.</p>` : ''}
@@ -414,6 +416,7 @@ function moduleWork(c, i, step, parts) {
     ${parts.reflection ? block('Afterwards, honestly', parts.reflection, '#9ac7e8') : ''}
     ${repeatRow(c, i, parts)}
     ${gateRow(parts)}
+    ${checkRow(c, i)}
     ${refChips(parts)}
     ${saidRow(parts)}
     ${blankPage(c, i)}
@@ -481,6 +484,35 @@ function gateRow(parts) {
     <div style="font-size:13.5px;color:#e2d5bd">${courseProse(parts.byTheEnd)}</div>
   </div>`;
 }
+/* ★ WHAT GETS YOU TO THE NEXT MODULE, at the desk. The SAME rows the Board
+   shows, from the same gatherer over the seam and through the same renderer —
+   not a second list that agrees with the first by inspection. The only
+   difference is the doors: on the Board "work it" sends you here, and here
+   you are already here, so the desk offers the book and the day instead.
+
+   Below the gate and above the reference chips, which is where it belongs in
+   the order the module is met: this is what the gate costs. */
+function checkRow(c, i) {
+  if (!X.checklistFor) return '';
+  const list = X.checklistFor(c, i);
+  if (!list || !list.any) return '';
+  const step = c.steps[i] || {};
+  const left = list.rows.some(r => r.counted && !r.done);
+  return checklistHTML(list, {
+    read: step.bookSlug ? ` <button class="btn ghost" style="font-size:10.5px;padding:2px 8px"
+      onclick="openReader('${jsq(step.bookSlug)}')">open it</button>` : '',
+    get: ` <button class="btn ghost" style="font-size:10.5px;padding:2px 8px"
+      onclick="openBookIntake()">bring it in</button>`,
+    /* No "work it" here — you are at the desk, and the blank page is directly
+       below. A button that scrolls you to a thing on the same screen is the
+       kind of dead press rule 5 is about. */
+    desk: '',
+  }, { lead: false }) + (left ? `<div class="row" style="margin-top:7px">
+      <button class="btn ghost" style="font-size:11.5px;padding:4px 10px"
+        onclick="courseToTasks(${c.id},${i})">📋 Take what is left into today</button></div>
+    <div class="meta" id="lwTaskMsg" style="margin-top:5px"></div>` : '');
+}
+
 function block(label, text, colour) {
   return `<div style="margin-top:11px;padding:9px 12px;border-left:3px solid ${colour};background:#241c12;border-radius:0 7px 7px 0">
     <div class="meta" style="margin:0 0 4px">${label}</div>

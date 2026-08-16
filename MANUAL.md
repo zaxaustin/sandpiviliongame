@@ -559,6 +559,27 @@ your own standing instructions, so you can watch them take effect.
       after. Where a practice repeats, it says so: *once a day for 20 days*,
       with a plain tally of how many **days** you have kept. Not a streak —
       nothing to break, and two attempts on one day are one day.
+    - **A short checklist says what gets you to the next module** — and it
+      fills itself in. Read the book · write notes as you read · do the
+      homework and keep what you got to · keep it up for the days the course
+      asks for. **There is nothing to tick.** A row goes green because you
+      actually marked the book read, actually wrote a note on it, actually kept
+      an attempt, actually sat on that many separate days. Nothing about it is
+      stored, so it cannot go stale and there is no second list to maintain.
+      Then *✓ Mark this module done* means something when you press it.
+    - **And it says what it cannot see.** Whether you can rebuild the theory
+      from a blank page, whether you actually made the thing, whether you are
+      at the level the module named — no program can check those, so they are
+      listed under **"and these are yours to say, nobody can check them for
+      you"**, with no tick of any kind. That is the honor system, in the place
+      it applies. The "N of M" count never includes them: a score you cannot
+      finish is a stick.
+    - **📋 Take this into today** turns what is left of a module into today's
+      tasks, each with a door to the room where it happens. It carries only the
+      rows a program can check — the honest ones stay with the module, because
+      *"tick when you can rebuild the theory"* turns a question you answer
+      truthfully into a box you clear. If today already has tasks, it says so
+      in a sentence rather than quietly doing nothing.
     - **The blank page comes first.** You write your attempt before anything
       else is offered. The three AI beats — *another problem like this*,
       *explain the theory*, *look at what I wrote* — are not greyed out before
@@ -1272,6 +1293,25 @@ kind of data is ever added without a line explaining itself.
 **bequest** (the Hall) is a gift left for a person to find, sometimes buried
 behind a condition. A **packet** (the table) is work published for anyone to
 use. Same mechanics — a file, no account, no server — different intent.
+
+---
+
+## When something goes wrong
+
+**✍ Tell them what happened**, in the pause menu. Four questions, and the most
+useful of them is the first: *what did you expect to happen that didn't?* It
+writes a note you copy or save — **nothing is sent from here, ever** — with a
+few lines of context about the build so the note is worth reading. No name, no
+files, no library contents.
+
+Then there are two places to put it, both optional and both outside the
+Pavilion: the
+[**discussions page**](https://github.com/zaxaustin/sandpiviliongame/discussions),
+which is the better one because someone else has probably hit the same thing,
+or **email**. Paste the note in yourself; neither link carries it for you.
+
+*"No" is a genuinely useful answer to "would you open it again tomorrow", and
+it is fine to give it.*
 
 ---
 

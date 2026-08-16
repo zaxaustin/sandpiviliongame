@@ -570,3 +570,242 @@ STILL OPEN, unchanged and still in this order:
    it, and THE WHOLE MARKING FEATURE ABOVE IS UNTESTED WITH A REAL
    MODEL — it has only ever run with AI disconnected, where it is
    correctly absent. That is the first thing to try tomorrow.
+
+
+
+================================================================
+  THIRD SESSION, late 2026-08-15 — beta.7, and the direction
+  that was missing
+================================================================
+
+  "I think we're ready to redo the beta build for number 7. This is
+   definitely the part where I wanna have my friends try to test things
+   out as well, see if they can build a course... The only thing I have
+   to complain about is there's no clear direction. Next to it there
+   should be a checklist on how to get to the next module — like read
+   chapter one and make at least three notes and give a general
+   impression of the chapter, something like that. I don't know really
+   how to do daily missions and tasks like this that are integrated part
+   of the course."
+
+Three asks, and a fourth underneath: is full course generation still
+working? Ollama was up with ornith:latest, so that stopped being a
+question and became a measurement.
+
+
+----------------------------------------------------------------
+0 · THE REAL MODEL, AT LAST — open item 5, closed with evidence
+----------------------------------------------------------------
+
+Two features had never once run against an actual model: full course
+generation under the three new labels, and the whole marking path. Both
+were listed as "the first thing to try tomorrow" last night.
+
+FULL COURSE GENERATION: 202 seconds, 14,627 characters, parseCourse
+clean with zero problems. SIX modules. ALL SEVEN LABELS on EVERY module.
+All six naming a book off the shelf it was given. It even produced the
+karma-and-a-book-report shape he described as his example two days ago,
+unprompted.
+
+MARKING: three attempts of deliberately different quality against ONE
+bar — a thin one, a real one, and an "I can't really explain it" one.
+Verdicts came back NOT YET / MEETS / NOT YET, each quoting the person's
+own phrase back, each naming exactly one piece of extra work. No score,
+no empty praise, 40-55 seconds. The one flag my checker raised was a
+FALSE POSITIVE IN THE CHECKER — the regex for "N out of M" matched
+"5/0.012 = about 417 ohms" in the learner's own arithmetic.
+
+⚠ AND THE MODEL FOUND A BUG THAT NO TEST HAD. Every one of the six
+modules it wrote said:
+
+    **Repeat:** Seven times.
+
+repeatSpec() read NO NUMBER from that. It parsed digits, and the word
+"once", and nothing else — so the desk said "this one names no number,
+so there is nothing to count towards" against a course that plainly
+states seven. The count was right there on the page.
+
+This is the same bug as yesterday's "once a day for 20 days" returning
+1, arriving through the other door, and it is worth naming as a pattern:
+A NUMBER A PERSON WRITES AND A NUMBER A PARSER READS ARE DIFFERENT SETS,
+AND THE GAP IS ALWAYS FOUND BY A REAL WRITER RATHER THAN BY A TEST.
+Yesterday the real writer was the steward; today it was a 9B model.
+
+Word-numbers to twelve now parse, ANCHORED AT THE START exactly like
+^once — because unanchored, "do this one every morning" reads as a
+target of ONE and tells you that you are finished on the first day,
+which is precisely the failure the number-beats-word rule exists to
+stop.
+
+⚠ WHAT THIS DID NOT SETTLE: all of it is this machine, an i9 with an
+A770. A 200-second draft here could be ten minutes on a laptop. That is
+the first thing a friend's machine will tell us, and it is the main
+reason to want other testers at all.
+
+
+----------------------------------------------------------------
+1 · WHAT GETS YOU TO THE NEXT MODULE
+----------------------------------------------------------------
+
+His complaint is exact: a module said everything and directed nothing.
+"✓ Mark this module done" was a button you pressed on a hunch.
+
+THE OBVIOUS BUILD IS A LIST OF CHECKBOXES, AND IT WAS REJECTED. Three
+reasons, and the third is the real one:
+
+  1. A stored tick beside a fact already in the save is two answers to
+     one question — rule 4's exact shape. The tick would eventually
+     disagree with the reading mark it duplicates.
+  2. A second list to maintain is a second to-do list, and the-day.js
+     already wrote down why this house does not keep one: "a list of
+     everything outstanding is a guilt inventory."
+  3. A BOX YOU TICK YOURSELF MEASURES NOTHING. A box that fills in
+     because you actually read the book, actually wrote a note, actually
+     kept an attempt, actually sat on eleven different days — that is a
+     mirror. Then "mark this module done" means something.
+
+So NOTHING IS STORED. moduleChecklist() is pure and takes its evidence;
+checklistFor() is the ONE gatherer that walks the save, handed to the
+desk over the seam rather than counted twice. There is one renderer,
+checklistHTML(), in ui/dom.js beside courseProse — because the Board and
+the desk both draw this, and two renderers for one list is the drift
+that hit the syllabus and the shelf predicate on the SAME DAY last week.
+
+⚠ AND WHAT CANNOT BE COUNTED IS SAID SO. Whether you can rebuild the
+theory from a blank page is not a thing any program can see. Those rows
+come back counted:false, with NO TICK AT ALL, under their own heading —
+"and these are yours to say, nobody can check them for you". They are
+excluded from the N-of-M, because a score you cannot finish is a stick.
+That heading is the honor system he asked for, printed in the one place
+it actually applies.
+
+TWO THINGS LOOKING FOUND, AND NEITHER WAS VISIBLE FROM THE CODE:
+
+  · The real EE course predates **Reading:** and says **Primary
+    resources:** instead — a LIST of mixed things, a book and a circuit
+    simulator. Read as a row, it landed in the unverifiable group at the
+    BOTTOM of the box, so a module whose first instruction is "go and
+    read this" showed that instruction underneath the homework it comes
+    before. His whole point was read first. It is a LEAD LINE under the
+    heading now.
+  · At the desk the checklist repeated the reading line that the block
+    three inches above already showed in full — which is yesterday's
+    duplicated-purpose-paragraph bug, one day old. The lead is
+    suppressible and the desk suppresses it.
+
+
+----------------------------------------------------------------
+2 · THE COURSE AND THE DAY FINALLY TOUCH
+----------------------------------------------------------------
+
+  "I don't know really how to do daily missions and tasks like this that
+   are integrated part of the course."
+
+Neither did the Pavilion — gap 2 in MAINTAINING.md since the desk was
+built. It is a CONVERSION, not a system: the checklist already knows
+what is left, and today's tasks already hold a short list of things with
+doors on them. taskFromChecklist() is pure, canTake() still owns the
+one-a-day rule, and the refusal is a sentence.
+
+  · only what is NOT DONE — a day of ticked boxes is a machine
+    congratulating you for yesterday
+  · only what CAN BE COUNTED — "tick when you can rebuild the theory"
+    turns a question you answer honestly into a box you clear
+  · it returns the task, it does not take it. A press, and it does not
+    move you.
+
+One STEP_WHERE row added (desk -> openLearningDesk) and the existing
+guard checked the door against the window exports for free.
+
+
+----------------------------------------------------------------
+3 · SOMEWHERE TO SEND A BUG
+----------------------------------------------------------------
+
+  "Maybe they can email us or complain in the GitHub discussion that we
+   make for the next beta launch."
+
+"✍ Tell them what happened" has asked four good questions since beta.1
+and then left the person holding a note with nowhere to put it. "Copy it,
+paste it wherever you like" is the house failure mode wearing politeness.
+
+It names the discussions page and an email now. STILL NOTHING IS SENT —
+two links, opened in your own browser and your own mail client, carrying
+only what is already on the screen. preflight.mjs re-verified: ZERO
+network. A guard checks the link against package.json's repository
+field, because a feedback link to the wrong repo is a dead end that
+LOOKS like a door and nobody would ever report it — reporting it is the
+broken thing.
+
+
+----------------------------------------------------------------
+A GUARD BROKEN BY A COMMENT — the mirror of the usual fault
+----------------------------------------------------------------
+
+Guard B (every reader of data.bookNotes must declare whether it
+attributes) skipped lines starting // or * and nothing else. A
+CONTINUATION line inside a block comment starts with plain indentation
+in this codebase's style — so a doc comment listing
+
+    data.bookNotes[slug]   notes you wrote on that book
+
+read as code, was reported as an undeclared reader, AND WAS BLAMED ON
+THE FUNCTION ABOVE IT, which does not touch notes at all.
+
+Three guards in this project have been SATISFIED by a comment. This is
+the first one BROKEN by one. Block comments are now blanked to spaces
+rather than deleted, so every line number and every `function`
+declaration stays exactly where it was and the blame line stays true.
+
+19 sabotage cases, all caught against a verified-green baseline. FOUR OF
+THE FIRST RUN'S MISSES WERE WORTH MORE THAN THE CATCHES:
+
+  · the "no unverifiable row is ever ticked" loop ran over the real EE
+    module, which was written before **Theory:** existed and therefore
+    has NO unverifiable rows. Zero iterations. Setting done:true by hand
+    left it green. It now asserts it found three before checking them.
+  · the "invents no target" case used "as often as you can", which
+    produces no repeat row at all — so the assertion had nothing to look
+    at and passed with the rule deleted.
+  · two were my own sabotage cases being wrong: one edited a function
+    that is legitimately declared, and one used a multi-line anchor
+    against a CRLF working copy (the .gitattributes lesson, again).
+
+A check over an empty list is not a check. That is now three times in
+two days.
+
+
+----------------------------------------------------------------
+0.1.0-beta.7 IS CUT
+----------------------------------------------------------------
+
+verify:release GREEN — installer, SHA-256 and docs all agree, for the
+first time since beta.6 was tagged. 101 MB.
+
+  npm test                        green
+  packaged-boot.cjs               SHIPPABLE
+  packaged-exe.mjs                SHIPPABLE, names itself 0.1.0-beta.7
+  preflight                       ZERO network
+  module-checklist (new)          green
+  learning-desk, receive-course, study-table, study-chain (39/39),
+  writing-desk, course-format, publish-reason, note-authorship,
+  tutorial-stages, speaking-pace, course-folder (Electron),
+  docker-home (31/31)             all green
+
+STILL OPEN, reordered because beta.7 changed which one matters most:
+
+1. GRADUATION IS BROKEN FOR BOARD COURSES. readyChecks() reads
+   myLessons, so a finished Board course fails all five checks. This is
+   now the top of the list rather than the middle of it: beta.7 hands
+   people a course they can walk to the end of, and the end does not
+   work. Next slice.
+2. Sebastian still has never heard of a course. He plans your day; the
+   day now knows about modules; he does not. That is all that is left of
+   the old "a course touches nothing" row.
+3. 64 open plans against 20 done — the oldest untouched item here.
+4. The hosted-model path, still never used by anyone who needed it. And
+   nothing at all has been measured on a laptop.
+5. A course written before the three new labels gets a thin checklist.
+   Honest, and plain. Whether the desk should offer to extend an old
+   module with the missing labels — learnExtend already exists — is a
+   real question, deliberately not answered tonight.

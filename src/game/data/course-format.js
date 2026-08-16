@@ -516,6 +516,19 @@ const PART_LABELS = [
   { label: 'Artifact',   key: 'artifact' },
   { label: 'By the end', key: 'byTheEnd' },
   { label: 'Repeat',     key: 'repeat' },
+  /* ⚠ WHAT A REAL COURSE ACTUALLY WROTE. `**Reading:**` is the metadata form —
+     one title, lifted, resolved against your shelf, and it becomes a door. But
+     `courses/junior-electrical-engineer.course.md`, drafted before that label
+     existed, says `**Primary resources:**` and lists two: a book AND a
+     simulator. Read as content rather than metadata, because a list of mixed
+     things is not one title and pretending it is would resolve "Falstad
+     Circuit Simulator" against the shelf and cite the wrong thing.
+
+     It earns its place by being the answer to "what do I go and read", which
+     is the first row of the checklist and the steward's own first example. A
+     course with neither label is a course that names nothing to read, and the
+     checklist says nothing rather than inventing a row. */
+  { label: 'Primary resources', key: 'resources' },
 ];
 export function moduleParts(body) {
   const src = String(body == null ? '' : body);
@@ -564,6 +577,11 @@ export function moduleParts(body) {
    so the caller counts distinct dates — otherwise sitting once and pressing
    keep four times would read as four days of practice, which is the kind of
    flattering lie rule 9 exists to keep out. */
+const WORD_COUNT = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+  seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  twice: 2, thrice: 3,
+};
 export function repeatSpec(text) {
   const s = String(text == null ? '' : text).trim();
   if (!s) return null;
@@ -575,9 +593,178 @@ export function repeatSpec(text) {
   const num = /(\d+)/.exec(s);
   if (num) return { times: Number(num[1]), byDay, text: s };
   if (/^once\b/i.test(s)) return { times: 1, byDay, text: s };
+  /* ⚠ AND A MODEL WRITES THE NUMBER AS A WORD. Found by running the drafting
+     prompt against the real local model for the first time on 2026-08-15: all
+     six modules it wrote said `**Repeat:** Seven times.` — perfectly good
+     English, no digit in it, and the tally read "this one names no number, so
+     there is nothing to count towards." The count was right there on the page.
+
+     Twelve is the ceiling on purpose. Past that people write digits, and a
+     word-list long enough to cover "seventeen" is a list that has to be
+     maintained — which is rule 4's shape for no gain. Beyond twelve it falls
+     through to the honest "there is a repeat and no count" below.
+
+     ⚠ ANCHORED AT THE START, exactly like `^once` above and for a sharper
+     reason than symmetry: unanchored, "do this one every morning" reads as a
+     target of ONE and tells you on the first day that you are finished — the
+     same failure the number-beats-word rule was written to stop, arriving
+     through the other door. A Repeat: line that names a count opens with it. */
+  const word = /^(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twice|thrice)\b/i.exec(s);
+  if (word) return { times: WORD_COUNT[word[1].toLowerCase()], byDay, text: s };
   /* "every morning for a month" has no digit in it, and inventing 30 here
      would be a target nobody wrote. Say there is a repeat and no count. */
   return { times: null, byDay, text: s };
+}
+
+/* ================================================================
+   ★ WHAT GETS YOU TO THE NEXT MODULE — the checklist
+   ================================================================
+
+   The steward, 2026-08-15, after using the desk on his own courses and being
+   happy with everything else:
+
+     "The only thing I have to complain about is there's no clear direction.
+      Next to it there should be a checklist on how to get to the next module
+      — like READ CHAPTER ONE and MAKE AT LEAST THREE NOTES and GIVE A GENERAL
+      IMPRESSION OF THE CHAPTER, something like that. I don't know really how
+      to do daily missions and tasks like this that are integrated part of the
+      course."
+
+   A module already says all of this. `**Reading:**` is read the book,
+   `**Practice:**` is the homework, `**Repeat:**` is how many days, and
+   `**By the end:**` is the bar. What was missing is not information — it is
+   the information gathered into one short list that says, in order, what is
+   left. "✓ Mark this module done" was a button you pressed on a hunch.
+
+   ⚠ NOTHING IS STORED, AND THAT IS THE DESIGN, not a shortcut.
+
+   The obvious build is a list of checkboxes you tick. It was rejected for
+   three reasons, and the third is the real one:
+
+     1. A stored tick beside a fact already in the save is two answers to one
+        question, which is rule 4's exact shape — the tick would eventually
+        disagree with the reading mark it duplicates.
+     2. A second list to maintain is a second to-do list, and `the-day.js`
+        already wrote down why this house does not keep one: "a list of
+        everything outstanding is a guilt inventory."
+     3. A box you tick yourself measures nothing. A box that fills in because
+        you actually read the book, actually wrote a note, actually kept an
+        attempt, actually sat on eleven different days — that is a mirror.
+        Then "mark this module done" means something when you press it.
+
+   ⚠ AND WHAT CANNOT BE COUNTED IS SAID SO, NEVER FAKED. Whether you can
+   rebuild the theory from a blank page is not a thing any program can see.
+   Those rows come back with `counted:false` and no tick at all, under their
+   own heading — rule 6 in list form. A checklist that pretended to know would
+   be worse than one that admits it does not, because the person would believe
+   it. They are still LISTED, because "here is what nobody can check for you"
+   is exactly the honor system he asked for, in the place it applies.
+
+   PURE, and takes its evidence rather than reaching for it — the same reason
+   daily-tasks.js and carrying.js are pure. Every rule below is testable
+   without a save, a DOM, or a book.
+
+   `ev` — all optional, all counted by the caller:
+     attempts    how many attempts have been kept on this module
+     days        how many DISTINCT DATES those attempts fall on
+     bookRead    true if the book is marked read
+     bookPage    furthest page reached in it, 0/undefined for none
+     bookNotes   how many notes you have written on that book
+     haveBook    whether the module's book is on your shelf at all       */
+export function moduleChecklist(step, ev) {
+  const s = step || {}, e = ev || {};
+  const p = moduleParts(s.body);
+  const rows = [];
+  let lead = '';
+  const first = t => {
+    /* One line for a list of several. The module's full text is already on the
+       screen above this; the checklist is the reminder, not a second copy. */
+    const line = String(t || '').split('\n').map(x => x.replace(/^[-*•]\s*/, '').trim())
+      .filter(Boolean)[0] || '';
+    return line.length > 96 ? line.slice(0, 95).replace(/[\s,;:.]+\S*$/, '') + '…' : line;
+  };
+
+  if (s.reading) {
+    /* READ IT — and "read" is the mark you set yourself or a page you reached.
+       Not "opened it once": opening a book is not reading it, and a tick that
+       fires on a glance is the flattering lie rule 9 keeps out. */
+    rows.push({ key: 'read', icon: '📖', counted: true,
+      text: 'Read ' + first(s.reading),
+      done: !!e.bookRead || (e.bookPage || 0) > 0,
+      how: e.bookRead ? 'you marked it read'
+         : (e.bookPage || 0) > 0 ? ('you are on page ' + e.bookPage)
+         : e.haveBook ? 'not opened yet' : 'not on your shelf yet',
+      door: e.haveBook ? 'read' : 'get' });
+    /* HIS OWN EXAMPLE — "make at least three notes." NO TARGET IS INVENTED.
+       Three is his number for his chapter, and a checklist that demanded three
+       of everyone would be a rule nobody wrote. An author who wants three says
+       so in the Practice; this counts what you actually wrote. */
+    rows.push({ key: 'notes', icon: '🗒', counted: true,
+      text: 'Write notes as you read',
+      done: (e.bookNotes || 0) > 0,
+      how: (e.bookNotes || 0) > 0
+        ? (e.bookNotes + ' note' + (e.bookNotes === 1 ? '' : 's') + ' on this book')
+        : 'none yet',
+      door: e.haveBook ? 'read' : null });
+  } else if (p.resources) {
+    /* THE OLDER SHAPE, AND IT IS A LINE RATHER THAN A ROW.
+       `**Primary resources:**` is a LIST of mixed things — a book AND a circuit
+       simulator, in the real EE course — so there is no single title to
+       resolve, no press that could be right, and nothing to tick.
+
+       ⚠ IT IS THE LEAD, NOT A ROW, and LOOKING is what settled that. As a row
+       it landed in the "yours to say" group at the BOTTOM of the box — so a
+       module whose first instruction is "go and read this" showed that
+       instruction underneath the homework it comes before. His whole point was
+       read first. A line under the heading puts it where the module puts it,
+       and being unticked stops being a demotion. */
+    lead = 'First, go through what this module points at — ' + first(p.resources);
+  }
+
+  if (p.practice || p.reflection) {
+    rows.push({ key: 'attempt', icon: '✍', counted: true,
+      text: p.practice ? first(p.practice) : first(p.reflection),
+      done: (e.attempts || 0) > 0,
+      how: (e.attempts || 0) > 0
+        ? ((e.attempts) + ' attempt' + (e.attempts === 1 ? '' : 's') + ' kept')
+        : 'nothing kept yet',
+      door: 'desk' });
+  }
+
+  const rep = repeatSpec(p.repeat);
+  if (rep && (rep.times > 1 || rep.byDay)) {
+    const got = rep.byDay ? (e.days || 0) : (e.attempts || 0);
+    const unit = rep.byDay ? 'day' : 'time';
+    rows.push({ key: 'repeat', icon: '📅', counted: true,
+      text: rep.times ? ('Keep it up — ' + rep.times + ' ' + unit + (rep.times === 1 ? '' : 's'))
+                      : 'Keep it up — ' + first(rep.text),
+      done: rep.times ? got >= rep.times : false,
+      how: rep.times ? (got + ' of ' + rep.times)
+                     : (got + ' ' + unit + (got === 1 ? '' : 's') + ' so far, against no stated number'),
+      door: 'desk' });
+  }
+
+  /* ---- and now the ones nobody can check for you ---- */
+  if (p.theory) rows.push({ key: 'theory', icon: '🧠', counted: false,
+    text: 'Rebuild the theory from a blank page — ' + first(p.theory) });
+  if (p.artifact) rows.push({ key: 'artifact', icon: '🔨', counted: false,
+    text: 'Made: ' + first(p.artifact) });
+  if (p.byTheEnd) rows.push({ key: 'gate', icon: '🎯', counted: false,
+    text: first(p.byTheEnd) });
+
+  const counted = rows.filter(r => r.counted);
+  return {
+    rows, lead,
+    /* The two numbers a person actually reads, and they cover the COUNTED rows
+       only. "2 of 5" where three of the five can never tick would be a score
+       nobody can finish — the sort of quiet stick this house does not keep. */
+    done: counted.filter(r => r.done).length,
+    total: counted.length,
+    /* Whether there is anything to show at all. A three-line checklist course
+       has no labels, and an empty box headed "what gets you to the next
+       module" is worse than no box. */
+    any: rows.length > 0 || !!lead,
+  };
 }
 
 /* What a person should know before they start. Pure, derived, and it counts

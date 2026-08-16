@@ -425,6 +425,7 @@ node test/live/speaking-pace.mjs           # one reveal RATE, the hold, the pock
 node test/live/ai-diagnosis.mjs            # four AI failures, four DIFFERENT sentences
 node test/live/tutorial-stages.mjs         # stages 2-5, and the Stage 5 checklist
 node test/live/course-format.mjs           # a paragraph survives write->publish->receive
+node test/live/module-checklist.mjs        # what's left, counted from evidence -> today's tasks
 node test/live/note-authorship.mjs         # the prompt read off the wire — whose words
 node test/live/publish-reason.mjs          # the outlet, and the packet round trip
 node test/live/lab.mjs  bench.mjs  bundle.mjs  librarian-safety.mjs  backend.mjs
