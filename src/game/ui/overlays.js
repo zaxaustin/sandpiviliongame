@@ -19,7 +19,7 @@ import { BASELINE_QUESTIONS, buildDraftingPrompt, buildReadingPrompt, promptGaps
 import { STARTER_COURSES, starterCourse } from '../data/starter-courses.js';
 import { initStudyTable, renderStudyTable, studyStep, studyLabelToggle, studyLabelSave,
          studyUnlabel, studyOpenHere, studyAddNote, studyTableLabel, invalidateStudyCache,
-         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply, studySetBook, studyCarryBook, tableBook,
+         studySetAgent, studyFillPrompt, studyAsk, studyKeepReply, studyTurnPage, studySetBook, studyCarryBook, tableBook,
          studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson } from './study-table.js';
 import { initLearningDesk, openLearningDesk, renderLearningDesk, workModuleHere, workableCourses,
          learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter, learnAsk,
@@ -14753,7 +14753,7 @@ Object.assign(window, {
   /* ui/study-table.js — the window block stays in ONE file, which is this
      one, so the two-directional export check keeps working. */
   studyStep, studyLabelToggle, studyLabelSave, studyUnlabel, studyOpenHere, studyAddNote,
-  studySetAgent, studyFillPrompt, studyAsk, studyKeepReply,
+  studySetAgent, studyFillPrompt, studyAsk, studyKeepReply, studyTurnPage,
   studyTidyNote, studyToggleHistory, studyRestoreVersion, studyDraftLesson,
   /* ui/learning-desk.js — same rule, same block. */
   openLearningDesk, learnTab, learnPickCourse, learnPickModule, learnSaid, learnAfter, learnLookBack,

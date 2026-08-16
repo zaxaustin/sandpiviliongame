@@ -6918,6 +6918,43 @@ for (const d of SEED_LIBRARY) {
     fail('data/visibility.js: courseWork is not in DATA_MAP — a store of a person\'s own working with no '
        + 'row in the privacy line is the exact gap bookMarks and study were found in');
   }
+  /* ★ ONE PAGE, TWO ROOMS. The steward, 2026-08-15: "the way the book is set
+     up right now is not as good as it is in actual library we should just use
+     that same format." The Reader gave a page 15.5px of serif on parchment;
+     the Study Table gave the SAME BOOK 12.5px of mono on dark, truncated at
+     2,400 characters. Both read from tokens now, so they cannot drift again —
+     and this holds the derivation rather than the numbers. */
+  const cssP = readFileSync(new URL('../src/game/style.css', import.meta.url), 'utf8');
+  const stP = readFileSync(new URL('../src/game/ui/study-table.js', import.meta.url), 'utf8');
+  for (const tok of ['--read-ink', '--read-size', '--read-lead', '--page-a']) {
+    if (!new RegExp('\\' + tok + '\\s*:').test(cssP)) fail('style.css: the page token ' + tok + ' is gone');
+  }
+  const sheetRule = (/\.readingSheet\s*\{[^}]*\}/.exec(cssP) || [''])[0];
+  if (!sheetRule) fail('style.css: .readingSheet is gone — the Learning Desk\'s page has no parchment');
+  else for (const tok of ['--read-size', '--read-lead', '--read-ink', '--page-a']) {
+    if (!sheetRule.includes(tok)) {
+      fail('style.css: .readingSheet hard-codes what ' + tok + ' is for. The desk\'s page and the '
+         + 'Reader\'s page must come from the same tokens — they had drifted to 12.5px mono vs '
+         + '15.5px serif for the same book.');
+    }
+  }
+  if (!/\.bookPanel \.fullTextPage \{ font-size:var\(--read-size\)/.test(cssP)) {
+    fail('style.css: the Reader\'s page no longer reads its size from --read-size, so the desk can '
+       + 'follow the token and still not match the Reader');
+  }
+  if (!/class="readingSheet"/.test(stP)) {
+    fail('ui/study-table.js: the book\'s text is not rendered on a .readingSheet — it is back to being '
+       + 'a card, which is the look the steward asked to be rid of');
+  }
+  /* And nothing is silently cut off any more. The old textRow() sliced at
+     2,400 chars and apologised; a table for working through a book must not
+     send you somewhere else to finish the page. */
+  const textFn = (/function textRow\([\s\S]*?\n}/.exec(stP) || [''])[0];
+  if (/slice\(0,\s*\d{3,}\)/.test(textFn)) {
+    fail('ui/study-table.js: textRow() truncates the text again. It turns pages now — there is nothing '
+       + 'to truncate, and "press 📖 to read all of it" at a reading table is a dead end.');
+  }
+
   const cwRow = (/\{[^{}]*key\s*:\s*'courseWork'[^{}]*\}/.exec(visP) || [''])[0];
   if (!/state\s*:\s*'private'/.test(cwRow)) {
     fail('data/visibility.js: courseWork is not marked private. What someone attempted, and where they '

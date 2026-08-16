@@ -43,6 +43,12 @@
      like a book. Web-safe stacks, no external fetch (CSP/offline-safe). */
   --font-mono:'Courier New', monospace;
   --font-read:Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
+  /* THE PAGE ITSELF — the ink, the size and the paper a book is read on.
+     Tokenised 2026-08-15 so the Reader and the Learning Desk cannot drift
+     apart on it; they had, badly (12.5px mono on dark vs 15.5px serif on
+     parchment, for the same book). The values are exactly the Reader's. */
+  --read-ink:#3a2e1c; --read-size:15.5px; --read-lead:1.8;
+  --page-a:#f3e6c8; --page-b:#ece0c2;
 
   /* spacing scale (defined now; scales get normalised onto it in Phase 2) */
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-6:24px;
@@ -309,7 +315,55 @@ body { font-family:var(--font-mono); touch-action:none; }
   white-space:pre-wrap; line-height:1.75; font-size:14.5px;
   max-height:56vh; overflow-y:auto; padding-right:6px;
 }
-.bookPanel .fullTextPage { color:#3a2e1c; } /* the reader always opens as a bookPanel — dark ink on parchment, not light-on-dark */
+.bookPanel .fullTextPage { color:var(--read-ink); } /* the reader always opens as a bookPanel — dark ink on parchment, not light-on-dark */
+
+/* ============================================================
+   A PAGE OF A BOOK, LAID ON A DESK.
+
+   The steward, on the Learning Desk's book tab, 2026-08-15:
+
+     "the way the book is set up right now… is not as good as it is in
+      actual library we should just use that same format in that situation."
+
+   He is right, and the gap was not subtle once measured. The Reader gives a
+   page 15.5px of serif at 1.8 line-height, dark ink on parchment, with your
+   notes in a column beside it. The desk gave it 12.5px of mono at 1.55,
+   light-on-dark, in a 260px box, TRUNCATED at 2,400 characters. Same book,
+   same act, two different qualities of attention.
+
+   ONE SOURCE FOR THE VALUES, TWO CONTAINERS — and the second half is
+   deliberate rather than lazy. In the Reader the whole panel IS the book, so
+   the page needs no edge. At the desk the panel is dark chrome, so the page is
+   a SHEET laid on it and wants one. The typography is identical because it is
+   the same tokens; the framing differs because the rooms differ.
+   ============================================================ */
+.readingSheet {
+  white-space:pre-wrap;
+  font-family:var(--font-read);
+  font-size:var(--read-size); line-height:var(--read-lead); color:var(--read-ink);
+  background:linear-gradient(120deg, var(--page-a), var(--page-b));
+  border:2px solid var(--gold-deep); border-radius:var(--r-md);
+  box-shadow:inset 0 0 0 2px #d8c393, 0 6px 18px rgba(0,0,0,.35);
+  padding:16px 18px; margin-top:10px;
+  max-height:48vh; overflow-y:auto;
+}
+@media (min-width:1280px) and (min-height:900px) { .readingSheet { max-height:58vh; } }
+
+/* THE DESK GETS THE READER'S TWO COLUMNS TOO, at the same breakpoint and for
+   the same stated reason: "notes sit beside the text, not below it, so you can
+   write while reading instead of scrolling down and losing your place." */
+@media (min-width:860px) {
+  #learnOv .panel { width:min(1100px, 100%); }
+  #studyReading { display:flex; flex-wrap:wrap; column-gap:26px; align-items:flex-start; }
+  #studyReading > .studyWide { flex:0 0 100%; }
+  #studyPageCol { flex:1 1 54%; min-width:340px; }
+  #studyNotesCol { flex:1 1 280px; max-width:340px; border-left:2px solid var(--edge); padding-left:22px; }
+  #studyNotesCol h4 { margin-top:0; }
+}
+@media (min-width:1280px) {
+  #learnOv .panel { width:min(1320px, 100%); }
+  #studyNotesCol { flex:1 1 380px; max-width:430px; }
+}
 .xbtn {
   float:right; background:none; border:2px solid var(--gold); color:var(--gold);
   border-radius:var(--r-sm); padding:2px 10px; cursor:pointer; font-family:inherit; font-size:13px;
@@ -439,7 +493,7 @@ input[type=time]:focus, input[type=date]:focus { outline:none; border-color:#e0a
 
 /* reader — styled and animated like an actual open book */
 .bookPanel {
-  background:linear-gradient(120deg, #f3e6c8, #ece0c2); color:#2a2118;
+  background:linear-gradient(120deg, var(--page-a), var(--page-b)); color:#2a2118;
   border-color:#8a6423; box-shadow:0 14px 40px rgba(0,0,0,.55), inset 0 0 0 2px #d8c393;
   position:relative; transform-origin:left center; animation:bookOpen .4s ease-out;
 }
@@ -455,7 +509,7 @@ input[type=time]:focus, input[type=date]:focus { outline:none; border-color:#e0a
 /* The book's prose reads in the serif — its title/section headings too — while
    the surrounding buttons and notes stay in the mono chrome voice. */
 .bookPanel h2, .bookPanel p, .bookPanel .rdSummary, .bookPanel .fullTextPage { font-family:var(--font-read); }
-.bookPanel .fullTextPage { font-size:15.5px; line-height:1.8; }
+.bookPanel .fullTextPage { font-size:var(--read-size); line-height:var(--read-lead); }
 .bookPanel .rdSummary { font-style:italic; color:#7a5a28; border-left:3px solid #d8c393; padding-left:10px; }
 .bookPanel .xbtn { border-color:#8a6423; color:#6b4a1f; }
 .bookPanel .xbtn:hover { background:#8a6423; color:#f3e6c8; }

@@ -161,7 +161,7 @@ export function studyCarryBook(slug) {
 }
 export function studySetBook(slug) {
   const v = view();
-  v.slug = slug; v.idx = 1; v.labelling = false;
+  v.slug = slug; v.idx = 1; v.labelling = false; v.page = null;
   cache = null;
   /* THE HEADING LIVES OUTSIDE THIS BODY. renderStudyTable() rewrites the mount
      element; the tool's title is drawn one level up by whichever panel is
@@ -258,12 +258,25 @@ export async function renderStudyTable() {
   }
   const v = view();
   const bk = bookUnits(b.slug, text);
-  if (v.slug !== b.slug) { v.slug = b.slug; v.idx = (unitAt(bk.units, b.page || 0) || bk.units[0] || {}).idx || 1; v.labelling = false; }
+  if (v.slug !== b.slug) { v.slug = b.slug; v.idx = (unitAt(bk.units, b.page || 0) || bk.units[0] || {}).idx || 1; v.labelling = false; v.page = null; }
   const unit = bk.units.find(u => u.idx === v.idx) || bk.units[0];
   if (!unit) { el.innerHTML = `<div class="meta">This book has no pages to divide.</div>`; return; }
 
-  el.innerHTML = trayRow(b) + navRow(b, bk, unit) + labelRow(unit, bk) + textRow(bk, unit)
-    + carriedNotesRow(b, unit) + notesRow(b, unit) + draftRow(b, bk) + chatRow(b, unit);
+  /* THE READER'S LAYOUT, and the reason is the Reader's own: "notes sit beside
+     the text, not below it, so you can write while reading instead of
+     scrolling down and losing your place." Two named columns, and the CSS
+     stacks them again below 860px where a side column has no room. */
+  /* ⚠ WHICH STORY YOU ARE ON BELONGS OVER THE PAGE, not over the whole panel.
+     The first version put navRow in the full-width row, and the ◀ ▶ ended up
+     at the far edges of a 1,320px panel with the story's name floating in the
+     middle of nothing — a control bar for a column, stretched across two.
+     Only the tray is genuinely about the whole table. */
+  el.innerHTML = `<div id="studyReading">
+      <div class="studyWide">${trayRow(b)}</div>
+      <div id="studyPageCol">${navRow(b, bk, unit)}${labelRow(unit, bk)}${textRow(bk, unit)}</div>
+      <div id="studyNotesCol">${carriedNotesRow(b, unit)}${notesRow(b, unit)}</div>
+    </div>
+    ${draftRow(b, bk)}${chatRow(b, unit)}`;
 }
 
 /* The way OUT of the table, and it only appears once there is work to build
@@ -411,11 +424,14 @@ export function studyKeepReply(i) {
   const unit = cache.units.find(u => u.idx === view().idx); if (!unit) return;
   const c = chatState(), t = c.byAgent[c.agent];
   const h = (t.history || [])[i]; if (!h || h.role !== 'assistant') return;
-  if (X.writeBookNote) X.writeBookNote(b.slug, h.content, unit.from);
+  /* The page you are on, not the top of the story — same rule as a note you
+     type yourself, and for the same reason: a note cites the page it says. */
+  const at = unitPage(unit);
+  if (X.writeBookNote) X.writeBookNote(b.slug, h.content, at);
   blip(700, .06, 'sine', .03);
   renderStudyTable().then(() => {
     const m = document.getElementById('studyMsg');
-    if (m) m.textContent = '✓ kept on p. ' + (unit.from + 1);
+    if (m) m.textContent = '✓ kept on p. ' + (at + 1);
   });
 }
 
@@ -459,13 +475,56 @@ function labelRow(unit, bk) {
     </div>`;
 }
 
+/* ---------- THE PAGE, THE WAY THE LIBRARY DOES IT ----------
+
+   The steward, on the book tab, 2026-08-15:
+
+     "the way the book is set up right now… is not as good as it is in actual
+      library we should just use that same format in that situation."
+
+   WHAT WAS WRONG, measured rather than felt. The Reader gives a page 15.5px of
+   serif at 1.8 line-height, dark ink on parchment, ONE PAGE AT A TIME with
+   Prev/Next, and your notes in a column beside it. This gave the same book
+   12.5px of mono at 1.55, light-on-dark, in a 260px box, and TRUNCATED IT at
+   2,400 characters with an apology. A unit spanning nine pages showed you the
+   first two and told you to go somewhere else to read the rest — at a table
+   whose entire purpose is working through a book.
+
+   So: the same page. `.readingSheet` carries the Reader's own typography
+   tokens, and paging is per PAGE inside the unit, exactly as the Reader pages
+   through the book. Nothing is truncated any more, because nothing needs to
+   be: you turn the page instead.
+
+   `unitPage()` clamps into the unit rather than trusting stored state — a
+   relabelled book redraws its divisions under you, and a page index left
+   pointing outside the current unit would render another story's text under
+   this story's heading. */
+function unitPage(unit) {
+  const v = view();
+  const p = typeof v.page === 'number' ? v.page : unit.from;
+  return Math.min(Math.max(p, unit.from), unit.to);
+}
+export function studyTurnPage(d) {
+  const b = tableBook(); if (!b || !cache) return;
+  const unit = cache.units.find(u => u.idx === view().idx); if (!unit) return;
+  const at = unitPage(unit) + d;
+  if (at < unit.from || at > unit.to) return;
+  view().page = at;
+  renderStudyTable();
+}
 function textRow(bk, unit) {
-  const slice = bk.pages.slice(unit.from, unit.to + 1).join('\n\n');
-  const shown = slice.length > 2400 ? slice.slice(0, 2400) + '…' : slice;
-  return `<div class="card" style="cursor:default;margin-top:10px;max-height:260px;overflow:auto">
-      <div style="white-space:pre-wrap;font-size:12.5px;line-height:1.55">${esc(shown)}</div>
-    </div>
-    ${slice.length > 2400 ? `<div class="meta" style="margin-top:4px">Showing the opening of this one — press 📖 to read all of it.</div>` : ''}`;
+  const at = unitPage(unit);
+  const n = unit.to - unit.from + 1;
+  const which = at - unit.from + 1;
+  return `<div class="readingSheet" id="studySheet">${esc(bk.pages[at] || '')}</div>
+    <div class="row" style="margin-top:8px;align-items:center;gap:8px">
+      <button class="btn ghost" style="font-size:12px;padding:3px 10px"
+        ${at <= unit.from ? 'disabled' : ''} onclick="studyTurnPage(-1)">← Prev</button>
+      <span class="meta" style="margin:0;flex:1;text-align:center">Page ${at + 1} of the book${
+        n > 1 ? ` · ${which} of ${n} in this one` : ''}</span>
+      <button class="btn ghost" style="font-size:12px;padding:3px 10px"
+        ${at >= unit.to ? 'disabled' : ''} onclick="studyTurnPage(1)">Next →</button>
+    </div>`;
 }
 
 /* Notes belonging to THIS story: the ones written on its pages. Book notes
@@ -561,6 +620,11 @@ export function studyStep(dir) {
   const v = view();
   v.idx = Math.max(1, v.idx + (dir > 0 ? 1 : -1));
   v.labelling = false;
+  /* A new story starts at its own first page. Carrying the page index across
+     would open the next unit somewhere in its middle — or, if the units are
+     uneven, outside it entirely. unitPage() clamps either way, but landing on
+     page one is what a person turning to the next story expects. */
+  v.page = null;
   blip(dir > 0 ? 600 : 460, .05, 'sine', .03);
   renderStudyTable();
 }
@@ -609,7 +673,9 @@ export function studyUnlabel(page) {
 export function studyOpenHere() {
   const b = tableBook(); if (!b || !cache) return;
   const unit = cache.units.find(u => u.idx === view().idx); if (!unit) return;
-  if (X.openBookAt) X.openBookAt(b.slug, unit.from);
+  /* The page in front of you, not the top of the story — walking to the
+     Reader should not lose your place. */
+  if (X.openBookAt) X.openBookAt(b.slug, unitPage(unit));
 }
 
 export function studyAddNote() {
@@ -618,12 +684,20 @@ export function studyAddNote() {
   const input = document.getElementById('studyNoteInput'); if (!input) return;
   const text = input.value.trim(); if (!text) return;
   /* Through the Reader's own path, so a note written here is identical to one
-     written there — same shape, same chapter and page, same four doors. */
-  if (X.writeBookNote) X.writeBookNote(b.slug, text, unit.from);
+     written there — same shape, same chapter and page, same four doors.
+
+     ★ AND ON THE PAGE YOU ARE ACTUALLY READING. It used to file every note on
+     the unit's FIRST page, which was the only honest answer while the table
+     showed a whole unit at once. Now that it turns pages like the Reader,
+     filing a note about page 34 under page 12 would be the confidently-wrong
+     kind of wrong — and it is the page number a note cites when you open it
+     again. */
+  const at = unitPage(unit);
+  if (X.writeBookNote) X.writeBookNote(b.slug, text, at);
   input.value = '';
   renderStudyTable().then(() => {
     const msg = document.getElementById('studyMsg');
-    if (msg) msg.textContent = '✓ kept on p. ' + (unit.from + 1);
+    if (msg) msg.textContent = '\u2713 kept on p. ' + (at + 1);
   });
   blip(700, .06, 'sine', .03);
 }
