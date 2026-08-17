@@ -16,7 +16,7 @@ const DEFAULT_CONNECTIONS=[{ id:'ollama-default', name:'Ollama (local)', kind:'o
 // saves — nothing reads it yet, but the field needs to exist in every save
 // from the start so it's there once something actually needs it.
 const SAVE_VERSION=1;
-export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, noteReach:{}, dailyTasks:[], taskStats:{done:0,streak:0,best:0,lastDone:''}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, tutorial:{started:'',ready:{},graduated:null}, bookRequests:[], inventory:[] /* VESTIGIAL - the old book-only backpack. Read ONCE by carryMigrate() and emptied; data.carrying is the backpack now. Do not write to it. */, reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[],builds:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, bookMarks:{}, courseWork:{}, study:null, carrying:[], readingPos:{}, catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, ttsSettings:{voiceURI:null,rate:0.98}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
+export function freshData(){ return { saveVersion:SAVE_VERSION, fish:0, fishLog:[], read:{}, bookNotes:{}, planner:{}, notes:[], courses:[], calendar:[], noteMeta:{}, noteReach:{}, dailyTasks:[], taskStats:{done:0,streak:0,best:0,lastDone:''}, personalLibrary:[], pos:null, aiConnections:DEFAULT_CONNECTIONS.map(c=>({...c})), agentMemory:{}, chatNotes:{}, workshop:{docs:[],research:[]}, grantProjects:[], waypoints:[], activityLog:[], badges:{}, tutorial:{started:'',ready:{},graduated:null}, bookRequests:[], inventory:[] /* VESTIGIAL - the old book-only backpack. Read ONCE by carryMigrate() and emptied; data.carrying is the backpack now. Do not write to it. */, reviewQueue:[], ideas:[], paths:[], hall:{investigations:[],experiments:[],builds:[]}, temple:{folds:{}}, curriculum:{}, myShelves:[], myLessons:[], standing:{}, bookMarks:{}, courseWork:{}, study:null, carrying:[], readingPos:{}, catalogEdits:{}, grove:{plantings:[],seeds:[]}, commons:{received:[],published:[],taken:{}}, messages:[], ttsSettings:{voiceURI:null,rate:0.98,engine:'system',kokoroVoice:null,kokoroReady:false}, settings:{carryForwardSparks:false}, seenWelcome:false }; }
 export const data = Object.assign(freshData(), Store.load() || {});
 // Object.assign is a shallow merge — an existing save's `workshop:{docs:[...]}`
 // (from before the Research Desk existed) replaces freshData()'s `workshop`
@@ -25,6 +25,15 @@ if(!data.workshop.research) data.workshop.research=[];
 if(!data.readingPos) data.readingPos={};   // where you are in each book — older saves lost this on every reload
 if(!Array.isArray(data.carrying)) data.carrying=[]; // the backpack — older saves carried books in `inventory`, lifted across by carryMigrate()
 if(!data.ttsSettings) data.ttsSettings={voiceURI:null,rate:0.98}; // older saves predate this field
+/* THE SECOND ENGINE, added 2026-08-16. Lazy-filled rather than migrated — the
+   bookMarks pattern. ⚠ `kokoroReady` is deliberately NOT trusted from the save:
+   it says what was on disk on whichever machine wrote it, and a save carried to
+   a laptop without the 88 MB model would otherwise select an engine that is not
+   there and read nothing at all. It starts false on every boot and only the
+   main process's own answer (refreshKokoro) may set it true. */
+if(data.ttsSettings.engine!=='kokoro') data.ttsSettings.engine='system';
+if(data.ttsSettings.kokoroVoice===undefined) data.ttsSettings.kokoroVoice=null;
+data.ttsSettings.kokoroReady=false;
 if(!data.settings) data.settings={carryForwardSparks:false}; // older saves predate this field
 if(!data.notes) data.notes=[]; // older saves predate My Notes at the Writing Desk
 if(!data.calendar) data.calendar=[]; // older saves predate Sebastian's calendar (BUTLER-SEBASTIAN-PLAN.md)
@@ -39,6 +48,9 @@ if(!data.noteReach) data.noteReach={};
    newest first; only the entry whose `taken` is today is live, which is
    computed on read rather than by any timer. */
 if(!Array.isArray(data.dailyTasks)) data.dailyTasks=[];
+/* THE RESIDENTS' OWN MESSAGES, added 2026-08-16. Lazy-filled like the rest —
+   an older save simply has none yet, which is the correct starting state. */
+if(!Array.isArray(data.messages)) data.messages=[];
 if(!data.taskStats) data.taskStats={done:0,streak:0,best:0,lastDone:''};
 if(!data.personalLibrary) data.personalLibrary=[]; // older saves predate the personal shelf (BETA-BUILD-PLAN.md)
 if(!data.hall) data.hall={investigations:[],experiments:[]}; // older saves predate the Science & Research Hall (SCIENCE-RESEARCH-HALL-PLAN.md)

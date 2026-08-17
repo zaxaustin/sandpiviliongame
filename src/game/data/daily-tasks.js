@@ -146,7 +146,18 @@ export function taskFromChecklist(course, index, list, today) {
   const steps = list.rows
     .filter(r => r.counted && !r.done)
     .map(r => ({
-      title: r.text,
+      /* ⚠ `text`, NOT `title`. It was `title` for a day, and every step taken
+         from a course rendered as a bare ○ with no words: the board draws
+         `esc(s.text)` (ui/daily-tasks.js) and todaysTaskLine() reads
+         `next.text`, so Sebastian's day-read said "Next: undefined".
+
+         The live suite passed the whole time because it asserted on
+         `s.title` — THE FIELD THIS FUNCTION WROTE, not the field the board
+         reads. A test that agrees with the writer instead of the reader
+         proves the two halves are consistent with the test, and nothing about
+         whether they are consistent with each other. The guard now renders
+         the board and looks for the words. */
+      text: r.text,
       where: WHERE_KEYS.includes(r.door) ? r.door : 'desk',
       /* The reference a door needs to open the RIGHT thing — the book's slug
          for `read`, the course for the desk. A door with no ref opens the
@@ -167,8 +178,43 @@ export function taskFromChecklist(course, index, list, today) {
        about. The ref carries the module too, because a course is not a place
        to come back to — a module is. */
     source: { kind: 'course', ref: String(c.id) + ':' + index, label: c.title || '' },
+    tag: 'learning',
     taken: today, closed: false, steps,
   };
+}
+
+/* ---- ★ LEARNING, OR THE REST OF YOUR LIFE ----------------------------
+
+   The steward, 2026-08-16: "this daily task can have a learning tag and the
+   other daily task can have a personal tag."
+
+   ONE FIELD, and DERIVED where it can be. A task built from a course module
+   is obviously learning — nobody should have to say so — and a hand-written
+   one asks, because only the person knows whether "ring the dentist" is
+   study. Stored rather than recomputed on read for exactly that reason: the
+   hand-written answer is information no rule can rederive.
+
+   ⚠ THE TAG DOES NOT MAKE ANYTHING RECUR, and that is the line this feature
+   was nearly built on the wrong side of. The notice at the bottom of this
+   file says "Tomorrow starts empty, on purpose: this is a plan for one day,
+   not a list that follows you around." A daily check-in from a resident
+   sounds like a recurring task and must not be one — `retakeDailyTask()`
+   already exists, and taking yesterday's work up again is one press. The
+   continuity lives in YOUR hand, once a day, exactly as it did before. */
+export const TASK_TAGS = {
+  learning: { icon: '🎓', label: 'learning' },
+  personal: { icon: '🌿', label: 'personal' },
+};
+export const TAG_KEYS = Object.keys(TASK_TAGS);
+
+/* What a task is, when nobody said. A course is study; everything else is a
+   life. Never guesses past that — an unknown source is `personal`, which is
+   the answer that assumes least about somebody. */
+export function tagOf(task) {
+  const t = task || {};
+  if (TASK_TAGS[t.tag]) return t.tag;
+  if (t.source && t.source.kind === 'course') return 'learning';
+  return 'personal';
 }
 
 /* ---- IS THIS TODAY'S? --------------------------------------------------

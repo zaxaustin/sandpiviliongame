@@ -69,7 +69,7 @@
 
 <!-- Pocketed conversation — the "phone": minimize a chat and keep living
      (walk the grounds, read a book); tap to return when the reply lands. -->
-<div id="chatPhone" onclick="restoreChat()" title="Tap to return to the conversation">
+<div id="chatPhone" onclick="phoneTap()" title="Tap to open">
   <div class="phoneAvatar" id="phoneAvatar"></div>
   <div class="phoneText">
     <div class="phoneName" id="phoneName"></div>
@@ -254,6 +254,7 @@
 
 <!-- Badges -->
 <div class="overlay" id="rosterOv"><div class="panel" id="rosterPanel"></div></div>
+<div class="overlay" id="msgOv"><div class="panel" id="msgPanel"></div></div>
 <div class="overlay" id="badgesOv"><div class="panel" id="badgesPanel"></div></div>
 
 <!-- The Records Hall (the Workshop, floor 2) -->

@@ -423,6 +423,25 @@ ipcMain.handle('desktop-db-write-many', async (event, { name, rows }) => db.writ
 // and a person has to ask for it.
 ipcMain.handle('desktop-db-reconnect', async () => db.reconnect());
 
+/* ----- The neural voice (electron/kokoro.cjs). Opt-in, downloaded on the
+   first enable, and after that it never touches the network. Same shape as
+   the database above: the heavy local thing lives in main, the renderer asks
+   for sentences and knows nothing about ONNX.
+
+   ⚠ NOTHING HERE LOADS UNTIL IT IS ASKED FOR. `require` is cheap — the module
+   only `import()`s kokoro-js inside load(), so a visitor who never turns the
+   voice on never pays the model's 0.6 s or its memory, and the app's boot is
+   unchanged. `dbStatus`-style: only status() is safe to call cold. */
+const kokoro = require('./kokoro.cjs');
+kokoro.init(app.getPath('userData'));
+ipcMain.handle('desktop-kokoro-state',   async () => kokoro.state());
+ipcMain.handle('desktop-kokoro-install', async () => kokoro.install());
+ipcMain.handle('desktop-kokoro-remove',  async () => kokoro.remove());
+ipcMain.handle('desktop-kokoro-start',   async (e, { text, voice }) => kokoro.start({ text, voice }));
+ipcMain.handle('desktop-kokoro-next',    async (e, { jobId }) => kokoro.next(jobId));
+ipcMain.handle('desktop-kokoro-stop',    async (e, { jobId }) => kokoro.stop(jobId));
+ipcMain.handle('desktop-kokoro-bench',   async () => kokoro.bench());
+
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { if(process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if(BrowserWindow.getAllWindows().length===0) createWindow(); });

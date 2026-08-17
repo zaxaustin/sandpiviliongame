@@ -138,6 +138,39 @@ try {
   });
   check('"Enter the Grounds" actually enters', entered === 'ok', entered);
 
+  /* ★ THE NEURAL VOICE SURVIVES THE PACK, and this can only be asked here.
+     Three things about it are invisible until the app is packaged:
+
+       · `sharp` is EXCLUDED from the installer and a six-line stub is mapped
+         over it. transformers.js requires sharp AT IMPORT TIME, so if that
+         mapping ever breaks, the voice dies with ERR_MODULE_NOT_FOUND — in
+         the packaged build only, which is the worst place to find out.
+       · onnxruntime-node's .dll and .node must be asarUnpacked; a native
+         binary cannot be loaded from inside an asar.
+       · only four voice .bin files are packed.
+
+     We deliberately do NOT download the 88 MB model here. Asking a fresh
+     install to speak reaches `load()` — which imports transformers.js and
+     kokoro-js, the whole risky part — and then fails at the model itself.
+     So "not installed on this machine yet" is the PASS: it proves every
+     import resolved inside the pack. A module-resolution error would say
+     something else entirely, and that is exactly what we are watching for. */
+  const voice = await page.evaluate(async () => {
+    const b = window.desktopBridge;
+    if (!b || !b.kokoroState) return { wired: false };
+    const st = await b.kokoroState();
+    const spoke = await b.kokoroStart('One line, to force the imports.', 'af_heart');
+    return { wired: true, voices: (st.voices || []).map(v => v.id), installed: st.installed,
+             err: spoke.error || '', needsInstall: !!spoke.needsInstall };
+  });
+  check('the voice bridge is wired into the packaged app', voice.wired === true);
+  check('exactly the four chosen voices are packed',
+        (voice.voices || []).join(',') === 'af_heart,af_bella,am_michael,bf_emma',
+        (voice.voices || []).join(',') || 'none');
+  check('★ transformers.js + kokoro-js RESOLVE inside the asar (the sharp stub holds)',
+        voice.needsInstall === true && !/cannot find|MODULE_NOT_FOUND|sharp/i.test(voice.err),
+        voice.err || 'no error at all — did it really try?');
+
   check('no page errors', errs.length === 0, errs.join(' | '));
 } catch (e) {
   check('the run completed', false, String(e));

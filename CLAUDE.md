@@ -431,6 +431,7 @@ node test/live/publish-reason.mjs          # the outlet, and the packet round tr
 node test/live/lab.mjs  bench.mjs  bundle.mjs  librarian-safety.mjs  backend.mjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/packaged-boot.cjs
 env -u ELECTRON_RUN_AS_NODE node test/live/packaged-exe.mjs   # the REAL .exe, after a build
+env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/kokoro-voice.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/note-search.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/records.cjs
 env -u ELECTRON_RUN_AS_NODE ./node_modules/.bin/electron test/live/resident-reach.cjs

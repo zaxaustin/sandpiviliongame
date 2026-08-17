@@ -75,6 +75,29 @@ if (!existsSync(installer)) {
   bad(`no installer at "${installer}" for version ${version}`
     + (found.length ? ` — release/ holds: ${found.join(', ')}. Build it, or the docs describe a file nobody can download.` : ' — release/ has no .exe at all.'));
 } else {
+  /* ★ A SIZE CEILING, ADDED 2026-08-16 BECAUSE THIS GATE CERTIFIED A 977 MB
+     INSTALLER AND SAID NOTHING.
+
+     Everything below checks that the docs AGREE with the artifact. Nothing
+     checked whether the artifact was sane. A build-config change moved four
+     exclusions into `build.win.files`, electron-builder's "an all-negative
+     files array implies **\/*" rule quietly defeated the top-level allow-list,
+     and the previous `release/win-unpacked` (225 MB) was packed inside the new
+     app.asar. 116 MB → 977 MB. The hash matched itself perfectly, so this
+     script printed a green tick over a download nobody could use.
+
+     The ceiling is deliberately generous — it is a tripwire for a regression
+     of this shape, not a budget. Kokoro's arrival was a legitimate +15 MB and
+     must not need this number touched; a doubling always wants a human. */
+  const MAX_MB = 260;
+  const sizeMB = readFileSync(installer).length / 1048576;
+  if (sizeMB > MAX_MB) {
+    bad(`${installer} is ${sizeMB.toFixed(0)} MB, over the ${MAX_MB} MB ceiling. Something is being `
+      + 'packed that should not be — check `build.files`, and remember that release/ is only '
+      + 'auto-excluded when it IS the output directory (building to $TEMP makes it an ordinary '
+      + 'folder). Raise this number only with a reason worth writing down.');
+  }
+
   const real = createHash('sha256').update(readFileSync(installer)).digest('hex').toUpperCase();
   let sawOne = false;
   for (const d of DOCS) {

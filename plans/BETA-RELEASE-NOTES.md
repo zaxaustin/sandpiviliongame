@@ -30,7 +30,7 @@ because anything is wrong. If you'd like to check the download:
 
 ```powershell
 Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.exe" -Algorithm SHA256
-# 3832B9614AE75885D59B96048309348449C9A34AD95DB0DD7C458F9A2CB9B8A2
+# CFC0A574A536B8230CC74E6D773222BD8748776AF14C38036CFC02D8B7D5444F
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -62,7 +62,50 @@ happens by writing a file and handing it over.
 
 ---
 
-### New in beta.7 — a course you can actually walk
+### New in beta.7 — a warmer voice, and a course you can actually walk
+
+**A neural voice that reads like a person** *(desktop app, entirely optional)*.
+The voices your computer ships with sound like a satnav. At the bottom of
+**🔊 Voice settings** the desktop app now offers **Kokoro**, a small neural voice
+that runs on your own processor:
+
+- **88 MB, downloaded once**, when you press the button. Nothing is bundled in
+  the installer, and it lands in your own data folder.
+- **After that it never touches the network again** — not once, including with
+  the machine offline. Verified by breaking the network and reading a book.
+- **Four voices**: *Heart* and *Bella* (American), *Michael* (American, the
+  steady one for long chapters), *Emma* (British).
+- **It starts about two and a half seconds after you press read-aloud**, then
+  stays ahead of you. The system voice starts instantly — that is the trade.
+- **⏱ Check this computer** reads a sentence and times it, and tells you plainly
+  whether *this* machine can keep up. On a slow laptop it says so rather than
+  stuttering and letting you think the feature is broken.
+- **Switch back with one press**, and **🗑 Remove the download** frees the disk.
+
+The system voice stays the default and never stops working.
+
+**Your residents will text you.** Sebastian, Quill and the Mountain Monk now
+leave notes when they notice something while you work — on the little phone card
+in the corner you already know from pocketed conversations. Sebastian offers to
+hold one small thing on your board; Quill tells you which of a course's texts are
+not on your shelf, and says plainly that fetching them is your part. And the Monk
+will tell you, at some length, to go outside and eat something.
+
+It is one-way, like a pager — each note has a button that opens the real
+conversation. Sparse by construction: one note per thing, ever, and only one
+waiting per resident. **None of it needs an AI**, and nothing is sent anywhere.
+
+**Today's tasks now say which kind they are** — 🎓 learning or 🌿 personal — so a
+course's homework and the rest of your life read apart on one board. Nothing
+about it repeats: tomorrow still starts empty, and yesterday's work is one press
+away when you want it.
+
+**And finishing a course says so.** Walk every module and the board acknowledges
+it, with the doors that actually exist — your work on it, the folder on disk,
+handing it on. There is deliberately no rank and no unlocked door: that would be
+a door onto nothing.
+
+### The rest of beta.7 — a course you can actually walk
 
 **Every module now says what gets you to the next one.** Reading a module and
 knowing what to *do* were different things, and the second was missing: `✓ Mark

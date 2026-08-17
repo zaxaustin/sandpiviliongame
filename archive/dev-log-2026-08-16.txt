@@ -1,0 +1,500 @@
+================================================================
+  2026-08-16 — a neural voice, and the failed Python one first
+================================================================
+
+TWO SESSIONS. The first was a cleanup: Kokoro had been attempted as a
+PYTHON install inside the project and died on Python 3.14 + spaCy.
+Removed `kokoro-env/` — 14 MB, and it contained pip and nothing else,
+so the install never landed a single real package. NOTHING HAD ENTERED
+GIT: python's venv writes its own .gitignore containing `*`, which is
+why `git status` stayed clean throughout and why the repo was never at
+risk. `tools/caravan/__pycache__` was left alone — dated July 8, from
+the project's own tools, unrelated.
+
+Then: the JavaScript path, properly.
+
+
+----------------------------------------------------------------
+MEASURED BEFORE ANYTHING WAS BUILT
+----------------------------------------------------------------
+
+An isolated probe in the scratchpad, never in the project:
+
+  cold load (download + init)   16.6 s
+  warm load                      0.6 s
+  first audio, streamed          2.5 s   <- the wait a person feels
+  real-time factor               0.56-0.80x
+  after the first sentence       6.4 s AHEAD, and widening
+  model                          88.1 MB, one file, q8
+  offline                        fetch() replaced with a throw -> zero calls
+
+That last one is the method that matters. "It works offline" asserted is
+worth nothing; "it works with the network physically broken" is evidence.
+
+
+----------------------------------------------------------------
+THE WASM QUESTION, ANSWERED NO — and why it is written down
+----------------------------------------------------------------
+
+The steward preferred WASM to avoid a native module and ~34 MB. Tested
+first, as asked. It fails twice over:
+
+  device:'wasm'  ->  "Unsupported device. Should be one of: dml, cpu."
+  remove onnxruntime-node  ->  ERR_MODULE_NOT_FOUND, hard, no fallback
+
+transformers.js registers only native providers under Node and imports
+onnxruntime-node statically. The only route to WASM is convincing it that
+main is a browser — which also flips kokoro-js's voice loader from
+readFile() to fetch()+caches.open(), neither of which exists in a main
+process. So it would break offline voices to save disk.
+
+AND DirectML IS BROKEN ON THIS MODEL, which was a bonus finding:
+
+  Non-zero status code returned while running ConvTranspose node
+  ... DmlExecutionProvider ... The parameter is incorrect.
+
+So the GPU path is not merely unnecessary on an A770 — it does not run.
+Its 17.7 MB DLL is excluded with confidence rather than with a shrug.
+
+
+----------------------------------------------------------------
++15 MB, NOT +61 — three prunes, each broken on purpose
+----------------------------------------------------------------
+
+The first estimate given to the steward was +61 MB. It came down by
+measuring instead of assuming:
+
+  five non-Windows platforms      -174 MB
+  DirectML.dll                     -17.7 MB   (and broken anyway)
+  sharp -> a six-line stub          -20 MB    (image codecs; TTS never
+                                               decodes an image)
+  installer 101 -> 116 MB           +15 MB total
+
+⚠ THE SHARP STUB IS LOAD-BEARING AND FAILS ONLY WHEN PACKAGED.
+transformers.js requires sharp AT IMPORT TIME. Deleting it outright is
+ERR_MODULE_NOT_FOUND and takes the voice with it — measured, then the
+stub, then a clean synthesis, before either was written into the build
+config. build/sharp-stub is mapped over the exclusion in `files`, and
+npm test fails if either half goes missing. It THROWS when called rather
+than returning something plausible, so a future image feature breaks
+loudly here instead of quietly somewhere far away.
+
+
+----------------------------------------------------------------
+THE INTERFACE DID NOT CHANGE, AND THAT WAS THE HARD PART
+----------------------------------------------------------------
+
+All fifteen exports of tts.js keep their signatures. overlays.js has
+about sixty call sites and none of them knows there are two engines.
+
+The difficulty was never audio. `speak()` returns a boolean SYNCHRONOUSLY
+and `isSpeaking()` is polled eighteen times to draw button labels. Neural
+synthesis is async and the first sentence takes 2.5 s. If `isSpeaking()`
+only became true when sound started, every read-aloud button in the
+Pavilion would sit unchanged for two and a half seconds after being
+pressed and people would press it again. So `play.on` is set BEFORE ANY
+AWAIT, and everything asynchronous happens behind it.
+
+The other half: the wait is drawn as a wait. Machine latency is a cost
+and never dressed as pace (rule 9), so there is a "warming the voice"
+state rather than a fake progress bar.
+
+WHAT GOT BETTER RATHER THAN WORSE: position. The system engine estimates
+a character offset from CHARS_PER_SEC = 14 because Web Speech cannot
+seek. Every Kokoro chunk arrives with the exact text it was made from, so
+progress and a +-10 s skip are exact. VOICE-PLAN.md predicted this in
+July and called it "a genuine improvement, not a workaround." It was.
+
+THREE ROUTING RULES worth keeping:
+  · stopSpeaking() silences BOTH engines, always, never an else. A stop
+    that only reaches the selected backend leaves the other talking with
+    nothing able to stop it.
+  · speak() stops the other engine first, or switching the setting
+    between two presses leaves two voices reading different pages.
+  · speakFrom() takes webSpeech(), NOT ttsAvailable() — ttsAvailable()
+    widened the moment a second engine existed, and that function
+    dereferences window.speechSynthesis on its next line. A crash that
+    would only ever appear on somebody else's machine.
+
+
+----------------------------------------------------------------
+⚠ stream() HANGS IF THE SPLITTER IS NOT CLOSED
+----------------------------------------------------------------
+
+Handed a plain string, kokoro-js's stream() emitted THREE of four
+sentences and then stopped forever on an unsettled await. Found on a
+probe, before a line of integration existed. TextSplitterStream +
+close(), always. The live suite reads a four-sentence text and carries
+its own timeout, so if the close() ever goes the run is red rather than
+eternal.
+
+That is a read-aloud that stops mid-paragraph with no error — the house
+failure mode, and it would have been blamed on the model.
+
+
+----------------------------------------------------------------
+THREE GUARDS BORN DEAD, AND THE TOOLS ARE NOW SHARED
+----------------------------------------------------------------
+
+First sabotage run: 15 of 18. The three misses were the two shapes this
+file has been listing all week.
+
+  · SATISFIED BY A COMMENT (twice). `splitter.close()` commented out
+    still matched /splitter\.close\(\)/. Same for the kStop() line in
+    stopSpeaking(). These files are heavily commented precisely BECAUSE
+    they explain the traps they avoid — every comment names the call it
+    must make — so raw-text matching here was guaranteed to certify
+    nothing.
+  · MATCHED THE SAME NAME ELSEWHERE. The "web build cannot select this"
+    guard asked whether `window.desktopBridge` appeared anywhere in
+    tts-kokoro.js. It appears in the bridge() helper two lines above the
+    function under test, so replacing the whole of kokoroAvailable()
+    with `return true` left it green.
+
+FIX: noComments() and fnBody() are hoisted to module scope in smoke.mjs.
+They existed already, as locals inside one block, which is why the new
+guards did not use them. A second copy of "strip the comments before you
+believe the source" is the drift rule 4 is about — and here the cost of
+not sharing them was three dead guards in one afternoon.
+
+18/18 after that, against a verified-green baseline.
+
+⚠ And one MISS was the sabotage being wrong rather than the guard: the
+expected message still quoted the guard's old wording after I improved
+it. Worth naming because it is the failure mode of sabotage suites
+themselves — they rot against the text they assert.
+
+
+----------------------------------------------------------------
+PROVEN IN THE PACKAGED BUILD, WITHOUT A DEBUGGING PORT
+----------------------------------------------------------------
+
+packaged-exe.mjs would not run: `spawn UNKNOWN`, and the steward saw a
+Windows Firewall prompt at the same moment. The suite launches the app
+with --remote-debugging-port so it can drive it, and Windows treats a
+listening socket as worth asking about. Nothing to do with the voice —
+which makes no network calls at all — but it blocked the run.
+
+So the pack was verified another way: app.asar EXTRACTED with
+app.asar.unpacked merged over it, which is the layout Electron presents
+at runtime. Then imported the whole chain, then synthesised:
+
+  sharp resolves            0.34.5-stub, and throws when called
+  transformers.js resolves  ok
+  kokoro-js resolves        ok
+  onnxruntime-node resolves ok
+  synthesis                 5.3 s of audio in 3.5 s, voice am_michael
+                            loaded from the four packed .bin files
+  network                   ZERO calls
+
+That is the sharp stub, the asarUnpack of a native .dll, and the voice
+pruning all proven at once — the three things that fail only when
+packaged.
+
+Installer contents confirmed by hand: onnxruntime-node 16 MB (no
+DirectML, win32-x64 only), kokoro-js 4.1 MB, exactly four .bin voices.
+
+
+----------------------------------------------------------------
+STATE AT THE END OF THE DAY
+----------------------------------------------------------------
+
+npm test green. Every live suite green: preflight (ZERO network from the
+web build), learning-desk, module-checklist, study-table, writing-desk,
+course-format, kokoro-voice (NEW, real Electron, throwaway userData),
+packaged-boot (SHIPPABLE).
+
+⚠ release/ NO LONGER HOLDS THE PUBLISHED beta.7. It holds a dev build
+with the voice, so verify:release is RED and that is CORRECT — the doc
+hashes describe the tagged artifact and this is not it. Do not re-hash
+the docs. The next publishable thing is beta.8, if and when the voice is
+decided to ship.
+
+NOT DONE, and the first of these is the real one:
+
+1. NOBODY HAS LISTENED TO IT. Real-time factor and peak amplitude prove
+   it is audio, not that it is good. Taste is the instrument for that,
+   and rule 2 settles it — the steward has to press the button.
+2. Untested on any machine but this one. A laptop is the open question,
+   same as the local model.
+3. The download has only ever run on a fast connection; a slow or
+   interrupted one is unexercised. A half-finished download reads as
+   "not installed", which is the right answer, but it has not been seen.
+4. Graduation is still broken for Board courses (readyChecks reads
+   myLessons) — unchanged, and still the top of the list.
+
+
+
+----------------------------------------------------------------
+SAME DAY, FROM REAL USE — the selection you could not see
+----------------------------------------------------------------
+
+He downloaded it inside the Pavilion, read a book with it, and it worked.
+The one complaint:
+
+  "it's not clear that I'm selecting the new option in the settings menu,
+   like it's not highlighted with a check mark or anything"
+
+and then, on the fix:
+
+  "just make sure to highlight the last thing I selected and make it look
+   like it says something like ACTIVE VOICE IN USE. I assume the two
+   buttons are for the two different text to speech options which is fine
+   as well as long as they're labeled"
+
+THE DIAGNOSIS IS WORTH MORE THAN THE FIX, because the pattern is all over
+this codebase: selection was drawn as `.btn` (solid gold) against
+`.btn.ghost` (outlined). The contrast was there. But SOLID GOLD IS THE
+COLOUR OF "PRESS THIS" EVERYWHERE ELSE IN THE PAVILION — it is what every
+primary action wears — so the filled button reads as the one you have NOT
+done yet. The styling was visible and the MEANING was inverted.
+
+Fixed with three signals rather than one, since the failure was that a
+single signal was ambiguous:
+  · a ✓ on the chosen control
+  · the fill, plus an inset ring
+  · a sentence in words: "Reading aloud now uses Kokoro", and a
+    "● active voice — Michael" line naming the voice under the row
+  · aria-pressed, so a toggle announces itself as a toggle
+
+⚠ AND LOOKING AT THE SCREENSHOT FOUND A SECOND ONE HE HAD NOT HIT.
+There were TWO "Preview this voice" buttons with identical labels, and
+the top one — sitting directly under the SYSTEM voice dropdown — went
+through speak(), which routes to whichever engine is selected. So with
+Kokoro on, the control for auditioning your Windows voices played Kokoro.
+A button doing something other than what it says.
+
+speakSystem() is a NEW export rather than a parameter on speak(): the
+fifteen existing signatures are frozen, and a preview is genuinely a
+different act from reading — it deliberately ignores your choice for one
+sentence. Both buttons are now named for the engine they use, which is
+what he asked for.
+
+⚠ The window-export guard caught previewSystemVoice() immediately —
+"that button silently does nothing" — which is exactly the class of bug
+it was written for, on the very first run.
+
+Three sabotage cases on the new guards, all caught after one MISS that
+was the sabotage being wrong rather than the guard (it added an
+attribute instead of removing one).
+
+
+----------------------------------------------------------------
+A 977 MB INSTALLER, AND THE GATE SAID GREEN
+----------------------------------------------------------------
+
+Trying to make the packaging Mac-safe produced the worst regression this
+project has had, and the gate certified it.
+
+THE SEQUENCE, because each step was individually reasonable:
+
+  1. The size prunes (`!.../darwin/**`, `!.../linux/**`, DirectML) were in
+     the TOP-LEVEL `files` glob. On Windows that is a saving. On a Mac it
+     deletes the binaries the Mac needs — and MAC-BUILD.md hands this repo
+     to somebody with a Mac and twenty minutes. They would have built a
+     dmg whose voice was broken, with no actionable error: the model
+     downloads fine, only the runtime is missing.
+
+  2. So they moved into `build.win.files` / `build.mac.files`.
+
+  3. ⚠ electron-builder implies a match-everything pattern for a `files`
+     array containing ONLY negations. So the platform list did not narrow
+     the common allow-list — it replaced its effect with "everything,
+     minus four folders". `dist/**` + `electron/**` stopped being a
+     boundary.
+
+  4. And `release/` is auto-excluded ONLY when it is the output directory.
+     CLAUDE.md tells you to build with
+     `--config.directories.output=$TEMP/sp-build` to dodge an editor's
+     EPERM lock — which makes `release/` an ordinary project folder
+     holding a 225 MB unpacked app.
+
+  116 MB -> 977 MB, with 87 entries of the PREVIOUS build packed inside
+  the new app.asar. Two documented workarounds, one 861 MB regression.
+
+⚠ AND verify:release WENT GREEN ON IT. Every check in that script asks
+whether the docs AGREE with the artifact. Nothing asked whether the
+artifact was sane. The hash matched itself perfectly, so the gate printed
+a tick over a download nobody could use. A 260 MB ceiling lives there now
+— a tripwire for this shape of regression, not a budget.
+
+THE FIX IS CODE, NOT GLOBS. build/after-pack.cjs prunes by
+`context.electronPlatformName` after packing, where the platform is a
+variable rather than a pattern. It cannot widen an allow-list because it
+does not touch one, and it REFUSES to delete the binaries for the
+platform it is building for — the Mac bug, expressed as a property of the
+code. Verified: `after-pack: onnxruntime pruned to win32/x64 — 208 MB ->
+16 MB`, installer back to 116 MB, zero release/ entries in the asar.
+
+A small one worth keeping: the first draft of that file would not parse.
+`ReferenceError: darwin is not defined` — because a doubled star followed
+by a slash inside a block comment CLOSES the comment, and the comment
+quoted the offending glob literally. Globs are spelled out in words in
+that file now.
+
+6 sabotage cases on the packaging guards, all caught.
+
+
+----------------------------------------------------------------
+AND THE BUG I SHIPPED YESTERDAY, found while planning
+----------------------------------------------------------------
+
+"Take this into today" produced steps with NO VISIBLE WORDS. The board
+draws `esc(s.text)` and todaysTaskLine() reads `next.text`;
+taskFromChecklist() wrote `title:`. Every step rendered as a bare ○ and
+Sebastian's day-read said "Next: undefined".
+
+test/live/module-checklist.mjs was green through all of it, because it
+asserted on `s.title` — THE FIELD THE WRITER EMITS. A check that reads
+back the writer's own shape proves the writer is consistent with itself
+and nothing else. This is a new entry in the family that already includes
+"a comment satisfied the guard" and "it matched the same name elsewhere":
+
+    A TEST THAT AGREES WITH THE WRITER INSTEAD OF THE READER.
+
+Fixed to `text:`. The guard now derives the field names from BOTH ends
+rather than naming one, and the live suite reads the RENDERED BOARD and
+looks for the words. Both verified by reintroducing the bug: `npm test`
+red, and the live suite red on two assertions it used to pass.
+
+
+----------------------------------------------------------------
+THE PHONE — residents who notice
+----------------------------------------------------------------
+
+  "my idea of this was a text in the phone from these people, but if
+   it's one way like a pager that's ok too."
+
+THE SURFACE ALREADY EXISTED, which is most of why this was cheap.
+#chatPhone — the card you tap to return to a pocketed conversation, gold
+dot, pulse, reduced-motion respected. It gained a SECOND DUTY rather than
+a sibling: nothing pocketed and something unread, and it shows whoever is
+waiting. A live conversation always wins the card, because a note can
+wait and a conversation you are in the middle of cannot.
+
+LIVING-VILLAGE-PLAN.md stays. It wants residents that walk and choose and
+act, and it is blocked on an embodiment proof that never shipped. This is
+the thin path to the same feeling with none of that foundation, and the
+plan now says so rather than competing.
+
+AUTHORED, NOT GENERATED — and that is the design, not a shortcut. Every
+body is written text with real numbers substituted, so the whole thing
+works with aiConnections: []. A guard fails on ANY import in
+data/messages.js. It also means the Monk's register is a copy decision
+rather than a prompt to wrestle, which is a much easier thing to get
+right.
+
+WHAT LOOKING FOUND, twice, after every test was green:
+
+  · Reading the thread marked everything read in the save and the card
+    KEPT its gold dot and "left you a message · tap to read". Nothing
+    repainted it. A notification you cannot dismiss by doing the thing it
+    asks is worse than no notification.
+  · The reply button read "↩ Talk to SEBASTIAN · Butler". ROLES.chat.name
+    is a two-part banner built for the top of a conversation;
+    CHAT_AGENTS.label is the one written to be spoken. Two names, two
+    jobs — the phone keeps the banner so a message and a pocketed chat
+    read as one object, the thread uses the prose name.
+
+★ ONE DOOR ONTO THE COURSE BOARD, and the bug that forced it.
+
+data.courses.unshift() lived in FOUR places — hand-written, received,
+from a Commons packet, from a planting. The notices were wired into
+createCourse() only. The live suite pins by RECEIVING, so it got silence
+and reported the whole feature missing. addCourse() is the one door now
+and npm test fails on a bare unshift anywhere else. Four places to
+remember is rule 4's shape and it bit within the hour.
+
+FOUR OF TWELVE SABOTAGE CASES WERE BORN DEAD, and each was a guard weaker
+than its own message:
+
+  · THE DEDUPE TEST WAS MASKED BY A STRONGER RULE. It re-sent while the
+    original was still unread — which one-per-resident refuses anyway —
+    so deleting the dedupe entirely left it green. Two rules, one test,
+    and the wrong one doing all the work. It tests on a READ message now.
+  · THE SHAME CHECK SAMPLED ONE OF THREE VARIANTS. long-sitting picks a
+    line from a hash of the session; turning a variant the guard never
+    saw into an insult stayed green. Ten seeds now.
+  · "addCourse still notices" matched /notice\(/ — which the shelf-gap
+    call satisfies, so deleting Sebastian's left it green. Both triggers
+    are named now.
+  · "phoneTap routes" matched the two function NAMES. Replacing the
+    condition with if(false) left both names in the body. It matches the
+    branch now.
+
+All four are the same disease in different costumes: A GUARD THAT
+MATCHES TEXT RATHER THAN BEHAVIOUR. 8/8 after.
+
+THE TAG, and the rule it had to not break.
+
+daily-tasks.js says "Tomorrow starts empty, on purpose: this is a plan
+for one day, not a list that follows you around." A resident-assigned
+daily check-in sounds exactly like a recurring task. It is not one: the
+task gets a tag (🎓 learning / 🌿 personal, derived from the source where
+it can be) and retakeDailyTask() — which already existed — is the daily
+check-in. One press, once a day, in the visitor's hand. No dailyGoal
+store was built, and the first draft of the plan that wanted one was
+rejected for this reason before any code was written.
+
+
+----------------------------------------------------------------
+FINISHING A COURSE NOW SAYS SOMETHING — and it is not graduation
+----------------------------------------------------------------
+
+Taking stock before the commit found that walking an ENTIRE course to the
+end produced: "9 of 9 modules", a badge toast, and nothing else. Every
+piece of the walk had been built and the arrival had not.
+
+The steward, asked whether to fix graduation properly:
+
+  "we can hint at it but I don't think we're ready to really have
+   anything where we have enough of a community to let people graduate...
+   I just want to make the game to a point where there's some interactive
+   features, people know what they're working towards and what they can
+   do."
+
+So: NOT graduation. `readyChecks()` still reads myLessons and Stage 5
+still cannot see a Board course — deliberately left, because building the
+rank would be building the thing he just said not to build.
+
+What was added instead is the arrival, in two places:
+
+  · a card on the course when every module is done — what you did, and
+    the three doors that ACTUALLY EXIST (your work on it, the folder on
+    disk, handing it on at the Commons Table)
+  · a message from Sebastian on the phone, off the press that ticked the
+    last module
+
+Both end on the same honest line, which data/tutorial.js had already
+argued for Stage 5 — "recording a graduation that claims to open a door
+onto nothing":
+
+  "There is no rank here and no door this opens — that would be a door
+   onto nothing. What it means today is exactly what it says: you made a
+   thing, you finished it, and someone who was never here could walk it."
+
+Sebastian rather than the Monk, and that is a real decision: the Monk's
+whole licence is to INTERRUPT. Handing him a congratulation would flatten
+the one voice allowed to be sharp.
+
+
+----------------------------------------------------------------
+THE GAP THAT WOULD HAVE COST THE MOST
+----------------------------------------------------------------
+
+BETA-RELEASE-NOTES.md contained ZERO occurrences of "Kokoro". The
+installer on disk shipped a neural voice, four voices, an 88 MB opt-in
+download and a per-machine speed check — and the document a tester would
+actually be handed said nothing about any of it. Nobody would have found
+the feature.
+
+Worth naming as a shape: EVERY GUARD IN verify:release ASKS WHETHER THE
+DOCS AGREE WITH THE ARTIFACT'S IDENTITY — version, filename, hash, age.
+Not one asks whether they DESCRIBE it. A release note can be perfectly
+consistent and completely silent about the largest thing in the build.
+The size ceiling added this morning is the same lesson from the other
+direction.
+
+beta.7 rebuilt with everything: 116 MB, hash verified, verify:release
+green, packaged-boot and packaged-exe both SHIPPABLE against the real
+binary, and the .exe names itself 0.1.0-beta.7.

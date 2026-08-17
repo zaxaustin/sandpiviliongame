@@ -219,6 +219,24 @@ your own standing instructions, so you can watch them take effect.
   book without touching anything. **⏸ Pause** keeps your exact place, and
   ▶ Resume picks up mid-sentence, not from the top of the page. Voice and speed
   live in the pause menu's **🔊 Voice settings**.
+- **A warmer voice, if you want one** *(desktop app only)*. The voices above are
+  your computer's own — free, instant, and they sound like a satnav. At the
+  bottom of **🔊 Voice settings** the desktop app offers **Kokoro**, a small
+  neural voice that reads like a person. It is **entirely opt-in**:
+    - **88 MB, downloaded once**, when you press the button. Nothing is bundled
+      in the installer, and it goes into your own data folder.
+    - **After that it never touches the network again** — not once, not ever,
+      including with the machine offline. It runs on your processor.
+    - **Four voices**: *Heart* and *Bella* (American), *Michael* (American, the
+      steady one for long reading), *Emma* (British).
+    - **It starts about two and a half seconds after you press read-aloud**, and
+      then stays comfortably ahead of you. The system voice starts instantly —
+      that is the whole trade.
+    - **Switch back whenever you like**, with one press, and **🗑 Remove the
+      download** frees the disk. Nothing about it is one-way.
+  The system voice remains the default and never stops working; if the download
+  is missing — a save carried from another machine, say — you are simply back on
+  it, rather than pressing read-aloud and getting silence.
 - **Nothing you do destroys the reading any more.** Close the panel, open your
   notes, walk off, talk to a resident — the book parks itself on the little
   card in the bottom-left corner, which shows where you are (`⏸ paused · p.34 ·
@@ -1293,6 +1311,47 @@ kind of data is ever added without a line explaining itself.
 **bequest** (the Hall) is a gift left for a person to find, sometimes buried
 behind a condition. A **packet** (the table) is work published for anyone to
 use. Same mechanics — a file, no account, no server — different intent.
+
+---
+
+## The residents notice things
+
+Nobody in the Pavilion used to say anything unless spoken to. Now they leave
+you a note when they notice something while you are working — and it arrives on
+**the phone**, the little card in the bottom-right corner you already know from
+pocketed conversations. A gold dot, a name, and *tap to read*.
+
+- **It is one-way, like a pager.** You cannot reply in the thread. Every message
+  carries **↩ Talk to them**, which opens the real conversation.
+- **Sparse, and enforced.** One note per thing, ever — pin the same course twice
+  and nobody says it twice. And **one resident can only have one note waiting**,
+  so a quiet fortnight never comes back as a stack.
+- **Nothing needs an AI.** These are written, not generated. They work with
+  nothing installed.
+- **Nothing is asking you for anything.** No count against you, no red, nothing
+  overdue. Ignore any of it with no consequence at all.
+- **Nothing is sent anywhere**, and a live conversation always wins the card —
+  a note can wait.
+
+**Who says what.** *Sebastian* keeps your day: he notices a new course and
+offers to hold one small thing on the board for you. *Quill* keeps the Library:
+he tells you which of a course's texts are not on your shelf, and says plainly
+that fetching them is your part, not his.
+
+And *the Mountain Monk* is the one allowed to be a menace about it:
+
+> *"You have been at this the better part of three hours. Five minutes of actual
+> ground under your feet would serve the work better than another hour of
+> forcing it. The chair will still be here. So will I."*
+
+He will tell you to eat something. He is being entirely serious, and it is his
+actual job — he is the one who keeps an eye on whether the practice is still
+doing you any good. He is never unkind about it, and he never counts anything.
+
+**Today's tasks now say which kind they are** — 🎓 *learning* or 🌿 *personal* —
+so a course's homework and the rest of your life read apart on the same board
+without becoming two boards. Nothing about a tag makes anything repeat: tomorrow
+still starts empty, and yesterday's work is one press away when you want it.
 
 ---
 

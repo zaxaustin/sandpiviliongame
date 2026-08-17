@@ -152,8 +152,15 @@ ok('★ it says what course it is part of',
    !!(task.source && task.source.kind === 'course' && task.source.label), JSON.stringify(task.source));
 ok('★ it carries only what a program can check',
    (task.steps || []).length > 0
-   && !(task.steps || []).some(s => /rebuild the theory|by the end|go through what/i.test(s.title || '')),
-   (task.steps || []).map(s => s.title).join(' · '));
+   && !(task.steps || []).some(s => /rebuild the theory|by the end|go through what/i.test(s.text || '')),
+   (task.steps || []).map(s => s.text).join(' · '));
+/* ★ THE FIELD THE BOARD ACTUALLY READS. This assertion said `s.title` for a
+   day and stayed green while every step rendered as a bare ○ — because
+   `title` is what taskFromChecklist() WROTE, and the board draws `s.text`.
+   Asserting the writer's own shape proves nothing about the reader. */
+ok('★ every step carries words in the field the board reads',
+   (task.steps || []).every(s => typeof s.text === 'string' && s.text.trim().length > 3),
+   JSON.stringify((task.steps || []).map(s => s.text)));
 ok('and every step names a door', (task.steps || []).every(s => !!s.where),
    (task.steps || []).map(s => s.where).join(', '));
 ok('the screen says what happened, rather than nothing',
@@ -209,6 +216,15 @@ const dayText = await p.evaluate(() => document.body.innerText);
 ok('★ today\'s board shows the module as the day\'s work',
    /Charge|Field|Potential/i.test(dayText), dayText.split('\n').filter(l => l.trim()).slice(0, 4).join(' / '));
 ok('and says what course it came from', /part of/i.test(dayText));
+/* ★★ AND THE STEP'S WORDS ARE ON SCREEN. The whole point: not that the save
+   holds them, but that a person reading the Tasks board can see what to do.
+   Break by renaming the field back to `title` — the save still validates and
+   this line goes red, which is the difference that was missing. */
+const stepWords = (task.steps || [])[0] && (task.steps[0].text || '').slice(0, 24);
+ok('★ the first step\'s words are RENDERED on the board, not just saved',
+   !!stepWords && dayText.includes(stepWords), stepWords || '(no step text at all)');
+ok('and no step renders as an empty bullet',
+   !/○\s*$/m.test(dayText), 'found a bullet with nothing after it');
 await p.screenshot({ path: 'test/live/_ck-3-today.png' });
 
 console.log('\n6 · Nothing was stored, so nothing can go stale\n');

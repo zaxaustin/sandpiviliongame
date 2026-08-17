@@ -705,6 +705,23 @@ export function keepAttempt(courseId, i) {
      congratulating them for typing." */
   awardBadge('first-attempt');
   if (entry.stuck) awardBadge('first-stuck');
+  /* ★ THE MONK MAY NOTICE A PRACTICE THAT WENT QUIET — computed off the dates
+     already in the record, on YOUR press, never on a timer. He gets the days
+     you kept and the gap since the last one; data/messages.js decides whether
+     that is worth saying, and refuses to say it twice. */
+  if (X.notice) {
+    try {
+      const days = [...new Set(attemptsFor(courseId, i).map(a => a.at))].sort();
+      const spec = repeatSpec(moduleParts(c.steps[i] ? c.steps[i].body : '').repeat);
+      if (spec && spec.byDay && days.length >= 2) {
+        const prev = days[days.length - 2];
+        X.notice('practice-quiet', { course: c, moduleIndex: i,
+          daysKept: days.length - 1,
+          quietDays: Math.max(0, Math.round(
+            (Date.parse(entry.at + 'T00:00:00') - Date.parse(prev + 'T00:00:00')) / 86400000)) });
+      }
+    } catch (e) { /* a nudge is never worth a crash */ }
+  }
   blip(700, .07);
   clearDraft();
   v.said = null;

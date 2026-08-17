@@ -193,7 +193,7 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one: 14,878 lines** (740 top-level
+- **`ui/overlays.js`** — **the big one: 15,422 lines** (740 top-level
   definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
   chat stack, and the window-export block, which it owns permanently. **It opens
   with a map of itself**, anchored to searchable text rather than line numbers
@@ -387,6 +387,120 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 **Where things stand, end of 2026-08-15 — READ THIS ONE FIRST.**
 Full account in [`archive/dev-log-2026-08-15.txt`](archive/dev-log-2026-08-15.txt).
+
+> ## 📱 THE PHONE — residents who notice (2026-08-16, NOT in beta.7)
+>
+> The steward wanted resident notes to arrive *"like a text in the phone from
+> these people"*. **That phone already existed** — `#chatPhone`, the card you tap
+> to return to a pocketed conversation, with its gold dot and pulse. It gained a
+> second duty rather than a sibling, and the live conversation always wins it.
+>
+> `plans/LIVING-VILLAGE-PLAN.md` **stays**: it describes residents that walk and
+> act, blocked on an embodiment proof that has never shipped. This is the thin
+> path to the same feeling and needs none of it.
+>
+> - **DONE — five triggers, all authored, none needing a model.** `course-pinned`
+>   and `shelf-gap` (Sebastian, Quill) · `long-sitting` and `practice-quiet` (the
+>   Monk) · `task-quiet` (Sebastian). `data/messages.js` is pure — a guard fails
+>   on any `import` in it, because the laptop case is the whole reason it is cheap.
+> - **DONE — sparse enforced in code, not hoped.** One message per (trigger, ref)
+>   ever, and **one unread per resident**. ⚠ The dedupe guard was initially
+>   MASKED by the one-per-resident rule — deleting the dedupe left it green,
+>   because the weaker rule caught the same case. It tests on a READ message now.
+> - **DONE — the Monk's licence, with the line drawn.** `SHAME_WORDS` makes
+>   *"compassionate interruption, not sabotage"* checkable. ⚠ He has three
+>   authored variants picked by a hash, so the guard samples TEN seeds — the
+>   first version sampled one and stayed green when a variant it never saw was
+>   turned into an insult.
+> - **DONE — the daily-task tag.** 🎓 learning / 🌿 personal, derived from the
+>   source where it can be. ⚠ It does NOT make anything recur — `retakeDailyTask`
+>   already existed and *"tomorrow starts empty, on purpose"* survives untouched.
+>   The steward's own framing, and it is why no `dailyGoal` store was built.
+>
+> **★ ONE DOOR ONTO THE COURSE BOARD.** `data.courses.unshift()` lived in FOUR
+> places, and the notices were wired into `createCourse()` only — so a course
+> RECEIVED as Markdown produced silence and the live suite reported the whole
+> feature missing. `addCourse()` is the one door now, guarded.
+>
+> **Two things LOOKING found that no test had:** reading the thread left the gold
+> dot lit (nothing repainted the card), and the reply button said *"↩ Talk to
+> SEBASTIAN · Butler"* — `ROLES.chat.name` is a two-part banner, not a name you
+> put in a sentence. `CHAT_AGENTS.label` is the prose one.
+>
+> **8 sabotage cases, all caught — after FOUR of twelve were born dead** in the
+> first run, every one of them a guard weaker than its own message.
+
+> ## 🎙 THE NEURAL VOICE — built 2026-08-16, NOT YET RELEASED
+>
+> Kokoro, on the CPU, in the main process. `VOICE-PLAN.md` (2026-07-27) called
+> this "the upgrade for someone willing to spend 330 MB" and said *not before
+> the beta*. beta.7 is cut, so here it is — and at **88 MB**, because the
+> quantised model turned out to be the honest choice.
+>
+> ⚠ **`release/` NO LONGER HOLDS THE PUBLISHED beta.7.** It holds a dev build
+> with the voice in it, so `verify:release` is RED and **that is correct** — the
+> hashes in the docs describe the tagged artifact, and this is not it. Do not
+> "fix" it by re-hashing the docs; the next thing to publish is beta.8, built
+> from a decision to ship this. Until then nothing in `release/` is publishable.
+>
+> **WHERE IT RUNS, AND WHY THAT WAS NOT A PREFERENCE.** The renderer is
+> `sandbox:true` over `file://`, where Chromium refuses to fetch file:// URLs —
+> so neither the ONNX runtime nor an 88 MB model can be loaded there without a
+> custom protocol handler. `db.cjs` settled this shape already: heavy local
+> compute in main, the renderer asks over IPC. Same seam, no new pattern.
+>
+> **THE WASM BACKEND WAS TESTED FIRST AND DOES NOT EXIST HERE.** Recorded so
+> nobody spends the afternoon again: `device:'wasm'` returns *"Should be one of:
+> dml, cpu"* — transformers.js registers only native providers under Node — and
+> deleting `onnxruntime-node` is a hard `ERR_MODULE_NOT_FOUND`, not a fallback.
+> Reaching WASM would mean convincing transformers.js it is a browser, which
+> also flips kokoro-js's voice loader from `readFile` to `fetch`+`caches`,
+> neither of which exists in main. **And `dml` is BROKEN on this model** —
+> `ConvTranspose` fails on the DirectML EP — so CPU is not a default, it is the
+> only one that works, and DirectML's 17.7 MB DLL is excluded for that reason.
+>
+> **+15 MB IN THE INSTALLER (101 → 116), not the +61 first estimated.** Three
+> prunes, each verified by breaking it and re-synthesising: five non-Windows
+> platforms (−174 MB), DirectML (−17.7 MB, broken anyway), and **`sharp`
+> replaced by a six-line stub** (−20 MB of image codecs a TTS model never
+> calls). ⚠ The stub is load-bearing: transformers.js requires sharp **at import
+> time**, so removing it outright kills the voice — and only in the packaged
+> build, which is the worst place to find out. `build/sharp-stub` is mapped over
+> it in `files`, and `npm test` fails if either half goes missing.
+>
+> **MEASURED, on this machine:** warm load 0.6 s · **first audio 2.5 s** · RTF
+> 0.56–0.80x · after the first sentence it runs **6.4 s ahead of the listener**
+> and widens · 88.1 MB on disk · **zero network calls**, proven by replacing
+> `fetch` with a throw rather than by asserting it.
+>
+> **THE INTERFACE DID NOT CHANGE.** All fifteen exports of `tts.js` keep their
+> signatures; `overlays.js` has ~60 call sites and none of them knows there is a
+> choice. ⚠ The hard part was never audio — `speak()` returns a boolean
+> *synchronously* and `isSpeaking()` is polled to draw button labels, so
+> `play.on` is set **before any await** or every read-aloud button in the
+> Pavilion would sit unchanged for 2.5 s after being pressed.
+>
+> ⚠ **`stream()` HANGS IF THE SPLITTER IS NOT CLOSED.** Handed a plain string it
+> emitted three of four sentences and stopped forever on an unsettled await.
+> `TextSplitterStream` + `.close()` always, guarded, and the live suite uses a
+> four-sentence text with a timeout so the hang can only ever be red.
+>
+> **Four voices ship (2 MB): af_heart · af_bella · am_michael · bf_emma.**
+> Named once in `electron/kokoro-voices.cjs`; `npm test` derives the
+> package.json glob check from it, because a list in a build config that must
+> match a list in code is rule 4's exact shape.
+>
+> **18 sabotage cases, all caught against a green baseline** — after THREE were
+> born dead in the first run: two were satisfied by a **commented-out** line,
+> and one matched `window.desktopBridge` in a *different function* in the same
+> file. Both are named failure shapes in this file already. `noComments()` and
+> `fnBody()` are hoisted to module scope in `smoke.mjs` now, so the next guard
+> gets the tools rather than repeating the mistake.
+>
+> **Still to do before it could ship:** nobody has listened to it yet — RTF and
+> peak amplitude say it is audio, not that it is *good*, and taste is the right
+> instrument for that (rule 2). The download has only been done on a fast
+> connection. And it is untested on any machine but this one.
 
 > ## 🚢 0.1.0-beta.7 IS CUT, AND IT IS THE ONE TO HAND TO PEOPLE
 >
@@ -614,7 +728,17 @@ Full account in [`archive/dev-log-2026-08-15.txt`](archive/dev-log-2026-08-15.tx
 >
 > ### Still open, in order
 >
-> 1. **Graduation is broken for Board courses.** `readyChecks()` reads
+> 1. **Graduation is DEFERRED, not broken — and that is now a decision.** The
+>    steward, 2026-08-16: *"we can hint at it but I don't think we're ready to
+>    really have anything where we have enough of a community to let people
+>    graduate."* `readyChecks()` still reads `myLessons` and Stage 5 still cannot
+>    see a Board course; both are left alone on purpose, because fixing them
+>    means building the rank he just said not to build. **What was built instead
+>    is the arrival**: a card when every module is done, a message from Sebastian,
+>    and the same honest line data/tutorial.js already used — no rank, no door,
+>    "that would be a door onto nothing". Revisit only if there are ever enough
+>    people for a graduation to mean something.
+> 1b. ~~**Graduation is broken for Board courses.**~~ `readyChecks()` reads
 >    `myLessons`, so a finished Board course fails all five checks. Recorded
 >    2026-08-14, **still true and now the top of the list** — beta.7 hands
 >    people a course they can walk all the way to the end of, and the end does

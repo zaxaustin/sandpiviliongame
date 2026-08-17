@@ -92,6 +92,14 @@ export const DATA_MAP = [
      them… doing it honestly today saves them from a hassle tomorrow." That
      day is not today. Nothing here goes anywhere until a person writes it out
      themselves, and no path to do so is built. */
+  /* WHAT THE RESIDENTS NOTICED AND SAID TO YOU. Their words, not yours — but
+     it is a record of YOUR working all the same: which course you took on,
+     which practice went quiet, how long you sat on a Tuesday. That is exactly
+     the sort of thing that reads as harmless until it is somewhere else, so
+     it is declared like everything else and it never leaves.
+
+     Nothing publishes it, and no path to do so is built. */
+  { key:'messages',     name:'Messages from the residents', state:'private', leaves:'Never. What they noticed about your work is between you and them.' },
   { key:'courseWork',   name:'Your work at the Learning Desk', state:'private', leaves:'Never on its own. What you attempted, and where you got stuck, is yours — a course you publish carries none of it.' },
   /* The path you picked up. Declared 2026-08-07, when a new guard found that
      lesson-tree.js had been writing it to a store freshData() never mentioned

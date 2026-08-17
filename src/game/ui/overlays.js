@@ -14,6 +14,12 @@ import { gatherRecords, recordSummary, RECORD_LOOK } from '../data/records.js';
 import { backendTrouble } from '../data/backend-trouble.js';
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
 import { esc, jsq, mdLite, courseProse, checklistHTML, NOTE_SELECT_STYLE } from './dom.js';
+import { messageFor, addMessage, nextUnread, unreadCount } from '../data/messages.js';
+/* The messages panel lives in its own file — a new surface does not go into a
+   15k-line one. Only the window exports and one initMessages() call are here,
+   which is the ui/learning-desk.js seam exactly. */
+import { initMessages, openMessages, renderMessages, replyToMessage,
+         markMessagesRead, messagesUnread } from './messages.js';
 import { tidyTitle, tidyAuthor, titleNeedsTidying, looksLikeAFilename } from '../data/book-title.js';
 import { BASELINE_QUESTIONS, buildDraftingPrompt, buildReadingPrompt, promptGaps } from '../data/course-prompt.js';
 import { STARTER_COURSES, starterCourse } from '../data/starter-courses.js';
@@ -81,7 +87,7 @@ import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, is
          AI_TROUBLE, lastDetect, aiTroubleLine } from '../ai/provider.js';
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
-import { speak, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
+import { speak, speakSystem, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
 import { epubToText } from '../epub.js';
 
 /* ================================================================
@@ -569,10 +575,114 @@ export function hideChatPhone(){
   const el=document.getElementById('chatPhone');
   if(el) el.classList.remove('show','unread','thinking');
 }
+/* ★ THE PHONE HAS TWO DUTIES NOW, AND ONLY EVER ONE AT A TIME.
+
+   The steward wanted resident notes to arrive "like a text in the phone from
+   these people" — and this card already WAS that: a gold dot, a pulse, and
+   "✓ replied · tap to read". It gains messages rather than gaining a sibling.
+
+   THE LIVE CONVERSATION ALWAYS WINS. A pocketed chat is something you are in
+   the middle of and came back for; a message has waited and can wait a minute
+   longer. Two cards fighting for the same corner is how the butler ping ended
+   up stacked 84px above this one, and three would be a pile.
+
+   `phoneTap()` is the click target instead of `restoreChat()` directly, so the
+   press goes wherever the card is currently pointing. A card that says
+   "Messages" and reopens a chat is the house failure mode with good manners. */
+/* ★ SOMEONE NOTICED. The one writer of data.messages.
+
+   The DECISION lives in data/messages.js and is pure; this is the half that
+   knows where the save is. Fire it blindly — every trigger returns null when
+   its condition is not met, and `addMessage` refuses a duplicate — so a call
+   site never has to think about whether now is a good time.
+
+   ⚠ IT NEVER MOVES YOU AND NEVER MAKES A SOUND. A message arriving mid-sentence
+   that stole focus, or chimed, would be the popup this whole design refuses
+   (`feedback_automation_philosophy`: passive and glanceable, never a popup).
+   The dot on the phone is the entire announcement. */
+/* ★ THE ONE DOOR ONTO THE COURSE BOARD.
+
+   A course can arrive four ways — written by hand, received as Markdown,
+   taken from a Commons packet, or inherited from a planting — and each one
+   used to call `data.courses.unshift()` itself. That is four places to
+   remember when anything must happen "whenever a course arrives", which is
+   rule 4's exact shape and it bit immediately: the first version of the
+   resident notices was wired into createCourse() only, so pinning a course
+   the way the live suite actually does it (Receive) produced silence, and
+   the suite reported the whole feature missing.
+
+   `npm test` now fails on a bare `data.courses.unshift` anywhere else. */
+export function addCourse(c){
+  data.courses.unshift(c);
+  /* Sebastian offers to keep a daily goal; Quill counts the texts it reads
+     that are not on your shelf. Both are decided in data/messages.js, both
+     refuse to repeat themselves, and both are downstream of YOUR press. */
+  notice('course-pinned', { course: c });
+  try{
+    const syl=courseSyllabus(c, syllabusOwned);
+    const missing=(syl.texts||[]).filter(t=>!t.have).map(t=>t.title);
+    if(missing.length) notice('shelf-gap', { course: c, missing });
+  }catch(e){ /* a nudge is never worth a crash */ }
+  return c;
+}
+
+export function notice(trigger, ctx){
+  try{
+    const msg = messageFor(trigger, ctx);
+    if(!msg) return null;
+    const res = addMessage(data.messages||[], msg, todayKey());
+    if(!res.added) return null;
+    data.messages = res.list;
+    persist();
+    renderChatPhone();      // the dot, and nothing else
+    return res.added;
+  }catch(e){ return null; }
+}
+
+/* ★ THE TWO TRIGGERS THAT ARE ABOUT ELAPSED TIME, swept from main.js's frame
+   loop beside sweepReminders() and throttled the same way.
+
+   ⚠ THIS FUNCTION MUST NOT NAVIGATE, and `npm test` guard D enforces it — the
+   name is on the UNPRESSED allowlist beside sweepReminders for exactly the
+   reason recorded there: "a clock comparison, not a request". It writes at
+   most one message and redraws one card. If it ever opens a panel it has
+   become the thing this design exists to avoid. */
+let lastMsgSweep = 0;
+export function sweepMessages(){
+  const now = Date.now();
+  if(now - lastMsgSweep < 30000) return;
+  lastMsgSweep = now;
+  if(!SESSION_START) return;
+  notice('long-sitting', { minutes: (now - SESSION_START)/60000, session: String(SESSION_START) });
+  /* A daily task nobody has taken up for three days. `taken` is the day it was
+     taken, so the gap is a subtraction — no timer, no stored countdown. */
+  try{
+    const tasks = (data.dailyTasks||[]).filter(t => t && t.taken);
+    const newest = tasks.slice().sort((a,b)=>String(b.taken).localeCompare(String(a.taken)))[0];
+    if(newest && newest.taken < todayKey()){
+      const quiet = daysBetweenKeys(newest.taken, todayKey());
+      if(quiet >= 3) notice('task-quiet', { title: newest.title, quietDays: quiet });
+    }
+  }catch(e){ /* a save mid-migration is not worth a crash for a nudge */ }
+}
+/* When this sitting began. Set once at boot; a person who leaves the app open
+   overnight is a person the Monk should absolutely say something to. */
+const SESSION_START = Date.now();
+function daysBetweenKeys(a,b){
+  const pa=Date.parse(a+'T00:00:00'), pb=Date.parse(b+'T00:00:00');
+  if(isNaN(pa)||isNaN(pb)) return 0;
+  return Math.round((pb-pa)/86400000);
+}
+
+export function phoneTap(){
+  const d=state.dialog;
+  if(d&&d.chat&&d.minimized) return restoreChat();
+  openMessages();
+}
 function renderChatPhone(){
   const d=state.dialog, el=document.getElementById('chatPhone');
   if(!el) return;
-  if(!d||!d.chat||!d.minimized){ el.classList.remove('show','unread','thinking'); return; }
+  if(!d||!d.chat||!d.minimized) return renderPhoneMessages(el);
   const av=document.getElementById('phoneAvatar');
   av.textContent=AGENT_AVATAR[d.agent]||'💬';
   av.style.background=d.glow||'#e0a43c';
@@ -586,6 +696,41 @@ function renderChatPhone(){
   status.textContent = busy ? 'thinking…'
                      : d.unread ? '✓ replied · tap to read'
                      : 'tap to return';
+}
+/* The second duty: nothing pocketed, so show whoever is waiting. Same card,
+   same dot, same pulse — a person should not have to learn a new object. */
+function renderPhoneMessages(el){
+  const m = nextUnread(data.messages||[]);
+  if(!m){ el.classList.remove('show','unread','thinking'); return; }
+  /* The phone keeps the BANNER form ("QUILL · Librarian") because a pocketed
+     conversation shows exactly that, and the two states must read as one
+     object. The thread uses the prose name; different jobs, different names. */
+  const who = ((ROLES[m.from]||{}).chat||{}).name || residentName(m.from);
+  const av=document.getElementById('phoneAvatar');
+  av.textContent=AGENT_AVATAR[m.from]||'✉';
+  const r=ROLES[m.from];
+  av.style.background=(r&&r.chat&&r.chat.glow)||'#e0a43c';
+  av.style.color=(r&&r.chat&&r.chat.color)||'#2a2118';
+  document.getElementById('phoneName').textContent=who;
+  const n = unreadCount(data.messages||[]);
+  document.getElementById('phoneStatus').textContent =
+    n>1 ? n+' messages · tap to read' : 'left you a message · tap to read';
+  el.classList.remove('thinking');
+  el.classList.add('show','unread');
+}
+/* One name for a resident, from the roster rather than from a second list —
+   ROLES already carries `chat.name`, and a hand-kept map beside it is rule 4's
+   shape. Falls back to the key so a new sender is visibly unfinished rather
+   than blank. */
+/* ⚠ THE PROSE NAME, NOT THE CHAT HEADER. `ROLES[key].chat.name` is
+   "SEBASTIAN · Butler" — a two-part banner built to sit at the top of a
+   conversation. Dropped into a sentence it produced the button
+   "↩ Talk to SEBASTIAN · Butler", which is nobody's name. `CHAT_AGENTS[key]
+   .label` is the one written to be spoken: "Sebastian", "Quill", "the
+   Mountain Monk". Caught by reading the screenshot; invisible in the markup. */
+export function residentName(key){
+  return (CHAT_AGENTS[key]&&CHAT_AGENTS[key].label)
+      || ((ROLES[key]||{}).chat||{}).name || key;
 }
 function renderChatView(opts){
   const d=state.dialog; if(!d||!d.chat) return;
@@ -1759,6 +1904,7 @@ export function openVoiceSettings(){
     window.speechSynthesis.addEventListener('voiceschanged', ()=>{ if(state.ui==='voice') renderVoiceSettings(); });
   }
   renderVoiceSettings();
+  refreshKokoro();          // what is actually on disk, asked every time the panel opens
   // belt and braces: some engines never fire the event but do fill the list
   setTimeout(()=>{ if(state.ui==='voice' && ttsVoices().length) renderVoiceSettings(); }, 350);
   setTimeout(()=>{ if(state.ui==='voice' && ttsVoices().length) renderVoiceSettings(); }, 1200);
@@ -1778,6 +1924,12 @@ export function setTTSRate(rate){
 }
 export function previewTTSVoice(){
   speak("This is what reading aloud sounds like, at this speed.", null);
+}
+/* The SYSTEM voice, whatever is selected — the button for it lives under the
+   system dropdown, so it must audition that and not the engine you happen to
+   have chosen. See speakSystem() in tts.js for why this is a separate call. */
+export function previewSystemVoice(){
+  speakSystem("This is what your computer's own voice sounds like, at this speed.", null);
 }
 const voiceOption=(cur)=>(v)=>`<option value="${esc(v.voiceURI)}" ${v.voiceURI===cur.voiceURI?'selected':''}>${esc(v.name)} (${esc(v.lang)})</option>`;
 function renderVoiceSettings(){
@@ -1823,8 +1975,257 @@ function renderVoiceSettings(){
     <input type="range" id="voiceRateSlider" min="0.5" max="1.75" step="0.05" value="${cur.rate}"
       oninput="setTTSRate(this.value)" style="width:100%">
     <div class="row" style="margin-top:14px">
-      <button class="btn ghost" onclick="previewTTSVoice()">▶ Preview this voice</button>
+      <button class="btn ghost" onclick="previewSystemVoice()">▶ Preview the system voice</button>
+    </div>
+    ${getTTSSettings().engine==='kokoro' ? `<div class="meta" style="margin-top:6px;opacity:.85">
+      Read-aloud is currently using <b>Kokoro</b>, below — these system voices are not being used,
+      though the speed above still applies to both.</div>` : ''}
+    ${kokoroPanelHTML()}`;
+}
+
+/* ================================================================
+   ★ THE NEURAL VOICE — opt-in, downloaded once, offline after that.
+
+   VOICE-PLAN.md, written 2026-07-27, called this "the upgrade for someone
+   willing to spend 330 MB" and said explicitly: not before the beta. beta.7
+   is cut, so here it is — at 88 MB rather than 330, because the quantised
+   model turned out to be the honest choice.
+
+   THE SYSTEM VOICE ABOVE STAYS THE DEFAULT AND THE FALLBACK. Everything in
+   this block is beneath it on the page for that reason: the free, instant,
+   zero-setup path is what a person meets first, and this is an offer.
+
+   THREE STATES AND THEY ARE DIFFERENT SENTENCES (rule 5 — a panel that says
+   one thing for six situations is how a failure goes unreported):
+     no bridge      → the browser build. Says so, offers nothing.
+     not installed  → what it costs, in megabytes, before you press.
+     installed      → the four voices, and a way to remove all of it.       */
+let kokoroInfo = null;      // last answer from the main process
+let kokoroPoll = null;
+
+/* ★ WHICH ONE IS SELECTED, SAID OUT LOUD (2026-08-16, from real use).
+   The steward, after downloading the voice and reading a book with it:
+   "it's not clear that I'm selecting the new option — it's not highlighted
+   with a check mark or anything."
+
+   He is right, and the diagnosis is worth keeping because the pattern is all
+   over this codebase: selection was drawn as `.btn` (solid gold) versus
+   `.btn.ghost` (outlined). But SOLID GOLD MEANS "PRESS THIS" EVERYWHERE ELSE
+   IN THE PAVILION — it is the colour of every primary action — so the filled
+   button reads as the thing you have NOT done yet. The contrast was there and
+   the MEANING was backwards.
+
+   So a chosen option now says so three ways at once: a ✓, the fill, and a
+   sentence underneath naming what is actually in use. `aria-pressed` because
+   a toggle should announce itself to a screen reader as a toggle rather than
+   as a button that mysteriously changed colour.
+
+   One pair of helpers, used by both rows, so the engine choice and the voice
+   choice cannot drift into looking like different kinds of thing. */
+function pickBtn(onclick, label, selected, title){
+  return `<button class="btn ${selected ? '' : 'ghost'}" aria-pressed="${selected}"
+    style="font-size:11.5px;padding:5px 11px${selected ? ';box-shadow:0 0 0 2px #e0c88a inset' : ''}"
+    onclick="${onclick}"${title ? ` title="${title}"` : ''}>${selected ? '✓ ' : ''}${label}</button>`;
+}
+function engineBtn(id, label, selected){
+  return `<button class="btn ${selected ? '' : 'ghost'}" aria-pressed="${selected}"
+    style="${selected ? 'box-shadow:0 0 0 2px #e0c88a inset' : ''}"
+    onclick="setTTSEngine('${id}')">${selected ? '✓ ' : ''}${label}</button>`;
+}
+export function kokoroPanelHTML(){
+  const b = window.desktopBridge;
+  if(!b || !b.kokoroStart){
+    return `<div class="card" style="cursor:default;margin-top:16px">
+      <div class="t">🎙 A warmer voice</div>
+      <div class="s" style="margin-top:4px">There is a neural voice available in the
+        <b>desktop app</b> — it reads like a person rather than a satnav, runs on your own
+        processor, and needs no account. It cannot run in a browser tab, so this tab keeps
+        the system voice above.</div></div>`;
+  }
+  const k = kokoroInfo;
+  if(!k) return `<div class="meta" style="margin-top:16px">Checking for the neural voice…</div>`;
+  const on = getTTSSettings().engine === 'kokoro';
+  const busy = k.state === 'downloading';
+
+  if(!k.installed){
+    return `<div class="card" style="cursor:default;margin-top:16px">
+      <div class="t">🎙 A warmer voice — <b>${k.downloadMB} MB</b>, once</div>
+      <div class="s" style="margin-top:4px">Kokoro is a small neural voice that runs entirely on
+        this computer's processor. It is a real step up from the voices above — warm and even
+        rather than clipped. <b>Nothing is bundled in the app</b>: pressing below downloads the
+        model into your own data folder, and after that <b>it never touches the network again</b>,
+        including with the machine offline.</div>
+      <div class="s" style="margin-top:6px;opacity:.85">It starts speaking about two and a half
+        seconds after you press read-aloud, then stays comfortably ahead of you. The system voice
+        starts instantly — that is the trade, and you can switch back at any time.</div>
+      ${busy ? `<div style="margin-top:9px">
+          <div class="meta">Downloading — ${k.pct}%${k.total?` · ${(k.bytes/1048576).toFixed(0)} of ${(k.total/1048576).toFixed(0)} MB`:''}</div>
+          <div class="prog" style="margin-top:5px"><div style="width:${k.pct}%"></div></div>
+          <div class="meta" style="margin-top:4px;opacity:.75">You can leave this panel; it keeps going.</div>
+        </div>`
+        : `<div class="row" style="margin-top:9px">
+            <button class="btn" onclick="installKokoro()">⬇ Download it (${k.downloadMB} MB)</button>
+          </div>`}
+      ${k.state==='failed' ? `<div class="meta" style="margin-top:7px;color:#e0a0a0">
+        It did not download: ${esc(k.error||'unknown error')}. Nothing changed — you are still on the
+        system voice. Check the connection and try again.</div>` : ''}
     </div>`;
+  }
+
+  return `<div class="card" style="cursor:default;margin-top:16px">
+    <div class="t">🎙 A warmer voice — <span class="badge" style="border-color:#7fa36b;color:#a9cf90">● installed</span>
+      ${on?'<span class="badge">in use</span>':''}</div>
+    <div class="s" style="margin-top:4px">${k.sizeMB} MB in your own data folder.
+      <b>Fully offline</b> — it makes no network calls at all, now or ever.</div>
+    <label style="margin-top:11px">Which engine reads to you</label>
+    <div class="row" style="gap:6px;margin-top:4px">
+      ${engineBtn('system', 'System voice', !on)}
+      ${engineBtn('kokoro', 'Kokoro', on)}
+    </div>
+    <div class="meta" style="margin-top:5px">Reading aloud now uses
+      <b style="color:#e0c88a">${on ? 'Kokoro' : 'your system voice'}</b>.</div>
+    ${on ? `
+      <label style="margin-top:12px">Voice</label>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">
+        ${(k.voices||[]).map(v=>{
+          const sel=(getTTSSettings().kokoroVoice||k.defaultVoice)===v.id;
+          return pickBtn(`setKokoroVoice('${jsq(v.id)}')`, esc(v.name)
+            + ` <span style="opacity:.6">${esc(v.lang.slice(3))}</span>`, sel, esc(v.note));
+        }).join('')}
+      </div>
+      ${(function(){
+        /* ★ NAME THE ACTIVE VOICE, IN WORDS, UNDERNEATH. The steward, after
+           using it on a real book: "make sure to highlight the last thing I
+           selected and make it look like it says something like ACTIVE VOICE
+           IN USE." The ✓ is on the control; this is the line that survives a
+           squint from across the room, and it names the voice rather than
+           just describing it. */
+        const cur = (k.voices||[]).find(v=>v.id===(getTTSSettings().kokoroVoice||k.defaultVoice));
+        if(!cur) return '';
+        return `<div class="meta" style="margin-top:6px">
+          <span class="badge" style="border-color:#7fa36b;color:#a9cf90">● active voice</span>
+          <b style="color:#e0c88a">${esc(cur.name)}</b>
+          <span style="opacity:.8">— ${esc(cur.note)}</span></div>`;
+      })()}
+      <div class="row" style="margin-top:11px">
+        <button class="btn ghost" onclick="previewTTSVoice()">▶ Preview this Kokoro voice</button>
+        <button class="btn ghost" onclick="benchKokoro()">⏱ Check this computer</button>
+      </div>
+      <div class="meta" id="kokoroSay" style="margin-top:6px">${kokoroBenchHTML()}</div>` : ''}
+    <div class="row" style="margin-top:13px">
+      <button class="btn ghost" style="font-size:11px;padding:4px 10px"
+        onclick="removeKokoro()">🗑 Remove the download (${k.sizeMB} MB)</button>
+    </div>
+    <div class="meta" style="margin-top:5px;opacity:.7">Removing it puts you back on the system
+      voice and frees the disk. You can download it again later.</div>
+  </div>`;
+}
+/* ★ CAN THIS COMPUTER KEEP UP? Asked, not assumed.
+
+   Everything measured about this voice was measured on one fast desktop.
+   Synthesis is CPU-only, so on a thin laptop the real-time factor can cross
+   1.0 — and at that point the voice cannot make the next sentence before the
+   current one ends, so the reading PAUSES MID-PARAGRAPH. It does not crash and
+   it prints nothing. A person reasonably reads that as "this feature is
+   broken" rather than "this machine is slow", and then reports neither.
+
+   So the Pavilion asks the machine and says the number out loud — the same
+   idiom as "Check this computer" under Manage AI connections, which exists for
+   exactly this reason on the model side. One press, two sentences of work
+   (the first discarded as warm-up), a real figure, and a plain verdict.
+
+   ⚠ THE SLOW VERDICT NAMES THE WAY OUT. Telling somebody their computer is too
+   slow and stopping there is a dead end; the system voice is one press away
+   and instant, and the panel says so in the same breath. */
+let kokoroBenchResult = null;
+export function kokoroBenchHTML(){
+  const r = kokoroBenchResult;
+  if(!r) return 'Not sure whether this computer is fast enough? <b>⏱ Check this computer</b> reads '
+    + 'one sentence and times it.';
+  if(r.busy) return 'Reading a test sentence, twice…';
+  if(!r.ok) return 'The check could not run: ' + esc(r.error || 'unknown');
+  const x = r.rtf.toFixed(2) + '×';
+  if(r.verdict === 'comfortable') return `<b style="color:#a9cf90">This computer keeps up comfortably</b>
+    — it made ${r.audio.toFixed(1)}s of speech in ${r.wall.toFixed(1)}s (${x} of real time). It will
+    stay ahead of you for a whole chapter.`;
+  if(r.verdict === 'tight') return `<b style="color:#e0c88a">This computer keeps up, but only just</b>
+    — ${x} of real time. It should be fine reading a page, and may pause between paragraphs if
+    anything else is running. The system voice is instant if that becomes annoying.`;
+  return `<b style="color:#e0a0a0">This computer is slower than speech</b> — ${x} of real time,
+    meaning it cannot make the next sentence before the current one ends, so reading will
+    <b>pause mid-paragraph</b>. Nothing is broken; this machine is just not fast enough for it.
+    <button class="btn ghost" style="font-size:11px;padding:3px 9px;margin-left:6px"
+      onclick="setTTSEngine('system')">Switch back to the system voice</button>`;
+}
+export async function benchKokoro(){
+  const b = window.desktopBridge; if(!b || !b.kokoroBench) return;
+  stopSpeaking();
+  kokoroBenchResult = { busy:true };
+  renderVoiceSettings();
+  let r;
+  try{ r = await b.kokoroBench(); }catch(e){ r = { ok:false, error:String(e) }; }
+  kokoroBenchResult = r;
+  renderVoiceSettings();
+}
+
+/* Ask the main process what is actually on disk, then redraw. Called when the
+   panel opens and while a download runs — polled rather than pushed, the same
+   shape refreshAIStatus already uses, so no new channel exists to leak. */
+export async function refreshKokoro(){
+  const b = window.desktopBridge;
+  if(!b || !b.kokoroState) return;
+  try{ kokoroInfo = await b.kokoroState(); }catch(e){ kokoroInfo = null; }
+  /* ★ WHAT IS ON DISK IS THE AUTHORITY, NOT THE SAVE. A save carried to a
+     machine without the model would otherwise sit on `engine:'kokoro'` and
+     read nothing at all. This is the line that makes the fallback real. */
+  if(kokoroInfo){
+    data.ttsSettings.kokoroReady = !!kokoroInfo.installed;
+    if(!kokoroInfo.installed && data.ttsSettings.engine==='kokoro') data.ttsSettings.engine='system';
+    setTTSSettings(data.ttsSettings);
+  }
+  if(state.ui==='voice') renderVoiceSettings();
+}
+export async function installKokoro(){
+  const b = window.desktopBridge; if(!b||!b.kokoroInstall) return;
+  kokoroInfo = { ...(kokoroInfo||{}), state:'downloading', pct:0, installed:false, downloadMB:88 };
+  renderVoiceSettings();
+  /* Poll while it runs. Cleared in both outcomes — a timer left running after
+     a panel closes is the kind of thing that quietly burns a laptop battery. */
+  clearInterval(kokoroPoll);
+  kokoroPoll = setInterval(refreshKokoro, 700);
+  let res;
+  try{ res = await b.kokoroInstall(); }catch(e){ res = {ok:false,error:String(e)}; }
+  clearInterval(kokoroPoll); kokoroPoll = null;
+  await refreshKokoro();
+  if(res && res.ok){
+    /* Turning it ON is still a separate press. Downloading a thing is not the
+       same as choosing to use it, and deciding that for someone is exactly
+       the "moves the visitor without a press" line in rule 9. */
+    logActivity('Downloaded the neural voice.');
+    blip(784,.08);
+  }
+}
+export async function removeKokoro(){
+  const b = window.desktopBridge; if(!b||!b.kokoroRemove) return;
+  stopSpeaking();
+  data.ttsSettings.engine='system'; data.ttsSettings.kokoroReady=false;
+  setTTSSettings(data.ttsSettings); persist();
+  try{ await b.kokoroRemove(); }catch(e){}
+  await refreshKokoro();
+  blip(440,.06);
+}
+export function setTTSEngine(engine){
+  stopSpeaking();                       // never leave the old engine talking
+  data.ttsSettings.engine = engine==='kokoro' ? 'kokoro' : 'system';
+  if(!data.ttsSettings.kokoroVoice && kokoroInfo) data.ttsSettings.kokoroVoice = kokoroInfo.defaultVoice;
+  setTTSSettings(data.ttsSettings); persist();
+  renderVoiceSettings();
+}
+export function setKokoroVoice(id){
+  stopSpeaking();
+  data.ttsSettings.kokoroVoice = id;
+  setTTSSettings(data.ttsSettings); persist();
+  renderVoiceSettings();
 }
 function statusBadge(c,ok){
   if(c.enabled===false) return '<span class="badge">off</span>';
@@ -2259,6 +2660,12 @@ function renderMenu(){
       item('openStillOpen()', `📋 Still Open${openSparks().length?' · '+openSparks().length:''}`),
       item('openPaths()', `🧭 Paths${(data.paths||[]).filter(p=>!p.walked).length?' · '+(data.paths||[]).filter(p=>!p.walked).length:''}`),
       item('openNotesLog()', '🗒 Your Notes'),
+      /* ✉ The residents' own messages. The count follows the house idiom —
+         a `·` and a number, zero renders nothing (data/the-day.js: "a number
+         with no context reads as a demand", so it is only ever there when
+         something is actually waiting). The phone is the primary surface; this is the
+         keystroke-from-anywhere one. */
+      item('openMessages()', `✉ Messages${(function(){const n=messagesUnread();return n?' · '+n:'';})()}`),
       item('openLearningTree()', `🌳 Lesson plans${(function(){
         const cur=currentStudy(); if(!cur) return '';
         return ' \u00b7 ' + cur.node.title.slice(0,26);
@@ -5447,6 +5854,15 @@ initStudyTable({
    has one. The steward, asking for the desk: "i know its gona kill the
    overlays." It imports nothing from this file; everything it needs from here
    is handed over once, below. */
+initMessages({
+  hideAllOv, showOv, closeUI, setHud, talkTo,
+  /* So reading the thread puts the dot out. Without it the card keeps saying
+     "left you a message" over an empty inbox. */
+  refreshPhone: renderChatPhone,
+  nameOf: residentName,
+  avatarOf: (k)=>AGENT_AVATAR[k]||'✉',
+  glowOf: (k)=>((ROLES[k]||{}).chat||{}).glow||'#e0a43c',
+});
 initLearningDesk({
   hideAllOv, showOv, closeUI,
   aiActive: isAIActive,
@@ -5462,6 +5878,10 @@ initLearningDesk({
      second gatherer that would have to agree with the first. */
   records: () => { try { return gatherRecords(data, s => { const d = Store.getDoc(s); return d && d.title; }); }
                    catch(e){ return []; } },
+  /* So the Monk can notice a practice that went quiet, from the dates already
+     in the record. The desk owns the dates; data/messages.js owns the
+     judgement; this hands one to the other. */
+  notice,
   /* ONE EVIDENCE GATHERER, not two. checklistFor() walks the save for read
      marks, notes, attempts and days; the desk gets the very same function
      rather than counting them again from over here. Two counters for one
@@ -7025,6 +7445,40 @@ Write a logbook entry in the desk">${esc(v.draftSteps||'')}</textarea>
           ${(c.baseline||[]).length?`<div class="meta" style="margin-top:4px"><b>Where its author started:</b> ${c.baseline.map(x=>esc(x)).join(' · ')}</div>`:''}
           ${c.intro?`<div style="margin-top:8px">${courseProse(c.intro)}</div>`:''}`:''}
       </div>`:''}
+      ${(function(){
+        /* ★ YOU FINISHED IT. Until now the app said "9 of 9" and fired a badge
+           toast, and that was the whole acknowledgement of walking an entire
+           course to the end. The steward, 2026-08-16: "I just want to make the
+           game to a point where there's some interactive features, people know
+           what they're working towards and what they can do."
+
+           ⚠ AND IT IS NOT GRADUATION, WHICH IS NOT BUILT. His own call the same
+           day: "I don't think we're ready to really have anything where we have
+           enough of a community to let people graduate." So this names what is
+           TRUE — you made a thing and finished it — and offers the doors that
+           actually exist, and says plainly that the bigger thing does not yet.
+           data/tutorial.js already argued this exact line for Stage 5:
+           "recording a graduation that claims to open a door onto nothing" is
+           the failure to avoid. */
+        if(!st.full || !c.steps.length || !c.steps.every(x=>x.done)) return '';
+        return `<div class="card" style="cursor:default;margin-top:12px;border-color:#7fa36b">
+          <div class="t">✓ You walked the whole of it</div>
+          <div class="s" style="margin-top:4px">Every module of <b>${esc(c.title)}</b>, to the end.
+            Whatever else that is worth, it is a thing you finished — and the record of how you
+            got there is yours.</div>
+          <div class="row" style="margin-top:9px;gap:6px;flex-wrap:wrap">
+            <button class="btn ghost" style="font-size:11.5px;padding:4px 10px"
+              onclick="learnLookBack(${c.id})">📓 Your work on this course</button>
+            <button class="btn ghost" style="font-size:11.5px;padding:4px 10px"
+              onclick="saveCourseFolder(${c.id})">💾 Save it to its folder</button>
+            <button class="btn ghost" style="font-size:11.5px;padding:4px 10px"
+              onclick="openCommonsTable()">📦 Hand it on at the Commons Table</button>
+          </div>
+          <div class="meta" style="margin-top:8px;opacity:.8">There is no rank here and no door this
+            opens — that would be a door onto nothing. What it means today is exactly what it says:
+            you made a thing, you finished it, and someone who was never here could walk it.</div>
+        </div>`;
+      })()}
       <div class="meta" style="margin-top:10px">${done} of ${c.steps.length} ${st.full?'modules':'steps'}</div>
       <div class="prog" style="margin-top:5px"><div style="width:${pct}%"></div></div>
       <div style="margin-top:12px">
@@ -7552,7 +8006,7 @@ export function receiveCourseFile(ev){
 export function confirmReceivedCourse(){
   const p=state.courseView&&state.courseView.parsed; if(!p) return;
   const c=courseFromLesson(p,{id:Date.now(), categories:COURSE_CAT_IDS, today:todayKey()});
-  data.courses.unshift(c);
+  addCourse(c);
   persist(); setHud();
   logActivity('Received a course: "'+c.title+'" ('+c.steps.length+' '+(courseStanding(c).full?'modules':'steps')+').');
   awardBadge('first-course'); blip(784,.09);
@@ -7669,8 +8123,12 @@ export function createCourse(){
   const steps=document.getElementById('ncSteps').value.split('\n').map(l=>l.trim()).filter(Boolean)
     .map(l=>{ const [t,p,u]=l.split('|').map(s=>s.trim()); return {title:t,practice:p||'',url:safeUrl(u),done:false}; });
   if(!title||!steps.length) return;
-  data.courses.unshift({ id:Date.now(), title, why, category, due, steps, begun:todayKey(), archived:false });
+  addCourse({ id:Date.now(), title, why, category, due, steps, begun:todayKey(), archived:false });
   persist(); logActivity('Pinned a new course: "'+title+'".'); awardBadge('first-course'); blip(784,.09); setHud();
+  /* ★ SOMEONE NOTICES. Sebastian offers to keep a daily goal; Quill counts the
+     texts it reads that are not on your shelf. Both fire from THIS press —
+     yours — which is what keeps them the right side of rule 9. */
+
   state.courseView={mode:'list'}; renderCourses();
 }
 export function toggleStep(id,i){
@@ -7691,6 +8149,11 @@ export function toggleStep(id,i){
   if(c.steps[i].done){
     if(moduleParts(c.steps[i].body).artifact && attemptsFor(c.id, i).length) awardBadge('first-artifact');
     if(courseStanding(c).full && c.steps.every(s=>s.done)) awardBadge('course-walked');
+    /* ...and Sebastian says so on the phone. Off THIS press — the one that
+       ticked the last module — never from a sweep. */
+    if(courseStanding(c).full && c.steps.every(s=>s.done)){
+      notice('course-finished', { course:c, modules:c.steps.length });
+    }
   }
   renderCourses();
 }
@@ -10930,7 +11393,7 @@ export function takePacket(id){
     + (p.aiDrafted?'\n  Drafted by an AI, and published as such.':'')
     + (p.reason?`\n  Why they passed it on: ${p.reason}`:'');
   if(p.kind==='course'){
-    data.courses.unshift({ id:Date.now(), title:p.title, why:(p.why||p.summary||'')+credit, category:'personal',
+    addCourse({ id:Date.now(), title:p.title, why:(p.why||p.summary||'')+credit, category:'personal',
       due:null, steps:(p.steps||[]).map(t=>({title:t,practice:'',url:'',done:false})), begun:todayKey(), archived:false });
   } else if(p.kind==='paper'){
     if(!data.hall) data.hall={investigations:[],experiments:[],dissections:[]};
@@ -11568,7 +12031,7 @@ export async function takePlanting(id){
     say((pl.notes||[]).length+' note(s) copied into 🗒 Your Notes — the originals stay in the ground.');
   } else {
     const c=pl.course||{title:pl.title,why:'',steps:[]};
-    data.courses.unshift({ id:Date.now(), title:c.title||pl.title, why:c.why||pl.message||'', category:'personal',
+    addCourse({ id:Date.now(), title:c.title||pl.title, why:c.why||pl.message||'', category:'personal',
       due:null, steps:(c.steps||[]).map(t=>({title:t,practice:'',url:'',done:false})),
       begun:todayKey(), archived:false });
     say('The course is on your Course Board (the Study) — yours to walk now.');
@@ -14907,6 +15370,11 @@ Object.assign(window, {
   newCourseForm, createCourse, openCourse, toggleStep, removeCourse, backToList,
   openReceiveCourse, receiveStep, previewReceivedCourse, receiveCourseFile, confirmReceivedCourse,
   openCourseModule, toggleCourseSpeak, courseToTasks,
+  openMessages, replyToMessage, phoneTap,
+  /* Exported so a live suite can force a trigger without waiting ninety
+     minutes for the Monk. It is the same public path the app uses. */
+  notice,
+  installKokoro, removeKokoro, setTTSEngine, setKokoroVoice, refreshKokoro, benchKokoro,
   copyDraftingPrompt, showDraftingPrompt, loadStarterCourse, openCourseStandard,
   findReadingForIdea, copyReadingPrompt, setCourseMap, mapOpenCourse, linkModuleBook,
   toggleCourseIntro,
@@ -14921,7 +15389,7 @@ Object.assign(window, {
   newArchiveForm, createArchiveDoc, backToArchiveList, openArchiveDoc, deleteArchiveDoc, skipTyping,
   newBulkForm, runBulkImport, generateQuillReport,
   openConnections, openMenu, returnToTitle, resetSave,
-  openVoiceSettings, setTTSVoice, setTTSRate, previewTTSVoice,
+  openVoiceSettings, setTTSVoice, setTTSRate, previewTTSVoice, previewSystemVoice,
   openWaypoints, addWaypoint, removeWaypoint, exportSave, triggerImportSave,
   openIdeaCapture, saveIdea, deleteIdea, setLogKind, sendLogEntryToToday,
   openPaths, backToPaths, createPath, startPathFromIdea, openPath, addPathStep, updatePathField, togglePathWalked, deletePath,

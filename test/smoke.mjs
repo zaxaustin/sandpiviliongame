@@ -16,7 +16,7 @@
    up to and press E at for nothing at all — the house failure mode with
    furniture.
    ================================================================ */
-import { readFileSync as rawReadFileSync, readdirSync } from 'node:fs';
+import { readFileSync as rawReadFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /* ⚠ EVERY SOURCE READ IN THIS FILE IS NORMALISED TO LF. Do not "simplify"
@@ -49,6 +49,30 @@ const readFileSync = (p, enc) => {
 };
 
 import { scenes, SOLID } from '../src/game/scenes.js';
+/* ---- READING SOURCE HONESTLY, and both halves were paid for ----
+   THREE guards here have been born dead because a COMMENT satisfied them,
+   and one (2026-08-15) was born dead because a comment BROKE it. Two more
+   matched a different use of the same name elsewhere in the same file. So:
+   strip comments before believing source, and scope a claim to the function
+   that has to make it.
+
+   Hoisted to module scope 2026-08-16, when the neural-voice guards needed the
+   same two tools — a second copy of 'strip the comments first' is precisely
+   the drift rule 4 exists for, and these two are the tools that catch it. */
+const noComments = (s) => s
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')
+  .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+const fnBody = (src, name) => {
+  const at = src.search(new RegExp('function\\s+' + name + '\\s*\\('));
+  if (at < 0) return '';
+  let i = src.indexOf('{', at), depth = 0;
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === '{') depth++;
+    else if (src[j] === '}') { depth--; if (!depth) return src.slice(i, j + 1); }
+  }
+  return '';
+};
+
 import { SEED_LIBRARY, TRADITIONS } from '../src/game/data/seed.js';
 
 /* DERIVED FROM THE DISPATCH ITSELF. Every `st.kind==='x'` in onAction() —
@@ -3548,19 +3572,6 @@ for (const d of SEED_LIBRARY) {
      Break it on purpose: delete the groundingPlan() line from either body and
      go back to lookupTerms(). Both must go red. */
   const osrc = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
-  const noComments = (s) => s
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-  const fnBody = (src, name) => {
-    const at = src.search(new RegExp('function\\s+' + name + '\\s*\\('));
-    if (at < 0) return '';
-    let i = src.indexOf('{', at), depth = 0;
-    for (let j = i; j < src.length; j++) {
-      if (src[j] === '{') depth++;
-      else if (src[j] === '}') { depth--; if (!depth) return src.slice(i, j + 1); }
-    }
-    return '';
-  };
   for (const [file, src, name] of [
     ['ui/residents.js', rsrc, 'shelfLookup'],
     ['ui/overlays.js',  osrc, 'searchMyNotesFor'],
@@ -6956,6 +6967,33 @@ for (const d of SEED_LIBRARY) {
           if (!DT.WHERE_KEYS.includes(s.where)) fail(`a task step from a course names where="${s.where}", `
             + 'which is not in STEP_WHERE — a step with no door is a dead drop');
         }
+        /* ★ THE WRITER AND THE READER MUST AGREE ABOUT THE FIELD NAMES, and
+           this is derived from both ends rather than typed — because typing
+           the name is exactly how the bug happened.
+
+           `taskFromChecklist()` wrote `title:` for a day while the board drew
+           `esc(s.text)`, so every step taken from a course rendered as a bare
+           ○ and Sebastian said "Next: undefined". The live suite was green
+           throughout: it asserted on `s.title`, the field the WRITER emits.
+           A check that reads back the writer's own shape can only ever prove
+           the writer is consistent with itself. */
+        const uiSrc = readFileSync(new URL('../src/game/ui/daily-tasks.js', import.meta.url), 'utf8');
+        const drawn = [...noComments(uiSrc).matchAll(/\bs\.([a-zA-Z]+)/g)].map(m => m[1]);
+        const readByUI = new Set(drawn);
+        if (!readByUI.has('text')) {
+          fail('the tasks board no longer reads s.text — this guard is anchored to a field that has '
+             + 'moved, and is now checking nothing');
+        }
+        for (const need of ['text', 'where', 'done']) {
+          if (!(need in task.steps[0])) {
+            fail(`a step built by taskFromChecklist() has no "${need}", but the tasks board reads it. `
+               + `It emits: ${Object.keys(task.steps[0]).join(', ')}. The step would draw blank.`);
+          }
+        }
+        if ('title' in task.steps[0]) {
+          fail('taskFromChecklist() still emits `title` on a step. The board reads `text`; `title` is '
+             + 'the field name that produced a whole column of empty bullets.');
+        }
         if (!task.source || task.source.kind !== 'course' || !task.source.label) {
           fail('a task taken from a course does not carry the {kind, ref, label} source the board reads, '
              + 'so it will not say what it is part of');
@@ -6976,6 +7014,434 @@ for (const d of SEED_LIBRARY) {
         fail(`src/game/${rel} shows the module checklist without calling checklistHTML(). Two renderers `
            + 'for one list is the drift rule 4 is about — they disagreed about what "done" looks like '
            + 'within a week last time this happened (the syllabus and the shelf predicate).');
+      }
+    }
+  }
+
+  /* ================================================================
+     ★ THE NEURAL VOICE (2026-08-16) — opt-in, and the system voice
+       stays the default and the permanent fallback.
+     ================================================================ */
+  {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    /* ⚠ COMMENT-STRIPPED, ALL THREE, and it is not caution. The first draft of
+       these guards read the raw text and THREE of them were born dead: with
+       `splitter.close()` commented out the suite stayed green, because the
+       commented line still matched. These files are unusually heavily
+       commented — every one of them explains the trap it avoids, naming the
+       call it must make — so raw-text matching here is guaranteed to certify
+       nothing. Found by breaking each on purpose, never by reading them. */
+    const ttsSrc = noComments(readFileSync(new URL('../src/game/tts.js', import.meta.url), 'utf8'));
+    const kokSrc = noComments(readFileSync(new URL('../src/game/tts-kokoro.js', import.meta.url), 'utf8'));
+    const engSrc = noComments(readFileSync(new URL('../electron/kokoro.cjs', import.meta.url), 'utf8'));
+    const preSrc = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8');
+    const voicesMod = await import('../electron/kokoro-voices.cjs');
+    const { KOKORO_VOICES, KOKORO_DEFAULT_VOICE } = voicesMod.default || voicesMod;
+
+    /* ★ THE PUBLIC INTERFACE DID NOT CHANGE. The whole requirement: sixty-odd
+       call sites in overlays.js must not know there are two engines. Every
+       name that existed before the router must still be exported. */
+    const MUST_EXPORT = ['ttsAvailable', 'isSpeaking', 'stopSpeaking', 'pauseSpeaking',
+      'resumeSpeaking', 'isPaused', 'hasAudio', 'clearPaused', 'speechProgress',
+      'ttsVoices', 'setTTSSettings', 'getTTSSettings', 'speak', 'skipSpeech', 'canSkipSpeech'];
+    const tts = await import('../src/game/tts.js');
+    for (const name of MUST_EXPORT) {
+      if (typeof tts[name] !== 'function') {
+        fail(`tts.js no longer exports ${name}() — the read-aloud interface was supposed to survive `
+           + 'the second engine untouched, and overlays.js calls this by name');
+      }
+    }
+
+    /* ★ THE SYSTEM VOICE IS THE DEFAULT, IN THE SAVE ITSELF. */
+    const ent = readFileSync(new URL('../src/game/entities.js', import.meta.url), 'utf8');
+    if (!/ttsSettings:\{[^}]*engine:'system'/.test(ent)) {
+      fail('a fresh save does not start on engine:\'system\'. The neural voice is opt-in and needs '
+         + 'an 88 MB download — defaulting to it would leave a new visitor pressing read-aloud and '
+         + 'getting nothing at all.');
+    }
+    /* ★ AND `kokoroReady` IS NEVER TRUSTED FROM A SAVE. A save copied from this
+       machine onto a laptop without the model must fall back, not read silence. */
+    if (!/data\.ttsSettings\.kokoroReady\s*=\s*false/.test(ent)) {
+      fail('entities.js does not force ttsSettings.kokoroReady=false at boot. It records what was on '
+         + 'ANOTHER machine\'s disk; only the main process may say the model is really here.');
+    }
+    if (!/kokoroReady/.test(ttsSrc) || !/settings\.engine === 'kokoro'/.test(ttsSrc)) {
+      fail('tts.js no longer gates the neural engine on BOTH the setting and kokoroReady');
+    }
+
+    /* ★ THE WEB BUILD CANNOT REACH IT. Every route must test for the bridge. */
+    /* ⚠ SCOPED TO kokoroAvailable(), NOT THE FILE. The first version asked
+       whether `window.desktopBridge` appeared anywhere in tts-kokoro.js — and
+       it appears in the `bridge()` helper two lines above, so replacing the
+       whole of kokoroAvailable() with `return true` left the guard green. That
+       is this codebase's single most common dead-guard shape: matching a
+       DIFFERENT USE OF THE SAME NAME elsewhere in the file. Name the answer,
+       not the identifier. */
+    const availBody = /kokoroAvailable\(\)\s*\{[^{}]*\}/.exec(kokSrc);
+    if (!availBody) fail('cannot find kokoroAvailable() in tts-kokoro.js');
+    else if (!/bridge\(\)\s*&&\s*bridge\(\)\.kokoroStart/.test(availBody[0])) {
+      fail('kokoroAvailable() no longer proves the desktop bridge is really there. A browser tab '
+         + 'would select an engine that does not exist and read nothing at all.');
+    }
+    if (!/kokoroAvailable\(\)/.test(ttsSrc)) fail('tts.js does not consult kokoroAvailable()');
+
+    /* ★ THE SPLITTER IS CLOSED. Measured 2026-08-15: handed a plain string,
+       kokoro-js's stream() emitted three of four sentences and then hung on an
+       unsettled await. A reader that stops mid-paragraph with no error is the
+       exact silent failure this project keeps paying for. */
+    if (!/new TextSplitterStream\(\)/.test(engSrc) || !/splitter\.close\(\)/.test(engSrc)) {
+      fail('electron/kokoro.cjs does not drive a TextSplitterStream and close() it. Passing a plain '
+         + 'string to stream() HANGS mid-paragraph — measured, not theorised.');
+    }
+    if (/model\.stream\(\s*clean\b/.test(engSrc) || /\.stream\(\s*text\b/.test(engSrc)) {
+      fail('electron/kokoro.cjs passes a raw string to stream() somewhere — that is the hang');
+    }
+
+    /* ★ SYNTHESIS MAY NEVER REACH THE NETWORK. `allowRemoteModels` is true in
+       exactly one place: the pressed install. If start() could enable it, the
+       "fully offline" promise would hold only on machines that had already
+       downloaded — which is how it would ship unnoticed. */
+    const startBody = /async function start\(\{[\s\S]*?\n\}/.exec(engSrc);
+    if (!startBody) fail('cannot find start() in electron/kokoro.cjs to check its network stance');
+    else if (/allowRemote:\s*true/.test(startBody[0])) {
+      fail('kokoro.cjs start() allows remote models. Speaking must never fetch anything — only the '
+         + 'explicit install press may touch the network.');
+    }
+    const installCount = (engSrc.match(/allowRemote:\s*true/g) || []).length;
+    if (installCount !== 1) {
+      fail(`allowRemote:true appears ${installCount} times in kokoro.cjs — it belongs in install() `
+         + 'and nowhere else');
+    }
+
+    /* ★ THE FOUR VOICES, AND THE BUILD GLOB MUST NAME THE SAME FOUR.
+       A hand-kept list in a build config that must match a list in code is
+       rule 4's exact shape, and it has already drifted twice in this repo
+       (hideAllOv, the window exports). Derived, so it cannot. */
+    if (KOKORO_VOICES.length !== 4) {
+      fail(`kokoro-voices.cjs ships ${KOKORO_VOICES.length} voices, not 4 — each is 512 KB in the `
+         + 'installer, and the decision was four');
+    }
+    if (!KOKORO_VOICES.some(v => v.id === KOKORO_DEFAULT_VOICE)) {
+      fail('KOKORO_DEFAULT_VOICE is not one of the shipped voices — turning the engine on would ask '
+         + 'for a file that is not in the package');
+    }
+    const globs = (pkg.build.files || []).filter(f => typeof f === 'string');
+    for (const v of KOKORO_VOICES) {
+      if (!globs.some(g => g.endsWith(`kokoro-js/voices/${v.id}.bin`))) {
+        fail(`package.json does not include kokoro-js/voices/${v.id}.bin, but kokoro-voices.cjs `
+           + `offers "${v.name}". The button would be there and the file would not.`);
+      }
+    }
+    const included = globs.filter(g => /kokoro-js\/voices\/\w+\.bin$/.test(g) && !g.startsWith('!'));
+    if (included.length !== KOKORO_VOICES.length) {
+      fail(`package.json ships ${included.length} voice files but kokoro-voices.cjs names `
+         + `${KOKORO_VOICES.length}. A voice in the installer that no panel offers is dead weight; `
+         + 'the other way round is a broken button.');
+    }
+    if (!globs.includes('!**/node_modules/kokoro-js/voices/*.bin')) {
+      fail('package.json does not exclude the other 50 voices — that is 25 MB of voices nobody picked');
+    }
+
+    /* ★ THE PRUNES THAT MAKE THIS AFFORDABLE, each measured by breaking it.
+       These are the PLATFORM-INDEPENDENT ones — true of every build. */
+    for (const [glob, why] of [
+      ['!**/node_modules/sharp/**', 'sharp (20 MB of image codecs a TTS model never calls)'],
+      ['!**/node_modules/@img/**', "sharp's native binaries"],
+      ['!**/node_modules/onnxruntime-web/**', 'the WASM runtime, which Node never registers'],
+    ]) {
+      if (!globs.includes(glob)) {
+        fail(`package.json stopped excluding ${why} — "${glob}". The installer grows and nobody `
+           + 'notices until a tester downloads it.');
+      }
+    }
+
+    /* ★★ THE PLATFORM PRUNE IS CODE, NOT GLOBS — and this guard is the scar.
+
+       Attempt one put `!…/darwin/…` and `!…/linux/…` in the TOP-LEVEL files
+       glob. Wrong on a Mac: that is not a size saving there, it is deleting
+       the binaries a Mac needs. `MAC-BUILD.md` hands this repo to somebody
+       with a Mac and twenty minutes, and they would have built a dmg whose
+       voice was broken — with no actionable error, because the model
+       downloads fine and only the runtime is missing.
+
+       Attempt two moved them into `build.win.files` / `build.mac.files`. That
+       produced a **977 MB installer** with the previous `release/win-unpacked`
+       packed inside the new app.asar, because electron-builder implies a
+       match-everything pattern for a `files` array that contains only
+       negations — so the platform list did not narrow the common allow-list,
+       it replaced its effect entirely.
+
+       Attempt three, which is this: prune in `build/after-pack.cjs`, where the
+       platform is a variable rather than a pattern and cannot widen anything.
+       The guard therefore checks the SCRIPT, not the config. */
+    if (pkg.build.afterPack !== 'build/after-pack.cjs') {
+      fail('package.json no longer runs build/after-pack.cjs after packing. Without it every '
+         + 'installer carries all six onnxruntime platforms (~208 MB instead of ~16 MB).');
+    }
+    if (!existsSync(new URL('../build/after-pack.cjs', import.meta.url))) {
+      fail('build/after-pack.cjs is missing, and package.json names it as afterPack');
+    } else {
+      const ap = readFileSync(new URL('../build/after-pack.cjs', import.meta.url), 'utf8');
+      const code = noComments(ap);
+      /* ★ IT MUST NEVER DELETE ITS OWN PLATFORM. The whole Mac bug in one
+         line, expressed as a property of the code rather than a list. */
+      if (!/other === own/.test(code) || !/continue/.test(code)) {
+        fail('after-pack.cjs no longer skips its own platform when pruning. A build that deletes '
+           + 'the runtime it is built for ships a voice that cannot load, and the failure looks '
+           + 'like a broken model rather than a missing binary.');
+      }
+      if (!/electronPlatformName/.test(code)) {
+        fail('after-pack.cjs does not read context.electronPlatformName — it is guessing which '
+           + 'platform it is pruning for, which is how the Mac case broke twice already');
+      }
+      if (!/DirectML\.dll/.test(code)) {
+        fail('after-pack.cjs stopped removing DirectML.dll — 17.7 MB of an execution provider that '
+           + 'CRASHES on this model (ConvTranspose fails on the DML EP)');
+      }
+    }
+    /* ⚠ AND NO PLATFORM `files` LIST MAY COME BACK. This is the 977 MB bug,
+       written as a rule so the next person cannot rediscover it. */
+    for (const plat of ['win', 'mac', 'linux']) {
+      const pf = (pkg.build[plat] && pkg.build[plat].files) || null;
+      if (!pf) continue;
+      if (pf.every(g => typeof g === 'string' && g.startsWith('!'))) {
+        fail(`build.${plat}.files contains only negative patterns. electron-builder implies a `
+           + 'match-everything pattern for such a list, which DEFEATS the top-level allow-list — '
+           + 'measured 2026-08-16, it packed the previous build inside the new one and produced a '
+           + '977 MB installer. Prune in build/after-pack.cjs instead.');
+      }
+    }
+    /* ★ release/ IS NOT AUTO-EXCLUDED WHEN YOU BUILD ELSEWHERE. electron-builder
+       skips its own output directory — and CLAUDE.md tells you to build with
+       `--config.directories.output=$TEMP/sp-build` to dodge an editor's EPERM
+       lock, which makes release/ an ordinary folder holding a 225 MB app. */
+    if (!globs.includes('!release/**')) {
+      fail('package.json does not exclude release/. It is only auto-excluded when it IS the output '
+         + 'directory, and the documented EPERM workaround builds to $TEMP instead — so the last '
+         + 'installer gets packed inside the next one.');
+    }
+    /* ...and if sharp is excluded, the stub MUST be mapped in, or the packaged
+       app throws ERR_MODULE_NOT_FOUND the first time anyone presses read-aloud. */
+    const maps = (pkg.build.files || []).filter(f => f && typeof f === 'object');
+    if (!maps.some(m => m.to === 'node_modules/sharp' && m.from === 'build/sharp-stub')) {
+      fail('sharp is excluded but build/sharp-stub is not mapped over it. transformers.js requires '
+         + 'sharp AT IMPORT TIME — without the stub the voice dies on load in the packaged app only, '
+         + 'which is the worst place to find out.');
+    }
+    if (!existsSync(new URL('../build/sharp-stub/index.js', import.meta.url))) {
+      fail('build/sharp-stub/index.js is missing, and package.json maps it into the installer');
+    }
+    /* The native runtime and the voices must be OUTSIDE the asar — a .node
+       binary and a .dll cannot be loaded from inside one. PGlite is already
+       unpacked for the same reason. */
+    for (const p of ['**/node_modules/onnxruntime-node/**', '**/node_modules/kokoro-js/**']) {
+      if (!(pkg.build.asarUnpack || []).includes(p)) {
+        fail(`${p} is not in asarUnpack. A native .node/.dll cannot be loaded from inside an asar, `
+           + 'and this fails ONLY in the packaged build.');
+      }
+    }
+
+    /* ★ THE BRIDGE IS WHOLE. A half-wired bridge is this project's oldest bug. */
+    for (const m of ['kokoroState', 'kokoroInstall', 'kokoroRemove', 'kokoroStart', 'kokoroNext', 'kokoroStop']) {
+      if (!new RegExp(m + ':').test(preSrc)) fail(`preload.cjs does not expose ${m}`);
+      const chan = 'desktop-kokoro-' + m.replace('kokoro', '').toLowerCase();
+      if (!readFileSync(new URL('../electron/main.cjs', import.meta.url), 'utf8').includes(chan)) {
+        fail(`main.cjs has no handler for ${chan}, which preload.cjs invokes — a door onto nothing`);
+      }
+    }
+
+    /* ★ A CHOSEN OPTION SAYS SO. Reported from real use 2026-08-16, after the
+       voice was downloaded and used on a real book: "it's not clear that I'm
+       selecting the new option — it's not highlighted with a check mark or
+       anything." Selection had been drawn as `.btn` versus `.btn.ghost`, and
+       solid gold means "press this" everywhere else in the Pavilion — so the
+       selected button read as the one you had NOT chosen. A setting you cannot
+       tell you have set is a button that does nothing, which is the house
+       failure mode wearing a colour. */
+    {
+      const ov = noComments(ovP);
+      for (const fn of ['pickBtn', 'engineBtn']) {
+        const body = fnBody(ov, fn);
+        if (!body) { fail(`the voice panel lost ${fn}(), which is what marks a choice as chosen`); continue; }
+        if (!body.includes("'✓ '")) {
+          fail(`${fn}() no longer puts a ✓ on the selected option. Fill alone is ambiguous here: gold `
+             + 'is the colour of "press this", so the chosen one reads as the one you have not picked.');
+        }
+        if (!/aria-pressed/.test(body)) {
+          fail(`${fn}() dropped aria-pressed — a toggle has to announce itself as a toggle, not as a `
+             + 'button that mysteriously changed colour');
+        }
+      }
+      /* ...and the panel must still SAY which engine is in use, in words. The
+         mark is on the control; this is the sentence that survives a squint. */
+      if (!/Reading aloud now uses/.test(ov)) {
+        fail('the voice panel no longer states in plain words which engine reads to you');
+      }
+    }
+
+    /* ★ STOP MUST REACH BOTH ENGINES. A stop that only silences the selected
+       backend leaves the other one talking with nothing able to stop it. */
+    const stopBody = /export function stopSpeaking\(\)\{[\s\S]*?\n\}/.exec(ttsSrc);
+    if (!stopBody) fail('cannot find stopSpeaking() in tts.js');
+    else if (!/kStop\(\)/.test(stopBody[0]) || !/speechSynthesis\.cancel\(\)/.test(stopBody[0])) {
+      fail('stopSpeaking() does not silence BOTH engines. Switching voices mid-chapter would leave '
+         + 'audio playing that no button can stop.');
+    }
+  }
+
+  /* ================================================================
+     ★ THE PHONE — residents who notice (2026-08-16)
+     ================================================================ */
+  {
+    const M = await import('../src/game/data/messages.js');
+    const msgSrc = noComments(readFileSync(new URL('../src/game/data/messages.js', import.meta.url), 'utf8'));
+    const ov = noComments(ovP);
+
+    /* ★ AUTHORED, NOT GENERATED. The whole feature has to work with no model,
+       because the laptop case is why it is cheap. A pure module that imported
+       the provider would be the end of that, quietly. */
+    if (/\bimport\s/.test(msgSrc)) {
+      fail('data/messages.js has an import. It is pure on purpose — no DOM, no provider, no save — '
+         + 'so every message works with aiConnections: [] and npm test can hold its rules.');
+    }
+    if (/AI\.chat|askResident|draftText/.test(msgSrc)) {
+      fail('data/messages.js reaches for a model. Every body is authored text with real numbers '
+         + 'substituted; a model here breaks the one machine this was built for.');
+    }
+
+    /* ★ THE MONK MAY BE SHARP, NEVER CRUEL — the steward\'s own line, made
+       checkable. Every authored body is walked, not just the Monk\'s. */
+    let bodies = 0;
+    for (const [trigger, ctx] of [
+      ['course-pinned', { course: { id: 1, title: 'A course' } }],
+      ['shelf-gap', { course: { id: 1, title: 'A course' }, missing: ['One', 'Two'] }],
+      /* ⚠ SEVERAL SEEDS. long-sitting picks one of three authored lines from a
+         hash of the session, so a single call only ever sees one of them —
+         and turning a variant the guard does not sample into an insult left
+         it green. Ten seeds covers three variants many times over. */
+      ...['a','b','c','d','e','f','g','h','i','j'].map(x =>
+        ['long-sitting', { minutes: 200, session: x }]),
+      ['practice-quiet', { course: { id: 1 }, moduleIndex: 0, daysKept: 11, quietDays: 4 }],
+      ['task-quiet', { title: 'A task', quietDays: 5 }],
+      ['course-finished', { course: { id: 1, title: 'A course' }, modules: 9 }],
+    ]) {
+      const m = M.messageFor(trigger, ctx);
+      if (!m) { fail(`messages.js: trigger '${trigger}' produced nothing for a context that should `
+                   + 'fire it — the guard below is then checking an empty string'); continue; }
+      bodies++;
+      const low = m.body.toLowerCase();
+      for (const w of M.SHAME_WORDS) {
+        if (low.includes(w)) {
+          fail(`the ${m.from}'s "${trigger}" message contains "${w}". The licence the Monk has is to `
+             + 'be SHARP, never cruel — "compassionate interruption, not sabotage". Nothing here '
+             + 'may shame anyone for what they did or did not do.');
+        }
+      }
+      if (!/[a-z]/.test(m.body) || m.body.length < 40) {
+        fail(`the "${trigger}" message is too thin to be worth sending: ${JSON.stringify(m.body)}`);
+      }
+    }
+    if (bodies !== 15) fail(`only ${bodies} of 15 bodies were produced — this guard is checking less `
+                         + 'than it claims');
+
+    /* ★ EVERY TRIGGER RETURNS null WHEN ITS CONDITION IS NOT MET. Without
+       this they would all fire on the first press and the phone would be a
+       wall on day one. */
+    for (const [trigger, ctx] of [
+      ['long-sitting', { minutes: 10, session: 's' }],
+      ['practice-quiet', { course: { id: 1 }, moduleIndex: 0, daysKept: 11, quietDays: 1 }],
+      ['task-quiet', { title: 'A task', quietDays: 1 }],
+      ['shelf-gap', { course: { id: 1, title: 'x' }, missing: [] }],
+    ]) {
+      if (M.messageFor(trigger, ctx)) {
+        fail(`'${trigger}' fired on a context that does not warrant it (${JSON.stringify(ctx)}). `
+           + 'Sparse-over-frequent is enforced here or it is not enforced at all.');
+      }
+    }
+
+    /* ★ SPARSE, IN CODE. Two refusals, both load-bearing. */
+    {
+      const m1 = M.messageFor('course-pinned', { course: { id: 7, title: 'A' } });
+      let out = M.addMessage([], m1, '2026-08-16');
+      if (!out.added) fail('the first message was refused — addMessage is refusing everything');
+      /* ⚠ ON A READ MESSAGE, or this proves nothing. The first version re-sent
+         while the original was still UNREAD — which the one-per-resident rule
+         refuses anyway, so deleting the dedupe entirely left the guard green.
+         Two rules, one test, and the weaker one was doing all the work. */
+      const readList = out.list.map(m => ({ ...m, read: true }));
+      const again = M.addMessage(readList, m1, '2026-08-16');
+      if (again.added) fail('★ the SAME (trigger, ref) was sent twice. Pin a course, read the note, pin '
+                          + 'it again, and the phone says it all over — the dedupe is the whole of rule 2.');
+      const other = M.messageFor('task-quiet', { title: 'T', quietDays: 5 });
+      const stacked = M.addMessage(out.list, other, '2026-08-16');
+      if (stacked.added) fail('★ Sebastian was allowed a SECOND unread message while one was still '
+                            + 'waiting. A quiet week would come back as a stack of notes from one '
+                            + 'person, which is the wall this refuses to become.');
+      /* ...and once it is read, he may speak again. A gate that never opens is
+         a feature that fires once and dies. */
+      const read = out.list.map(m => ({ ...m, read: true }));
+      if (!M.addMessage(read, other, '2026-08-16').added) {
+        fail('a resident whose message has been READ still cannot send another — the gate never opens');
+      }
+    }
+
+    /* ★ ONE DOOR ONTO THE COURSE BOARD. The bug that proved this: the notices
+       were wired into createCourse() only, and a course RECEIVED as Markdown
+       produced silence — four call sites, one of them remembered. */
+    {
+      const body = fnBody(ov, 'addCourse');
+      if (!body) fail('overlays.js has no addCourse() — the one door onto the course board');
+      else {
+        /* ⚠ BOTH, BY NAME. `/notice\(/` alone matched the shelf-gap call, so
+           deleting Sebastian's left the guard green — one of two is not the
+           thing being checked. */
+        for (const t of ['course-pinned', 'shelf-gap']) {
+          if (!body.includes("'" + t + "'")) {
+            fail(`addCourse() no longer fires '${t}'. A course can arrive four ways and this is the `
+               + 'one place that notices any of them.');
+          }
+        }
+      }
+      const strays = [...ov.matchAll(/data\.courses\.unshift\(/g)].length;
+      if (strays > 1) {
+        fail(`data.courses.unshift( appears ${strays} times in overlays.js. It belongs inside `
+           + 'addCourse() and nowhere else — a course can arrive four ways, and "whenever a course '
+           + 'arrives" has to mean all four.');
+      }
+    }
+
+    /* ★ THE SWEEP OPENS NOTHING. It runs from the frame loop; a door call in
+       there would be the popup this whole design refuses. */
+    {
+      const body = noComments(fnBody(ov, 'sweepMessages'));
+      if (!body) fail('overlays.js has no sweepMessages()');
+      else {
+        for (const door of ['openMessages(', 'showOv(', 'hideAllOv(', 'talkTo(', 'openCourses(']) {
+          if (body.includes(door)) {
+            fail(`sweepMessages() calls ${door} — it runs unpressed from the frame loop, so it may `
+               + 'write a message and redraw a card, and NOTHING else. This is the line between a '
+               + 'glanceable dot and a popup.');
+          }
+        }
+        if (!/notice\(/.test(body)) fail('sweepMessages() no longer notices anything');
+      }
+    }
+
+    /* ★ THE PHONE PREFERS THE LIVE CONVERSATION. Two duties, never both. */
+    {
+      const body = noComments(fnBody(ov, 'phoneTap'));
+      /* ⚠ THE CONDITION, NOT JUST THE CALL. Replacing the test with `if(false)`
+         left both function names in the body, so a check for the names alone
+         stayed green while the card always opened the wrong thing. Match the
+         branch: minimized, THEN restoreChat. */
+      if (!body || !/minimized[^;]*\)\s*return restoreChat\(\)/.test(body)
+          || !/openMessages\(\)/.test(body)) {
+        fail('phoneTap() no longer routes on whether a chat is pocketed — the card would say one '
+           + 'thing and do the other. It must be: minimized → restoreChat, otherwise → openMessages.');
+      }
+      const rp = noComments(fnBody(ov, 'renderChatPhone'));
+      if (rp && !/renderPhoneMessages/.test(rp)) {
+        fail('renderChatPhone() no longer falls through to messages when nothing is pocketed');
       }
     }
   }

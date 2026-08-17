@@ -83,4 +83,23 @@ contextBridge.exposeInMainWorld('desktopBridge', {
   dbWrite: (name, params) => ipcRenderer.invoke('desktop-db-write', { name, params }),
   dbWriteMany: (name, rows) => ipcRenderer.invoke('desktop-db-write-many', { name, rows }),
   dbReconnect: () => ipcRenderer.invoke('desktop-db-reconnect'),
+
+  /* ----- THE NEURAL VOICE, opt-in and desktop-only.
+
+     The web build has none of these, and `tts.js` tests for
+     `kokoroStart` before it will select the engine at all — so a browser
+     tab silently stays on Web Speech rather than discovering halfway
+     through a chapter that half a bridge is missing.
+
+     `kokoroNext` hands back one sentence of 16-bit PCM. Int16 rather than
+     Float32 halves what crosses the bridge for no audible difference. */
+  kokoroState: () => ipcRenderer.invoke('desktop-kokoro-state'),
+  kokoroInstall: () => ipcRenderer.invoke('desktop-kokoro-install'),
+  kokoroRemove: () => ipcRenderer.invoke('desktop-kokoro-remove'),
+  kokoroStart: (text, voice) => ipcRenderer.invoke('desktop-kokoro-start', { text, voice }),
+  kokoroNext: (jobId) => ipcRenderer.invoke('desktop-kokoro-next', { jobId }),
+  kokoroStop: (jobId) => ipcRenderer.invoke('desktop-kokoro-stop', { jobId }),
+  /* One press, one sentence, a real number — whether THIS machine can keep
+     up. Everything else about the voice was measured on one fast desktop. */
+  kokoroBench: () => ipcRenderer.invoke('desktop-kokoro-bench'),
 });

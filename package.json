@@ -35,10 +35,30 @@
       "dist/**/*",
       "electron/**/*",
       "tools/schema.sql",
-      "tools/migrations/*.sql"
+      "tools/migrations/*.sql",
+      "!release/**",
+      "!archive/**",
+      "!library-sources/**",
+      "!plans/**",
+      "!test/**",
+      "!**/node_modules/onnxruntime-web/**",
+      "!**/node_modules/sharp/**",
+      "!**/node_modules/@img/**",
+      {
+        "from": "build/sharp-stub",
+        "to": "node_modules/sharp"
+      },
+      "!**/node_modules/kokoro-js/voices/*.bin",
+      "**/node_modules/kokoro-js/voices/af_heart.bin",
+      "**/node_modules/kokoro-js/voices/af_bella.bin",
+      "**/node_modules/kokoro-js/voices/am_michael.bin",
+      "**/node_modules/kokoro-js/voices/bf_emma.bin"
     ],
+    "afterPack": "build/after-pack.cjs",
     "asarUnpack": [
-      "**/node_modules/@electric-sql/pglite/**"
+      "**/node_modules/@electric-sql/pglite/**",
+      "**/node_modules/onnxruntime-node/**",
+      "**/node_modules/kokoro-js/**"
     ],
     "directories": {
       "output": "release"
@@ -72,6 +92,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
+    "kokoro-js": "^1.2.1",
     "pg": "^8.22.0"
   }
 }

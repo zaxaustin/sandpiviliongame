@@ -30,6 +30,7 @@ import { esc, jsq } from './dom.js';
 import {
   STEP_WHERE, WHERE_KEYS, stepDoor, isToday, activeTask, earlierToday, beforeToday,
   stepsDone, allDone, canTake, closeOut, streakAfter, TASKS_NOTICE,
+  TASK_TAGS, tagOf,
 } from '../data/daily-tasks.js';
 import { Store } from '../data/store.js';
 import { ROLES, ROLE_KEYS } from '../data/roles.js';
@@ -85,6 +86,17 @@ export function openDailyTasks() {
   hideAllOv(); renderDailyTasks(); showOv('dailyTasksOv');
 }
 
+/* ★ WHICH KIND OF DAY'S WORK THIS IS. One small badge, because the steward
+   wanted learning and the rest of life to read apart on the same board
+   without becoming two boards. Derived where it can be (a task from a course
+   is study), stored only where a person had to say. */
+function tagBadge(t) {
+  const k = tagOf(t), v = TASK_TAGS[k];
+  if (!v) return '';
+  const colour = k === 'learning' ? '#8fb4d9' : '#7fa36b';
+  return `<span class="badge" style="border-color:${colour};color:${colour}">${v.icon} ${v.label}</span>`;
+}
+
 /* ---- the board -------------------------------------------------------- */
 function stepRow(t, i) {
   const s = (t.steps || [])[i]; if (!s) return '';
@@ -131,7 +143,7 @@ function renderDailyTasks() {
 
   const body = live ? `
     <div class="card" style="cursor:default;border-color:#7fa36b">
-      <div class="t">${esc(live.title || 'Today')}</div>
+      <div class="t">${esc(live.title || 'Today')} ${tagBadge(live)}</div>
       ${live.source && live.source.label
         ? `<div class="s">part of <b>${esc(live.source.label)}</b> — one sitting at a time</div>` : ''}
       <div class="s" style="margin-top:4px">${stepsDone(live)} of ${(live.steps || []).length} done</div>
