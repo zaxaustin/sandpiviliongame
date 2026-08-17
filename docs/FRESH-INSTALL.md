@@ -16,7 +16,7 @@ Two audiences, and they need different things:
 
 ## 1 · Windows
 
-**Download** `Sand Pavilion Setup 0.1.0-beta.7.exe` (101 MB).
+**Download** `Sand Pavilion Setup 0.1.0-beta.7.exe` (116 MB).
 
 **Optional, if you're the checking sort.** In PowerShell:
 
@@ -139,6 +139,32 @@ Ollama's servers and answered there. Your library, your notes, your day and
 your whole save never leave your computer. The chat header says
 `☁ leaves this device` on every message so you are never guessing, and a hosted
 model is **offered but never chosen for you**.
+
+---
+
+## 5b · The two things a new tester will not find on their own
+
+Both are **opt-in and easy to miss**, so they are named here rather than left to
+discovery.
+
+**A voice that reads like a person.** Pause menu → **🔊 Voice settings**, scroll
+to the bottom. The desktop app offers **Kokoro**, a small neural voice that runs
+on your own processor. It is an **88 MB download on first enable** — nothing is
+bundled in the installer — and after that it never touches the network again,
+including offline. Four voices; *Michael* is the steady one for long chapters.
+
+⚠ **It is CPU-only, so a thin laptop may not keep up.** Press
+**⏱ Check this computer**: it reads a sentence, times it, and says plainly
+whether this machine is comfortable, tight, or slower than speech. If it says
+slower, believe it and stay on the system voice — the feature is not broken,
+that machine is just not fast enough. **This is the single most useful thing to
+report back from a laptop.**
+
+**The residents will text you.** After you pin a course, a small card appears in
+the bottom-right corner — the same one a pocketed conversation uses. Sebastian,
+Quill and the Mountain Monk leave notes when they notice something. It is
+one-way, nothing is sent anywhere, and none of it needs an AI. Also reachable
+from the pause menu as **✉ Messages**.
 
 ---
 

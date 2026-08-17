@@ -12,7 +12,7 @@ keep your own work — one that belongs entirely to the machine it runs on.
 **Three promises, and they're the whole design:**
 
 1. **Nothing here can break by clicking around.** Every panel closes with Esc.
-2. **Nothing phones home.** There is no account, no server, and no analytics —
+2. **Nothing phones home.** There is no account, no server, and no analytics —/
    not as a policy, but because there is nothing built to send anything
    anywhere.
 3. **It arrives mostly empty on purpose.** The shelves, the residents and the
@@ -69,7 +69,10 @@ file](#running-it-from-source) — the download is the way in for everyone else.
 1. **Walk south into the Library.** Face a shelf, press `E`, pick a book, and
    read it. Several are complete, real books. Then press **🔊 Read aloud** and
    let it read to you — that works instantly, with nothing installed, and it's
-   the fastest way to feel what this place is for.
+   the fastest way to feel what this place is for. *(If the built-in voice
+   grates: the desktop app can download a **neural voice** that reads like a
+   person — 88 MB, opt-in, offline forever after. Pause menu → 🔊 Voice
+   settings.)*
 2. **Press `Esc` → 🗒 Your Notes** and write one line. It saves as you type.
 3. **Go into the Study** (its own door on the Grounds) and set an intention for
    the day at the Writing Desk.
@@ -85,6 +88,49 @@ None of that needs an account, an internet connection, or an AI.
 
 The full room-by-room guide — every desk, every resident, what each one is for
 — is **[`MANUAL.md`](MANUAL.md)**, written for someone non-technical.
+
+---
+
+## Take a course, and actually walk it
+
+The Course Board (in the Study) holds courses written in a **portable Markdown
+format** — draft one with any AI you like, paste it in, and walk it a module at
+a time. Two real ones live in [`courses/`](courses/).
+
+Each open module tells you **what gets you to the next one**: read the book,
+write notes as you read, do the homework, keep it up for the days the course
+asks for. **There is nothing to tick.** A row fills in because you actually
+marked the book read, actually wrote a note on it, actually kept an attempt,
+actually sat on that many separate days. And what no program can check — whether
+you could rebuild the theory from a blank page — says so plainly and carries no
+tick at all.
+
+The **Learning Desk** is where the work happens: the blank page comes first,
+before any help is offered; what you write is kept and you can look back over
+every attempt; and each course becomes a **real folder of plain Markdown on your
+disk** you can open without this app. If a course states a standard, you can hand
+your homework in to be marked against **the author's own bar** — three words,
+never a score, and it changes nothing you wrote.
+
+**📋 Take this into today** turns what's left of a module into today's tasks,
+each with a door to the room where it happens — or no door at all, when the next
+thing is to go and wire the circuit yourself. Tasks are tagged 🎓 learning or
+🌿 personal, so study and the rest of life share one board.
+
+---
+
+## The residents notice things
+
+Nobody used to say anything unless spoken to. Now Sebastian, Quill and the
+Mountain Monk leave you a note when they notice something while you work — on
+the small card in the bottom-right corner. Sebastian offers to hold one thing on
+your board; Quill tells you which of a course's texts are missing from your
+shelf, and says plainly that fetching them is your part. The Monk will tell you
+to go outside and eat something, at some length, and he means it.
+
+It's one-way, like a pager — each note opens the real conversation if you want
+it. Sparse by construction: one note per thing, ever, and only one waiting per
+resident. **None of it needs an AI**, and nothing is sent anywhere.
 
 ---
 

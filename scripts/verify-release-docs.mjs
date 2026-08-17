@@ -98,6 +98,33 @@ if (!existsSync(installer)) {
       + 'folder). Raise this number only with a reason worth writing down.');
   }
 
+  /* ★ AND THE SIZE A DOC PROMISES MUST BE THE SIZE ON DISK.
+     `docs/FRESH-INSTALL.md` told testers to download a 101 MB file for four
+     days after it became 116 MB. Small, and the same shape as every other
+     fault this script exists for: a person following the instructions meets
+     something other than what they were told.
+
+     ⚠ THIS IS THE THIRD TIME THAT SHAPE HAS SHOWN UP IN ONE DAY — the 977 MB
+     installer the hash check happily certified, the release notes that never
+     mentioned the largest feature in the build, and this. Every other check
+     here asks whether the docs agree with the artifact's IDENTITY (version,
+     filename, hash, age). Almost none asks whether they DESCRIBE it. Worth
+     remembering the next time this file is extended.
+
+     ±3 MB, because a doc that rounds is not lying. */
+  for (const d of ['docs/FRESH-INSTALL.md', 'plans/BETA-RELEASE-NOTES.md']) {
+    if (!existsSync(d)) continue;
+    const text = readFileSync(d, 'utf8');
+    const m = new RegExp('Setup ' + version.replace(/\./g, '\\.') + '\\.exe`?\\s*\\((\\d+)\\s*MB\\)')
+      .exec(text);
+    if (!m) continue;
+    const claimed = Number(m[1]);
+    if (Math.abs(claimed - sizeMB) > 3) {
+      bad(`${d} tells a tester to download a ${claimed} MB file; it is ${sizeMB.toFixed(0)} MB. `
+        + 'They will wonder what they actually got.');
+    }
+  }
+
   const real = createHash('sha256').update(readFileSync(installer)).digest('hex').toUpperCase();
   let sawOne = false;
   for (const d of DOCS) {
