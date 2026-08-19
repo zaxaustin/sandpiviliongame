@@ -7,7 +7,7 @@ import {
   blocked, facingTile, opposite, MOVE_TIME, dueSoon, todayKey,
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
-import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openLearningDesk, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome, sweepReminders, sweepMessages, openFoldReflection, openInheritanceHall, openPlantHere, openPlanting, openCommonsTable, openMyLibrary, openAlexandria, openLearningTree, openLab, openLift, openBookIntake, openNotesLog, initGlobalDrop, refreshBackendStatus, carryMigrate } from './ui/overlays.js';
+import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openLearningDesk, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome, sweepReminders, sweepMessages, openFoldReflection, openInheritanceHall, openPlantHere, openPlanting, openCommonsTable, openMyLibrary, openAlexandria, openLearningTree, openLab, openLift, openBookIntake, openNotesLog, initGlobalDrop, refreshBackendStatus, carryMigrate, loadDemoShelf, demoShelfLoaded } from './ui/overlays.js';
 import { atTitleScreen } from './ui/dom.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
@@ -124,6 +124,19 @@ refreshLibraryStorageStatus();
 refreshBackendStatus();
 document.getElementById('connBtn').addEventListener('click', openConnections);
 document.getElementById('welcomeBtn').addEventListener('click', openWelcome);
+/* THE DEMO SHELF IS A BROWSER-ONLY DOOR. Someone who installed the app is
+   living here and fills their own shelf; someone who opened a link is looking,
+   and an empty room tells them nothing about what this is. The button is in the
+   markup with display:none and only ever turned ON — so the installed app
+   cannot show it by accident, which is the safer direction to fail. */
+{
+  const demo = document.getElementById('demoBtn');
+  if (demo && !window.desktopBridge) {
+    demo.style.display = '';
+    if (demoShelfLoaded()) demo.textContent = '✕ Clear the demo shelf';
+    demo.addEventListener('click', loadDemoShelf);
+  }
+}
 document.getElementById('menuBtn').addEventListener('click', openMenu);
 initGlobalDrop();   // a file dropped anywhere on the window is shelved — see overlays.js
 

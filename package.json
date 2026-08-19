@@ -18,7 +18,8 @@
     "electron:build:beta": "vite build --mode beta && node scripts/verify-beta-build.mjs && electron-builder",
     "verify:beta": "node scripts/verify-beta-build.mjs",
     "icon": "node scripts/make-icon.mjs",
-    "verify:release": "node scripts/verify-release-docs.mjs"
+    "verify:release": "node scripts/verify-release-docs.mjs",
+    "demo:shelf": "node scripts/build-demo-shelf.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

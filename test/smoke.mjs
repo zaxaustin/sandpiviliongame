@@ -210,6 +210,50 @@ const fail = (msg) => failures.push(msg);
     }
   }
 
+  /* 8 · THE DEMO SHELF CANNOT DRIFT FROM ITS SOURCES.
+     src/game/data/demo-shelf.js is generated from courses/*.course.md and
+     library-sources/. Committing a generated file beside its inputs is a list
+     that must match another file — rule 4's exact shape — so this rebuilds it
+     from the same inputs and diffs the text. Add a course and forget
+     `npm run demo:shelf`, and the deployed demo silently keeps the old pair. */
+  {
+    const gen = readFileSync(new URL('../src/game/data/demo-shelf.js', import.meta.url), 'utf8');
+    const { demoShelfSource, DEMO_SHELF_STATS } = await import('../scripts/build-demo-shelf.mjs');
+    const fresh = demoShelfSource();
+    if (gen.replace(/\r\n/g, '\n') !== fresh.replace(/\r\n/g, '\n')) {
+      fail('src/game/data/demo-shelf.js is stale — regenerate it with `npm run demo:shelf`. It is '
+         + 'built from courses/ and library-sources/, and a generated file committed beside its '
+         + 'own inputs drifts the moment either changes.');
+    }
+    if (DEMO_SHELF_STATS.bytes > DEMO_SHELF_STATS.ceiling * 0.6) {
+      fail(`the demo shelf is ${Math.round(DEMO_SHELF_STATS.bytes / 1024)} KB, over 60% of the `
+         + 'browser save ceiling. A demo that fills the room and then refuses the visitor their own '
+         + 'book teaches exactly the wrong thing.');
+    }
+    /* the whole point is that it is OPT-IN and browser-only */
+    const idx = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    if (!/id="demoBtn"[^>]*style="display:none"/.test(idx)) {
+      fail('#demoBtn is no longer hidden by default in index.html. It is turned ON only when there '
+         + 'is no desktop bridge — so the installed app cannot show it by accident, which is the '
+         + 'safe direction to fail.');
+    }
+    /* scoped to the block that actually reveals the button, not the whole file:
+       "desktopBridge appears in main.js somewhere" would be satisfied by any
+       unrelated use — the drift shape this codebase hits most often. */
+    const reveal = /getElementById\('demoBtn'\)[\s\S]{0,500}/.exec(noComments(MAIN_SRC));
+    if (!reveal) {
+      fail('main.js no longer looks up #demoBtn at all, so the demo button can never appear.');
+    } else if (!/!window\.desktopBridge/.test(reveal[0])) {
+      fail('main.js reveals #demoBtn without checking for a desktop bridge — the installed app '
+         + 'would offer a demo shelf, which is the seed shelf the empty-shelf decision removed.');
+    }
+    const seedSrc = noComments(readFileSync(new URL('../src/game/data/seed.js', import.meta.url), 'utf8'));
+    if (!/RAW_SEED_LIBRARY\s*=\s*\[\s*\]/.test(seedSrc)) {
+      fail('SEED_LIBRARY is no longer empty. The demo shelf exists precisely so that it can stay '
+         + 'empty — nothing ships ON the shelves in any build, and a press is what fills them.');
+    }
+  }
+
   /* 7 · a browser gets the cover and nothing else.
      MEASURED against the deployed build: a 563 KB book is fine and the NINTH
      throws QuotaExceededError at ~5 MB. One illustrated book at the desktop
