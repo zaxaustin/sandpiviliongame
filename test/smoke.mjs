@@ -8442,8 +8442,27 @@ for (const d of SEED_LIBRARY) {
   const letters = s => s.toLowerCase().replace(/[^a-z0-9À-ɏ]/g, '').split('').sort().join('');
   let sources = [];
   try { sources = readdirSync(new URL('../library-sources/', import.meta.url)).filter(f => f.endsWith('.txt')); } catch { /* below */ }
-  if (sources.length < 10) fail(`library-sources/ has ${sources.length} .txt file(s) — the real-title sweep `
-                              + 'has nothing to sweep, so this whole section is vacuous');
+  /* ⚠ library-sources/ IS GITIGNORED (.gitignore:9) — the steward's own pile of
+     downloaded books, not repo content. On every fresh clone, which is every CI
+     runner, there are none, and this sweep FAILED THE WHOLE SUITE there while
+     being green on the machine that has them.
+
+     Verified 2026-08-19 by cloning the repo and running the suite against it:
+     `78cd4a0`, the commit sitting on GitHub, fails exactly this way. CI has
+     been red on main for some time and it was read as a tagging problem.
+
+     It SKIPS LOUDLY rather than passing quietly — a suite that goes green
+     because the thing it checks is missing is rule 5 wearing a tick, and the
+     same call docker-home.cjs makes about the container. The distinction that
+     matters: "I cannot check this here" is not "this is fine". */
+  if (!sources.length) {
+    console.log('  --   real-title sweep SKIPPED: library-sources/ is not on this machine\n'
+              + '       (gitignored — the steward\'s own downloads). tidyTitle() is still covered by\n'
+              + '       the fixed cases above; only the whole-shelf sweep is unrun here.');
+  } else if (sources.length < 10) {
+    fail(`library-sources/ has ${sources.length} .txt file(s) — the real-title sweep `
+       + 'has nothing to sweep, so this whole section is vacuous');
+  }
   for (const f of sources) {
     const head = readFileSync(new URL(f, new URL('../library-sources/', import.meta.url)), 'utf8').slice(0, 4000);
     const m = /^Title:\s*(.+)$/m.exec(head);
@@ -8461,8 +8480,11 @@ for (const d of SEED_LIBRARY) {
     }
     if (/^[a-z]/.test(once) && !/^[a-z]/.test(t)) fail(`tidyTitle() lowercased the first word of ${JSON.stringify(t)}`);
   }
-  if (swept < 10) fail(`only ${swept} real title(s) were swept — library-sources/ files have stopped carrying `
-                     + 'a `Title:` line, so the sweep is no longer testing anything');
+  /* only meaningful when there was a shelf to sweep — see the skip above */
+  if (sources.length && swept < 10) {
+    fail(`only ${swept} real title(s) were swept — library-sources/ files have stopped carrying `
+       + 'a `Title:` line, so the sweep is no longer testing anything');
+  }
 
   /* --- 3b · ★ NO INVISIBLE CHARACTERS IN SOURCE.
      Found the hard way on 2026-08-14, the day book-title.js was written: the
