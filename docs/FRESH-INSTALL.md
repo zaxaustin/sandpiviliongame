@@ -1,6 +1,6 @@
 # Installing the Sand Pavilion, from nothing
 
-**Written 2026-08-13 for `0.1.0-beta.7.1`.** Every path in it was measured on a
+**Written 2026-08-13 for `0.1.0-beta.7.2`.** Every path in it was measured on a
 real packaged build rather than reasoned from Electron's defaults — see the
 note at the end of *Where your things live*, because the answer is not the one
 you would guess.
@@ -16,12 +16,12 @@ Two audiences, and they need different things:
 
 ## 1 · Windows
 
-**Download** `Sand Pavilion Setup 0.1.0-beta.7.1.exe` (116 MB).
+**Download** `Sand Pavilion Setup 0.1.0-beta.7.2.exe` (116 MB).
 
 **Optional, if you're the checking sort.** In PowerShell:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.1.exe" -Algorithm SHA256
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.2.exe" -Algorithm SHA256
 ```
 
 It must print:
@@ -53,8 +53,8 @@ Two files, and **they are not interchangeable**:
 
 | file | for |
 |---|---|
-| `Sand Pavilion 0.1.0-beta.7.1 arm64.dmg` | Apple Silicon — M1, M2, M3, M4 |
-| `Sand Pavilion 0.1.0-beta.7.1 x64.dmg` | Intel Macs |
+| `Sand Pavilion 0.1.0-beta.7.2 arm64.dmg` | Apple Silicon — M1, M2, M3, M4 |
+| `Sand Pavilion 0.1.0-beta.7.2 x64.dmg` | Intel Macs |
 
 Not sure which you have?  → *(Apple menu) → About This Mac*. If it says **Apple
 M-something**, take arm64.
@@ -179,7 +179,7 @@ cannot be run here without one extra step.
 
 ### Where your things live
 
-Measured on the packaged `0.1.0-beta.7.1`, by asking the app itself:
+Measured on the packaged `0.1.0-beta.7.2`, by asking the app itself:
 
 ```
 %APPDATA%\sand-pavilion\

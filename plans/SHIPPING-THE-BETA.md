@@ -28,7 +28,7 @@ this build.
 ## The file
 
 ```
-release/Sand Pavilion Setup 0.1.0-beta.7.1.exe        101 MB
+release/Sand Pavilion Setup 0.1.0-beta.7.2.exe        101 MB
 SHA256  B480C7489D86A0E649F29B1016BBB0EEC61362FFF7986F0209BDD607B4ED3577
 ```
 
@@ -113,7 +113,7 @@ Include the SHA-256 above if they're the kind of person who'd check it.
 They can verify with:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.1.exe" -Algorithm SHA256
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.2.exe" -Algorithm SHA256
 ```
 
 ---
@@ -143,9 +143,9 @@ Once that's decided:
 
 ```bash
 gh auth login                      # you are not logged in yet
-gh release create v0.1.0-beta.7.1 \
-  "release/Sand Pavilion Setup 0.1.0-beta.7.1.exe" \
-  --title "Sand Pavilion 0.1.0-beta.7.1" \
+gh release create v0.1.0-beta.7.2 \
+  "release/Sand Pavilion Setup 0.1.0-beta.7.2.exe" \
+  --title "Sand Pavilion 0.1.0-beta.7.2" \
   --notes-file plans/BETA-RELEASE-NOTES.md \
   --prerelease
 ```
@@ -237,8 +237,8 @@ pushed a tag to fire it.
    runner and a real Mac.
 2. The Mac job produces **two** files, because `package.json`'s `mac.target`
    asks for both arches:
-   `Sand Pavilion 0.1.0-beta.7.1 arm64.dmg` (M1 and later) and
-   `Sand Pavilion 0.1.0-beta.7.1 x64.dmg` (Intel). **Ask which Mac your friend
+   `Sand Pavilion 0.1.0-beta.7.2 arm64.dmg` (M1 and later) and
+   `Sand Pavilion 0.1.0-beta.7.2 x64.dmg` (Intel). **Ask which Mac your friend
    has**, or send both — an arm64 build will not open on an Intel Mac.
 3. Download them from the **Actions tab → the run → Artifacts**, then attach
    them to the Release beside the `.exe`.
@@ -256,7 +256,7 @@ pushed a tag to fire it.
 for public repos. Nobody has to own one.
 
 ```bash
-git tag v0.1.0-beta.7.1 && git push --tags
+git tag v0.1.0-beta.7.2 && git push --tags
 ```
 
 Then the Actions tab, wait a few minutes, download both artifacts, and attach
@@ -329,7 +329,7 @@ exactly as intended. That is the bar the beta is actually held to.
 **Yes, and it is now the only remaining question that a person answers.**
 Verified on this build: the packaged app boots, starts and works; the real
 `.exe` opens its own database with its schema applied inside the pack and names
-itself `0.1.0-beta.7.1`; old saves survive; every panel opens with no AI, no
+itself `0.1.0-beta.7.2`; old saves survive; every panel opens with no AI, no
 Docker and no cloud; not one external network request; no keys in the bundle;
 `npm test` plus 33 browser and 9 Electron suites green, and the one that drives
 the artifact itself.

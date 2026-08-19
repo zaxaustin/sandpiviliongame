@@ -1,4 +1,4 @@
-**Sand Pavilion 0.1.0-beta.7.1** — a small world for reading, thinking, and the
+**Sand Pavilion 0.1.0-beta.7.2** — a small world for reading, thinking, and the
 quiet work of a day, kept entirely on your own machine.
 
 This is a **beta**. Expect rough edges, and please tell me about them.
@@ -7,11 +7,11 @@ This is a **beta**. Expect rough edges, and please tell me about them.
 
 ### Installing
 
-**Windows:** download `Sand Pavilion Setup 0.1.0-beta.7.1.exe` below and run it.
+**Windows:** download `Sand Pavilion Setup 0.1.0-beta.7.2.exe` below and run it.
 It installs for you only — no administrator password — and appears in the Start
 menu.
 
-**macOS:** `Sand Pavilion 0.1.0-beta.7.1 arm64.dmg` (Apple Silicon — M1 and
+**macOS:** `Sand Pavilion 0.1.0-beta.7.2 arm64.dmg` (Apple Silicon — M1 and
 later) or `… x64.dmg` (Intel Macs). It is **not notarised**, so macOS will
 likely say *"Sand Pavilion is damaged and can't be opened"* — that is what it
 says about every unsigned app, and it is not true. **Right-click the app →
@@ -32,7 +32,7 @@ then **Run anyway**. That's because I haven't bought a code-signing certificate
 because anything is wrong. If you'd like to check the download:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.1.exe" -Algorithm SHA256
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.2.exe" -Algorithm SHA256
 # B480C7489D86A0E649F29B1016BBB0EEC61362FFF7986F0209BDD607B4ED3577
 ```
 
@@ -62,6 +62,35 @@ who will talk with you — **if** you give them a mind to think with.
 you plan, not a word you say to a resident. There is no account and no server;
 the app makes **zero** network requests on startup. Sharing, when you want it,
 happens by writing a file and handing it over.
+
+---
+
+### beta.7.2 — the same Pavilion, cut properly
+
+**Nothing in the app changed.** 7.2 does exactly what 7.1 does, byte for byte
+in the source: `git diff` across `src/`, `electron/` and `index.html` between
+the two is empty. If you already have 7.1 installed and it is working, there is
+no reason to update.
+
+It exists because the *release* around 7.1 was wrong in ways worth fixing at the
+root rather than patching:
+
+- The **tag** pointed at the previous version's code, so the release page
+  offered a 7.1 download beside a "Source code" link containing beta.7.
+- The **installer workflow had never once passed** — not for beta.6, beta.7 or
+  7.1. `electron-builder` publishes on its own when it sees CI *and* a tag, and
+  wants a token this workflow deliberately does not have. One flag. **The macOS
+  dmg had therefore never been built at all**, despite the notes above offering
+  one.
+- `npm test` had been **failing on every clean checkout** for weeks, because two
+  guards read `library-sources/`, which is gitignored. They skip loudly now.
+  Green here and red there is the worst kind of failure to chase.
+- The **release gate compared file timestamps**, which git rewrites on any
+  checkout — so it called a perfectly current installer stale. It compares the
+  actual source against the commit the build recorded now.
+
+So: same software, and this time the tag, the hash, the download and the source
+all agree, and CI builds both platforms from a clean clone.
 
 ---
 
