@@ -57,8 +57,22 @@ jobs:
       # without this the Mac app would wear the generic Electron icon.
       - run: node scripts/make-icon.mjs
 
+      # ⚠ `--publish never` IS NOT OPTIONAL, AND ITS ABSENCE IS WHY THIS
+      # WORKFLOW HAD NEVER ONCE PASSED (beta.6, beta.7, beta.7.1 — every run
+      # since it was written, on both runners).
+      #
+      # electron-builder decides to PUBLISH on its own: when it detects CI and
+      # the ref is a tag, it tries to upload to a GitHub Release and needs
+      # GH_TOKEN to do it. This workflow has no secrets on purpose (see the
+      # header), and it is only ever triggered BY A TAG — so every run hit
+      # exactly the condition that makes electron-builder reach for a token
+      # that was never going to be there.
+      #
+      # The artifacts are collected by upload-artifact below, which is the
+      # intent: build them, hand them over, let a person decide what to attach
+      # to a Release. Publishing was never wanted here, only assumed.
       - name: Build the installer
-        run: npm run electron:build:beta
+        run: npm run electron:build:beta -- --publish never
 
       - uses: actions/upload-artifact@v4
         with:
