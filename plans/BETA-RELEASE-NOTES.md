@@ -1,4 +1,4 @@
-**Sand Pavilion 0.1.0-beta.7** — a small world for reading, thinking, and the
+**Sand Pavilion 0.1.0-beta.7.1** — a small world for reading, thinking, and the
 quiet work of a day, kept entirely on your own machine.
 
 This is a **beta**. Expect rough edges, and please tell me about them.
@@ -7,11 +7,11 @@ This is a **beta**. Expect rough edges, and please tell me about them.
 
 ### Installing
 
-**Windows:** download `Sand Pavilion Setup 0.1.0-beta.7.exe` below and run it.
+**Windows:** download `Sand Pavilion Setup 0.1.0-beta.7.1.exe` below and run it.
 It installs for you only — no administrator password — and appears in the Start
 menu.
 
-**macOS:** `Sand Pavilion 0.1.0-beta.7 arm64.dmg` (Apple Silicon — M1 and
+**macOS:** `Sand Pavilion 0.1.0-beta.7.1 arm64.dmg` (Apple Silicon — M1 and
 later) or `… x64.dmg` (Intel Macs). It is **not notarised**, so macOS will
 likely say *"Sand Pavilion is damaged and can't be opened"* — that is what it
 says about every unsigned app, and it is not true. **Right-click the app →
@@ -19,9 +19,12 @@ Open → Open.** Only needed the first time. If it still refuses:
 `xattr -dr com.apple.quarantine "/Applications/Sand Pavilion.app"`.
 
 **Or neither:** [sandpiviliongame.vercel.app](https://sandpiviliongame.vercel.app)
-is the same Pavilion in a browser tab, nothing to install. A tab holds roughly
-10–20 books rather than 500, and reaching a local AI from a browser needs
-`OLLAMA_ORIGINS` set; everything else is the same.
+is the same Pavilion in a browser tab, nothing to install. **A tab holds about
+nine average books** rather than 500 — measured, not estimated: a browser keeps
+every book's text in one ~5 MB store, and the Pavilion now refuses the tenth
+politely instead of letting the browser throw. Illustrated books keep their
+cover in a tab but not their figures, for the same reason. Reaching a local AI
+from a browser needs `OLLAMA_ORIGINS` set; everything else is the same.
 
 **Windows will warn you it doesn't recognise the app.** Click **More info**,
 then **Run anyway**. That's because I haven't bought a code-signing certificate
@@ -29,8 +32,8 @@ then **Run anyway**. That's because I haven't bought a code-signing certificate
 because anything is wrong. If you'd like to check the download:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.exe" -Algorithm SHA256
-# CFC0A574A536B8230CC74E6D773222BD8748776AF14C38036CFC02D8B7D5444F
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.1.exe" -Algorithm SHA256
+# 8150529360AE3BB5EE25D53441F2F6858C6D64248238B0FA697B4AFD322603C8
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
@@ -59,6 +62,47 @@ who will talk with you — **if** you give them a mind to think with.
 you plan, not a word you say to a resident. There is no account and no server;
 the app makes **zero** network requests on startup. Sharing, when you want it,
 happens by writing a file and handing it over.
+
+---
+
+### New in beta.7.1 — the first press, and books that keep their pictures
+
+A friction pass. No new rooms; the things that made the Pavilion feel unfinished
+to somebody arriving for the first time.
+
+**The button for first-time visitors was invisible.** The title screen's
+**🧭 New here? Start here** opened the welcome panel *behind* the title screen —
+so the one control in the whole application addressed to a newcomer was the one
+that looked broken. It works. So does **← Back** in the Connections panel, which
+had the same fault.
+
+**Illustrated books keep their illustrations.** An `.epub` full of diagrams used
+to arrive as text alone, silently — a drawing book reduced to captions for
+pictures that weren't there. Now the figures come in with the text and sit on
+the page where they belong, the cover shows beside the book in the Index and on
+the shelf, and **the book always says what it kept**: how many illustrations
+came with it, and plainly when some could not be.
+
+**The arrows work in a book.** ← → turn the page, ↑ ↓ scroll it. They used to do
+nothing at all — not move you, not turn a page, not even scroll — while
+PageUp/PageDown quietly still worked, which is what made it feel broken.
+
+**The player no longer walks off on their own.** Losing focus mid-step — alt-tab,
+another window — used to leave a direction stuck down.
+
+**An empty Library now explains itself.** The shelves start empty on purpose, and
+the Library says so, points at the table that brings a book in, and names where
+free books come from. Quill has stopped giving tours of shelves that aren't
+there.
+
+**Removing a book actually removes it**, and a book you added twice no longer
+appears twice in the Index.
+
+**In a browser tab**, the Pavilion now refuses a book *before* the tab runs out
+of room rather than after, and says how to get past it. A tab holds about nine
+average books — the deployed site also has a **📚 See a demo shelf** button that
+fills it with real public-domain books and two real courses in one press, and
+clears again just as easily.
 
 ---
 

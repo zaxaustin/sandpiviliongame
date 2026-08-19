@@ -385,7 +385,28 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
-**Where things stand, end of 2026-08-18 — READ THIS ONE FIRST.**
+> ## ✅ 0.1.0-beta.7.1 IS CUT AND VERIFIED — 2026-08-19
+>
+> ```
+> installer   116.5 MB  (same as beta.7 — the onnxruntime pruning held)
+> sha-256     8150529360AE3BB5EE25D53441F2F6858C6D64248238B0FA697B4AFD322603C8
+> npm test · packaged-boot · packaged-exe · verify:release   ALL GREEN
+> ```
+>
+> The `.exe` names itself `0.1.0-beta.7.1`, reaches its database, and
+> transformers.js + kokoro-js resolve inside the asar. **Windows only** — the
+> Mac was not built (the available Air is too old to run Ollama, which makes a
+> Pavilion with no residents). `package.json` already configures a dmg for
+> arm64+x64 and `after-pack.cjs` already has the macOS path, so nothing blocks
+> it but a machine.
+>
+> ⚠ **`ELECTRON_RUN_AS_NODE` is set to `'1'` in this shell.** Every artifact
+> command needs `env -u ELECTRON_RUN_AS_NODE`; with it set the `.exe` runs as
+> node and exits 9, which is indistinguishable from a crash on boot.
+>
+> Full account in [`archive/dev-log-2026-08-19.txt`](archive/dev-log-2026-08-19.txt).
+
+**Where things stand, end of 2026-08-18 — the slice that made 7.1.**
 Full account in [`archive/dev-log-2026-08-18.txt`](archive/dev-log-2026-08-18.txt).
 
 > ## 🚪 beta 7.1 — THE FIRST PRESS, AND THE ILLUSTRATED BOOK
@@ -511,7 +532,53 @@ Full account in [`archive/dev-log-2026-08-18.txt`](archive/dev-log-2026-08-18.tx
 > a card's title is `📖 <title> <badges>`, so an exact-match regex found nothing
 > and "the removed book is gone" was true before anything was removed.
 >
+> ### 🔐 THE DEPENDENCY SURFACE, MEASURED — and the decision to keep it
+>
+> Raised 2026-08-19: *"i see too many node modules that should be hand written
+> code its a securiy vunerablity."* Measured rather than argued.
+>
+> **286 packages are installed; THREE ship.** `files` in `package.json` decides
+> what enters the installer — `electron`, `electron-builder`, `vite` and
+> `puppeteer-core` are devDependencies and never do. **The web build ships none
+> of them**: the Vercel deployment is the vite bundle and nothing else, so it
+> has zero npm runtime surface.
+>
+> **Every runtime advisory traces to one dependency — the voice:**
+> ```
+> kokoro-js                     HIGH      ← the optional neural voice
+>  └─ @huggingface/transformers HIGH
+>      ├─ sharp                 HIGH      ← libvips CVEs; ALREADY STUBBED OUT ✓
+>      └─ onnxruntime-node
+>          └─ tar               MODERATE  ← ships, via asarUnpack
+> ```
+> Without it the runtime tree is `@electric-sql/pglite` (0 transitive) and `pg`
+> (1 transitive). Two packages.
+>
+> **KEPT, DELIBERATELY, 2026-08-19:** *"We can't cut such an essential part of
+> what makes the Sand Pavilion usable."* And the reasoning is sound rather than
+> sentimental — rule 9 says the Pavilion is slow only where **the slowness is
+> someone**, a character's speaking rate. A flat SAPI voice undercuts exactly
+> that. Read-aloud would survive a cut (`tts.js` is the Web Speech API and works
+> standalone; Kokoro is the neural layer on top) — but the *quality* that makes
+> pacing read as a person would not.
+>
+> ⚠ **What this costs, stated so it is a decision and not an oversight:** four
+> advisories, a native ML runtime in the installer, ~25 MB. And the honest half
+> of the original worry, which is NOT about what ships — **a compromised dev
+> dependency can poison the installer at build time.** 286 packages is 286
+> chances during `electron:build:beta`. That is a supply-chain risk, it is real,
+> and nothing here removes it.
+>
+> **Not a reason to revisit casually. Reasons to revisit:** the neural voice
+> turns out not to be worth it once somebody actually listens to it (nobody has
+> — see below), or a CVE lands that reaches the renderer rather than a build
+> step, or `onnxruntime` is needed for nothing else and a smaller TTS exists.
+>
 > ### Still open
+> 0. **NOBODY HAS EVER LISTENED TO THE NEURAL VOICE.** It is built, measured and
+>    unevaluated; no dev log records anyone hearing it. It is now a *kept*
+>    dependency carrying four advisories, which makes judging it overdue rather
+>    than optional. `test/live/kokoro-voice.cjs` stands it up.
 > 1. **`buildDraftingPrompt()`/`buildExtendPrompt()` say nothing about free or
 >    public-domain sources**, and their shelf block is conditional on
 >    `have.length` — so on an empty shelf *all* reading guidance vanishes.
@@ -1944,7 +2011,7 @@ of you. A lesson drafts out of the work you did.
 
 **`CLAUDE.md` was streamlined at the steward's request**; the long version with
 the reasoning is at `archive/CLAUDE-full-2026-08-04.md`. The storage ceiling in
-it is **measured, not guessed** — web ~10–20 books, desktop hundreds, and
+it is **measured, not guessed** — web ~9 books (re-measured 2026-08-19), desktop hundreds, and
 **Docker buys capacity for the book TEXT, not search** (search ships with the
 app). This paragraph said the reverse until 2026-08-04 and contradicted the
 table three sections above it; if you find a third phrasing anywhere, the

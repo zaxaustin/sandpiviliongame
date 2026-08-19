@@ -385,7 +385,7 @@ rather than "on nothing", so a third case exists: **neither**.
 
 | where | ceiling | why |
 |---|---|---|
-| **web build** | **~10–20 books** | text goes inline into a ~5–10 MB localStorage quota |
+| **web build** | **~9 books, MEASURED 2026-08-19** | text goes inline; the ninth 563 KB book fills a ~5 MB quota. `WEB_SAVE_CEILING` refuses before `setItem` throws |
 | **desktop app** | **500 by default, the VISITOR sets it** (25–5,000) | `libraryWrite` puts text in `.txt` under userData; the save keeps only the catalogue row |
 | **+ Docker** | no practical limit | MinIO holds the text outside the app |
 

@@ -76,7 +76,7 @@ a dozen" for everyone who is not you.
 - **Never a fake install button.** We do not shell out to Docker. Say the
   step, make it copyable, then detect the result and say plainly that it
   worked.
-- The honest ceiling stays visible throughout: **web ~10–20 books · desktop
+- The honest ceiling stays visible throughout: **web ~9 books (measured) · desktop
   hundreds · +Docker no practical limit.**
 
 ## 3 · Point a real model at a 415-book Library

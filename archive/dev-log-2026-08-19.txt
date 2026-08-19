@@ -1,0 +1,245 @@
+================================================================
+DEV LOG — 2026-08-19
+beta 7.1 CUT — the demo shelf, the cover, and a dependency decision
+================================================================
+
+Continues 2026-08-18. That log holds the four big pieces (the invisible
+front door, the arrows, the illustrated book, the empty Library). This
+one is the demo deployment, the cosmetics, the security question, and
+the build itself.
+
+
+----------------------------------------------------------------
+THE DEMO SHELF — one press, and it does not reverse the decision
+----------------------------------------------------------------
+
+The steward, presenting the deployed site: add the courses and some
+books so there is something to look at, then lock it.
+
+⚠ THAT CONTRADICTS A DECISION RECORDED AS PERMANENT — "THE SHELF STARTS
+EMPTY, AND THAT IS THE FINISHED POSITION." Raised before building rather
+than after, and the resolution is a distinction rather than a
+compromise: CLAUDE.md's objection was never "books are bad", it was that
+"a shelf of 27 books nobody chose was doing the ownership argument
+harm." A PRESS IS A CHOICE. A shelf that is already full when you arrive
+is not.
+
+So: SEED_LIBRARY stays [] — a guard now fails if it ever isn't — and the
+deployed site gets a "📚 See a demo shelf" button.
+
+  · browser only. The button ships hidden and is turned ON only when
+    there is no desktop bridge, so the installed app cannot show it by
+    accident. The safe direction to fail.
+  · reversible, or it is a seed shelf wearing a button. Clearing touches
+    only demo- slugs and the courses it brought; a book the visitor
+    added is untouched, and that is asserted.
+  · 2.3 MB — 54% of the measured browser ceiling, deliberately leaving
+    room for the visitor's OWN book. A demo that fills the room and then
+    refuses them teaches exactly the wrong thing.
+  · a dynamic import, so it is its own chunk and costs nothing until
+    pressed. Same-origin only; preflight still green.
+
+⚠ ONLY TWO COURSES EXIST. The steward asked for three — Drawing,
+Buddhist meditation, electrical engineering. There is no Drawing course
+and no meditation course: not in courses/, not in userData, and the live
+leveldb is not readable from outside a running app. Said so rather than
+drafting two and presenting them as his. Shipped the two that are real.
+
+THE GENERATED FILE CANNOT DRIFT. src/game/data/demo-shelf.js is built
+from courses/ and library-sources/, and a generated file committed
+beside its own inputs is rule 4's exact shape. npm test rebuilds it from
+the same inputs and DIFFS THE TEXT, so adding a course and forgetting
+`npm run demo:shelf` is a red build rather than a stale demo.
+
+
+----------------------------------------------------------------
+THE WEB CEILING — nine books, and it refuses before the throw
+----------------------------------------------------------------
+
+Asked directly: past 13 books does it still work, does it work when
+other people add books, will we see overlapping data.
+
+MEASURED. Adding real-sized (563 KB) books one at a time against the
+deployed bundle: books 1–8 fine, the NINTH throws QuotaExceededError at
+~5.07 MB. Chrome's per-origin localStorage quota is a hard wall.
+
+The old behaviour was honest but LATE — persist() caught the throw and
+alerted "storage may be full" AFTER the book was on the shelf in memory
+and about to vanish on reload. WEB_SAVE_CEILING + webRoom() refuse
+before the write and name the way through.
+
+OVERLAPPING DATA: no, and it needed no code. localStorage is per-origin
+AND per-browser, there is no server, preflight already proves zero
+network. Pinned with two browser contexts so it stops being a claim.
+
+★ AND ASKING THE QUESTION CAUGHT A REGRESSION FROM THE DAY BEFORE.
+There is no sidecar in a browser, so the new figure work put images
+INLINE: one illustrated book weighed 1.6 MB of the 5 MB budget and three
+would have ended the library. figureBudgetFor() gives a tab the cover
+and nothing else, and says why — ABSENT or LOCKED, never DEGRADED.
+
+
+----------------------------------------------------------------
+COSMETICS — and one of them was a half-built feature
+----------------------------------------------------------------
+
+★ pics.cover WAS WRITTEN ON EVERY IMPORT AND READ BY NOTHING. Stored
+data no surface drew — this project's oldest bug shape, and it mattered
+most where it was least visible: in a BROWSER the cover is the only
+picture an illustrated book keeps, and it was invisible. Now drawn on
+the Index card and the shelf's book label.
+
+⚠ AND THE BOOK OUTLINE WAS WRONG THE FIRST WAY I BUILT IT. The steward
+asked for "an outline of a book on the outside", so I built a spine down
+the far left of the panel. LOOKING at it: the panel is a thousand pixels
+wide, so an edge treatment out there reads as a border and nothing more.
+
+The reader is ALREADY an open two-page spread — text left, notes right,
+a rule between them. Shading BOTH sides of that rule is the gutter of an
+open book, and it is the one place the eye already goes. That reads
+immediately where the spine did not. Leaves down both outer edges, and a
+shadow so it sits ON the desk. Pure CSS, no page-curl library.
+
+The page-turn animation stays deferred in VISUAL-POLISH-PLAN.md.
+
+
+----------------------------------------------------------------
+THE DEPENDENCY QUESTION — measured, and answered by the steward
+----------------------------------------------------------------
+
+Raised: "i see too many node modules that should be hand written code
+its a securiy vunerablity."
+
+286 PACKAGES ARE INSTALLED; THREE SHIP. `files` decides what enters the
+installer — electron, electron-builder, vite and puppeteer-core are
+devDependencies and never do. The web build ships none of them.
+
+EVERY RUNTIME ADVISORY TRACES TO ONE DEPENDENCY, THE VOICE:
+
+    kokoro-js                      HIGH
+     └─ @huggingface/transformers  HIGH
+         ├─ sharp                  HIGH   ← ALREADY STUBBED OUT ✓
+         └─ onnxruntime-node
+             └─ tar                MODERATE
+
+Without it: @electric-sql/pglite (0 transitive) and pg (1 transitive).
+
+KEPT, DELIBERATELY: "We can't cut such an essential part of what makes
+the Sand Pavilion usable." Sound rather than sentimental — rule 9 says
+the Pavilion is slow only where THE SLOWNESS IS SOMEONE, a character's
+speaking rate, and a flat SAPI voice undercuts exactly that. Read-aloud
+would survive a cut (tts.js is the Web Speech API and works standalone);
+the quality that makes pacing read as a person would not.
+
+⚠ WHAT IT COSTS, STATED SO IT IS A DECISION: four advisories, a native
+ML runtime in the installer, ~25 MB. And the honest half of the original
+worry, which is NOT about what ships — a compromised DEV dependency can
+poison the installer at build time. 286 packages is 286 chances during
+electron:build:beta. That risk is real and nothing here removes it.
+
+⚠ AND NOBODY HAS EVER LISTENED TO THE VOICE. Built, measured,
+unevaluated; no dev log records anyone hearing it. It is now a KEPT
+dependency carrying four advisories, which makes judging it overdue.
+
+
+----------------------------------------------------------------
+WORKSTATION
+----------------------------------------------------------------
+
+I left 16 `npm run preview` servers running and 108 temp directories
+totalling 1.8 GB across the session. Mine, from backgrounding preview on
+every sweep. Cleared.
+
+Everything the Pavilion touches is LOOPBACK-ONLY: 127.0.0.1:5432
+(Postgres), :9000 (MinIO), :11434 (Ollama). Both containers bind
+127.0.0.1 explicitly. Nothing from this project appears on any real
+interface.
+
+Electron is genuinely tight: sandbox:true, contextIsolation:true,
+nodeIntegration:false, setWindowOpenHandler sending external links to
+the real browser, safeLibraryName blocking traversal, and desktop-fetch
+proxying ONLY localhost with the guard reading u.hostname (so
+http://127.0.0.1@evil.com cannot slip past).
+
+HARDENED: figure src is now required to be a data:image/ payload. The
+map comes off disk, and a file on disk is editable by anything that
+reaches the disk.
+
+⚠ ITS GUARD WAS WRONG TWICE, IN OPPOSITE DIRECTIONS, ONE LINE APART:
+noComments() ATE THE CODE (the \ / / inside /^data:image\// reads as a
+line comment, so the stripper truncated the line and the guard went red
+against correct code); reading raw left MY OWN BLOCK COMMENT, which
+says "data:image", so with the check DELETED it still passed. Block
+comments only. A guard satisfied by a comment — the shape this file
+already carries three scars for.
+
+NOT DONE, deliberately: no will-navigate handler on the main window.
+With sandbox:true and a local file load I could find no path to exploit
+it, and adding navigation guards untested before a demo is the wrong
+trade. Worth doing next time electron/main.cjs is open.
+
+Git fsck after the steward's SFC scan: dangling blobs only (normal
+leftovers from sabotage/restore cycles). No corruption.
+
+
+----------------------------------------------------------------
+★ THE BUILD — 0.1.0-beta.7.1, CUT AND VERIFIED
+----------------------------------------------------------------
+
+  version      0.1.0-beta.7.1  (derived into the app via __APP_VERSION__)
+  installer    116.5 MB — same as beta.7, so the onnxruntime pruning held
+               (after-pack: 208 MB → 16 MB)
+  sha-256      8150529360AE3BB5EE25D53441F2F6858C6D64248238B0FA697B4AFD322603C8
+
+  npm test                    green
+  packaged-boot.cjs           SHIPPABLE
+  packaged-exe.mjs            SHIPPABLE — names itself 0.1.0-beta.7.1,
+                              reaches its database, and transformers.js +
+                              kokoro-js RESOLVE inside the asar
+  verify:release              green
+
+⚠ ELECTRON_RUN_AS_NODE IS SET IN THIS SHELL (`'1'`). Every artifact
+command was run through `env -u ELECTRON_RUN_AS_NODE`. With it set the
+.exe runs as node and exits 9, which is indistinguishable from a crash
+on boot — the hazard CLAUDE.md documents, live on this machine.
+
+Built to $TEMP/sp-build via --config.directories.output and copied back,
+to dodge the editor's EPERM lock on release/.
+
+DOCS CORRECTED ON THE WAY: five places said the web build holds "10–20
+books". Measured, it is nine. Fixed in CLAUDE.md, MAINTAINING.md,
+FRESH-INSTALL.md, THE-BACKEND.md and AFTER-THE-LIBRARY.md — the same
+scar as "the desktop row said hundreds while the cap was 100".
+
+MAC: not built. The Air the steward had is too old to run Ollama, which
+makes a Pavilion with no residents — the half that makes it feel alive.
+package.json already configures a dmg for arm64+x64 with identity:null,
+and after-pack already has the macOS path, so nothing is blocking it
+except a machine to build on.
+
+
+----------------------------------------------------------------
+STILL OPEN
+----------------------------------------------------------------
+
+  · nobody has listened to the neural voice (now overdue — it is a KEPT
+    dependency carrying four advisories)
+  · buildDraftingPrompt()/buildExtendPrompt() say nothing about free or
+    public-domain sources; on an empty shelf ALL reading guidance
+    vanishes. buildReadingPrompt() already does this right.
+  · the 🎒 offer's BEHAVIOUR is unproven (shape is guarded; showing it
+    needs a chat, which needs a model — speaking-pace.mjs's fake Ollama
+    is the pattern)
+  · a per-book adaptive image edge — 480px is right for figure-sized art
+    and marginal for full-page scans (2912×4368 in the second drawing
+    book); 600px blows its budget
+  · the page-turn animation (VISUAL-POLISH-PLAN.md)
+  · the Library's shelf tiles are drawn full of spines while the shelf is
+    empty — decorative art, not data
+  · no scientific-paper DRAFTING pathway exists. Dissect, investigations
+    with a falsifier, n-of-1 experiments and packet publishing are built;
+    nothing scaffolds writing one up. Given the Universal Remote project
+    is the live beta-test of that Hall, probably the most valuable
+    unbuilt thing on the list.
+  · accounts / auth for a community site — the one feature that reopens
+    the backend question that was deliberately closed

@@ -27,6 +27,17 @@ Two promises, up front, that make the rest easy to relax into:
 | **☰** (corner button) | The pause menu, same as Esc |
 | **M** | Meditate in place — cycles sitting → lying → standing; any step ends it |
 
+**With a book open**, the arrows change job rather than doing nothing:
+
+| Key | In the reader |
+| --- | --- |
+| **← →** | Turn the page |
+| **↑ ↓** | Scroll the page you're on |
+| **Esc** | Close the book (your place is kept) |
+
+Typing in the note box takes the arrows back, so writing a note never turns the
+page out from under you.
+
 On a touch screen, an on-screen D-pad and E button appear on their own.
 
 **Esc is the whole map.** The pause menu now lists **every room in both
@@ -214,6 +225,18 @@ your own standing instructions, so you can watch them take effect.
 - **Read a book:** face a shelf, press E, browse spines with ◀ ▶, open with
   E. Books with a **📖 Read the full text** button are complete, real,
   page-by-page texts, not summaries.
+- **Illustrated books keep their pictures.** Drop an `.epub` with diagrams,
+  plates or step-by-step drawings and the figures come in with the text and sit
+  on the page where they belong — a drawing book that says *"you can see that
+  the outline on the left is very basic"* now actually shows you the outline.
+  The book's cover appears beside it in the Index and on the shelf, and the
+  Reader says how many illustrations came with it.
+
+  **A book always tells you what it kept.** If some pictures were too large to
+  keep, or the file uses a format this machine can't open, the book says so
+  rather than quietly dropping them. **In a browser tab there is nowhere to put
+  them** — a tab keeps everything in one small save — so you get the text and
+  the cover, and the book says the desktop app keeps the pictures too.
 - **Read aloud, and it stays with you.** 🔊 reads the page — and when the page
   finishes it **turns itself and keeps going**, so you can listen to a whole
   book without touching anything. **⏸ Pause** keeps your exact place, and
