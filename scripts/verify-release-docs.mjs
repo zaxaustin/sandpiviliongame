@@ -183,9 +183,22 @@ if (!existsSync(installer)) {
     if (usable) {
       /* the commit has to still exist — a stamp naming an unreachable commit
          is no better than no stamp, and must not silently pass */
+      /* ⚠ NO `^{commit}` HERE, AND THAT IS NOT STYLE. execSync goes through
+         cmd.exe on Windows, where `^` IS THE ESCAPE CHARACTER — it is eaten
+         before git ever sees it, the ref fails to resolve, and this gate
+         reports "not in this repository" about a commit that is HEAD. It did
+         exactly that on its first run. `rev-parse --verify` needs no caret
+         and works identically on every platform. */
+      /* `cat-file -t` genuinely reads the object; `rev-parse --verify` happily
+         accepts a well-formed SHA that is not in the repository (the all-zeros
+         null commit walks straight past it), which left this falling through
+         to the outer catch and reporting `fatal: bad object` instead of a
+         sentence naming the fix. */
       let known = true;
-      try { execSync(`git cat-file -e ${stamp.commit}^{commit}`, { stdio: 'ignore' }); }
-      catch (e) { known = false; }
+      try {
+        known = execSync(`git cat-file -t ${stamp.commit}`,
+          { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() === 'commit';
+      } catch (e) { known = false; }
       if (!known) {
         bad(`release/build-stamp.json names commit ${String(stamp.commit).slice(0, 7)}, which is not in this `
           + `repository. Cannot prove the installer matches the source — rebuild.`);

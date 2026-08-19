@@ -33,7 +33,7 @@ because anything is wrong. If you'd like to check the download:
 
 ```powershell
 Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.1.exe" -Algorithm SHA256
-# 8150529360AE3BB5EE25D53441F2F6858C6D64248238B0FA697B4AFD322603C8
+# B480C7489D86A0E649F29B1016BBB0EEC61362FFF7986F0209BDD607B4ED3577
 ```
 
 Nothing else is needed. No Node, no Docker, no account, no key.
