@@ -8,6 +8,7 @@ import {
   startFishing, fishingAction, updateFishing, updateNPCs, logActivity, awardBadge,
 } from './entities.js';
 import { openDialog, openChatDialog, advanceDialog, closeDialog, closeUI, openPlanner, openLearningDesk, openCourses, openArchive, openResearchDesk, openComputer, openRequests, openNoticeBoard, openResidentsBoard, openHearth, openGrantDesk, openCoffee, openReviewQueue, openRecordsHall, openCalendar, openShelf, shelfTraditionFor, openConnections, openMenu, refreshAIStatus, refreshLibraryStorageStatus, openWelcome, sweepReminders, sweepMessages, openFoldReflection, openInheritanceHall, openPlantHere, openPlanting, openCommonsTable, openMyLibrary, openAlexandria, openLearningTree, openLab, openLift, openBookIntake, openNotesLog, initGlobalDrop, refreshBackendStatus, carryMigrate } from './ui/overlays.js';
+import { atTitleScreen } from './ui/dom.js';
 import { render } from './render.js';
 import { isAIActive } from './ai/provider.js';
 import { currentSeason } from './season.js';
@@ -41,16 +42,42 @@ export function jingleMiss(){ blip(220,.12,'sawtooth'); setTimeout(()=>blip(164,
 
 /* ---------- input ---------- */
 const keys={};
+/* ⚠ A HELD KEY IS STATE, AND NOTHING WAS EVER CLEARING IT (fixed 2026-08-18).
+   `keys` had no reset of any kind: no blur handler, no visibilitychange, and
+   nothing on a panel opening. So if focus left the window while a direction was
+   down — alt-tab, devtools, the print window `printLesson()` opens, the
+   `window.alert()` in persist() — the keyup landed somewhere else and the flag
+   stayed true forever. update() then walked the player by itself, every frame,
+   until that physical key was pressed and released again. Reported as "the
+   movement glitches while I'm carrying a book"; carrying has nothing to do with
+   it (state.pocketSlug is not referenced in this file or entities.js), the
+   panel you opened to look at the book is what took the focus. */
+const clearKeys=()=>{ for(const k in keys) keys[k]=false; };
+window.addEventListener('blur',clearKeys);
+window.addEventListener('visibilitychange',()=>{ if(document.hidden) clearKeys(); });
 window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   const typing=e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA');
   if(typing){ if(k==='escape'){ if(state.ui) closeUI(); else if(state.dialog) closeDialog(); } return; } // let the field handle its own keys (space, arrows, etc.)
-  if(k.startsWith('arrow')||k===' '||k==='e'||k==='enter') e.preventDefault(); // 'e'/'enter' can open a chat input mid-handler; without this the keystroke leaks into it
+  /* 'e'/'enter' are ALWAYS swallowed — they can open a chat input mid-handler,
+     and without this the keystroke leaks into it.
+
+     ⚠ ARROWS AND SPACE ARE NOT, ONCE A PANEL IS OPEN, and the unconditional
+     version was a real bug: with a book open, up/down neither moved you
+     (update() returns on state.ui), nor turned a page (paging is buttons and
+     left/right), nor SCROLLED — .fullTextPage is `max-height:56vh;
+     overflow-y:auto` and preventDefault kills the browser's own scroll. The
+     keys did nothing at all. PageUp/PageDown were never in this list and kept
+     working, which is exactly what made it read as "the up/down keys are
+     broken". Now an open panel gets its arrows and scrolls like anything else. */
+  const panelOpen = state.ui || (state.dialog && !state.dialog.minimized);
+  if(k==='e'||k==='enter') e.preventDefault();
+  else if((k.startsWith('arrow')||k===' ') && !panelOpen) e.preventDefault();
   keys[k]=true;
   if(k==='escape'){
     if(state.ui) closeUI();
     else if(state.dialog && !state.dialog.minimized) closeDialog();
-    else if(document.getElementById('title').style.display==='none') openMenu();
+    else if(!atTitleScreen()) openMenu();
     return;
   }
   if(k==='e'||k===' '||k==='enter') onAction();
@@ -160,8 +187,33 @@ export function setHud(){
    ================================================================ */
 /* a season is pure atmosphere — never a new fixed line, just one
    extra grumble appended to what a scripted NPC already says */
+/* ⚠ IS THERE ACTUALLY ANYTHING ON THE SHELVES? Derived from the catalogue on
+   every read, never stored — the same rule data/tutorial.js states in its own
+   header, and for the same reason: a flag saying "empty" would be wrong the
+   moment somebody brought in a book, and nothing would ever correct it. */
+function shelfIsBare(){
+  try{ return (Store.allDocs()||[]).length===0; }catch(e){ return false; }
+}
 function npcLines(npc){
   const lines=[...npc.lines];
+  /* THE LIBRARIAN MUST NOT GIVE A TOUR OF A LIBRARY THAT ISN'T THERE.
+     Quill's scripted lines open "Six shelves down here, three rows deep:
+     Theravada and Mahayana up front…" — written when the Pavilion shipped 27
+     seed books. SEED_LIBRARY is [] now and that is the finished position, so on
+     a fresh install the first thing the librarian says is a confident
+     description of empty furniture. These are the NON-AI fallback lines, which
+     means they are exactly what a visitor with no model configured hears — the
+     visitor least able to ask a follow-up. */
+  if(npc.name==='QUILL · Librarian Agent' && shelfIsBare()){
+    return ["Ah — you've caught us at the beginning. The shelves are empty, and that is "
+      + "deliberate rather than a mishap: nothing is shipped here, so every book in this room "
+      + "will be one you chose.\nThe table by the reading nook is where they come in — face it "
+      + "and press E. A .txt or an .epub, dragged onto the window, works just as well.",
+      "Project Gutenberg, Standard Ebooks, the Internet Archive — all free, all legal, all plain "
+      + "downloads. Bring one and I'll have something to talk to you about.\nEvery text still "
+      + "answers the same three questions at the door: what is it, where is it from, and under "
+      + "what license does it travel."];
+  }
   if(npc.name==='SAGARA the Fisher' && currentSeason()==='winter'){
     lines.push("The pond's gone hard at the edges. Rude of it, honestly.\nThe fish don't seem to mind — I mind enough for both of us.");
   }
@@ -176,7 +228,7 @@ function npcLines(npc){
   return lines;
 }
 function onAction(){
-  if(document.getElementById('title').style.display!=='none') return;
+  if(atTitleScreen()) return;
   if(state.ui) return;
   if(state.dialog && !state.dialog.minimized){ advanceDialog(); return; }
   if(state.fishing){ fishingAction(); return; }
@@ -232,7 +284,21 @@ function onAction(){
     return;
   }
   const sg=signAt(ft.x,ft.y);
-  if(sg){ if(sg.fold){ openFoldReflection(sg); } else { openDialog(sg.name,[sg.text]); } return; }
+  if(sg){
+    if(sg.fold){ openFoldReflection(sg); return; }
+    /* THE SIGNS IN THE LIBRARY DESCRIBE A STOCKED ROOM — "Science, west,
+       Classics, east", "Take a book off any shelf, sink in, and stay a while".
+       All written when 27 books shipped. With nothing on the shelves they read
+       as a room that has been emptied rather than one waiting to be filled, so
+       the honest half is appended rather than the sign rewritten: what the sign
+       says is still true of the shelf it labels, once there is anything on it.
+       Appended as a SECOND page of the dialog so the sign keeps its own voice. */
+    const bare = /^library/.test(state.scene) && shelfIsBare();
+    openDialog(sg.name, bare
+      ? [sg.text, "— though right now this shelf is bare. Nothing ships on these shelves on\npurpose: the library here is the one you build. The table by the reading\nnook brings a book in, or drag a .txt or .epub onto the window."]
+      : [sg.text]);
+    return;
+  }
   if(scene().shelves && tileAt(ft.x,ft.y)==='k'){ openShelf(shelfTraditionFor(ft.x,ft.y)); return; }
   if(tileAt(ft.x,ft.y)==='W' && scene().outdoor){ startFishing(ft); return; }
 }
@@ -242,7 +308,7 @@ function onAction(){
 // meditation forms in place, any real step back out to plain standing
 const MEDITATE_POSES=['sitting','lying','standing'];
 function toggleMeditate(){
-  if(document.getElementById('title').style.display!=='none') return;
+  if(atTitleScreen()) return;
   if(state.ui||state.dialog||state.fishing||state.player.moving) return;
   const p=state.player;
   const i=MEDITATE_POSES.indexOf(p.meditate);
@@ -262,8 +328,14 @@ function stepBack(){
 }
 function update(dt){
   state.time+=dt;
-  if(document.getElementById('title').style.display!=='none') return;
-  if(state.ui) return;
+  if(atTitleScreen()) return;
+  /* A DIRECTION HELD WHEN A PANEL OPENED MUST NOT RESUME WHEN IT CLOSES.
+     Arrows reach an open panel now (see the keydown handler), so they also
+     still set their flag — and without this, closing the panel handed update()
+     a latched direction and the player walked off. Clearing on the way past is
+     safe because the browser auto-repeats keydown while a key is genuinely
+     held, so a direction you are still holding re-arms within a frame or two. */
+  if(state.ui){ clearKeys(); return; }
   updateFishing(dt);
 
   const p=state.player;

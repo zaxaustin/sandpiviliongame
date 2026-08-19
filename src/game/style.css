@@ -287,7 +287,24 @@ body { font-family:var(--font-mono); touch-action:none; }
 @keyframes panelIn { from { opacity:0; transform:translateY(8px) scale(.994); } to { opacity:1; transform:none; } }
 .overlay.open .panel:not(.bookPanel) { animation:panelIn .18s ease-out; }
 @media (prefers-reduced-motion:reduce){ .overlay.open .panel:not(.bookPanel) { animation:none; } }
-#connOv { z-index:11; } /* reachable from the title screen (z-index:10), must render above it */
+/* ⚠ REACHABLE FROM THE TITLE SCREEN, so they must out-rank it (#title is
+   z-index:10). An .overlay is z-index:9, which is BEHIND the title screen —
+   the panel opens, state.ui is set, and the visitor sees nothing happen.
+
+   #connOv got this exception when it was added. #welcomeOv and #tutorialOv did
+   not, for months, and the cost was the worst possible one: the title screen's
+   "🧭 New here? Start here" is the ONE button in the whole application labelled
+   for a first-time visitor, and it was the one that looked broken. Everything
+   downstream worked — the handler bound, the function exported, .open applied —
+   so every test passed and only LOOKING at it could have found this.
+
+   #tutorialOv is here because the walk is opened FROM the welcome panel, so it
+   inherits the same before-Enter-is-pressed context.
+
+   Derived and checked by npm test: every overlay a title-screen button can
+   reach must resolve above #title. Do not add a fourth by hand — add the door
+   and let the guard tell you. */
+#connOv, #welcomeOv, #tutorialOv { z-index:11; }
 .panel {
   background:var(--parchment); border:3px solid var(--gold); border-radius:var(--r-lg);
   width:min(720px, 100%); color:var(--ink); padding:22px 24px 26px;
@@ -316,6 +333,15 @@ body { font-family:var(--font-mono); touch-action:none; }
   max-height:56vh; overflow-y:auto; padding-right:6px;
 }
 .bookPanel .fullTextPage { color:var(--read-ink); } /* the reader always opens as a bookPanel — dark ink on parchment, not light-on-dark */
+/* A FIGURE ON THE PAGE (2026-08-18). The container is `white-space:pre-wrap`,
+   so an inline image would sit on the text baseline and drag the line height
+   around — hence display:block. Width is CAPPED rather than stretched: these
+   are downscaled to 480px on the long edge, and blowing a line drawing up past
+   its own resolution makes it look worse, not bigger. */
+.bookFigure {
+  display:block; max-width:min(100%,420px); height:auto; margin:14px auto;
+  border-radius:4px; box-shadow:0 1px 6px rgba(40,28,12,.28);
+}
 
 /* ============================================================
    A PAGE OF A BOOK, LAID ON A DESK.

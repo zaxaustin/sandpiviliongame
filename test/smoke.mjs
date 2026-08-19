@@ -91,6 +91,144 @@ if (KNOWN_STATION_KINDS.length < 20) {
 const failures = [];
 const fail = (msg) => failures.push(msg);
 
+/* ---------- AN ILLUSTRATED BOOK KEEPS ITS PICTURES ----------
+   2026-08-18. `chapterText()` descended into <img>, found no text children and
+   contributed nothing — silently. Measured on `Drawing for Beginners`: 113
+   figures, 99.4% of the file, dropped without a word, leaving 71 KB of prose
+   that is mostly captions for pictures that were not there. The book still READ
+   as complete, which is the whole reason nobody noticed.
+
+   These hold the SHAPE. test/live/illustrated-book.mjs holds what a person
+   actually sees, against the real 7.8 MB file — neither substitutes for the
+   other, and the live one is the acceptance gate. */
+{
+  const ep = noComments(readFileSync(new URL('../src/game/epub.js', import.meta.url), 'utf8'));
+  const shrink = noComments(readFileSync(new URL('../src/game/image-shrink.js', import.meta.url), 'utf8'));
+  const ovsrc = noComments(readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8'));
+
+  /* 1 · the walker stays pure — it reports images, it never fetches them. That
+     separation is the only reason it can be tested with a plain string. */
+  const walker = fnBody(ep, 'chapterText');
+  if (!walker) {
+    fail('smoke: could not find chapterText() in epub.js — every epub guard below is vacuous');
+  } else {
+    for (const forbidden of ['readEntry', 'readEntryBytes', 'zip', 'arrayBuffer', 'await ']) {
+      if (walker.includes(forbidden)) {
+        fail(`chapterText() now mentions "${forbidden.trim()}". It is a DOM-in / data-out walker with `
+           + 'no zip access and no I/O, which is what lets a test hand it a string. Resolving an image '
+           + 'to bytes belongs in epubToText(), the layer that holds the zip.');
+      }
+    }
+    if (!/img/.test(walker)) {
+      fail('chapterText() no longer looks at <img> at all. That is the bug this work exists to fix: '
+         + 'an illustrated book that shelves as text with nothing said about its 113 missing figures.');
+    }
+  }
+
+  /* 2 · a page is STILL a string, and the marker never reaches the voice */
+  const sp = fnBody(ovsrc, 'speakPage');
+  if (!sp) fail('smoke: could not find speakPage() in overlays.js');
+  else if (!/stripFigMarks/.test(sp)) {
+    fail('speakPage() hands the raw page to speak(). A page carries ⟦fig:N⟧ where a picture goes, and '
+       + 'a voice reads that aloud as "left double bracket fig colon seven" mid-sentence. Strip them.');
+  }
+
+  /* 3 · the budget is real, and it is not a comment */
+  if (!/FIG_BUDGET_BYTES/.test(shrink) || !/bytes\s*\+\s*size\s*>\s*budget/.test(shrink)) {
+    fail('image-shrink.js no longer enforces a per-book byte budget while collecting figures. That '
+       + 'budget is what stands between "the figures are back" and "one book ate the save" — the '
+       + 'acceptance case is 8.56 MB of originals.');
+  }
+
+  /* 6 · ONE ENTRY PER SLUG IN THE CATALOGUE.
+     mergedDocs() was `libraryDocs.concat(personalDocs())`. hydrateFromDb()
+     pushes the visitor's own books UP into Postgres (notes.slug is a foreign
+     key into books, so it has to) and pulls them back DOWN into libraryDocs on
+     the next boot — so every personal book that survived one restart was in the
+     catalogue twice. Measured on the steward's machine: 431 personal in the
+     Index against 367 in the sorter, with visibly doubled rows. */
+  {
+    const st = noComments(readFileSync(new URL('../src/game/data/store.js', import.meta.url), 'utf8'));
+    const md = fnBody(st, 'mergedDocs');
+    if (!md) fail('smoke: could not find mergedDocs() in store.js');
+    else if (/libraryDocs\.concat\s*\(\s*p\s*\)/.test(md) || !/bySlug|Map\(/.test(md)) {
+      fail('mergedDocs() concatenates the save onto libraryDocs without deduping by slug. A personal '
+         + 'book that has been through the database is then in the catalogue TWICE — which is what '
+         + 'made removing a book and adding it again look broken.');
+    }
+    if (!/function mergeSaveOverRow/.test(st)) {
+      fail('mergeSaveOverRow() is gone. It is the ONE definition of "the save wins", shared by '
+         + 'hydrateFromDb() and mergedDocs(); two copies of that rule disagree within a week.');
+    }
+    if (!/export function forgetDoc/.test(st)) {
+      fail('store.js no longer exports forgetDoc(). libraryDocs is hydrated once at boot, so a book '
+         + 'removed from the save and the database stays on screen until a restart.');
+    }
+    const dbsrc = noComments(readFileSync(new URL('../electron/db.cjs', import.meta.url), 'utf8'));
+    if (!/deleteCard:/.test(dbsrc)) {
+      fail('electron/db.cjs has no deleteCard write. Removing a book then leaves its row in Postgres, '
+         + 'and hydrateFromDb() brings it back as a ghost on the next boot.');
+    }
+    const rm = fnBody(noComments(readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8')),
+                      'removePersonalBook');
+    if (rm && !/deleteCard/.test(rm)) {
+      fail('removePersonalBook() no longer deletes the database row, so a removed book reappears in '
+         + 'the Index after a restart while staying absent from the sorter.');
+    }
+    if (rm && !/forgetDoc/.test(rm)) {
+      fail('removePersonalBook() no longer drops the slug from the hydrated catalogue, so the book '
+         + 'stays visible until the app is restarted — the removal looks like it did nothing.');
+    }
+  }
+
+  /* 5 · a resident can still name what is on the shelf without Postgres.
+     `searchBooks` is a desktop named query; in a browser shelfLookup() returned
+     null, so reachGap() never reached SHELVED_NOT_CARRIED and a visitor with
+     books shelved and none carried got no explanation and no 🎒 offer at all.
+     ⚠ The fallback must stay a CARD — title, author, shelf — because the
+     invariant is that a resident may name a book and may never claim to have
+     read one it is not carrying. */
+  {
+    const rsrc = noComments(readFileSync(new URL('../src/game/ui/residents.js', import.meta.url), 'utf8'));
+    const fb = fnBody(rsrc, 'shelfScanFallback');
+    if (!fb) {
+      fail('residents.js has no shelfScanFallback(). Without it shelfLookup() returns null in a '
+         + 'browser, so a resident answers from model memory as though the shelf were empty.');
+    } else {
+      for (const leak of ['fullText', 'doc.text', '.text', 'summary']) {
+        if (fb.includes(leak)) {
+          fail(`shelfScanFallback() touches "${leak}". The shelf lookup hands over a CARD — title, `
+             + 'author, shelf — and not one word of any book. carriedBlock() is the only path by '
+             + 'which a text may reach a prompt.');
+        }
+      }
+    }
+    const sl = fnBody(rsrc, 'shelfLookup');
+    if (sl && !/shelfScanFallback/.test(sl)) {
+      fail('shelfLookup() no longer reaches shelfScanFallback(), so the no-database path is dead '
+         + 'again and the browser build silently loses the shelf half of the grounding.');
+    }
+  }
+
+  /* 4 · pictures are a POINTER on the record, never dumped into it unbounded.
+
+     ⚠ NOT VIA fnBody(), AND THE REASON IS A BUG IN fnBody() WORTH KNOWING.
+     It takes the first `{` after the function name as the start of the body —
+     and `shelveAsPersonal({title, body, …})` DESTRUCTURES ITS PARAMETER, so
+     what came back was the parameter list and nothing else. The first version
+     of this guard was born dead for exactly that reason: every pattern it
+     tested was absent from a string that was never the body, so the condition
+     short-circuited to false and it passed with the sidecar deleted. Any future
+     guard reaching for a function with a destructured parameter has the same
+     hole. Scoped to the file here, which is honest about what it can see. */
+  if (/pics\s*=\s*\{/.test(ovsrc) && !/libraryWrite\(\s*slug\s*\+\s*'\.images\.txt'/.test(ovsrc)) {
+    fail('overlays.js builds a doc.pics record but no longer writes the figures to a '
+       + '<slug>.images.txt sidecar via libraryWrite. That exact name is what makes this work with '
+       + 'NO bridge change (safeLibraryName allows dots before .txt), and it is what keeps ~1.5 MB '
+       + 'of base64 out of the save on the path everybody who is not in a browser uses.');
+  }
+}
+
 /* ---------- scenes ---------- */
 for (const [key, s] of Object.entries(scenes)) {
   const inBounds = (x, y) => x >= 0 && y >= 0 && x < s.w && y < s.h;
@@ -5937,6 +6075,106 @@ for (const d of SEED_LIBRARY) {
     fail('overlays.js still points a newcomer at "How to Complete Your Own Pavilion", a book deleted '
        + 'with the seed on 2026-08-10. The only onboarding surface in the app pointing at nothing is '
        + 'exactly the first-arrival failure this work exists to end.');
+  }
+
+  /* --- 9 · AND THE FRONT DOOR ACTUALLY RENDERS ---------------------------
+     2026-08-18. Every check above passed while the button was invisible.
+
+     #title is z-index:10. An .overlay is z-index:9. So a panel opened BEFORE
+     "Enter the Grounds" is pressed mounts BEHIND the title screen: .open is
+     applied, state.ui is set, the handler ran — and the visitor sees nothing
+     happen. #connOv carried a hand-written `z-index:11` exception for exactly
+     this reason; #welcomeOv and #tutorialOv were never given one, so the title
+     screen's "🧭 New here? Start here" — the ONE control in the application
+     addressed to a first-time visitor — was the one that looked broken.
+
+     Guard 8 above proves the welcome panel contains the press. It cannot prove
+     you can see it. That is the gap this closes, and it is why the list is
+     DERIVED (rule 4): the whole failure was a hand-maintained exception that
+     one of three panels was left out of. Add a door, not a line here. */
+  {
+    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../src/game/style.css', import.meta.url), 'utf8');
+    const tutSrc = readFileSync(new URL('../src/game/ui/tutorial.js', import.meta.url), 'utf8');
+    const src = noComments(ovAll) + '\n' + noComments(tutSrc);
+
+    /* the buttons living inside #title, straight out of the markup */
+    const titleBlock = /<div id="title">([\s\S]*?)\n<\/div>/.exec(html);
+    const titleIds = titleBlock
+      ? [...titleBlock[1].matchAll(/<button[^>]*\bid="([A-Za-z0-9_-]+)"/g)].map(m => m[1])
+      : [];
+    if (titleIds.length < 3) {
+      fail(`smoke: read only ${titleIds.length} buttons out of index.html's #title block — the scrape `
+         + 'is broken, so the z-index check below proves nothing. (A scrape that matches nothing '
+         + 'reports that everything is fine.)');
+    }
+
+    /* → the opener each one is bound to in main.js, minus startBtn, which hides
+       the title screen rather than opening anything over it. */
+    const seeds = [];
+    for (const id of titleIds) {
+      const b = new RegExp('getElementById\\(\'' + id + '\'\\)\\.addEventListener\\(\'click\',\\s*([A-Za-z_$][\\w$]*)\\s*\\)')
+        .exec(noComments(MAIN_SRC));
+      if (b) seeds.push(b[1]);
+    }
+
+    /* → every overlay those openers can put on screen, following the onclick=
+       handlers they render (this is the hop that #tutorialOv hides behind:
+       welcomeBtn → openWelcome → onclick="tutorialStart()" → openTutorial). */
+    const reachable = new Map(); // overlay id -> the function whose press led here
+    const seen = new Set();
+    const queue = seeds.map(s => [s, s]);
+    while (queue.length) {
+      const [fn, via] = queue.shift();
+      if (seen.has(fn) || seen.size > 40) continue;
+      seen.add(fn);
+      const body = fnBody(src, fn);
+      if (!body) continue;
+      for (const m of body.matchAll(/showOv\(\s*'([A-Za-z0-9_-]+)'/g)) {
+        if (!reachable.has(m[1])) reachable.set(m[1], via);
+      }
+      /* a press the visitor can make from a panel that is on screen … */
+      for (const m of body.matchAll(/onclick="([A-Za-z_$][\w$]*)\(\)"/g)) queue.push([m[1], fn]);
+      /* … and the plain call that press lands in (tutorialStart -> openTutorial) */
+      for (const m of body.matchAll(/(?:^|[^.\w])([A-Za-z_$][\w$]*)\(\)\s*;/g)) queue.push([m[1], fn]);
+    }
+    if (!reachable.size) {
+      fail('smoke: walked the title screen\'s buttons and found NO overlay they can open — the '
+         + 'call-graph scrape is broken and the z-index check below is vacuous.');
+    }
+
+    /* the effective z-index of an id, honouring the cascade: the LAST rule
+       whose selector list names it wins, and .overlay is the floor. */
+    const cssBare = css.replace(/\/\*[\s\S]*?\*\//g, ' '); // a comment before a rule lands in its selector capture
+    const zOf = (sel) => {
+      let z = null;
+      for (const m of cssBare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const hit = m[1].split(',').some(s => s.trim() === sel);
+        if (!hit) continue;
+        const zi = /z-index\s*:\s*(-?\d+)/.exec(m[2]);
+        if (zi) z = Number(zi[1]);
+      }
+      return z;
+    };
+    const titleZ = zOf('#title');
+    const floorZ = zOf('.overlay');
+    if (titleZ === null || floorZ === null) {
+      fail('smoke: could not read a z-index for #title and/or .overlay out of style.css — the parse '
+         + 'is broken, so nothing below is being checked.');
+    } else {
+      for (const [ov, via] of [...reachable].sort()) {
+        const z = zOf('#' + ov) ?? floorZ;
+        if (z > titleZ) continue;                         // it renders over the title screen
+        /* …or the press that reaches it has explicitly branched on where it is.
+           Both are honest answers; what is forbidden is neither. */
+        if (/atTitleScreen\s*\(/.test(fnBody(src, via))) continue;
+        fail(`#${ov} is reachable from the title screen (via ${via}) but sits at z-index ${z}, at `
+           + `or below #title's ${titleZ} — it opens BEHIND the title screen, so pressing the `
+           + 'button that opens it looks like pressing a dead button. Either give it the same '
+           + `z-index exception #connOv has, or make ${via}() branch on atTitleScreen(). `
+           + '(This is precisely how "🧭 New here? Start here" shipped broken.)');
+      }
+    }
   }
 }
 

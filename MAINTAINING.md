@@ -193,7 +193,7 @@ data/seed.js → data/store.js → scenes.js → entities.js → ui/overlays.js 
 - **`entities.js`** — the one mutable `state` and the one saved `data` object,
   `freshData()` + every migration, world lookups (`tileAt`, `blocked`,
   `plantingAt`, `canPlantAt`), fishing, NPC wander.
-- **`ui/overlays.js`** — **the big one: 15,422 lines** (740 top-level
+- **`ui/overlays.js`** — **the big one: 15,659 lines** (740 top-level
   definitions, ~2,000 lines carrying HTML). Every panel not yet extracted, the
   chat stack, and the window-export block, which it owns permanently. **It opens
   with a map of itself**, anchored to searchable text rather than line numbers
@@ -385,7 +385,152 @@ we genuinely cannot run it ourselves — and say so plainly when that's the case
 
 ## What's next
 
-**Where things stand, end of 2026-08-15 — READ THIS ONE FIRST.**
+**Where things stand, end of 2026-08-18 — READ THIS ONE FIRST.**
+Full account in [`archive/dev-log-2026-08-18.txt`](archive/dev-log-2026-08-18.txt).
+
+> ## 🚪 beta 7.1 — THE FIRST PRESS, AND THE ILLUSTRATED BOOK
+>
+> A friction pass before showing the Pavilion to people who are not the
+> steward. Three of the five reported problems were different from how they
+> were described; one did not exist.
+>
+> **★ THE ONE BUTTON ADDRESSED TO A FIRST-TIME VISITOR WAS INVISIBLE.**
+> `#title` is `z-index:10`, `.overlay` is `z-index:9`, and `#connOv` carried a
+> hand-written `z-index:11` exception that `#welcomeOv` and `#tutorialOv` never
+> got. So **"🧭 New here? Start here" opened the welcome panel behind the title
+> screen** — handler bound, export present, `.open` applied, `state.ui` set,
+> nothing visible. **Every static guard passed**, and neither tutorial suite
+> presses a real door: both call `window.tutorialStart()` / `openTutorial()`
+> directly. The tutorial was never hidden; its door was painted over.
+>
+> **The new guard found a second one on its first run** — the Connections
+> panel's "← Back to menu" opened `#menuOv` behind the title screen too.
+> Raising it would have been the *wrong* fix: the pause menu is mostly PLACES
+> buttons that each open another overlay at 9, i.e. a menu of dead buttons.
+> `renderConnections()` branches on `atTitleScreen()` (now in `ui/dom.js`, and
+> it replaced the same inline check repeated **five times** in `main.js`).
+>
+> **DONE — the arrows, and the player who walked off alone.** Two unrelated
+> bugs sharing one symptom, and **carrying a book is not involved at all**
+> (`state.pocketSlug` is referenced nowhere in `main.js` or `entities.js`).
+> `main.js` `preventDefault`ed every arrow unconditionally, so with a book open
+> up/down neither moved you, nor turned a page, nor **scrolled** — while
+> PageUp/PageDown, never in that list, kept working, which is what made it read
+> as "the up/down keys are broken". Separately there was **no `blur` handler
+> anywhere in `src/`** and nothing ever cleared the held-key set, so losing
+> focus mid-walk latched a direction forever. Left/right turn pages now — ⚠ and
+> the shelf's keydown handler they reuse **had no typing guard and did not need
+> one** until the reader, which has a note box, joined it.
+>
+> **★ DONE — AN ILLUSTRATED BOOK KEEPS ITS PICTURES.** EPUB was never broken;
+> `epub.js` is a complete hand-rolled ZIP+OPF reader. `chapterText()` walked
+> *past* `<img>` — in neither `SKIP_TAGS` nor `BLOCK_TAGS`, so it descended in,
+> found no text children, and contributed nothing. Measured on the acceptance
+> case (`Drawing for Beginners`, already on the steward's Practice shelf):
+> **7.8 MB, 113 illustrations, 99.4% of the file is pictures, 71 KB of text
+> kept** — and that text is mostly *captions for pictures that are not there*
+> (*"You can see that in the last step the shading is…"*). **The book still read
+> as complete**, which is what made it the bad kind of silence.
+>
+> - **The walker stays pure.** `chapterText()` reports images and leaves an
+>   inline marker; `epubToText()`, which holds the zip, resolves them to bytes.
+>   `readEntry()` split into a bytes half and a decode half — the old one always
+>   ended in a UTF-8 decode, right for XHTML and fatal to a JPEG.
+> - **⚠ A PAGE IS STILL A STRING.** `paginate()` is the single definition of a
+>   page and BM25, `speakPage()`, note anchoring and `study-table.js` all read
+>   pages as text. A figure travels as `⟦fig:7⟧` and exactly one function —
+>   `paintFullTextPage()` — turns markers into `<img>` at the last moment.
+> - **The numbers are measured, not chosen** (`image-shrink.js` records all
+>   five): **480px webp lands all 113 in 1.12 MB**, a 7.6x reduction. Canvas,
+>   because `sharp` is a six-line stub in the packaged build.
+> - **★ The sidecar needed no bridge change.** `safeLibraryName()` is
+>   `/^[a-z0-9][a-z0-9._-]{0,120}\.txt$/i`, so `<slug>.images.txt` passes as-is
+>   — JSON in a .txt, on the already-tested write path, keeping ~1.5 MB of
+>   base64 out of the save. A browser keeps them inline under the same budget.
+>
+> **Two suites found bugs in fixes that had just been written**, which is the
+> only reason to trust either: `first-press.mjs` reported left/right turning
+> pages during typing (the *test* was wrong — `querySelector` with a comma list
+> returns document order, so it grabbed a hidden `#chatNotesArea` and focus
+> never landed), and the shelve guard was **born dead** because
+> **`fnBody()` returns the PARAMETER LIST for a function with a destructured
+> parameter** — `shelveAsPersonal({title, …})`. Swept every `fnBody()` call site
+> against every destructuring declaration: **no other guard is affected.**
+>
+> **DONE — the first minute, with an empty shelf.** `SEED_LIBRARY` is `[]`, so
+> "the shelves are empty" is not an edge case, it is **every install's first
+> morning** — and three surfaces were still written for the Pavilion as it stood
+> *until 2026-08-10*, when a seed shelf still shipped. `emptyShelfText()`'s
+> no-bridge branch was **developer copy
+> on a surface strangers stand in front of** (*"run `npm run electron:dev`"*, at
+> the bookcase, in the build deployed to the web). `emptyLibraryOnRamp()`, whose
+> own header says it exists so *"the three panels cannot drift apart"*, **had one
+> caller** — the Stacks rendered a heading and a blank space. And **Quill gave a
+> tour of a library that wasn't there** (*"Six shelves down here, three rows
+> deep…"*) — in his **non-AI fallback lines**, so it was exactly what a visitor
+> with no model configured heard. All derived from the catalogue, never stored.
+> The Library's signs keep their own voice and gain the honest half as a second
+> page. `test/live/empty-library.mjs` checks **both directions** — bare *and*
+> stocked — because a one-way version passes with the scripted lines deleted.
+>
+> **DONE — a resident can name the shelf without Postgres.** `shelfLookup()`
+> returned `null` in a browser, so `reachGap()` never reached
+> `SHELVED_NOT_CARRIED`. `shelfScanFallback()` is a title/author/shelf match over
+> `allDocs()` — no stemming, no ranking, the honest ceiling of a tab. ⚠ It reads
+> the **same fields** the database path renders and not one word of any book, so
+> the never-claim-to-have-read-it invariant holds; a guard breaks if it ever
+> touches `summary`/`fullText`.
+>
+> **★ DONE — the book that was in the catalogue twice.** Found in real use:
+> the Index listed two books **twice each** and said 431 personal, while the
+> sorter said 367. `mergedDocs()` was `libraryDocs.concat(personalDocs())` with
+> **no slug dedupe anywhere in the read path** — and `hydrateFromDb()` pushes
+> your own books *up* into Postgres (it must; `notes.slug` is a foreign key into
+> `books`) and pulls them back *down* on the next boot. **Every personal book
+> that survived one restart was in the catalogue twice.** The same bug is
+> anticipated twenty lines below for the *seed* and filtered by slug — one case
+> was covered and the other was not, and since `SEED_LIBRARY` is `[]` the
+> covered one now does nothing while the uncovered one is every book.
+>
+> **And removal had to reach three places, not one.** `removePersonalBook()`
+> cleared the save and the text file; there was **no `deleteCard` write in
+> `db.cjs` at all**, so a removed book's row survived and hydration brought it
+> back as a ghost — in the Index, absent from the sorter, unremovable from
+> inside the game. It now deletes the row (⚠ safe *and* correct because
+> `chapters`/`book_health` are `ON DELETE CASCADE` while `notes.slug` is
+> `ON DELETE SET NULL`, so **your notes survive**, which is what the confirm
+> dialog always promised) and calls the new `Store.forgetDoc()` to drop it from
+> the boot-hydrated `libraryDocs`, without which it stayed on screen until a
+> restart. `mergeSaveOverRow()` is now the one definition of "the save wins",
+> shared by both paths — and it carries `personal`/`added`, which hydration had
+> been dropping.
+>
+> `test/live/catalogue-duplicates.cjs` **boots three times on one userData**,
+> because a single boot cannot see this. **Proven by reverting the fix**, not by
+> reading it: `Drawing×2, Lost World×2`. ⚠ Its first version was **vacuous** —
+> a card's title is `📖 <title> <badges>`, so an exact-match regex found nothing
+> and "the removed book is gone" was true before anything was removed.
+>
+> ### Still open
+> 1. **`buildDraftingPrompt()`/`buildExtendPrompt()` say nothing about free or
+>    public-domain sources**, and their shelf block is conditional on
+>    `have.length` — so on an empty shelf *all* reading guidance vanishes.
+>    `buildReadingPrompt()` already does this right and is guarded.
+> 2. **The 🎒 offer's BEHAVIOUR is unproven** — the shape is guarded and broken
+>    on purpose, but showing it needs a chat, which needs a model. The
+>    fake-Ollama rig in `speaking-pace.mjs` is the pattern. Named rather than
+>    quietly counted as covered.
+> 3. **A per-book adaptive image edge.** 480px is right for figure-sized art and
+>    marginal for full-page scans (the second drawing book is 2912×4368); 600px
+>    would blow its budget. Spend the budget across however many figures a book
+>    actually has.
+> 4. **DEFERRED, on purpose: the Reader does not feel like a book** — no page
+>    turn, no book outline. In `plans/VISUAL-POLISH-PLAN.md`, with the note that
+>    a page can now hold images, which makes both halves easier to justify.
+> 5. **The Library's shelf tiles are drawn full of book spines while the shelf is
+>    empty.** Decorative art, not data. Recorded, not fixed.
+
+**Where things stood, end of 2026-08-15 — the slice before.**
 Full account in [`archive/dev-log-2026-08-15.txt`](archive/dev-log-2026-08-15.txt).
 
 > ## 📱 THE PHONE — residents who notice (2026-08-16, NOT in beta.7)

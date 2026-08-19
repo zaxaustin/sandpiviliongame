@@ -345,6 +345,24 @@ const QUERIES = {
 const WRITES = {
   setShelf: 'UPDATE books SET shelf = $2 WHERE slug = $1',
 
+  /* TAKING A BOOK OFF YOUR SHELF HAS TO REACH THE DATABASE TOO (2026-08-18).
+
+     removePersonalBook() deleted the save row and the stored text and stopped
+     there, because for a long time the database was only ever a snapshot of
+     MinIO. It is not any more: hydrateFromDb() pushes the visitor's own books
+     UP (notes.slug is a foreign key into books, so it must), and pulls them
+     back DOWN into libraryDocs on the next boot. So a removed book came back
+     as a ghost — visible in the Index, absent from the sorter, and impossible
+     to get rid of from inside the game.
+
+     ⚠ THE CASCADES ARE WHY THIS IS SAFE AND WHY IT IS RIGHT. book_health,
+     chapters and chapter_scans are ON DELETE CASCADE — all derived, all
+     rebuildable. notes.slug and records.slug are ON DELETE SET NULL, so a note
+     you wrote SURVIVES and merely stops pointing at a book that is gone, which
+     is exactly what the confirm dialog already promises: "Notes you took on it
+     stay in your save." */
+  deleteCard: 'DELETE FROM books WHERE slug = $1',
+
   // the merge that carries the steward's existing cards UP into the database
   // rather than letting a filename-derived row overwrite real work
   upsertCard: `INSERT INTO books (slug, title, attribution, license, source_url, shelf, kind, part, text_key, pages, local_file)
