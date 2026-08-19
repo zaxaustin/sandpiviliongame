@@ -37,9 +37,24 @@ export const COVER_EDGE = 400;      // a cover is shown at card size, never full
 export const COVER_MAX_BYTES = 120 * 1024;
 
 /* Measured: the whole acceptance case lands at 1.12 MB. 2 MB leaves real room
-   above the worst book we have seen without ever approaching a browser's
-   ~5–10 MB localStorage quota, which is the wall that actually hurts. */
+   above the worst book we have seen — on the DESKTOP, where the figures go to a
+   `<slug>.images.txt` sidecar and the save never sees them. */
 export const FIG_BUDGET_BYTES = 2 * 1024 * 1024;
+
+/* ⚠ IN A BROWSER THERE IS NO SIDECAR, SO THE FIGURES WOULD GO INTO THE SAVE —
+   and the save is the thing that runs out. MEASURED 2026-08-18 against the
+   deployed build: a 563 KB book is fine, and the NINTH one throws
+   QuotaExceededError at ~5 MB. One illustrated book at the desktop budget
+   weighs 1.6 MB of that, so three of them would end the library.
+
+   So a browser gets THE COVER AND NOTHING ELSE, and is told why. That is the
+   standing rule rather than a compromise: a feature that needs something
+   absent is ABSENT or LOCKED, never DEGRADED — half a book's diagrams, chosen
+   by whichever ones happened to come first, is exactly the degraded middle the
+   rule forbids. The desktop app keeps all of them, and the message says so. */
+export function figureBudgetFor(hasBridge){
+  return hasBridge ? FIG_BUDGET_BYTES : 0;
+}
 
 /* An SVG is already text and usually tiny; canvas decoding one is unreliable
    (no intrinsic size, no external refs) and pointless. Pass it through if it is
@@ -123,6 +138,9 @@ export async function shrinkFigures(images, opts){
   const figs = {};
   let kept = 0, undecodable = 0, cut = 0, bytes = 0;
   const list = images || [];
+  /* budget 0 is the browser: nothing is kept, and every figure is reported as
+     cut so the sentence the book carries is true rather than silent */
+  if(budget <= 0) return { figs:{}, kept:0, undecodable:0, cut:list.length, bytes:0, total:list.length };
   for(let i = 0; i < list.length; i++){
     const im = list[i];
     const n = markerNumber(im.marker);

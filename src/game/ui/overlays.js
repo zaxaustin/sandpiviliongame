@@ -73,7 +73,8 @@ import { renderTreeGraph } from './tree-graph.js';
 import { placesByScene } from '../data/places.js';
 import { storageBadge, storageOf, storageSummary, localRoom, nextDestination,
          STORAGE_STATES, DEFAULT_LOCAL_BOOK_CAP, LOCAL_CAP_MIN, LOCAL_CAP_MAX,
-         normalizeCap, estimatedBytes, humanBytes, AVG_BOOK_BYTES } from '../data/book-storage.js';
+         normalizeCap, estimatedBytes, humanBytes, AVG_BOOK_BYTES,
+         webRoom } from '../data/book-storage.js';
 import { scenes } from '../scenes.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
@@ -89,7 +90,7 @@ import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, speakSystem, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
 import { epubToText, splitOnFigMarks, stripFigMarks } from '../epub.js';
-import { shrinkFigures, shrinkImage, COVER_EDGE, COVER_MAX_BYTES } from '../image-shrink.js';
+import { shrinkFigures, shrinkImage, figureBudgetFor, COVER_EDGE, COVER_MAX_BYTES } from '../image-shrink.js';
 
 /* ================================================================
    MAP OF THIS FILE — read this before hunting.
@@ -12881,7 +12882,10 @@ async function parseBookFile(file, onProgress){
        visitor rather than assumed. */
     let pictures=null;
     if(res.images && res.images.length){
-      const shrunk=await shrinkFigures(res.images, { onProgress });
+      /* the budget depends on where the figures can LIVE — a sidecar file on
+         the desktop, nowhere at all in a browser (see image-shrink.js) */
+      const budget=figureBudgetFor(!!(window.desktopBridge && window.desktopBridge.libraryWrite));
+      const shrunk=await shrinkFigures(res.images, { onProgress, budget });
       const cover=res.cover
         ? await shrinkImage(res.cover.bytes, res.cover.mediaType,
             { edge:COVER_EDGE, maxBytes:COVER_MAX_BYTES })
@@ -12912,6 +12916,14 @@ export function picturesLine(p){
     if(p.cut) lost.push(`${p.cut} left out to keep the book a sensible size`);
     if(p.undecodable) lost.push(`${p.undecodable} in a format this machine can't open`);
     return `🖼 ${p.kept} of ${p.total} illustrations came with it — ${lost.join(', ')}.`;
+  }
+  /* THE BROWSER CASE IS NOT A FAILURE AND MUST NOT SOUND LIKE ONE. There is
+     nowhere for a browser to put a megabyte of pictures except the save, and
+     the save runs out at ~5 MB — so they are deliberately not kept, and the
+     sentence names the way through rather than apologising. */
+  if(!window.desktopBridge && p.cut === p.total){
+    return `🖼 This book has ${p.total} illustrations. A browser tab has nowhere to keep them — `
+      + `the text and the cover come in, and the desktop app keeps the pictures too.`;
   }
   return `🖼 This book has ${p.total} illustration${p.total===1?'':'s'} and none of them could be kept`
     + `${p.undecodable?" — the format isn't one this machine can open":''}. The text is all there.`;
@@ -13393,6 +13405,11 @@ export function rejectReviewItem(id){
    folder (falling back to inline-in-save in a browser, where big books
    get refused honestly rather than corrupting the save). */
 const INLINE_PERSONAL_MAX = 1500000; // ~1.5MB of text — past this, a browser's localStorage save genuinely can't hold it
+/* What the save weighs right now, read from the store rather than guessed —
+   it is one localStorage key, so its own length IS the number that matters. */
+function estimatedSaveBytes(){
+  try{ return JSON.stringify(data).length; }catch(e){ return 0; }
+}
 /* The one place a personal book actually gets built and shelved — shared by
    the queue's "Shelve" button and the drop form's direct "Add to my Library
    now". It files the book under the tradition you chose, so it lands on that
@@ -13463,6 +13480,20 @@ async function shelveAsPersonal({title, body, author, license, source, tradition
   }
   if(!storedAsFile){
     if(body.length>INLINE_PERSONAL_MAX) return { ok:false, reason:"Couldn’t write the file — try again." };
+    /* ⚠ REFUSE BEFORE THE QUOTA THROWS, NOT AFTER. Measured: the ninth
+       average-sized book takes a browser save past ~5 MB and setItem throws.
+       persist() does catch it — but by then the book is on the shelf in memory
+       and simply will not survive the reload, and the visitor learns this from
+       a generic "storage may be full" alert. A refusal that names the number
+       and the way through is the whole difference between a limit and a bug. */
+    if(!(bridge && bridge.libraryWrite)){
+      const room=webRoom(estimatedSaveBytes(), body.length);
+      if(!room.fits){
+        return { ok:false, reason:`This browser tab is full — a tab keeps every book's text inside `
+          + `one ~5 MB save, and yours is at ${humanBytes(room.used)}. The desktop app stores books `
+          + `as real files instead, with room for hundreds. Nothing you already have is affected.` };
+      }
+    }
     fullText.text=body;
   }
   /* ★ THE PICTURES, AND WHERE THEY GO (2026-08-18).

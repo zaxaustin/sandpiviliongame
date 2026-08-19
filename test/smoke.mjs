@@ -210,6 +210,41 @@ const fail = (msg) => failures.push(msg);
     }
   }
 
+  /* 7 · a browser gets the cover and nothing else.
+     MEASURED against the deployed build: a 563 KB book is fine and the NINTH
+     throws QuotaExceededError at ~5 MB. One illustrated book at the desktop
+     budget is 1.6 MB of that, so three would end the library. There is no
+     sidecar in a tab, so the figures would go into the save — ABSENT or LOCKED,
+     never DEGRADED. */
+  {
+    if (!/figureBudgetFor/.test(shrink)) {
+      fail('image-shrink.js no longer exports figureBudgetFor(). Without it a browser keeps a '
+         + 'megabyte of figures in the save, and the save runs out at ~5 MB — three illustrated '
+         + 'books would end the library.');
+    }
+    const fbf = fnBody(shrink, 'figureBudgetFor');
+    if (fbf && !/hasBridge\s*\?/.test(fbf)) {
+      fail('figureBudgetFor() no longer branches on whether there is a desktop bridge — which is '
+         + 'the only thing that decides whether the figures have anywhere to live.');
+    }
+    const pf = fnBody(ovsrc, 'parseBookFile');
+    if (pf && !/figureBudgetFor/.test(pf)) {
+      fail('parseBookFile() no longer asks figureBudgetFor() for the budget, so a browser shrinks '
+         + 'the full desktop allowance straight into localStorage.');
+    }
+    const wr = noComments(readFileSync(new URL('../src/game/data/book-storage.js', import.meta.url), 'utf8'));
+    if (!/WEB_SAVE_CEILING/.test(wr) || !/export function webRoom/.test(wr)) {
+      fail('book-storage.js lost WEB_SAVE_CEILING/webRoom(). Without them a tab accepts books until '
+         + 'setItem throws, and the visitor finds out from a generic alert AFTER the book is '
+         + 'already on the shelf in memory and about to vanish on reload.');
+    }
+    const sh = ovsrc; // shelveAsPersonal destructures its parameter — see the fnBody note below
+    if (/WEB_SAVE_CEILING|webRoom/.test(wr) && !/webRoom\s*\(/.test(sh)) {
+      fail('shelveAsPersonal() never calls webRoom(), so the browser ceiling is a constant nobody '
+         + 'consults — the exact "a boundary around a door nobody opened" shape.');
+    }
+  }
+
   /* 4 · pictures are a POINTER on the record, never dumped into it unbounded.
 
      ⚠ NOT VIA fnBody(), AND THE REASON IS A BUG IN fnBody() WORTH KNOWING.
