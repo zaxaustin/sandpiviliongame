@@ -24,7 +24,7 @@
    Out:  src/game/data/demo-shelf.js  (loaded by dynamic import, so it
          is its own chunk and costs nothing until the button is pressed)
    ================================================================ */
-import { readFileSync, writeFileSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -64,7 +64,24 @@ const BOOKS = [
 const LICENSE = 'Public domain';
 const SOURCE = 'Project Gutenberg';
 
-const books = BOOKS.map(b => {
+/* ⚠ library-sources/ IS GITIGNORED (.gitignore:9) — it is the steward's own
+   pile of downloaded books, not repo content. So on ANY fresh clone, including
+   every CI runner, these files do not exist.
+
+   The generated src/game/data/demo-shelf.js IS committed, so the demo itself
+   works everywhere. It is the REGENERATION that cannot run — which matters
+   because npm test imports this file to diff the generated output against the
+   committed one. Left as a bare readFileSync, that import throws ENOENT and
+   takes the whole suite down on CI while being perfectly green here: the exact
+   green-here / red-there shape .gitattributes exists because of.
+
+   So it reports absence instead of throwing, and the guard skips LOUDLY rather
+   than passing quietly — a suite that goes green because the thing it checks is
+   missing is rule 5 wearing a tick (the same call docker-home.cjs makes). */
+export const SOURCES_PRESENT = BOOKS.every(b => existsSync(join(ROOT, 'library-sources', b.file)))
+  && COURSES.every(f => existsSync(join(ROOT, f)));
+
+const books = !SOURCES_PRESENT ? [] : BOOKS.map(b => {
   const path = join(ROOT, 'library-sources', b.file);
   const text = readFileSync(path, 'utf8');
   const summary = text.slice(0, 240).replace(/\s+\S*$/, '') + (text.length > 240 ? '…' : '');
@@ -76,7 +93,7 @@ const books = BOOKS.map(b => {
   };
 });
 
-const courses = COURSES.map(f => readFileSync(join(ROOT, f), 'utf8'));
+const courses = !SOURCES_PRESENT ? [] : COURSES.map(f => readFileSync(join(ROOT, f), 'utf8'));
 
 const bytes = JSON.stringify({ books, courses }).length;
 const CEILING = 4300 * 1024;
@@ -103,6 +120,18 @@ export const DEMO_SHELF_STATS = { books: books.length, courses: courses.length, 
 
 /* only write when run directly, never on import from the guard */
 if (process.argv[1] && process.argv[1].endsWith('build-demo-shelf.mjs')) {
+  if (!SOURCES_PRESENT) {
+    console.error([
+      '',
+      '✗ library-sources/ is not on this machine — it is gitignored (.gitignore:9),',
+      '  the steward\'s own downloads rather than repo content.',
+      '',
+      '  The committed src/game/data/demo-shelf.js is what actually ships, so the',
+      '  demo works everywhere. Only REGENERATION needs those files.',
+      '',
+    ].join('\n'));
+    process.exit(1);
+  }
   if (bytes > CEILING * 0.6) {
     console.error(`\n✗ the demo shelf is ${KB(bytes)} KB, more than 60% of the ${KB(CEILING)} KB browser`
       + ` ceiling. A demo that fills the room and then refuses the visitor's own book teaches the`

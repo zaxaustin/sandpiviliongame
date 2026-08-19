@@ -245,17 +245,32 @@ const fail = (msg) => failures.push(msg);
      `npm run demo:shelf`, and the deployed demo silently keeps the old pair. */
   {
     const gen = readFileSync(new URL('../src/game/data/demo-shelf.js', import.meta.url), 'utf8');
-    const { demoShelfSource, DEMO_SHELF_STATS } = await import('../scripts/build-demo-shelf.mjs');
-    const fresh = demoShelfSource();
-    if (gen.replace(/\r\n/g, '\n') !== fresh.replace(/\r\n/g, '\n')) {
-      fail('src/game/data/demo-shelf.js is stale — regenerate it with `npm run demo:shelf`. It is '
-         + 'built from courses/ and library-sources/, and a generated file committed beside its '
-         + 'own inputs drifts the moment either changes.');
-    }
-    if (DEMO_SHELF_STATS.bytes > DEMO_SHELF_STATS.ceiling * 0.6) {
-      fail(`the demo shelf is ${Math.round(DEMO_SHELF_STATS.bytes / 1024)} KB, over 60% of the `
-         + 'browser save ceiling. A demo that fills the room and then refuses the visitor their own '
-         + 'book teaches exactly the wrong thing.');
+    const { demoShelfSource, DEMO_SHELF_STATS, SOURCES_PRESENT } =
+      await import('../scripts/build-demo-shelf.mjs');
+    /* ⚠ library-sources/ IS GITIGNORED, so on every fresh clone — every CI
+       runner — the inputs are absent and the drift check CANNOT run. It says so
+       out loud instead of passing quietly: a suite that goes green because the
+       thing it checks is missing is rule 5 wearing a tick, and the same call
+       docker-home.cjs makes about the container.
+
+       Caught before the first push rather than by a red CI run: as a bare
+       readFileSync this import threw ENOENT and took the whole suite down,
+       green here and red there — the exact shape .gitattributes exists for. */
+    if (!SOURCES_PRESENT) {
+      console.log('  --   demo-shelf drift check SKIPPED: library-sources/ is not on this machine\n'
+                + '       (gitignored). The committed demo-shelf.js is what ships and is unchecked here.');
+    } else {
+      const fresh = demoShelfSource();
+      if (gen.replace(/\r\n/g, '\n') !== fresh.replace(/\r\n/g, '\n')) {
+        fail('src/game/data/demo-shelf.js is stale — regenerate it with `npm run demo:shelf`. It is '
+           + 'built from courses/ and library-sources/, and a generated file committed beside its '
+           + 'own inputs drifts the moment either changes.');
+      }
+      if (DEMO_SHELF_STATS.bytes > DEMO_SHELF_STATS.ceiling * 0.6) {
+        fail(`the demo shelf is ${Math.round(DEMO_SHELF_STATS.bytes / 1024)} KB, over 60% of the `
+           + 'browser save ceiling. A demo that fills the room and then refuses the visitor their own '
+           + 'book teaches exactly the wrong thing.');
+      }
     }
     /* the whole point is that it is OPT-IN and browser-only */
     const idx = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
