@@ -155,23 +155,73 @@ if (!existsSync(installer)) {
 
      So: no tracked file under src/ or electron/ may be newer than the
      installer. Uses git's own list rather than a directory walk, so an
-     untracked scratch file cannot trip it. */
+     untracked scratch file cannot trip it.
+
+     ⚠ AND mtime WAS THE WRONG INSTRUMENT FOR IT (2026-08-19). GIT REWRITES
+     mtimes — a checkout, a merge, a branch switch gives every tracked file a
+     fresh one. After merging beta 7.1 this flagged 13 files as "changed
+     since" the build while `git diff` between the build commit and HEAD over
+     src/, electron/ and index.html was EMPTY. The installer was exactly the
+     code in the repo, and the gate said otherwise.
+
+     A gate that cries wolf is worse than no gate: it teaches you to skip it,
+     and you will skip it the once it is right. So the build now records the
+     commit it was made from (build/after-artifacts.cjs) and this compares
+     CONTENT, which is the question actually being asked.
+
+     mtime stays as the FALLBACK — for any installer built before the stamp
+     existed, and for a stamp made from a dirty tree, which is a stamp that
+     cannot be trusted. Falling back can only ever complain more, never less. */
   try {
-    const built = statSync(installer).mtimeMs;
-    const tracked = execSync('git ls-files src electron index.html package.json', { encoding: 'utf8' })
-      .split('\n').map(f => f.trim()).filter(Boolean);
-    const newer = tracked
-      .filter(f => existsSync(f) && statSync(f).mtimeMs > built + 1000)
-      .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
-    if (newer.length) {
-      const when = new Date(built).toISOString().slice(0, 16).replace('T', ' ');
-      bad(`the installer was built ${when} but ${newer.length} source file(s) have changed since — `
-        + `${newer.slice(0, 3).join(', ')}${newer.length > 3 ? ', …' : ''}. `
-        + `Publishing this ships code that is not the code in the repo, which is the exact fault that put a `
-        + `data-loss bug in front of testers on 2026-07-28. Rebuild.`);
+    const stampFile = `release/build-stamp.json`;
+    let stamp = null;
+    if (existsSync(stampFile)) {
+      try { stamp = JSON.parse(readFileSync(stampFile, 'utf8')); } catch (e) { stamp = null; }
+    }
+    const usable = stamp && stamp.commit && !stamp.dirty && stamp.version === version;
+
+    if (usable) {
+      /* the commit has to still exist — a stamp naming an unreachable commit
+         is no better than no stamp, and must not silently pass */
+      let known = true;
+      try { execSync(`git cat-file -e ${stamp.commit}^{commit}`, { stdio: 'ignore' }); }
+      catch (e) { known = false; }
+      if (!known) {
+        bad(`release/build-stamp.json names commit ${String(stamp.commit).slice(0, 7)}, which is not in this `
+          + `repository. Cannot prove the installer matches the source — rebuild.`);
+      } else {
+        const changed = execSync(`git diff --name-only ${stamp.commit} HEAD -- src electron index.html package.json`,
+          { encoding: 'utf8' }).split('\n').map(s => s.trim()).filter(Boolean);
+        /* uncommitted edits count too — HEAD is not the working tree */
+        const dirtyNow = execSync('git status --porcelain -- src electron index.html package.json',
+          { encoding: 'utf8' }).split('\n').map(s => s.trim().replace(/^\S+\s+/, '')).filter(Boolean);
+        const all = [...new Set([...changed, ...dirtyNow])];
+        if (all.length) {
+          bad(`the installer was built from ${String(stamp.commit).slice(0, 7)} but ${all.length} source `
+            + `file(s) differ from it now — ${all.slice(0, 3).join(', ')}${all.length > 3 ? ', …' : ''}. `
+            + `Publishing this ships code that is not the code in the repo, which is the exact fault that put a `
+            + `data-loss bug in front of testers on 2026-07-28. Rebuild.`);
+        }
+      }
+    } else {
+      const built = statSync(installer).mtimeMs;
+      const tracked = execSync('git ls-files src electron index.html package.json', { encoding: 'utf8' })
+        .split('\n').map(f => f.trim()).filter(Boolean);
+      const newer = tracked
+        .filter(f => existsSync(f) && statSync(f).mtimeMs > built + 1000)
+        .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
+      if (newer.length) {
+        const when = new Date(built).toISOString().slice(0, 16).replace('T', ' ');
+        bad(`the installer was built ${when} but ${newer.length} source file(s) have changed since — `
+          + `${newer.slice(0, 3).join(', ')}${newer.length > 3 ? ', …' : ''}. `
+          + `(No usable release/build-stamp.json, so this is the mtime fallback — git rewrites mtimes, so `
+          + `a rebuild also fixes a false alarm here.) `
+          + `Publishing this ships code that is not the code in the repo, which is the exact fault that put a `
+          + `data-loss bug in front of testers on 2026-07-28. Rebuild.`);
+      }
     }
   } catch (e) {
-    bad(`could not compare the installer's age against the source (${e.message}) — check by hand before publishing`);
+    bad(`could not compare the installer against the source (${e.message}) — check by hand before publishing`);
   }
 }
 
