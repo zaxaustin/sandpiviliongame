@@ -1,7 +1,7 @@
 {
   "name": "sand-pavilion",
   "private": true,
-  "version": "0.1.0-beta.7",
+  "version": "0.1.0-beta.7.1",
   "description": "The Sand Pavilion — a small walkable world for reading, planning, and working, with AI residents that run on your own machine. Local-first; nothing phones home.",
   "author": "The Sand Pavilion stewards",
   "repository": "https://github.com/zaxaustin/sandpiviliongame",
@@ -18,7 +18,8 @@
     "electron:build:beta": "vite build --mode beta && node scripts/verify-beta-build.mjs && electron-builder",
     "verify:beta": "node scripts/verify-beta-build.mjs",
     "icon": "node scripts/make-icon.mjs",
-    "verify:release": "node scripts/verify-release-docs.mjs"
+    "verify:release": "node scripts/verify-release-docs.mjs",
+    "demo:shelf": "node scripts/build-demo-shelf.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

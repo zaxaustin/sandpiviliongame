@@ -1,6 +1,6 @@
 # Installing the Sand Pavilion, from nothing
 
-**Written 2026-08-13 for `0.1.0-beta.7`.** Every path in it was measured on a
+**Written 2026-08-13 for `0.1.0-beta.7.1`.** Every path in it was measured on a
 real packaged build rather than reasoned from Electron's defaults — see the
 note at the end of *Where your things live*, because the answer is not the one
 you would guess.
@@ -16,18 +16,18 @@ Two audiences, and they need different things:
 
 ## 1 · Windows
 
-**Download** `Sand Pavilion Setup 0.1.0-beta.7.exe` (116 MB).
+**Download** `Sand Pavilion Setup 0.1.0-beta.7.1.exe` (116 MB).
 
 **Optional, if you're the checking sort.** In PowerShell:
 
 ```powershell
-Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.exe" -Algorithm SHA256
+Get-FileHash "Sand Pavilion Setup 0.1.0-beta.7.1.exe" -Algorithm SHA256
 ```
 
 It must print:
 
 ```
-CFC0A574A536B8230CC74E6D773222BD8748776AF14C38036CFC02D8B7D5444F
+8150529360AE3BB5EE25D53441F2F6858C6D64248238B0FA697B4AFD322603C8
 ```
 
 **Run it.** Windows will show a blue box:
@@ -53,8 +53,8 @@ Two files, and **they are not interchangeable**:
 
 | file | for |
 |---|---|
-| `Sand Pavilion 0.1.0-beta.7 arm64.dmg` | Apple Silicon — M1, M2, M3, M4 |
-| `Sand Pavilion 0.1.0-beta.7 x64.dmg` | Intel Macs |
+| `Sand Pavilion 0.1.0-beta.7.1 arm64.dmg` | Apple Silicon — M1, M2, M3, M4 |
+| `Sand Pavilion 0.1.0-beta.7.1 x64.dmg` | Intel Macs |
 
 Not sure which you have?  → *(Apple menu) → About This Mac*. If it says **Apple
 M-something**, take arm64.
@@ -86,7 +86,8 @@ It always matches the latest code.
 
 What a tab gives up, honestly:
 
-- **Roughly 10–20 books** instead of 500, because the text goes into browser
+- **About nine average books** instead of 500 (measured 2026-08-19: the ninth
+  563 KB book fills a ~5 MB store), because the text goes into browser
   storage rather than files on disk.
 - No native save dialog.
 - Reaching a local AI needs `OLLAMA_ORIGINS` set (the desktop app doesn't).
@@ -178,7 +179,7 @@ cannot be run here without one extra step.
 
 ### Where your things live
 
-Measured on the packaged `0.1.0-beta.7`, by asking the app itself:
+Measured on the packaged `0.1.0-beta.7.1`, by asking the app itself:
 
 ```
 %APPDATA%\sand-pavilion\

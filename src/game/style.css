@@ -287,7 +287,24 @@ body { font-family:var(--font-mono); touch-action:none; }
 @keyframes panelIn { from { opacity:0; transform:translateY(8px) scale(.994); } to { opacity:1; transform:none; } }
 .overlay.open .panel:not(.bookPanel) { animation:panelIn .18s ease-out; }
 @media (prefers-reduced-motion:reduce){ .overlay.open .panel:not(.bookPanel) { animation:none; } }
-#connOv { z-index:11; } /* reachable from the title screen (z-index:10), must render above it */
+/* ⚠ REACHABLE FROM THE TITLE SCREEN, so they must out-rank it (#title is
+   z-index:10). An .overlay is z-index:9, which is BEHIND the title screen —
+   the panel opens, state.ui is set, and the visitor sees nothing happen.
+
+   #connOv got this exception when it was added. #welcomeOv and #tutorialOv did
+   not, for months, and the cost was the worst possible one: the title screen's
+   "🧭 New here? Start here" is the ONE button in the whole application labelled
+   for a first-time visitor, and it was the one that looked broken. Everything
+   downstream worked — the handler bound, the function exported, .open applied —
+   so every test passed and only LOOKING at it could have found this.
+
+   #tutorialOv is here because the walk is opened FROM the welcome panel, so it
+   inherits the same before-Enter-is-pressed context.
+
+   Derived and checked by npm test: every overlay a title-screen button can
+   reach must resolve above #title. Do not add a fourth by hand — add the door
+   and let the guard tell you. */
+#connOv, #welcomeOv, #tutorialOv { z-index:11; }
 .panel {
   background:var(--parchment); border:3px solid var(--gold); border-radius:var(--r-lg);
   width:min(720px, 100%); color:var(--ink); padding:22px 24px 26px;
@@ -316,6 +333,57 @@ body { font-family:var(--font-mono); touch-action:none; }
   max-height:56vh; overflow-y:auto; padding-right:6px;
 }
 .bookPanel .fullTextPage { color:var(--read-ink); } /* the reader always opens as a bookPanel — dark ink on parchment, not light-on-dark */
+/* A FIGURE ON THE PAGE (2026-08-18). The container is `white-space:pre-wrap`,
+   so an inline image would sit on the text baseline and drag the line height
+   around — hence display:block. Width is CAPPED rather than stretched: these
+   are downscaled to 480px on the long edge, and blowing a line drawing up past
+   its own resolution makes it look worse, not bigger. */
+.bookFigure {
+  display:block; max-width:min(100%,420px); height:auto; margin:14px auto;
+  border-radius:4px; box-shadow:0 1px 6px rgba(40,28,12,.28);
+}
+
+/* A BOOK'S OWN COVER, in a list. Fixed aspect box rather than natural size:
+   covers arrive at whatever shape the publisher chose, and a list where every
+   row is a different height reads as broken rather than various. `object-fit:
+   cover` crops instead of squashing — a squashed cover looks like a bug, a
+   cropped one looks like a thumbnail. */
+.bookCover {
+  flex:0 0 auto; aspect-ratio:2/3; object-fit:cover; object-position:top center;
+  border-radius:3px; background:#e8dcc2;
+  box-shadow:0 1px 4px rgba(20,14,6,.45), 0 0 0 1px rgba(255,240,210,.12);
+}
+
+/* ---------- THE READER LOOKS LIKE A BOOK ----------
+   Asked for 2026-08-18: "flipping pages and looking at a book really reads
+   like a text file rather than holding an actual book. There's no page turning
+   animation, there's no outline of a book on the outside."
+
+   This is the OUTLINE half — the cheap half, and the one that changes the
+   feeling most per line spent. No page-curl library (the sleeper car stands,
+   and every one of them wants a canvas for what a shadow gets 90% of): a
+   spine down the left edge, the block of pages seen from the right, and a
+   shadow underneath so it sits ON the desk rather than in front of it.
+
+   Drawn with box-shadow rather than extra elements, so it costs the renderer
+   nothing and cannot break the panel's layout — the reader is already a
+   scroll container and a flex parent, and adding real page-edge divs to it
+   was how this got deferred the first time. */
+.bookPanel {
+  position:relative;
+  box-shadow:
+    /* the block of pages, seen edge-on down BOTH sides — an open book shows
+       its leaves on the outside of each page, not just the right */
+    -4px 0 0 -1px #e2d4b6, -7px 0 0 -1px #c9b993,
+    4px 0 0 -1px #e2d4b6, 7px 0 0 -1px #c9b993,
+    /* the board, and the shadow it casts on the desk */
+    0 0 0 2px #7a5f3c,
+    0 16px 38px rgba(8,5,2,.6);
+}
+@media (max-width:720px){
+  /* on a narrow screen the leaves would eat real reading width */
+  .bookPanel { box-shadow:0 0 0 2px #7a5f3c, 0 10px 26px rgba(8,5,2,.5); }
+}
 
 /* ============================================================
    A PAGE OF A BOOK, LAID ON A DESK.
@@ -530,8 +598,19 @@ input[type=time]:focus, input[type=date]:focus { outline:none; border-color:#e0a
   #readerOv .panel { width:min(1000px, 100%); display:flex; flex-wrap:wrap; column-gap:28px; }
   #readerOv .panel > .xbtn, #readerOv .panel > h2, #readerOv .panel > .meta { flex:0 0 100%; }
   #readerOv #rdSummaryView, #readerOv #rdFullTextView { flex:1 1 52%; min-width:320px; }
+  /* ⚠ THE FOLD, NOT THE SPINE, IS WHAT MAKES THIS READ AS A BOOK. The first
+     attempt at "an outline of a book" put a spine down the far left of the
+     panel — and LOOKING at it, the panel is a thousand pixels wide, so an edge
+     treatment out there reads as a border and nothing more. This layout is
+     already an open two-page spread: text on the left, notes on the right,
+     with a rule between them. Shading BOTH sides of that rule is the gutter of
+     an open book, and it is the one place the eye already goes. */
   #readerOv #rdNotesView {
     flex:1 1 280px; max-width:320px; border-left:2px solid #d8c393; padding-left:22px;
+    box-shadow:inset 16px 0 16px -16px rgba(92,68,38,.45);
+  }
+  #readerOv #rdSummaryView, #readerOv #rdFullTextView {
+    box-shadow:inset -16px 0 16px -16px rgba(92,68,38,.34);
   }
   #rdNotesHead { margin-top:0; }
 }

@@ -131,11 +131,50 @@ directly (see `reference_screenshotting_the_game`). So the method is now:
 - Not a from-scratch redesign — it's tokenizing, tidying, and lifting a design
   that already works.
 
+---
+
+## 📖 OPEN: THE READER DOES NOT FEEL LIKE A BOOK (raised 2026-08-18)
+
+The steward, using it: *"flipping pages and looking at a book really reads like
+a text file rather than holding an actual book. There's no page turning
+animation, there's no outline of a book on the outside. We don't really need to
+fix these things but definitely something that needs to get addressed in the
+future eventually."*
+
+**Explicitly deferred — recorded so it does not evaporate, not queued.** It is
+the right complaint: the Reader has real serif type on parchment and a genuine
+page model, and it still presents as a scrolling `<div>` because nothing frames
+it as an object. Two separate wants, and they are not the same size:
+
+- **The outline of a book** — a spine, a board edge, the block of pages seen
+  from the side, a shadow in the gutter. Pure CSS on a panel that already has
+  `.bookPanel`, and cheap enough for the sleeper car. This is the one that would
+  change the feeling most per hour spent.
+- **The page turn** — a real animation between `fullTextPrevPage()` and
+  `fullTextNextPage()`. Harder than it looks: `renderFullTextPage()` repaints
+  one element in place, so a turn means two page surfaces alive at once, and it
+  has to respect `prefers-reduced-motion` (the `panelIn` precedent above).
+
+**What changed underneath while this sat open**, and it matters for whoever
+picks it up: as of 2026-08-18 a page can contain **images**, not just text —
+`.bookFigure`, painted by `paintFullTextPage()`. A turn animation has to carry
+figures with it, and a book-shaped frame now has real illustrated pages to
+frame. Both are easier to justify than they were, and the figure work is the
+reason the Reader is worth dressing at all.
+
+⚠ **Do not reach for a page-curl library.** Build-it-ourselves stands, the
+sleeper car stands, and every one of them wants a canvas or WebGL for an effect
+that a transform and a shadow get 90% of.
+
+---
+
 ## Cross-references
 - `CLAUDE.md` — the sleeper-car standing decision this honors.
 - `CHARACTER-CUSTOMIZATION-PLAN.md` — the sprite/appearance work Phase 4 leans on.
-- `src/game/style.css` — the stylesheet Phases 1–3 tokenize and tidy.
-- `src/game/ui/overlays.js` — `renderShelf` (Phase 0), the overlays (Phase 2).
+- `src/game/style.css` — the stylesheet Phases 1–3 tokenize and tidy;
+  `.fullTextPage` and `.bookFigure` are the Reader's own surface.
+- `src/game/ui/overlays.js` — `renderShelf` (Phase 0), the overlays (Phase 2),
+  `renderFullTextPage()` / `paintFullTextPage()` (the Reader).
 
 **One line to hold onto:** professional isn't more pixels or a new language — it's
 making every pixel look chosen. Order the shelves, tokenize the look, tidy the

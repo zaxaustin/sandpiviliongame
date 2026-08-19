@@ -163,8 +163,41 @@ function lastAskOf(agent){
    Returns null with no database — never a quieter search wearing the
    same label — and the callers use that to choose between "you look
    things up" and the pasted catalogue brief, exactly as before. */
+/* ⚠ THE SAME SEARCH, WITHOUT POSTGRES. `searchBooks` is a named query on the
+   desktop database, and every desktop install has one — so on the main path
+   this fallback never runs. In a BROWSER there is no bridge at all, and
+   shelfLookup() used to return null there, which meant reachGap() never got as
+   far as SHELVED_NOT_CARRIED: a visitor with books on the shelf and none in
+   the bag got no explanation and no 🎒 offer, and the resident simply answered
+   out of model memory as though the shelf were empty.
+
+   It is a title/author/shelf match rather than a real index — no stemming, no
+   ranking — and that is the honest ceiling of what `allDocs()` can do in a tab.
+   It reads the SAME fields libraryLookupBlock() renders (title, attribution,
+   shelf) and not one word of any book's text, so the invariant that a resident
+   may name a book and never claim to have read one it is not carrying holds
+   here exactly as it does on the database path. */
+function shelfScanFallback(terms){
+  const docs=(Store.allDocs&&Store.allDocs())||[];
+  if(!docs.length) return [];
+  const seen=new Map();
+  for(const t of terms){
+    const needle=String(t||'').toLowerCase();
+    if(needle.length<3) continue;
+    for(const d of docs){
+      if(seen.has(d.slug)) continue;
+      const hay=`${d.title||''} ${d.attribution||''} ${d.tradition||''}`.toLowerCase();
+      if(hay.includes(needle)) seen.set(d.slug,{ slug:d.slug, title:d.title,
+        attribution:d.attribution, shelf:d.tradition });
+    }
+  }
+  return [...seen.values()].slice(0,12);
+}
 async function shelfLookup(question){
-  if(!(Store.dbAvailable && Store.dbAvailable())) return null;
+  const noDb=!(Store.dbAvailable && Store.dbAvailable());
+  /* an empty shelf is NOTHING_HERE_YET, which reachGap() already answers from
+     the total — falling through with zero hits would say the wrong thing */
+  if(noDb && !((Store.allDocs&&Store.allDocs())||[]).length) return null;
   const q=String(question||'').trim();
   const d=state.dialog;
   const turn=(d && Array.isArray(d.history)) ? d.history.length : -1;
@@ -176,12 +209,16 @@ async function shelfLookup(question){
   const plan=groundingPlan(q, carryList(), { noteReach:(data&&data.noteReach)||{} });
   const res={ q, turn, terms:plan.terms, hits:[], searched:plan.search.includes('book') };
   if(res.searched){
-    const seen=new Map();
-    for(const t of plan.terms){
-      const rows=await Store.dbQuery('searchBooks',[t,8]);
-      for(const r of (rows||[])) if(!seen.has(r.slug)) seen.set(r.slug,r);
+    if(noDb){
+      res.hits=shelfScanFallback(plan.terms);
+    }else{
+      const seen=new Map();
+      for(const t of plan.terms){
+        const rows=await Store.dbQuery('searchBooks',[t,8]);
+        for(const r of (rows||[])) if(!seen.has(r.slug)) seen.set(r.slug,r);
+      }
+      res.hits=[...seen.values()].slice(0,12);
     }
-    res.hits=[...seen.values()].slice(0,12);
   }
   /* THE STASH, so the receipt can say what was looked up. Same shape the notes
      search already proved (d.noteSearch → noteSearchReceipt): a search whose

@@ -99,7 +99,7 @@ deliberately the same, **so the badge can never disagree with what happened.**
 
 | where | ceiling |
 |---|---|
-| web build | **~10–20 books** (text goes inline into a ~5–10 MB quota) |
+| web build | **~9 books, measured** (text goes inline into a ~5 MB quota; refused politely past that) |
 | desktop app | **500 by default, visitor-set up to 5,000** (~2.7 GB at 563 KB a book) |
 | + Docker | no practical limit |
 

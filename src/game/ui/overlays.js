@@ -13,7 +13,7 @@ import { theDayItems, theDayLine, forgottenNotes, FORGOTTEN_AFTER_DAYS, notesTod
 import { gatherRecords, recordSummary, RECORD_LOOK } from '../data/records.js';
 import { backendTrouble } from '../data/backend-trouble.js';
 import { readingIn, readingLabel, lessonToMarkdown, lessonToHTML, lessonFileName } from '../data/lesson-doc.js';
-import { esc, jsq, mdLite, courseProse, checklistHTML, NOTE_SELECT_STYLE } from './dom.js';
+import { esc, jsq, mdLite, courseProse, checklistHTML, NOTE_SELECT_STYLE, atTitleScreen } from './dom.js';
 import { messageFor, addMessage, nextUnread, unreadCount } from '../data/messages.js';
 /* The messages panel lives in its own file — a new surface does not go into a
    15k-line one. Only the window exports and one initMessages() call are here,
@@ -73,7 +73,8 @@ import { renderTreeGraph } from './tree-graph.js';
 import { placesByScene } from '../data/places.js';
 import { storageBadge, storageOf, storageSummary, localRoom, nextDestination,
          STORAGE_STATES, DEFAULT_LOCAL_BOOK_CAP, LOCAL_CAP_MIN, LOCAL_CAP_MAX,
-         normalizeCap, estimatedBytes, humanBytes, AVG_BOOK_BYTES } from '../data/book-storage.js';
+         normalizeCap, estimatedBytes, humanBytes, AVG_BOOK_BYTES,
+         webRoom } from '../data/book-storage.js';
 import { scenes } from '../scenes.js';
 import { BADGES } from '../data/badges.js';
 import { blip, setHud, warpTo } from '../main.js';
@@ -88,7 +89,8 @@ import { AI, isAIActive, providerFor, detectAI, isEmptyReply, bestLocalModel, is
 import { CHARTER, WORK_CHARTER, BUTLER_CHARTER } from '../data/charter.js';
 import { CATEGORIES, TRADITIONS } from '../data/seed.js';
 import { speak, speakSystem, stopSpeaking, isSpeaking, ttsAvailable, ttsVoices, setTTSSettings, getTTSSettings, skipSpeech, canSkipSpeech, pauseSpeaking, resumeSpeaking, isPaused, hasAudio, clearPaused, speechProgress } from '../tts.js';
-import { epubToText } from '../epub.js';
+import { epubToText, splitOnFigMarks, stripFigMarks } from '../epub.js';
+import { shrinkFigures, shrinkImage, figureBudgetFor, COVER_EDGE, COVER_MAX_BYTES } from '../image-shrink.js';
 
 /* ================================================================
    MAP OF THIS FILE — read this before hunting.
@@ -2405,8 +2407,19 @@ function connDiagnosisCard(){
 }
 function renderConnections(){
   const conns=data.aiConnections;
+  /* ⚠ THE ONE PANEL THAT OPENS BEFORE THE GAME DOES, so its back button has two
+     destinations. Reached from the title screen (the "⚙ Manage AI connections"
+     button), "← Back to menu" opened the pause menu — at z-index 9, behind the
+     title screen at 10. Invisible, with state.ui='menu' set, so the next Esc
+     silently closed a panel nobody saw. Found 2026-08-18 by the new npm test
+     guard on its first run, which is the only reason to trust that guard.
+     Raising #menuOv was the wrong fix: the pause menu is mostly PLACES buttons
+     that would each open another overlay at 9, i.e. a menu of dead buttons. */
+  const back = atTitleScreen()
+    ? `<button class="xbtn" onclick="closeUI()">← Back</button>`
+    : `<button class="xbtn" onclick="openMenu()">← Back to menu</button>`;
   document.getElementById('connPanel').innerHTML = `
-    <button class="xbtn" onclick="openMenu()">← Back to menu</button>
+    ${back}
     <h2>AI Connections</h2>
     ${connDiagnosisCard()}
     <div class="meta">Stored on this device only. The first enabled connection below that answers
@@ -4291,13 +4304,26 @@ export function openShelf(tradition){
 function emptyShelfText(tradition){
   const bridge = typeof window!=='undefined' && window.desktopBridge;
   if(!bridge){
-    return `<p><b>Your library is not in this browser tab.</b> A tab has its own separate save and
-      cannot reach the desktop app's database, your book files, or Docker — so every shelf here looks
-      empty even when your Library is full.</p>
-      <p style="margin-top:8px">Run <code>npm run electron:dev</code> instead of <code>npm run dev</code>
-      to develop against your real Library, or open the installed app. Nothing is lost either way.</p>
-      <p style="margin-top:8px">If you meant to start a fresh library right here, you can:
-      <button class="btn ghost" style="font-size:11.5px;padding:3px 10px" onclick="openBookIntake()">📥 Bring a book in</button></p>`;
+    /* ⚠ THIS WAS DEVELOPER COPY ON A SURFACE STRANGERS STAND IN FRONT OF. It
+       opened "Your library is not in this browser tab" and told the reader to
+       run `npm run electron:dev` — an answer to a question only the steward has
+       ever asked, printed at the bookcase, in a build that is deployed to the
+       web. Someone visiting the site is not developing against anything; their
+       library is empty because they have not brought a book yet, and that is
+       the ordinary case. The dev note is still here because it is genuinely the
+       answer sometimes — demoted to one line at the bottom, where it belongs. */
+    const shelved = (Store.allDocs()||[]).length;
+    if(!shelved) return emptyLibraryOnRamp();
+    return `<p>Nothing on the <b>${esc(tradition||'this')}</b> shelf yet — though you have
+      ${shelved} book${shelved===1?'':'s'} on other shelves. Books land here once you file them
+      under that shelf.</p>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" onclick="openBookIntake()">📥 Bring a book in</button>
+        <button class="btn ghost" onclick="openMyLibrary()">👤 Your Library</button>
+        <button class="btn ghost" onclick="openIndex()">📑 The whole Index</button>
+      </div>
+      <p class="meta" style="margin-top:10px;opacity:.75">Reading this in a browser tab while your real
+      Library lives in the desktop app? They keep separate saves — open the app to see those books.</p>`;
   }
   if(tradition==='Personal'){
     return `<p>Your own shelf — empty so far, and that's the design: you fill it. Drop a
@@ -4337,7 +4363,9 @@ function renderShelf(){
       <div class="shelfCase">${row.map((d,i)=>spine(d, start+i)).join('')}</div></div>`);
   }
   document.getElementById('shelfList').innerHTML = docs.length ? rows.join('') + `
-    <div class="bookLabel">
+    <div class="bookLabel"${coverOf(sel.slug)?' style="display:flex;gap:14px;align-items:flex-start"':''}>
+      ${coverImg(sel.slug, 84)}
+      <div style="flex:1;min-width:0">
       <div class="blTitle">${esc(sel.title)}
         ${data.read[sel.slug]?'<span class="badge">read ✓</span>':''}
         ${isRecentlyAdded(sel.added)?'<span class="badge">NEW</span>':''}
@@ -4350,6 +4378,7 @@ function renderShelf(){
         ${state.shelfTradition==='Personal'?'<button class="btn ghost" onclick="openManageLibrary()">⚙ Manage my books</button>':''}
       </div>
       <div class="blHint">◀ ▶ browse the shelf · Enter / E open</div>
+      </div>
     </div>` : emptyShelfText(state.shelfTradition);
 }
 export function selectBook(i){
@@ -4364,11 +4393,29 @@ export function shelfOpenSelected(){
   const d=(state.shelfDocs||[])[state.shelfIndex]; if(d) openReader(d.slug);
 }
 window.addEventListener('keydown',e=>{
-  if(state.ui!=='shelf') return;
+  /* ⚠ THE TYPING GUARD IS NOT OPTIONAL HERE, and it was not needed until today.
+     This handler only ever ran on the shelf, which has no text input — so it
+     could take every arrow unconditionally. The reader has the note box, and
+     without this, left/right would jump the page out from under someone
+     mid-sentence while they were writing a note about that very page. Same
+     check main.js's keydown makes, and for the same reason. */
+  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')) return;
   const k=e.key.toLowerCase();
-  if(k==='arrowleft'){ e.preventDefault(); shelfNav(-1); }
-  else if(k==='arrowright'){ e.preventDefault(); shelfNav(1); }
-  else if(k==='enter'||k==='e'||k===' '){ e.preventDefault(); shelfOpenSelected(); }
+  if(state.ui==='shelf'){
+    if(k==='arrowleft'){ e.preventDefault(); shelfNav(-1); }
+    else if(k==='arrowright'){ e.preventDefault(); shelfNav(1); }
+    else if(k==='enter'||k==='e'||k===' '){ e.preventDefault(); shelfOpenSelected(); }
+    return;
+  }
+  /* THE PAGE IS THE UNIT LEFT AND RIGHT MOVE; up/down are left alone so they
+     scroll the page text, which is what a 56vh box with overflow-y:auto is for.
+     Only while the full-text view is actually up — on the summary view there is
+     no page to turn, and stealing the arrows there would be the same swallowing
+     bug in a new place. */
+  if(state.ui==='reader'&&state.fullTextView){
+    if(k==='arrowleft'){ e.preventDefault(); fullTextPrevPage(); }
+    else if(k==='arrowright'){ e.preventDefault(); fullTextNextPage(); }
+  }
 });
 export function openReader(slug){
   const d=Store.getDoc(slug); if(!d) return;
@@ -4384,6 +4431,22 @@ export function openReader(slug){
     + (d.license?` · License: <b>${esc(d.license)}</b>`:'')
     + (d.attribution?` · Source: <b>${esc(d.attribution)}</b>`:'')
     + (d.source_url?`<br>${esc(d.source_url)}`:'')
+    /* WHAT THIS BOOK BROUGHT WITH IT — said only when there is something to
+       say. A book with pictures shows its count; a book without says nothing,
+       because "no illustrations" under a plain .txt is noise, not honesty.
+
+       ⚠ It is also the only way to tell a book imported BEFORE 2026-08-18 from
+       one imported after, and that distinction cost real time: the steward
+       opened his own copy in the desktop app, saw no pictures, and reasonably
+       concluded the feature did not work. It did — his book predated the
+       walker that can see images, so it had no figures to show and no way to
+       say so. A book already on the shelf cannot gain them; the file has to
+       come in again. This line is what makes that visible at a glance. */
+    + (d.doc && d.doc.pics && d.doc.pics.kept
+        ? `<br><span class="badge">🖼 ${d.doc.pics.kept} illustration${d.doc.pics.kept===1?'':'s'}</span>`
+          + (d.doc.pics.cut||d.doc.pics.undecodable
+              ? ` <span style="opacity:.75;font-size:11px">of ${d.doc.pics.total} — the rest were left out</span>` : '')
+        : '')
     + (d.personal ? `<br><span class="badge">👤 personal — Your Shelf, not the certified commons</span>
         <button class="btn ghost" style="font-size:11px;padding:2px 8px;margin-left:6px" onclick="removePersonalBook('${esc(d.slug)}')">Remove from Your Shelf</button>` : '');
   /* SAY SO WHEN THE TEXT ISN'T HERE (2026-07-28). Ten of the seed books are
@@ -4820,7 +4883,8 @@ export async function openFullText(slug, landOnPage){
   if(!text) return;
   const pages=paginateFullText(text);
   const want=(typeof landOnPage==='number') ? Math.max(0, Math.min(pages.length-1, landOnPage)) : 0;
-  state.fullTextView = { slug, pages, page:want };
+  const figs=await figuresFor(slug);
+  state.fullTextView = { slug, pages, page:want, figs };
   renderFullTextPage();
 }
 export function backToSummary(){
@@ -4831,11 +4895,55 @@ export function backToSummary(){
   document.getElementById('rdFullTextView').style.display='none';
   if(slug) renderBookNotes(slug); // leaving full-text drops the per-page filter back to "all"
 }
+/* THE FIGURES FOR A BOOK, resolved once and cached on the view. A pointer to a
+   sidecar .txt on desktop, inline in the save in a browser — the same two-homes
+   shape fullText already has, read the same way: from the book's own record,
+   never from what happens to be running. */
+async function figuresFor(slug){
+  const d=Store.getDoc(slug);
+  const pics=d&&d.doc&&d.doc.pics;
+  if(!pics) return null;
+  if(pics.figs) return pics.figs;
+  if(pics.storage&&pics.storage.personal&&window.desktopBridge&&window.desktopBridge.libraryRead){
+    try{
+      const res=await window.desktopBridge.libraryRead(pics.storage.personal);
+      if(res&&res.ok&&res.text) return JSON.parse(res.text);
+    }catch(e){ /* the book still reads; the pictures are what is missing */ }
+  }
+  return null;
+}
+/* ⚠ A PAGE IS STILL A STRING, and that is load-bearing rather than lazy.
+   paginate() in data/retrieval.js is the SINGLE definition of a page, shared so
+   that retrieval saying "p.47" and the reader showing p.47 cannot drift — and
+   BM25 search, speakPage(), the note page-anchoring and the Study Table all
+   read pages as text. So a figure travels as a plain marker inside the string
+   (⟦fig:7⟧, put there by the EPUB walker) and only THIS function, at the last
+   moment before the DOM, turns markers into <img>. Everything upstream is
+   untouched and cannot tell the difference. */
+function paintFullTextPage(el, text, figs){
+  el.textContent='';
+  if(!figs){ el.textContent=stripFigMarks(text); return; }
+  for(const part of splitOnFigMarks(text)){
+    if(part.text!=null){ el.appendChild(document.createTextNode(part.text)); continue; }
+    const url=figs[part.fig];
+    if(!url) continue; // a figure that was cut is simply absent; the book says so elsewhere
+    /* ⚠ ONLY EVER AN INLINE IMAGE. These come back from a JSON file under
+       userData, which the app wrote — but a file on disk is editable by
+       anything that can reach the disk, and this value goes straight into a
+       src. Nothing here should ever be a URL that fetches, so anything that is
+       not a data:image/ payload is dropped rather than trusted. It costs one
+       comparison and closes the only opening this feature added. */
+    if(!/^data:image\//.test(url)) continue;
+    const img=document.createElement('img');
+    img.src=url; img.className='bookFigure'; img.loading='lazy'; img.alt='';
+    el.appendChild(img);
+  }
+}
 function renderFullTextPage(){
   const v=state.fullTextView; if(!v) return;
   const wasReading=isSpeaking()||isPaused(); // carry the voice onto the new page rather than killing it
   stopSpeaking();
-  document.getElementById('rdFullTextBody').textContent=v.pages[v.page];
+  paintFullTextPage(document.getElementById('rdFullTextBody'), v.pages[v.page], v.figs);
   document.getElementById('rdFullTextPageNum').textContent=`Page ${v.page+1} of ${v.pages.length}`;
   document.getElementById('rdFullTextBody').scrollTop=0;
   updateFullTextSpeakBtn();
@@ -4960,7 +5068,12 @@ export function skipReadAloud(seconds){
 function speakPage(){
   const v=state.fullTextView; if(!v) return;
   state.bookAudio={ slug:v.slug, page:v.page };
-  speak(v.pages[v.page], ()=>{
+  /* ⚠ NEVER READ A FIGURE MARKER ALOUD. A page is a string carrying ⟦fig:7⟧
+     where a picture goes (see paintFullTextPage), and a voice handed that says
+     "left double bracket fig colon seven" in the middle of a sentence. The alt
+     text, where the book supplied any, is already ordinary prose on the line
+     below the marker and is read normally. */
+  speak(stripFigMarks(v.pages[v.page]), ()=>{
     // finished this page: turn to the next and carry on, or stop at the end
     const cur=state.fullTextView;
     if(!state.bookAudio) return;            // stopped while that page was reading
@@ -5239,16 +5352,50 @@ function emptyLibraryOnRamp(){
     : (Store.dbAvailable && Store.dbAvailable())
       ? 'Your books go to local Docker storage, where there is no practical limit.'
       : 'Your books are written as real files on this machine.';
+  /* ⚠ WRITTEN FOR A VISITOR, NOT A CHANGELOG. This used to open "The shipped
+     shelf was removed on 2026-08-10 — it was mostly excerpts standing in for
+     books", which is true, is the real reason, and is archaeology to somebody
+     who arrived this morning. They do not know there ever was a shelf. Say
+     what is true of THEIR library and what to do about it; the history lives
+     in CLAUDE.md, where the people who need it are. */
   return `<div class="meta" style="margin-top:10px;line-height:1.6">
-    <b>Your Library is empty, and that is the intended starting point.</b><br>
-    The shipped shelf was removed on 2026-08-10 — it was mostly excerpts standing in
-    for books, and a shelf you filled yourself is the whole idea.
+    <b>Your Library starts empty, on purpose.</b><br>
+    Nothing is shipped on these shelves — a library here is one you built, and a book
+    nobody chose is furniture. Bring in a <b>.txt</b> or <b>.epub</b> (drag it anywhere
+    onto the window) and it lands on your shelf, yours, no licence needed.
     ${esc(where)}</div>
   <div class="row" style="margin-top:10px">
     <button class="btn" onclick="openBookIntake()">📥 Bring a book in</button>
     <button class="btn ghost" onclick="openMyLibrary()">📕 Your Shelf</button>
     <button class="btn ghost" onclick="openReviewQueue()">🐫 The Caravan Desk</button>
-  </div>`;
+  </div>
+  <div class="meta" style="margin-top:8px;opacity:.8">
+    Not sure where to get one? <b>Project Gutenberg</b>, <b>Standard Ebooks</b> and
+    <b>the Internet Archive</b> are all free, legal and plain downloads —
+    📥 Bring a book in lists them with links.</div>`;
+}
+
+/* ★ THE BOOK'S OWN COVER, where a book is listed.
+
+   ⚠ THIS EXISTED AS STORED DATA FOR A DAY BEFORE ANYTHING DREW IT, which is
+   this project's oldest bug shape — a field written on every import that no
+   surface ever read. It mattered most exactly where it was least visible: a
+   BROWSER keeps the cover and deliberately nothing else (see
+   figureBudgetFor), so on the web build the cover was the only picture an
+   illustrated book had, and it was invisible.
+
+   Same data: guard as paintFullTextPage, and for the same reason — this comes
+   off disk on the desktop path, and an <img src> should never fetch. */
+function coverOf(slug){
+  const d = Store.getDoc(slug);
+  const url = d && d.doc && d.doc.pics && d.doc.pics.cover;
+  return (typeof url === 'string' && /^data:image\//.test(url)) ? url : null;
+}
+function coverImg(slug, px){
+  const url = coverOf(slug);
+  if(!url) return '';
+  const w = px || 44;
+  return `<img class="bookCover" src="${esc(url)}" alt="" loading="lazy" style="width:${w}px">`;
 }
 
 /* WHERE THIS ONE BOOK'S TEXT IS, on the card itself. Read off the book's own
@@ -5404,11 +5551,17 @@ function renderIndex(){
         onclick="setIndexCategory('${c.id}')">${esc(c.label)} <span class="badge">${counts[c.id]||0}</span></button>`).join('')}
     </div>
     ${shelfStorageLine()}
-    ${shown.length ? shown.map(i=>`
-      <div class="card" onclick="openIndexItem('${i.kind}','${i.slug}')">
+    ${shown.length ? shown.map(i=>{
+      /* the cover sits BESIDE the card's existing two lines rather than above
+         them, so a card with one and a card without are the same height and
+         the list does not go ragged when only some books have art */
+      const cov = i.kind==='library' ? coverImg(i.slug, 40) : '';
+      const body = `<div style="flex:1;min-width:0">
         <div class="t">${i.kind==='library'?'📖':'📔'} ${esc(i.title)}${i.kind==='library'?` <span class="badge lic">${esc(i.license)}</span>`:''}${i.kind==='library'?bookStorageBadge(i.slug):''}${isRecentlyAdded(i.added)?' <span class="badge">NEW</span>':''}</div>
-        <div class="s">${esc(i.sub||'')}</div>
-      </div>`).join('') : `<p>${search?'Nothing matches that search.':''}</p>${search?'':emptyLibraryOnRamp()}`}`;
+        <div class="s">${esc(i.sub||'')}</div></div>`;
+      return `<div class="card" onclick="openIndexItem('${i.kind}','${i.slug}')"
+        ${cov?'style="display:flex;gap:10px;align-items:flex-start"':''}>${cov}${body}</div>`;
+    }).join('') : `<p>${search?'Nothing matches that search.':''}</p>${search?'':emptyLibraryOnRamp()}`}`;
 }
 
 /* ================================================================
@@ -5484,6 +5637,17 @@ function renderCatalog(){
   const panel=document.getElementById('catalogPanel');
   const header=`<button class="xbtn" onclick="closeUI()">Esc ✕</button><h2>🗂 The Stacks</h2>`;
   if(!v.section){
+    /* ⚠ WITH NOTHING SHELVED AND NO NAMED SHELVES, `sections` IS EMPTY AND THIS
+       PANEL RENDERED A HEADING, a paragraph about drilling in, and a blank
+       space — on a fresh install, which is every install now. That is precisely
+       the drift emptyLibraryOnRamp's own header predicted when it said it
+       existed so "the three panels cannot drift apart": it had ONE caller (the
+       Index) for eight days while the Stacks quietly showed nothing. */
+    if(!sections.length){
+      panel.innerHTML = header + emptyLibraryOnRamp()
+        +`<div class="row" style="margin-top:14px"><button class="btn ghost" onclick="openIndex()">↔ The flat Index instead</button></div>`;
+      return;
+    }
     panel.innerHTML = header
       +`<div class="meta">The whole Library, by section — built to hold a lot of books. The physical
         shelves are a curated handful; this is <i>everything</i>, sorted, including the shelves you
@@ -7984,6 +8148,81 @@ export function showDraftingPrompt(){
                     gaps:promptGaps(f), promptText:buildDraftingPrompt(f)};
   renderCourses();
 }
+/* ================================================================
+   [THE DEMO SHELF] — one press, on a deployment nobody installs.
+
+   ⚠ IT DOES NOT REVERSE THE EMPTY-SHELF DECISION, and the distinction is
+   the whole reason it is built this way. SEED_LIBRARY is [] and stays []:
+   nothing ships ON the shelves in any build. CLAUDE.md's objection to the
+   old seed was never "books are bad", it was that "a shelf of 27 books
+   nobody chose was doing the ownership argument harm." A press is a
+   choice. A shelf that is already full when you arrive is not.
+
+   So this exists only where somebody is looking at the Pavilion rather
+   than living in it — a browser tab, no desktop bridge. The installed app
+   never offers it, and the button says what it is.
+
+   The content is generated by scripts/build-demo-shelf.mjs from the REAL
+   courses/ files and library-sources/, so it cannot drift from what is in
+   the repo. It is a dynamic import: its own chunk, downloaded only when
+   pressed, so the ordinary bundle is unchanged.
+
+   ⚠ Courses go in through parseCourse -> courseFromLesson -> addCourse,
+   the same three steps confirmReceivedCourse() uses. A second emitter for
+   the same object is exactly the drift rule 4 exists for, and addCourse()
+   is deliberately the ONE door onto the Board. */
+export function demoShelfLoaded(){
+  return (data.personalLibrary||[]).some(d => d.slug && d.slug.startsWith('demo-'));
+}
+export async function loadDemoShelf(){
+  const btn=document.getElementById('demoBtn');
+  if(demoShelfLoaded()){ return unloadDemoShelf(); }
+  if(btn){ btn.disabled=true; btn.textContent='Loading…'; }
+  let mod;
+  try{ mod=await import('../data/demo-shelf.js'); }
+  catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='📚 See a demo shelf'; }
+    showToast("Couldn't load the demo shelf — it may not be in this build.");
+    return;
+  }
+  let added=0, refused=0;
+  for(const b of mod.DEMO_BOOKS){
+    if(Store.getDoc(b.slug)) continue;
+    data.personalLibrary.push(JSON.parse(JSON.stringify(b)));
+    added++;
+  }
+  for(const text of mod.DEMO_COURSES){
+    const r=parseCourse(text,{user:currentUser()});
+    if(!r.ok || !r.lesson){ refused++; continue; }
+    const c=courseFromLesson(r.lesson,{id:Date.now()+Math.floor(Math.random()*1000),
+                                       categories:COURSE_CAT_IDS, today:todayKey()});
+    addCourse(c);
+  }
+  persist(); setHud();
+  if(btn){ btn.disabled=false; btn.textContent='✕ Clear the demo shelf'; }
+  logActivity('Loaded the demo shelf — '+added+' books and '+(mod.DEMO_COURSES.length-refused)+' courses.');
+  showToast(`Demo shelf loaded — ${added} books, ${mod.DEMO_COURSES.length-refused} courses. `
+    + `They behave exactly like books you brought in yourself.`);
+  if(state.ui) closeUI();
+}
+/* Reversible, because a demo you cannot get rid of is a seed shelf wearing
+   a button. Only ever touches what it added: demo- slugs, and the courses
+   whose titles match the ones it brought. */
+export async function unloadDemoShelf(){
+  const btn=document.getElementById('demoBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Clearing…'; }
+  let titles=[];
+  try{ const mod=await import('../data/demo-shelf.js');
+       titles=mod.DEMO_COURSES.map(t=>(/^title:\s*"?([^"\n]+)"?/m.exec(t)||[])[1]).filter(Boolean); }
+  catch(e){ /* clear the books anyway */ }
+  for(const d of (data.personalLibrary||[])) if(d.slug&&d.slug.startsWith('demo-')) Store.forgetDoc(d.slug);
+  data.personalLibrary=(data.personalLibrary||[]).filter(d=>!(d.slug&&d.slug.startsWith('demo-')));
+  if(titles.length) data.courses=(data.courses||[]).filter(c=>!titles.includes(c.title));
+  persist(); setHud();
+  if(btn){ btn.disabled=false; btn.textContent='📚 See a demo shelf'; }
+  showToast('Demo shelf cleared. Anything you added yourself is untouched.');
+}
+
 /* ----- ③ a course you can read before you write one ----- */
 export function loadStarterCourse(id){
   const sc=starterCourse(id); if(!sc) return;
@@ -12416,7 +12655,14 @@ function unrecognizedDropProject(){
 /* Shared by both drop paths (.txt and .epub) — a detected book fills the
    review form for a listed source, or routes to your own notes for an
    unrecognized one. Nothing is ever auto-shelved; this only pre-fills. */
-function fillDropForm(title, author, body, msg){
+/* ⚠ PARKED IN A MODULE VARIABLE, NOT IN THE FORM, and that is the only place it
+   can go: the form is DOM inputs and the pictures are ~1 MB of data URIs. Keyed
+   to the exact body text the form is holding, so a form the visitor has since
+   retyped or pasted over cannot silently inherit another book's figures — the
+   check is in shelveManualFormNow(), which is where it matters. */
+let pendingPictures=null;
+function fillDropForm(title, author, body, msg, pictures){
+  pendingPictures = pictures ? { body, pictures } : null;
   const sourceKey=document.getElementById('rmDropSource')?.value;
   const known=DROP_SOURCES[sourceKey];
   const size=body.length.toLocaleString();
@@ -12737,13 +12983,32 @@ export function acceptBundle(){
    `Title:` line are left exactly as their author wrote them — this cannot
    improve on a real title and must not try. */
 const fromFileName = n => tidyTitle(String(n||'').replace(/\.[a-z0-9]+$/i,''));
-async function parseBookFile(file){
+async function parseBookFile(file, onProgress){
   const name=file.name.toLowerCase();
   if(name.endsWith('.epub')){
     const res=await epubToText(file); // may throw (e.g. NO_DECOMPRESSION)
     if(!res.body || !res.body.trim()) throw new Error('no readable text (image-only?)');
+    /* THE PICTURES COME TOO, DOWNSCALED. An illustrated book whose figures are
+       dropped still reads as a complete book, which is what made this the bad
+       kind of silence: the acceptance case is 71 KB of prose that is mostly
+       captions ("You can see that in the last step…") for 113 pictures nobody
+       kept. Whatever comes back — including nothing — is reported to the
+       visitor rather than assumed. */
+    let pictures=null;
+    if(res.images && res.images.length){
+      /* the budget depends on where the figures can LIVE — a sidecar file on
+         the desktop, nowhere at all in a browser (see image-shrink.js) */
+      const budget=figureBudgetFor(!!(window.desktopBridge && window.desktopBridge.libraryWrite));
+      const shrunk=await shrinkFigures(res.images, { onProgress, budget });
+      const cover=res.cover
+        ? await shrinkImage(res.cover.bytes, res.cover.mediaType,
+            { edge:COVER_EDGE, maxBytes:COVER_MAX_BYTES })
+        : null;
+      pictures={ ...shrunk, cover };
+    }
     return { title:res.title||fromFileName(file.name), body:res.body,
-             author:res.author?tidyAuthor(res.author):null, fromName:!res.title };
+             author:res.author?tidyAuthor(res.author):null, fromName:!res.title,
+             pictures };
   }
   if(name.endsWith('.txt')){
     const text=await file.text();
@@ -12753,16 +13018,53 @@ async function parseBookFile(file){
   }
   throw new Error('not a .txt or .epub');
 }
+/* WHAT HAPPENED TO THE PICTURES, in one sentence a person can act on. Said at
+   intake AND kept on the book (see picturesNote), because a message that
+   scrolls away in four seconds is not honesty about something permanent. */
+export function picturesLine(p){
+  if(!p) return '';
+  if(!p.total) return '';
+  if(p.kept && !p.cut && !p.undecodable) return `🖼 ${p.kept} illustration${p.kept===1?'':'s'} came with it.`;
+  if(p.kept){
+    const lost=[];
+    if(p.cut) lost.push(`${p.cut} left out to keep the book a sensible size`);
+    if(p.undecodable) lost.push(`${p.undecodable} in a format this machine can't open`);
+    return `🖼 ${p.kept} of ${p.total} illustrations came with it — ${lost.join(', ')}.`;
+  }
+  /* THE BROWSER CASE IS NOT A FAILURE AND MUST NOT SOUND LIKE ONE. There is
+     nowhere for a browser to put a megabyte of pictures except the save, and
+     the save runs out at ~5 MB — so they are deliberately not kept, and the
+     sentence names the way through rather than apologising. */
+  if(!window.desktopBridge && p.cut === p.total){
+    return `🖼 This book has ${p.total} illustrations. A browser tab has nowhere to keep them — `
+      + `the text and the cover come in, and the desktop app keeps the pictures too.`;
+  }
+  return `🖼 This book has ${p.total} illustration${p.total===1?'':'s'} and none of them could be kept`
+    + `${p.undecodable?" — the format isn't one this machine can open":''}. The text is all there.`;
+}
 async function fillFromSingleFile(file, msg){
   const name=file.name.toLowerCase();
   if(name.endsWith('.epub')) msg.textContent='Unpacking the EPUB… a long book can take a few seconds.';
   else if(!name.endsWith('.txt')){
-    msg.textContent='Drop a .txt or .epub file here — or a .course.md, which opens the course receiver. (For a PDF, convert it first with '
-      +'tools/caravan/pdf-to-text.py, then drop the .txt.)';
+    /* NAME THE FORMATS RATHER THAN THE ONES WE HAVE. Dropping a .png used to
+       get "none of those are .txt or .epub", which answers a question nobody
+       asked. Say what happens to the thing they actually dropped. */
+    const ext=(/\.([a-z0-9]+)$/i.exec(name)||[])[1]||'';
+    msg.textContent = /^(png|jpe?g|gif|webp|bmp|tiff?|svg)$/i.test(ext)
+      ? "That's a picture, and a book here is text — a single image can't become one yet. "
+        +"An illustrated .epub does work, and brings its pictures with it."
+      : ext==='pdf'
+        ? "PDFs aren't read in the game yet. Convert it first with tools/caravan/pdf-to-text.py, then drop the .txt."
+        : 'Drop a .txt or .epub file here — or a .course.md, which opens the course receiver. (For a PDF, convert it first with '
+          +'tools/caravan/pdf-to-text.py, then drop the .txt.)';
     return;
   }
   let b;
-  try{ b=await parseBookFile(file); }
+  try{
+    b=await parseBookFile(file, (done, all) => {
+      msg.textContent=`Unpacking the EPUB… ${done} of ${all} illustrations so far.`;
+    });
+  }
   catch(err){
     const m=String(err&&err.message||'');
     msg.textContent = m.includes('NO_DECOMPRESSION')
@@ -12772,7 +13074,9 @@ async function fillFromSingleFile(file, msg){
         +"tools/caravan/epub-to-text.py, which prints a clearer reason.";
     return;
   }
-  fillDropForm(b.title, b.author, b.body, msg);
+  fillDropForm(b.title, b.author, b.body, msg, b.pictures);
+  const pl=picturesLine(b.pictures);
+  if(pl) msg.textContent = msg.textContent + '  ' + pl;
 }
 /* Bulk add — many personal books in one drop/pick. Each lands on the shelf
    chosen in #rmTradition, marked 👤 as yours; personal copies need no license or
@@ -13215,6 +13519,11 @@ export function rejectReviewItem(id){
    folder (falling back to inline-in-save in a browser, where big books
    get refused honestly rather than corrupting the save). */
 const INLINE_PERSONAL_MAX = 1500000; // ~1.5MB of text — past this, a browser's localStorage save genuinely can't hold it
+/* What the save weighs right now, read from the store rather than guessed —
+   it is one localStorage key, so its own length IS the number that matters. */
+function estimatedSaveBytes(){
+  try{ return JSON.stringify(data).length; }catch(e){ return 0; }
+}
 /* The one place a personal book actually gets built and shelved — shared by
    the queue's "Shelve" button and the drop form's direct "Add to my Library
    now". It files the book under the tradition you chose, so it lands on that
@@ -13234,7 +13543,7 @@ const INLINE_PERSONAL_MAX = 1500000; // ~1.5MB of text — past this, a browser'
 
    That is also why the database showed 294 books and 118 authors: the loader
    was recovering from the text what the intake had discarded on the way in. */
-async function shelveAsPersonal({title, body, author, license, source, tradition, summary, sections}){
+async function shelveAsPersonal({title, body, author, license, source, tradition, summary, sections, pictures}){
   body=body||'';
   const bridge=window.desktopBridge;
   if(!(bridge&&bridge.libraryWrite) && body.length>INLINE_PERSONAL_MAX)
@@ -13285,7 +13594,58 @@ async function shelveAsPersonal({title, body, author, license, source, tradition
   }
   if(!storedAsFile){
     if(body.length>INLINE_PERSONAL_MAX) return { ok:false, reason:"Couldn’t write the file — try again." };
+    /* ⚠ REFUSE BEFORE THE QUOTA THROWS, NOT AFTER. Measured: the ninth
+       average-sized book takes a browser save past ~5 MB and setItem throws.
+       persist() does catch it — but by then the book is on the shelf in memory
+       and simply will not survive the reload, and the visitor learns this from
+       a generic "storage may be full" alert. A refusal that names the number
+       and the way through is the whole difference between a limit and a bug. */
+    if(!(bridge && bridge.libraryWrite)){
+      const room=webRoom(estimatedSaveBytes(), body.length);
+      if(!room.fits){
+        return { ok:false, reason:`This browser tab is full — a tab keeps every book's text inside `
+          + `one ~5 MB save, and yours is at ${humanBytes(room.used)}. The desktop app stores books `
+          + `as real files instead, with room for hundreds. Nothing you already have is affected.` };
+      }
+    }
     fullText.text=body;
+  }
+  /* ★ THE PICTURES, AND WHERE THEY GO (2026-08-18).
+
+     An illustrated book is mostly pictures — 99.4% of the acceptance case —
+     and the figures ARE the content of a drawing book. They are already
+     downscaled by the time they reach here (see image-shrink.js: 113 of them
+     in 1.12 MB), but 1.12 MB of base64 is still ~1.5 MB in the save, which is
+     the exact weight the text path goes out of its way to keep out of it.
+
+     SO THE SIDECAR IS A .txt FILE, and no bridge change was needed to allow
+     it: safeLibraryName() in electron/main.cjs accepts
+     /^[a-z0-9][a-z0-9._-]{0,120}\.txt$/i, and `<slug>.images.txt` matches. It
+     is JSON in a .txt, which looks odd for exactly one second and then is the
+     already-tested write path instead of a new one. A browser has no bridge
+     and keeps them inline, under the same budget.
+
+     `pics` on the record is a POINTER, never the payload — same shape as
+     fullText.storage, so the two agree about how a big thing is kept. */
+  let pics=null;
+  if(pictures && (pictures.cover || (pictures.figs && Object.keys(pictures.figs).length))){
+    /* THE SAME FIELD NAMES shrinkFigures() returns, so picturesLine() reads a
+       stored record and a fresh import identically. Renaming `kept` to `n` on
+       the way in was a live bug for ten minutes: the intake sentence was right
+       and the book's own permanent one said "undefined of 113". */
+    pics={ kept:pictures.kept||0, total:pictures.total||0, cut:pictures.cut||0,
+           undecodable:pictures.undecodable||0, cover:pictures.cover||null };
+    const figs=pictures.figs||{};
+    if(Object.keys(figs).length){
+      let wroteFile=false;
+      if(bridge && bridge.libraryWrite){
+        try{
+          const res=await bridge.libraryWrite(slug+'.images.txt', JSON.stringify(figs));
+          if(res && res.ok){ pics.storage={ personal:slug+'.images.txt' }; wroteFile=true; }
+        }catch(e){ /* fall through to inline */ }
+      }
+      if(!wroteFile) pics.figs=figs; // a browser keeps them in the save, budget already applied
+    }
   }
   const shelf=(tradition && tradition.trim()) ? tradition.trim() : 'Personal';
   const sum=summary || (body.slice(0,240).replace(/\s+\S*$/,'')+(body.length>240?'…':''));
@@ -13299,7 +13659,7 @@ async function shelveAsPersonal({title, body, author, license, source, tradition
        and the catalogue lookup a resident now searches). */
     attribution:(author && author.trim()) || 'Added by you — your own addition, not the certified commons',
     added:todayKey(), category:'personal', personal:true,
-    doc:{ summary:sum, sections:sections||[], fullText },
+    doc:{ summary:sum, sections:sections||[], fullText, ...(pics?{pics}:{}) },
   });
   persist();
 
@@ -13422,8 +13782,11 @@ export async function shelveManualFormNow(){
   const source=document.getElementById('rmSource').value.trim();
   const author=(document.getElementById('rmAuthor')?.value||'').trim();
   if(msg) msg.textContent='Shelving…';
-  const res=await shelveAsPersonal({ title, body, author, license, source, tradition });
+  /* the figures belong to the text they were unpacked with, and to no other */
+  const pictures=(pendingPictures && pendingPictures.body.trim()===body) ? pendingPictures.pictures : null;
+  const res=await shelveAsPersonal({ title, body, author, license, source, tradition, pictures });
   if(!res.ok){ if(msg) msg.textContent=res.reason; return; }
+  pendingPictures=null;
   // Clear the book fields so the same text can't be added twice by a stray
   // second click; the shelf stays picked in case you're adding several to it.
   ['rmTitle','rmAuthor','rmBody','rmLicense','rmSource'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
@@ -13462,7 +13825,20 @@ export function removePersonalBook(slug, from){
   } else if(st && st.key && bridge && bridge.minioDelete){
     bridge.minioDelete(st.key); // best-effort — a leftover MinIO object is harmless
   }
+  /* ⚠ AND THE DATABASE ROW, or the book comes back as a ghost. hydrateFromDb()
+     pushes your own books up and pulls them down again on the next boot, so
+     until 2026-08-18 removing a book cleared the save and the text file and
+     left a row that reappeared in the Index — present in the catalogue, absent
+     from the sorter, and unremovable from inside the game. Best-effort like the
+     two deletes above: the book is already off your shelf either way. The FKs
+     do the rest (chapters cascade, notes are SET NULL, so notes survive). */
+  if(bridge && bridge.dbWrite){
+    try{ bridge.dbWrite('deleteCard',[slug]); }catch(e){ /* the shelf is what matters */ }
+  }
   data.personalLibrary=data.personalLibrary.filter(d=>d.slug!==slug);
+  /* the in-memory catalogue is hydrated once at boot, so it still holds the row
+     we just deleted — drop it there too or the Index shows it until a restart */
+  if(Store.forgetDoc) Store.forgetDoc(slug);
   persist(); logActivity('Removed "'+b.title+'" from Your Shelf.');
   /* renderManageLibrary() did not exist — the old Manage panel was replaced by
      My Library and its redraw was never repointed. Nothing passes 'manage'
@@ -15417,6 +15793,7 @@ Object.assign(window, {
   openInventory, toggleInventory, currentDocSlug, suggestInventoryCategories,
   openReviewQueue, newReviewImportForm, newReviewManualForm, newSCSearchForm, backToReviewList, importReviewCandidates, submitManualReviewItem, handleBookDrop, handleBookFilePick,
   shelvePersonalBook, shelveManualFormNow, removePersonalBook, openWelcome,
+  loadDemoShelf, unloadDemoShelf, demoShelfLoaded,
   openManageLibrary, movePersonalBook,
   toggleEventReminder, dismissButlerPing, butlerPingGo,
   searchSuttaCentral, fetchSuttaCentralText,

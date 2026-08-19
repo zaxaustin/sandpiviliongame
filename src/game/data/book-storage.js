@@ -109,6 +109,36 @@ export function storageSummary(docs) {
    PURE, so the cap ARRIVES AS AN ARGUMENT. This module must not read `data` —
    that is what keeps it testable, and it is why the caller passes the number
    rather than this file reaching for it. */
+/* ⚠ THE BROWSER'S WALL, MEASURED RATHER THAN ASSUMED (2026-08-18).
+
+   In a tab every book's text goes INTO the save, and the save is one
+   localStorage key. Against the deployed build, adding real-sized (563 KB)
+   books one at a time: books 1–9 fine, and the NINTH takes it to ~5.07 MB
+   where `setItem` throws QuotaExceededError. Chrome's per-origin quota is
+   ~5 MB and it is a hard wall, not a soft one.
+
+   What happened at that wall was honest but late: persist() catches the throw,
+   Store.save() returns false, and the visitor gets one alert saying storage may
+   be full — AFTER the book is already on the shelf in memory and will not
+   survive a reload. Nobody wants to find out that way.
+
+   So the refusal moves BEFORE the write. WEB_SAVE_CEILING leaves ~700 KB of
+   headroom below the measured wall, because the save is not only books: notes,
+   days, courses and progress all live in the same key and keep growing after
+   the last book is added. Reserve for them, or the library fills the room its
+   own notes need.
+
+   This is a browser number ONLY. The desktop app writes text to real files and
+   is bounded by DEFAULT_LOCAL_BOOK_CAP below instead — which is why the honest
+   refusal names the desktop app rather than telling anyone to delete a book. */
+export const WEB_SAVE_CEILING = 4300 * 1024;
+export function webRoom(saveBytes, incomingBytes){
+  const used = Math.max(0, saveBytes || 0);
+  const next = used + Math.max(0, incomingBytes || 0);
+  return { used, next, ceiling: WEB_SAVE_CEILING, fits: next <= WEB_SAVE_CEILING,
+           freeBytes: Math.max(0, WEB_SAVE_CEILING - used) };
+}
+
 export const DEFAULT_LOCAL_BOOK_CAP = 500;
 
 /* The floor exists so a mistyped 0 cannot make the shelf unusable, and the

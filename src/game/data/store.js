@@ -109,10 +109,79 @@ export function categoryForShelf(shelf){
 function withCategory(docs){
   return docs.map(d => d && d.category ? d : { ...d, category: categoryForShelf(d && d.tradition) });
 }
+/* THE SAVE WINS, IN ONE PLACE. A real card beats a filename-derived one on
+   every field, and a shelf the visitor assigned beats a null every time. Used
+   by hydrateFromDb() on the way down from the database AND by mergedDocs() when
+   the same slug arrives from both directions — two copies of this rule would
+   disagree within a week, which is rule 4's shape.
+
+   ⚠ `personal` is carried deliberately. Without it a book that has been through
+   the database loses its 👤 badge and stops looking like yours. */
+function mergeSaveOverRow(base, own){
+  if(!own) return base;
+  if(!base) return own;
+  return {
+    ...base,
+    title:       own.title       || base.title,
+    attribution: own.attribution || base.attribution,
+    license:     own.license     || base.license,
+    source_url:  own.source_url  || base.source_url,
+    tradition:   own.tradition   || base.tradition,
+    kind:        own.kind        || base.kind,
+    personal:    own.personal    || base.personal,
+    added:       own.added       || base.added,
+    doc: { ...base.doc, ...own.doc,
+           fullText: (own.doc && own.doc.fullText) || base.doc.fullText },
+  };
+}
+
+/* ⚠ ONE ENTRY PER SLUG, AND UNTIL 2026-08-18 THERE WAS NOT.
+
+   This was a plain `libraryDocs.concat(personalDocs())`. hydrateFromDb() pushes
+   the visitor's own books UP into Postgres (it has to — notes.slug is a foreign
+   key into books) and pulls them back DOWN into libraryDocs on the next boot.
+   So every personal book that survived one restart appeared in the catalogue
+   TWICE: once hydrated, once from the save.
+
+   Measured on the steward's machine: the Index showed 431 personal books and
+   the sorter, which reads data.personalLibrary directly, showed 367. The
+   duplicates are visibly identical rows — the same title, twice, one marked
+   NEW — and they are why removing a book and adding it again looked broken.
+
+   THE SAME BUG IS ALREADY ANTICIPATED TWENTY LINES BELOW, for the seed:
+   "The seed is concatenated, never merged, so a seed book arriving back from
+   the database would appear TWICE... Filtered by slug rather than trusted not
+   to happen." One case was filtered and the other was not — and since
+   SEED_LIBRARY is [] the filtered case does nothing, while the unfiltered one
+   is now every book in the Pavilion. */
 function mergedDocs(){
   const p = personalDocs();
-  return withCategory(applyOverrides(p.length ? libraryDocs.concat(p) : libraryDocs));
+  if(!p.length) return withCategory(applyOverrides(libraryDocs));
+  const bySlug = new Map();
+  const order = [];
+  for(const d of libraryDocs){
+    if(!d || !d.slug) continue;
+    if(!bySlug.has(d.slug)) order.push(d.slug);
+    bySlug.set(d.slug, d);
+  }
+  for(const d of p){
+    if(!d || !d.slug) continue;
+    if(!bySlug.has(d.slug)) order.push(d.slug);
+    bySlug.set(d.slug, mergeSaveOverRow(bySlug.get(d.slug), d));
+  }
+  return withCategory(applyOverrides(order.map(s => bySlug.get(s))));
 }
+/* DROP A SLUG FROM THE HYDRATED CATALOGUE. libraryDocs is filled ONCE at boot
+   (see hydrateFromDb — every read is synchronous and mid-render, so it cannot
+   be a query), which means deleting a book from the save and from the database
+   still leaves it on screen until a restart. This is the third place a removal
+   has to reach, and it is the one that makes the removal look like it worked. */
+export function forgetDoc(slug){
+  const before = libraryDocs.length;
+  libraryDocs = libraryDocs.filter(d => d.slug !== slug);
+  return before !== libraryDocs.length;
+}
+
 /* Kept as a resolved promise so the handful of callers that await it (the
    title screen's status line) need no change. There is nothing to wait for
    any more: the catalogue is the bundled seed plus whatever you added, and
@@ -234,17 +303,7 @@ export async function hydrateFromDb(opts = {}){
     const base = docFromRow(r, bucket);
     if(!own) return base;
     bySlug.delete(r.slug);              // matched; not a new book
-    return {
-      ...base,
-      title:       own.title       || base.title,
-      attribution: own.attribution || base.attribution,
-      license:     own.license     || base.license,
-      source_url:  own.source_url  || base.source_url,
-      tradition:   own.tradition   || base.tradition,
-      kind:        own.kind        || base.kind,
-      doc: { ...base.doc, ...own.doc,
-             fullText: (own.doc && own.doc.fullText) || base.doc.fullText },
-    };
+    return mergeSaveOverRow(base, own); // the one definition, shared with mergedDocs()
   });
 
   /* Only claim the library came from the database when it actually did.
@@ -511,6 +570,7 @@ export const Store = (() => {
     registerCatalogOverrides,
     // the database — Docker Postgres or the built-in one, see the block above
     dbAvailable, dbQuery, dbWrite, dbStatus, hydrateFromDb, syncNotes, syncRecords, syncChapters,
+    forgetDoc,
     allDocs(){ return mergedDocs(); },
     listDocs(tradition){ return mergedDocs().filter(d => d.tradition === tradition); },
     getDoc(slug){ return mergedDocs().find(d => d.slug === slug) || null; },

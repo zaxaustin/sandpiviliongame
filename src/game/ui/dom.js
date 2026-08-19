@@ -116,6 +116,31 @@ export const NOTE_SELECT_STYLE =
   'width:100%;background:#1b140d;border:2px solid #55432e;border-radius:7px;' +
   'color:#f5e9d4;font-family:inherit;font-size:13px;padding:7px 9px';
 
+/* ⚠ IS THE TITLE SCREEN STILL UP? — and why a one-line predicate earns a home.
+
+   Three panels are reachable BEFORE "Enter the Grounds" is pressed: the
+   Connections panel, the welcome panel, and the walk. #title is z-index:10 and
+   an .overlay is z-index:9, so anything else opened while the title screen is
+   showing mounts BEHIND it — .open applied, state.ui set, and nothing visible.
+   That shipped: "🧭 New here? Start here" was invisible for months.
+
+   The three that belong there get a z-index exception in style.css and npm test
+   derives the list. This is the other half: a panel that does NOT belong over
+   the title screen must not be opened from one. The Connections panel's
+   "← Back to menu" did exactly that, and the pause menu is the worst possible
+   landing — it is full of PLACES buttons that would each open another invisible
+   overlay, so raising its z-index would have traded one dead button for a menu
+   of them.
+
+   main.js has tested this same style property inline five times since the title
+   screen existed. One definition, because a predicate copied six ways is how
+   the sixth gets the comparison backwards. */
+export function atTitleScreen() {
+  if (typeof document === 'undefined') return false;
+  const t = document.getElementById('title');
+  return !!t && t.style.display !== 'none';
+}
+
 /* For a string going into a JS single-quoted literal that is ITSELF inside
    an HTML attribute — two layers, and getting one of them wrong is a button
    that silently does nothing (the house failure mode). Escape for JS first,
