@@ -4363,7 +4363,9 @@ function renderShelf(){
       <div class="shelfCase">${row.map((d,i)=>spine(d, start+i)).join('')}</div></div>`);
   }
   document.getElementById('shelfList').innerHTML = docs.length ? rows.join('') + `
-    <div class="bookLabel">
+    <div class="bookLabel"${coverOf(sel.slug)?' style="display:flex;gap:14px;align-items:flex-start"':''}>
+      ${coverImg(sel.slug, 84)}
+      <div style="flex:1;min-width:0">
       <div class="blTitle">${esc(sel.title)}
         ${data.read[sel.slug]?'<span class="badge">read ✓</span>':''}
         ${isRecentlyAdded(sel.added)?'<span class="badge">NEW</span>':''}
@@ -4376,6 +4378,7 @@ function renderShelf(){
         ${state.shelfTradition==='Personal'?'<button class="btn ghost" onclick="openManageLibrary()">⚙ Manage my books</button>':''}
       </div>
       <div class="blHint">◀ ▶ browse the shelf · Enter / E open</div>
+      </div>
     </div>` : emptyShelfText(state.shelfTradition);
 }
 export function selectBook(i){
@@ -5372,6 +5375,29 @@ function emptyLibraryOnRamp(){
     📥 Bring a book in lists them with links.</div>`;
 }
 
+/* ★ THE BOOK'S OWN COVER, where a book is listed.
+
+   ⚠ THIS EXISTED AS STORED DATA FOR A DAY BEFORE ANYTHING DREW IT, which is
+   this project's oldest bug shape — a field written on every import that no
+   surface ever read. It mattered most exactly where it was least visible: a
+   BROWSER keeps the cover and deliberately nothing else (see
+   figureBudgetFor), so on the web build the cover was the only picture an
+   illustrated book had, and it was invisible.
+
+   Same data: guard as paintFullTextPage, and for the same reason — this comes
+   off disk on the desktop path, and an <img src> should never fetch. */
+function coverOf(slug){
+  const d = Store.getDoc(slug);
+  const url = d && d.doc && d.doc.pics && d.doc.pics.cover;
+  return (typeof url === 'string' && /^data:image\//.test(url)) ? url : null;
+}
+function coverImg(slug, px){
+  const url = coverOf(slug);
+  if(!url) return '';
+  const w = px || 44;
+  return `<img class="bookCover" src="${esc(url)}" alt="" loading="lazy" style="width:${w}px">`;
+}
+
 /* WHERE THIS ONE BOOK'S TEXT IS, on the card itself. Read off the book's own
    pointer by data/book-storage.js, never off what happens to be running — so
    a book written to Docker still says Docker with the container stopped,
@@ -5525,11 +5551,17 @@ function renderIndex(){
         onclick="setIndexCategory('${c.id}')">${esc(c.label)} <span class="badge">${counts[c.id]||0}</span></button>`).join('')}
     </div>
     ${shelfStorageLine()}
-    ${shown.length ? shown.map(i=>`
-      <div class="card" onclick="openIndexItem('${i.kind}','${i.slug}')">
+    ${shown.length ? shown.map(i=>{
+      /* the cover sits BESIDE the card's existing two lines rather than above
+         them, so a card with one and a card without are the same height and
+         the list does not go ragged when only some books have art */
+      const cov = i.kind==='library' ? coverImg(i.slug, 40) : '';
+      const body = `<div style="flex:1;min-width:0">
         <div class="t">${i.kind==='library'?'📖':'📔'} ${esc(i.title)}${i.kind==='library'?` <span class="badge lic">${esc(i.license)}</span>`:''}${i.kind==='library'?bookStorageBadge(i.slug):''}${isRecentlyAdded(i.added)?' <span class="badge">NEW</span>':''}</div>
-        <div class="s">${esc(i.sub||'')}</div>
-      </div>`).join('') : `<p>${search?'Nothing matches that search.':''}</p>${search?'':emptyLibraryOnRamp()}`}`;
+        <div class="s">${esc(i.sub||'')}</div></div>`;
+      return `<div class="card" onclick="openIndexItem('${i.kind}','${i.slug}')"
+        ${cov?'style="display:flex;gap:10px;align-items:flex-start"':''}>${cov}${body}</div>`;
+    }).join('') : `<p>${search?'Nothing matches that search.':''}</p>${search?'':emptyLibraryOnRamp()}`}`;
 }
 
 /* ================================================================

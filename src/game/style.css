@@ -343,6 +343,48 @@ body { font-family:var(--font-mono); touch-action:none; }
   border-radius:4px; box-shadow:0 1px 6px rgba(40,28,12,.28);
 }
 
+/* A BOOK'S OWN COVER, in a list. Fixed aspect box rather than natural size:
+   covers arrive at whatever shape the publisher chose, and a list where every
+   row is a different height reads as broken rather than various. `object-fit:
+   cover` crops instead of squashing — a squashed cover looks like a bug, a
+   cropped one looks like a thumbnail. */
+.bookCover {
+  flex:0 0 auto; aspect-ratio:2/3; object-fit:cover; object-position:top center;
+  border-radius:3px; background:#e8dcc2;
+  box-shadow:0 1px 4px rgba(20,14,6,.45), 0 0 0 1px rgba(255,240,210,.12);
+}
+
+/* ---------- THE READER LOOKS LIKE A BOOK ----------
+   Asked for 2026-08-18: "flipping pages and looking at a book really reads
+   like a text file rather than holding an actual book. There's no page turning
+   animation, there's no outline of a book on the outside."
+
+   This is the OUTLINE half — the cheap half, and the one that changes the
+   feeling most per line spent. No page-curl library (the sleeper car stands,
+   and every one of them wants a canvas for what a shadow gets 90% of): a
+   spine down the left edge, the block of pages seen from the right, and a
+   shadow underneath so it sits ON the desk rather than in front of it.
+
+   Drawn with box-shadow rather than extra elements, so it costs the renderer
+   nothing and cannot break the panel's layout — the reader is already a
+   scroll container and a flex parent, and adding real page-edge divs to it
+   was how this got deferred the first time. */
+.bookPanel {
+  position:relative;
+  box-shadow:
+    /* the block of pages, seen edge-on down BOTH sides — an open book shows
+       its leaves on the outside of each page, not just the right */
+    -4px 0 0 -1px #e2d4b6, -7px 0 0 -1px #c9b993,
+    4px 0 0 -1px #e2d4b6, 7px 0 0 -1px #c9b993,
+    /* the board, and the shadow it casts on the desk */
+    0 0 0 2px #7a5f3c,
+    0 16px 38px rgba(8,5,2,.6);
+}
+@media (max-width:720px){
+  /* on a narrow screen the leaves would eat real reading width */
+  .bookPanel { box-shadow:0 0 0 2px #7a5f3c, 0 10px 26px rgba(8,5,2,.5); }
+}
+
 /* ============================================================
    A PAGE OF A BOOK, LAID ON A DESK.
 
@@ -556,8 +598,19 @@ input[type=time]:focus, input[type=date]:focus { outline:none; border-color:#e0a
   #readerOv .panel { width:min(1000px, 100%); display:flex; flex-wrap:wrap; column-gap:28px; }
   #readerOv .panel > .xbtn, #readerOv .panel > h2, #readerOv .panel > .meta { flex:0 0 100%; }
   #readerOv #rdSummaryView, #readerOv #rdFullTextView { flex:1 1 52%; min-width:320px; }
+  /* ⚠ THE FOLD, NOT THE SPINE, IS WHAT MAKES THIS READ AS A BOOK. The first
+     attempt at "an outline of a book" put a spine down the far left of the
+     panel — and LOOKING at it, the panel is a thousand pixels wide, so an edge
+     treatment out there reads as a border and nothing more. This layout is
+     already an open two-page spread: text on the left, notes on the right,
+     with a rule between them. Shading BOTH sides of that rule is the gutter of
+     an open book, and it is the one place the eye already goes. */
   #readerOv #rdNotesView {
     flex:1 1 280px; max-width:320px; border-left:2px solid #d8c393; padding-left:22px;
+    box-shadow:inset 16px 0 16px -16px rgba(92,68,38,.45);
+  }
+  #readerOv #rdSummaryView, #readerOv #rdFullTextView {
+    box-shadow:inset -16px 0 16px -16px rgba(92,68,38,.34);
   }
   #rdNotesHead { margin-top:0; }
 }
