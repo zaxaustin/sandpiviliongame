@@ -4924,6 +4924,13 @@ function paintFullTextPage(el, text, figs){
     if(part.text!=null){ el.appendChild(document.createTextNode(part.text)); continue; }
     const url=figs[part.fig];
     if(!url) continue; // a figure that was cut is simply absent; the book says so elsewhere
+    /* ⚠ ONLY EVER AN INLINE IMAGE. These come back from a JSON file under
+       userData, which the app wrote — but a file on disk is editable by
+       anything that can reach the disk, and this value goes straight into a
+       src. Nothing here should ever be a URL that fetches, so anything that is
+       not a data:image/ payload is dropped rather than trusted. It costs one
+       comparison and closes the only opening this feature added. */
+    if(!/^data:image\//.test(url)) continue;
     const img=document.createElement('img');
     img.src=url; img.className='bookFigure'; img.loading='lazy'; img.alt='';
     el.appendChild(img);

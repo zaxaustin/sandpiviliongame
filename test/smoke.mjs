@@ -210,6 +210,33 @@ const fail = (msg) => failures.push(msg);
     }
   }
 
+  /* 9 · a figure src is only ever an inline image.
+     Figures come back from a JSON file under userData. The app wrote it, but a
+     file on disk is editable by anything that reaches the disk, and the value
+     goes straight into an <img src>. Nothing here should ever fetch. */
+  {
+    /* ⚠ READ FROM THE RAW SOURCE, NOT THE COMMENT-STRIPPED COPY. The check it
+       is looking for is written `/^data:image\//` — and inside that regex
+       literal the characters `\` `/` `/` look exactly like the start of a line
+       comment, so noComments() truncates the line and the guard fails against
+       code that is perfectly correct. Found by the guard going red on its first
+       run with the fix in place. Matching on `data:image` (no trailing slash)
+       for the same reason. */
+    const ovRaw = readFileSync(new URL('../src/game/ui/overlays.js', import.meta.url), 'utf8');
+    /* ⚠ BLOCK COMMENTS ONLY. Two opposite traps, one line apart:
+       noComments() would eat the code (the `\/` `/` inside the regex literal
+       reads as a line comment), and NOT stripping at all leaves the block
+       comment above the check — which itself says "data:image" and satisfied
+       this guard with the check deleted. Caught by sabotage, not by reading. */
+    const paint = fnBody(ovRaw, 'paintFullTextPage').replace(/\/\*[\s\S]*?\*\//g, ' ');
+    if (!paint) fail('smoke: could not find paintFullTextPage() in overlays.js');
+    else if (!/data:image/.test(paint)) {
+      fail('paintFullTextPage() sets img.src from the figure map without checking it is a '
+         + 'data:image/ payload. That map is read off disk; anything else in it would be a URL '
+         + 'the reader fetches while showing a book.');
+    }
+  }
+
   /* 8 · THE DEMO SHELF CANNOT DRIFT FROM ITS SOURCES.
      src/game/data/demo-shelf.js is generated from courses/*.course.md and
      library-sources/. Committing a generated file beside its inputs is a list
